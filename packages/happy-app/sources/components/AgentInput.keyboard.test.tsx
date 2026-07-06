@@ -116,6 +116,10 @@ const {
     reduceAgentInputKeyboardState,
 } = await import('./AgentInput');
 
+// R8c: the reducer + initial state were relocated to the fork-owned module; AgentInput
+// re-exports them. Import the fork module directly to prove the re-export is identity-equal.
+const forkKeyboard = await import('../fork/agentInput/keyboardStateMachine');
+
 function baseProps() {
     return {
         value: '',
@@ -137,8 +141,38 @@ describe('AgentInput keyboard interactions', () => {
         reactActEnvironment.IS_REACT_ACT_ENVIRONMENT = true;
     });
 
-    it('keeps deterministic keyboard transition state for overlay and autocomplete keys', () => {
-        const focused = reduceAgentInputKeyboardState(initialAgentInputKeyboardState, { type: 'tabFromTextarea' });
+    it('re-exports the relocated fork keyboard reducer as an identity move', () => {
+        // Pure move + re-export: the symbols exposed by ./AgentInput must be the very
+        // same references the fork module exports (proves behavior is byte-identical).
+        expect(reduceAgentInputKeyboardState).toBe(forkKeyboard.reduceAgentInputKeyboardState);
+        expect(initialAgentInputKeyboardState).toBe(forkKeyboard.initialAgentInputKeyboardState);
+        expect(forkKeyboard.initialAgentInputKeyboardState).toEqual({
+            focusTarget: 'textarea',
+            overlayOpen: false,
+            pickerOpen: false,
+            autocompleteOpen: false,
+        });
+        // Spot-check the transition table through the fork module directly.
+        const focused = forkKeyboard.reduceAgentInputKeyboardState(
+            forkKeyboard.initialAgentInputKeyboardState,
+            { type: 'tabFromTextarea' },
+        );
+        expect(focused).toEqual({
+            focusTarget: 'firstOverlayControl',
+            overlayOpen: true,
+            pickerOpen: false,
+            autocompleteOpen: false,
+        });
+        // enterOnOverlayControl is a no-op unless focus is already on the overlay control.
+        expect(
+            forkKeyboard.reduceAgentInputKeyboardState(
+                forkKeyboard.initialAgentInputKeyboardState,
+                { type: 'enterOnOverlayControl' },
+            ),
+        ).toBe(forkKeyboard.initialAgentInputKeyboardState);
+    });
+
+    it('keeps deterministic keyboard transition state for overlay and autocomplete keys', () => {        const focused = reduceAgentInputKeyboardState(initialAgentInputKeyboardState, { type: 'tabFromTextarea' });
         expect(focused.focusTarget).toBe('firstOverlayControl');
         expect(focused.overlayOpen).toBe(true);
 

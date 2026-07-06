@@ -69,7 +69,7 @@ vi.mock('@expo/vector-icons', () => ({
     Octicons: (props: Record<string, unknown>) => React.createElement('Octicon', props),
 }));
 vi.mock('expo-image', () => ({ Image: (props: Record<string, unknown>) => React.createElement('Image', props) }));
-vi.mock('@/assets/images/icon-voice-white.png', () => ({ default: 'voice-icon' }));
+vi.mock('../fork/agentInput/voiceIcon', () => ({ getVoiceMicIcon: () => 'voice-icon' }));
 vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}) } }));
 vi.mock('@/text', () => ({ t: (key: string) => `translated:${key}` }));
 vi.mock('@/sync/storage', () => ({
@@ -170,8 +170,9 @@ describe('AgentInput active-mode regression affordances', () => {
 
         expect(countByTestId(activeRenderer!.root, 'agent-input-active-context-row')).toBeGreaterThan(0);
         expect(countByTestId(activeRenderer!.root, 'agent-input-git-status-button')).toBeGreaterThan(0);
-        // agent-input-voice-mic is not rendered (voice feature absent from this fork); assertion corrected from toBeGreaterThan(0)
-        expect(countByTestId(activeRenderer!.root, 'agent-input-voice-mic')).toBe(0);
+        // R8c RESTORE (mic/voice from upstream cli-1.1.10): with `onMicPress` provided
+        // and an empty composer (value: ''), the send button renders the voice affordance.
+        expect(countByTestId(activeRenderer!.root, 'agent-input-voice-mic')).toBeGreaterThan(0);
         expect(countByTestId(activeRenderer!.root, 'agent-input-abort-button')).toBeGreaterThan(0);
         expect(countByAccessibilityLabel(activeRenderer!.root, 'translated:requestSwitch.whenIdle')).toBeGreaterThan(0);
         expect(countByTestId(activeRenderer!.root, 'agent-input-deferred-switch-button')).toBeGreaterThan(0);

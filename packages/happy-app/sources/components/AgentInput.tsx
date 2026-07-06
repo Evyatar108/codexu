@@ -25,6 +25,17 @@ import { useChatWidth, CHAT_WIDTH_MARGIN_OPTIONS } from '@/hooks/useChatWidth';
 import { useIsTablet } from '@/utils/responsive';
 import { useFileAttachment, type FileAttachment } from '@/hooks/useFileAttachment';
 import { AttachmentChip } from '@/components/composer/AttachmentChip';
+// FORK PATCH: [RESTORE-R8c] AgentInput e-ink keyboard state machine + text-size/chat-width overlays relocated; upstream mic/voice restored (invariant HA-6)
+// Relocated logic lives in sources/fork/agentInput/{keyboardStateMachine,ComposerLayoutOverlays}; see docs/happy-patch-surface.md.
+import { Image } from 'expo-image';
+import { ComposerLayoutOverlays } from '../fork/agentInput/ComposerLayoutOverlays';
+import { getVoiceMicIcon } from '../fork/agentInput/voiceIcon';
+import {
+    initialAgentInputKeyboardState,
+    reduceAgentInputKeyboardState,
+    type AgentInputKeyboardState,
+    type AgentInputKeyboardAction,
+} from '../fork/agentInput/keyboardStateMachine';
 
 type AgentInputMode = 'new' | 'active';
 
@@ -92,6 +103,11 @@ interface AgentInputProps {
     onAttachmentPress?: () => void;
     attachmentsPreview?: React.ReactNode;
     projectPathHeader?: React.ReactNode;
+    // R8c RESTORE (mic/voice from upstream cli-1.1.10): when `onMicPress` is
+    // provided and there is no sendable content, the send button becomes a voice
+    // affordance. `isMicActive` suppresses the mic icon while recording is live.
+    onMicPress?: () => void;
+    isMicActive?: boolean;
 }
 
 interface AgentInputRenderConfig {
@@ -105,67 +121,16 @@ interface AgentInputRenderConfig {
     allowEmptySend: boolean;
 }
 
-export interface AgentInputKeyboardState {
-    focusTarget: 'textarea' | 'firstOverlayControl';
-    overlayOpen: boolean;
-    pickerOpen: boolean;
-    autocompleteOpen: boolean;
-}
-
-export type AgentInputKeyboardAction =
-    | { type: 'tabFromTextarea' }
-    | { type: 'openPicker' }
-    | { type: 'enterOnOverlayControl' }
-    | { type: 'escape' }
-    | { type: 'toggleAutocomplete' };
-
-export const initialAgentInputKeyboardState: AgentInputKeyboardState = {
-    focusTarget: 'textarea',
-    overlayOpen: false,
-    pickerOpen: false,
-    autocompleteOpen: false,
+// FORK PATCH: [RESTORE-R8c] keyboard state machine relocated to sources/fork/agentInput/keyboardStateMachine (invariant HA-6)
+// Re-exported so `AgentInput.keyboard.test.tsx` and other `./AgentInput` importers keep resolving these symbols.
+export {
+    initialAgentInputKeyboardState,
+    reduceAgentInputKeyboardState,
 };
-
-export function reduceAgentInputKeyboardState(
-    state: AgentInputKeyboardState,
-    action: AgentInputKeyboardAction,
-): AgentInputKeyboardState {
-    switch (action.type) {
-        case 'tabFromTextarea':
-            return {
-                ...state,
-                focusTarget: 'firstOverlayControl',
-                overlayOpen: true,
-            };
-        case 'openPicker':
-            return {
-                ...state,
-                focusTarget: 'firstOverlayControl',
-                overlayOpen: true,
-                pickerOpen: true,
-            };
-        case 'enterOnOverlayControl':
-            return state.focusTarget === 'firstOverlayControl'
-                ? {
-                    ...state,
-                    overlayOpen: true,
-                    pickerOpen: true,
-                }
-                : state;
-        case 'escape':
-            return {
-                ...state,
-                focusTarget: 'textarea',
-                overlayOpen: false,
-                pickerOpen: false,
-            };
-        case 'toggleAutocomplete':
-            return {
-                ...state,
-                autocompleteOpen: !state.autocompleteOpen,
-            };
-    }
-}
+export type {
+    AgentInputKeyboardState,
+    AgentInputKeyboardAction,
+};
 
 export function selectAgentInputRenderConfig(mode: AgentInputMode): AgentInputRenderConfig {
     switch (mode) {
@@ -199,13 +164,7 @@ export function selectAgentInputRenderConfig(mode: AgentInputMode): AgentInputRe
 
 const MAX_CONTEXT_SIZE = 190000;
 
-// Discrete chat-font-scale steps for the in-input text-size picker.
-// 9 values spanning 0.85..1.5 (CHAT_FONT_SCALE_MAX in the hook is 1.6 and remains
-// reachable via pinch-to-zoom and the Settings → Appearance slider; the picker tops
-// out at 1.5 because anything above feels excessive on the BOOX).
-// Chip 4 = 1.00 (default scale). 0.05 spacing below 1.0 for fine accessibility tuning,
-// 0.10 spacing above 1.0 for clear visual jumps.
-const CHAT_FONT_SCALE_STEPS = [0.85, 0.9, 0.95, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5] as const;
+// CHAT_FONT_SCALE_STEPS relocated to sources/fork/agentInput/ComposerLayoutOverlays (imported above).
 
 const stylesheet = StyleSheet.create((theme, runtime) => ({
     container: {
@@ -294,31 +253,9 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
         backgroundColor: theme.colors.divider,
         marginHorizontal: 16,
     },
-    textSizeOverlay: {
-        position: 'absolute',
-        bottom: '100%',
-        left: 0,
-        right: 0,
-        marginBottom: 8,
-        zIndex: 1000,
-    },
-    textSizeChipsRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-        paddingHorizontal: 16,
-        paddingTop: 4,
-        paddingBottom: 8,
-    },
-    textSizeChip: {
-        minWidth: 44,
-        height: 40,
-        paddingHorizontal: 12,
-        borderRadius: 12,
-        borderWidth: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
+    // textSizeOverlay / textSizeChipsRow / textSizeChip relocated to
+    // sources/fork/agentInput/ComposerLayoutOverlays (R8c). overlayBackdrop /
+    // overlaySection / overlaySectionTitle stay here — shared with the settings overlay.
 
     // Selection styles
     selectionItem: {
@@ -605,7 +542,9 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     const canPressSendButton = !props.isSending
         && !props.isSendDisabled
         && !isSendPending
-        && (isSendBlocked ? hasSendableContent : hasSendableContent);
+        // R8c RESTORE (mic/voice): when not blocked, the button is pressable if there
+        // is sendable content OR a mic affordance to trigger.
+        && (isSendBlocked ? hasSendableContent : (hasSendableContent || !!props.onMicPress));
 
     // Abort button state
     const [isAborting, setIsAborting] = React.useState(false);
@@ -784,8 +723,9 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         hapticsLight();
         if (hasSendableContent || renderConfig.allowEmptySend) {
             submitSend('now');
-        } else {
-            return;
+        } else if (props.onMicPress && !props.isMicActive) {
+            // R8c RESTORE (mic/voice): empty composer + mic affordance → start voice input.
+            props.onMicPress();
         }
     }, [handleBlockedSendAttempt, hasSendableContent, isSendBlocked, props, renderConfig.allowEmptySend, submitSend]);
 
@@ -1183,99 +1123,20 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                     </>
                 )}
 
-                {/* Text-size overlay */}
-                {showTextSize && (
-                    <>
-                        <TouchableWithoutFeedback onPress={() => setShowTextSize(false)}>
-                            <View style={styles.overlayBackdrop} />
-                        </TouchableWithoutFeedback>
-                        <View style={[
-                            styles.textSizeOverlay,
-                            { paddingHorizontal: screenWidth > 700 ? 0 : 8 }
-                        ]}>
-                            <FloatingOverlay maxHeight={140} keyboardShouldPersistTaps="always">
-                                <View style={styles.overlaySection}>
-                                    <Text style={styles.overlaySectionTitle}>
-                                        {t('agentInput.textSize.title')}
-                                    </Text>
-                                    <View style={styles.textSizeChipsRow}>
-                                        {CHAT_FONT_SCALE_STEPS.map((step, idx) => {
-                                            const isActive = Math.abs(step - chatFontScale) < 0.0001;
-                                            return (
-                                                <Pressable
-                                                    key={step}
-                                                    onPress={() => handleTextSizeSelect(step)}
-                                                    hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-                                                    style={({ pressed }) => ({
-                                                        ...styles.textSizeChip,
-                                                        backgroundColor: isActive ? theme.colors.button.primary.background : 'transparent',
-                                                        borderColor: isActive ? theme.colors.button.primary.background : theme.colors.divider,
-                                                        opacity: pressed ? 0.7 : 1,
-                                                    })}
-                                                >
-                                                    <Text style={{
-                                                        fontSize: 16,
-                                                        color: isActive ? theme.colors.button.primary.tint : theme.colors.text,
-                                                        ...Typography.default('semiBold'),
-                                                    }}>
-                                                        {idx + 1}
-                                                    </Text>
-                                                </Pressable>
-                                            );
-                                        })}
-                                    </View>
-                                </View>
-                            </FloatingOverlay>
-                        </View>
-                    </>
-                )}
-
-                {/* Chat-width overlay */}
-                {isTablet && showChatWidth && (
-                    <>
-                        <TouchableWithoutFeedback onPress={() => setShowChatWidth(false)}>
-                            <View style={styles.overlayBackdrop} />
-                        </TouchableWithoutFeedback>
-                        <View style={[
-                            styles.textSizeOverlay,
-                            { paddingHorizontal: screenWidth > 700 ? 0 : 8 }
-                        ]}>
-                            <FloatingOverlay maxHeight={140} keyboardShouldPersistTaps="always">
-                                <View style={styles.overlaySection}>
-                                    <Text style={styles.overlaySectionTitle}>
-                                        {t('agentInput.chatWidth.title')}
-                                    </Text>
-                                    <View style={styles.textSizeChipsRow}>
-                                        {CHAT_WIDTH_MARGIN_OPTIONS.map((margin) => {
-                                            const isActive = margin === chatWidthMode;
-                                            return (
-                                                <Pressable
-                                                    key={margin}
-                                                    onPress={() => handleChatWidthSelect(margin)}
-                                                    hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-                                                    style={({ pressed }) => ({
-                                                        ...styles.textSizeChip,
-                                                        backgroundColor: isActive ? theme.colors.button.primary.background : 'transparent',
-                                                        borderColor: isActive ? theme.colors.button.primary.background : theme.colors.divider,
-                                                        opacity: pressed ? 0.7 : 1,
-                                                    })}
-                                                >
-                                                    <Text style={{
-                                                        fontSize: 14,
-                                                        color: isActive ? theme.colors.button.primary.tint : theme.colors.text,
-                                                        ...Typography.default('semiBold'),
-                                                    }}>
-                                                        {String(margin)}
-                                                    </Text>
-                                                </Pressable>
-                                            );
-                                        })}
-                                    </View>
-                                </View>
-                            </FloatingOverlay>
-                        </View>
-                    </>
-                )}
+                {/* R8c: text-size + chat-width overlays relocated to sources/fork/agentInput/ComposerLayoutOverlays */}
+                <ComposerLayoutOverlays
+                    showTextSize={showTextSize}
+                    showChatWidth={showChatWidth}
+                    isTablet={isTablet}
+                    screenWidth={screenWidth}
+                    chatFontScale={chatFontScale}
+                    chatWidthMode={chatWidthMode}
+                    chatWidthMarginOptions={CHAT_WIDTH_MARGIN_OPTIONS}
+                    onTextSizeSelect={handleTextSizeSelect}
+                    onChatWidthSelect={handleChatWidthSelect}
+                    onCloseTextSize={() => setShowTextSize(false)}
+                    onCloseChatWidth={() => setShowChatWidth(false)}
+                />
 
                 {/* Connection status, context warning, and permission mode */}
                 {renderConfig.showActiveStatusRow && (props.connectionStatus || contextWarning || (displayPermissionMode && permissionModeKey !== 'default')) && (
@@ -1838,7 +1699,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                     style={[
                                         styles.sendButton,
                                         isSendBlocked ? styles.sendButtonLocked :
-                                        (hasSendableContent || props.isSending)
+                                        (hasSendableContent || props.isSending || (props.onMicPress && !props.isMicActive))
                                             ? styles.sendButtonActive
                                             : styles.sendButtonInactive
                                     ]}
@@ -1876,6 +1737,17 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                                     styles.sendButtonIcon,
                                                     { marginTop: Platform.OS === 'web' ? 2 : 0 }
                                                 ]}
+                                            />
+                                        ) : props.onMicPress && !props.isMicActive ? (
+                                            // R8c RESTORE (mic/voice from upstream cli-1.1.10): voice affordance when the composer is empty.
+                                            <Image
+                                                source={getVoiceMicIcon()}
+                                                style={{
+                                                    width: 24,
+                                                    height: 24,
+                                                }}
+                                                tintColor={theme.colors.button.primary.tint}
+                                                testID="agent-input-voice-mic"
                                             />
                                         ) : (
                                             <Octicons

@@ -147,7 +147,7 @@ Paths relative to `packages/happy-app/sources/` unless noted. See [`packages/hap
 | HA-3 | `sync/reducer/reducer.ts` — message→event reducer | KEEP | Fork reducer carries the typed context-boundary handling and e-ink-friendly accumulation. Conflicts with upstream reducer changes. | ❌ (doc-only in M0) | `sync/reducer/reducer.spec.ts`, `messageToEvent.spec.ts` | deferred M2+ (sync plane, ~R5) |
 | HA-4 | `-session/SessionView.tsx` — session screen | KEEP | Fork's chat surface is tuned for the **e-ink tablet** (static UI, no smooth-scroll/continuous repaint). Broadly rewritten vs upstream. | ❌ (doc-only in M0) | `pnpm typecheck`; visual/e-ink review | **RESTORE-R8a** (SessionView) — later R8 stage; see [§8 R8](#r8--happy-app-ui-seams-ha-8-markdownview-stage-1) |
 | HA-5 | `components/ChatList.tsx` — message list | KEEP + RESTORE-grouping | Fork's inverted-FlatList perf work + `BoundaryDivider` rendering (shipped upstream as PR #1154, but fork carries adjacent e-ink tuning) **plus** upstream's tool-call/agent-work grouping restored behind a default-flat toggle (operator call #2). | ✅ `RESTORE-R8b` | `components/ChatList.{preBoundaryHistory,viewableItemsAdapter,pageTurn,toolGroupingToggle}.test.*`; `hooks/useGroupedMessages.test.ts` | **R8 stage 2 DONE** — flat e-ink body KEEP-relocated to `sources/fork/chat/*` (5a FlatList tuning, pinch-zoom, page-turn); upstream grouping restored (`useGroupedMessages`, `ToolGroupView`) behind `chatToolGrouping` local setting (**default `'flat'`** = behavior-identical). See [§8 R8 stage 2](#stage-2-this-ship--ha-5-componentschatlisttsx). |
-| HA-6 | `components/AgentInput.tsx` — composer | KEEP | Fork input diverges on modes/attachments/keyboard for the e-ink target. High-churn conflict surface. | ❌ (doc-only in M0) | `components/AgentInput.{mode,attachments,keyboard,activeRegression}.test.tsx` | **RESTORE-R8c** (AgentInput) — later R8 stage; see [§8 R8](#r8--happy-app-ui-seams-ha-8-markdownview-stage-1) |
+| HA-6 | `components/AgentInput.tsx` — composer | KEEP + RESTORE-voice | Fork input diverges on modes/attachments/keyboard for the e-ink target (fork-introduced keyboard/focus reducer + in-composer text-size/chat-width choosers) **plus** upstream's mic/voice input restored (operator call #4). High-churn conflict surface. | ✅ `RESTORE-R8c` | `components/AgentInput.{mode,attachments,keyboard,activeRegression}.test.tsx`; `fork/agentInput/keyboardStateMachine.test.ts` | **R8 stage 4 DONE** — keyboard state machine + text-size/chat-width overlays KEEP-relocated to `sources/fork/agentInput/*`; upstream mic/voice RESTORED (inert until a parent wires `onMicPress`); attachment rewrite + controlled-mode KEEP-in-place; SYNC-R5 send-policy/reducer KEEP-in-place (R5-residual). See [§8 R8 stage 4](#stage-4-this-ship--ha-6-componentsagentinputtsx). |
 | HA-7 | `text/_default.ts` + `text/translations/*.ts` — i18n | KEEP | Fork-added translation keys must survive import. **`merge=union` is UNSAFE here** (typed nested TS object modules; duplicate keys error `TS1117` and arrow-value splits break syntax — see §7). Merge is manual or via a future fork-namespaced strings file. | ❌ (doc-only in M0) | `text/translations.test.ts` (structural parity) | deferred M2+ (i18n plane, ~R6) |
 | HA-8 | `components/markdown/MarkdownView.tsx` — markdown renderer | KEEP | Fork's e-ink markdown rendering (option cards, contrast-safe code/text-weight styling, font-scale wrapper) + fork features (Claude meta-tag pills, session-file autolinking, internal file-link nav, session-aware image loading). Conflicts on nearly every import. | ✅ `RESTORE-R8d` | `components/markdown/*.test.ts` (parseMarkdown, parseMarkdownBlock, processClaudeMetaTags, skillBody, linkUtils) | **R8 stage 1 DONE** — 8a–8h KEEP-relocated to `sources/fork/markdown/*`; 8j KEEP-in-place; 8i DISABLE deferred to US-001. See [§8 R8](#r8--happy-app-ui-seams-ha-8-markdownview-stage-1). |
 | HA-9 | `components/MessageView.tsx` — message renderer | KEEP + RESTORE-chips | Fork's **e-ink user-message band** (grey fill, no bubble `paddingVertical`) + skillBody suppression, chatBodyWidth, boundary divider, attachment chips, nested-depth cap; **plus** upstream's goal/command chips + fork-from-message long-press restored behind a default-off toggle (operator call #3 "KEEP BOTH"). | ✅ `RESTORE-R8e` | `components/MessageView.{attachments,nestedChildren,commandChips}.test.*`; `components/parseLocalCommandMessage.spec.ts` | **R8 stage 3 DONE** — e-ink features KEEP-relocated to `sources/fork/message/*` (band styles, attachment chips, nested-depth cap); upstream goal/command chips (`parseLocalCommandMessage`) + fork-from-message long-press RESTORED behind `messageCommandChips` local setting (**default `false`** = behavior-identical). Composer-side pre-send intercept untouched. fork-from-message parent wiring deferred to the SessionView stage (HA-4). See [§8 R8 stage 3](#stage-3-this-ship--ha-9-componentsmessageviewtsx). |
@@ -168,7 +168,7 @@ each R8 stage lands it adds a sibling subdir; empty dirs are **not** scaffolded 
 | `session/` | `-session/SessionView.tsx`, `components/ChatHeaderView.tsx` | HA-4, HA-12 | planned (later R8 stage) |
 | `chat/` | `components/ChatList.tsx` | HA-5 | **R8 stage 2 (this ship)** |
 | `message/` | `components/MessageView.tsx` | HA-9 | **R8 stage 3 (this ship)** |
-| `composer/` | `components/AgentInput.tsx` | HA-6 | planned (later R8 stage) |
+| `composer/` (dir name `agentInput/`) | `components/AgentInput.tsx` | HA-6 | **R8 stage 4 (this ship)** |
 | `sidebar/` | `components/SidebarView.tsx`, `components/SidebarNavigator.tsx` | HA-10, HA-11 | planned (later R8 stage, operator-gated) |
 
 ---
@@ -484,6 +484,69 @@ band) because `messageCommandChips` defaults to `false`. New overlay modules liv
 (goal/command chips + fork-from-message) as KEEP-DELETED; operator call #3 supersedes it with KEEP-BOTH
 (restore behind a default-off toggle). **Deferred:** fork-from-message parent wiring (ChatList/SessionView)
 is out of scope this stage and lands with HA-4.
+
+#### Stage 4 (this ship) — HA-6 `components/AgentInput.tsx`
+
+Upstream reference: `cli-1.1.10` (`slopus/happy@71c417e1`). AgentInput is the largest happy-app
+conflict surface (fork ~1847 lines vs upstream ~1389; **both** the fork and upstream heavily rewrote
+it — upstream added +408/−236 between 1.1.8→1.1.10). Stage 4 implements **operator call #4** (restore
+upstream's removed mic/voice input), **operator call #6** (keep the fork-introduced keyboard state
+machine via a seam), and **operator call #5** (keep the e-ink text-size/chat-width choosers as
+minimal fork-owned seams).
+
+- **RESTORE (upstream mic/voice, operator call #4):** the fork had **deleted** upstream's mic/voice
+  affordance. It is restored **from upstream** into `AgentInput.tsx`: the `onMicPress?`/`isMicActive?`
+  props, the `import { Image } from 'expo-image'`, the `canPressSendButton` mic branch, the
+  `handleSendPress` "empty composer + mic → `onMicPress()`" branch, the send-button active-style
+  condition, and the send-button **voice icon** (upstream's inline
+  `require('@/assets/images/icon-voice-white.png')` relocated behind the fork seam
+  `sources/fork/agentInput/voiceIcon.ts` — a lazy `getVoiceMicIcon()` accessor — with
+  `tintColor`, `testID="agent-input-voice-mic"` added as the sole fork adaptation for testability). The
+  seam exists because esbuild leaves the inline `require()` untransformed, so under the Vitest node
+  runner it hits Node's `createRequire` (which cannot resolve the `@/` alias or a `.png`) and
+  `vi.mock('@/assets/...png')` — which only intercepts ESM imports — never applies; routing the asset
+  through an ESM module boundary lets the render test mock it deterministically. This
+  is **UI-only** — the voice runtime/permission plumbing lives in the caller (`SessionView`, HA-4), so
+  mic/voice is **inert-but-present** until a parent wires `onMicPress`. No i18n added (upstream had no
+  label; the icon carries the affordance). These sites carry lightweight `R8c RESTORE` comments (not
+  `FORK PATCH` markers — they are upstream-canonical returns, not fork divergences), covered by the
+  representative import-seam marker.
+- **KEEP (keyboard state machine, operator call #6):** the fork-introduced
+  `AgentInputKeyboardState`/`AgentInputKeyboardAction`/`initialAgentInputKeyboardState`/
+  `reduceAgentInputKeyboardState` reducer (textarea ↔ firstOverlayControl focus + picker/autocomplete
+  flags; **absent** from cli-1.1.8 and cli-1.1.10) is relocated **verbatim** to
+  `sources/fork/agentInput/keyboardStateMachine.ts`. `AgentInput.tsx` re-exports the four symbols so
+  `AgentInput.keyboard.test.tsx` (which imports them from `./AgentInput`) keeps passing. This is a
+  **pure move** — the transition table is byte-identical; a new `fork/agentInput/keyboardStateMachine.test.ts`
+  pins the transitions and `AgentInput.keyboard.test.tsx` asserts the re-export is identity-equal.
+- **KEEP (e-ink overlays, operator call #5):** the fork-only in-composer **text-size** picker (discrete
+  `CHAT_FONT_SCALE_STEPS` chips) and the tablet-only **chat-width** picker (margin chips) — with their
+  dedicated styles (`textSizeOverlay`/`textSizeChipsRow`/`textSizeChip`) — move to
+  `sources/fork/agentInput/ComposerLayoutOverlays.tsx` as a stateless presentational component.
+  `AgentInput.tsx` renders `<ComposerLayoutOverlays />` at the same JSX position and owns the
+  visibility/values/handlers, so the rendered tree + styles are byte-identical. The **shared** overlay
+  styles (`overlayBackdrop`/`overlaySection`/`overlaySectionTitle`) stay in `AgentInput.tsx` because the
+  settings overlay also uses them; the fork module replicates the ones it needs in its own stylesheet.
+  Existing i18n keys (`agentInput.textSize.title`, `agentInput.chatWidth.title`) are reused — no new keys.
+- **KEEP-in-place (not relocated this stage):** the fork's **attachment rewrite** already delegates to
+  external modules (`@/hooks/useFileAttachment` + `@/components/composer/AttachmentChip`), so it is thin
+  and stays inline. The **controlled-composer mode** + `selectAgentInputRenderConfig(mode)` render-config
+  selector stay inline (single centralized `mode` decision, guarded by `AgentInput.mode.test.tsx`). The
+  **SYNC-R5 send-policy/reducer** plumbing (`submitSend`/`when-idle` switch-mode, block-send guard) is
+  deeply interwoven with upstream's own send rewrite and is **KEEP-in-place, marked R5-residual** — it is
+  NOT seamed this stage (per operator guidance: don't try to fully seam the send-policy plumbing here; it
+  belongs to the SYNC-R5 plane).
+
+**Stage-4 net:** `AgentInput.tsx` returns *toward* upstream shape (mic/voice restored inline; the
+fork-introduced keyboard reducer + e-ink overlays relocated behind seams under
+`sources/fork/agentInput/*`), while **default rendering is behavior-identical** for existing callers
+(no parent wires `onMicPress` yet, so the voice affordance is inert; the keyboard reducer + overlays are
+pure moves). One representative `RESTORE-R8c … (invariant HA-6)` marker sits at the import seam in
+`AgentInput.tsx`; the three fork modules (`keyboardStateMachine.ts`, `ComposerLayoutOverlays.tsx`,
+`voiceIcon.ts`) each carry their own `RESTORE-R8c … (invariant HA-6)` marker.
+**Deviation from plan (operator call #4 overrides plan's 6g KEEP-DELETED):** the plan listed mic/voice
+(HA-6 row 6g) as KEEP-DELETED; operator call #4 supersedes it with RESTORE-from-upstream. **R5-residual:**
+the send-policy/switch-mode reducer is explicitly left in place, not seamed, this stage.
 
 ---
 

@@ -48,16 +48,18 @@ cross-check resolves the invariant ID from the marker line itself.
 
 R8 stage 1 introduces the `markdown/` overlay (MarkdownView, catalogue HA-8);
 R8 stage 2 adds the `chat/` overlay (ChatList, catalogue HA-5); R8 stage 3
-adds the `message/` overlay (MessageView, catalogue HA-9):
+adds the `message/` overlay (MessageView, catalogue HA-9); R8 stage 4 adds the
+`agentInput/` overlay (AgentInput, catalogue HA-6):
 
 | Subdir | Overlay for | Catalogue rows |
 |---|---|---|
 | `markdown/` | `components/markdown/MarkdownView.tsx` | HA-8 |
 | `chat/` | `components/ChatList.tsx` | HA-5 |
 | `message/` | `components/MessageView.tsx` | HA-9 |
+| `agentInput/` | `components/AgentInput.tsx` | HA-6 |
 
-Later R8 stages add sibling overlays as they land (e.g. `composer/` for
-AgentInput, `session/` for SessionView, `sidebar/` for the sidebar trio).
+Later R8 stages add sibling overlays as they land (e.g. `session/` for
+SessionView, `sidebar/` for the sidebar trio).
 Create a sibling subdir when the stage that needs it lands — do not scaffold
 empty directories ahead of use.
 
@@ -66,4 +68,4 @@ empty directories ahead of use.
 The full KEEP / DISABLE / KEEP-DELETED catalogue for every fork divergence
 (happy-app HA-*, happy-server HS-*, happy-cli HC-*) lives in
 [`docs/happy-patch-surface.md`](../../../../docs/happy-patch-surface.md). Every
-module in this directory is cross-referenced from an HA-5 / HA-8 / HA-9 row there.
+module in this directory is cross-referenced from an HA-5 / HA-6 / HA-8 / HA-9 row there.
