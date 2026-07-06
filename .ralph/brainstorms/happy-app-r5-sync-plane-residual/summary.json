@@ -1,0 +1,85 @@
+{
+  "task": "happy-app-r5-sync-plane-residual",
+  "type": "read-only-brainstorm",
+  "branch": "ralph/bs-app-r5",
+  "worktree": "D:/harness-efforts/codexu/.worktrees/bs-app-r5",
+  "baseOffMain": "16ce2ad1",
+  "method": {
+    "tool": "git merge-file -p --diff3",
+    "normalization": "CRLF->LF (mandatory; Windows CRLF trap collapses to one whole-file conflict otherwise)",
+    "base": "df4cdae8 (true merge-base = git merge-base HEAD cli-1.1.10)",
+    "baseCrossCheck": "cli-1.1.8 (storage.ts identical=24, sync.ts=23 i.e. +1)",
+    "ours": "fork HEAD",
+    "theirs": "cli-1.1.10"
+  },
+  "baseTopology": {
+    "restructureConcernUnfounded": true,
+    "notAddAdd": true,
+    "syncTsPath": "packages/happy-app/sources/sync/sync.ts",
+    "storageTsPath": "packages/happy-app/sources/sync/storage.ts",
+    "existedAt": ["cli-1.1.7", "cli-1.1.8", "df4cdae8-merge-base", "cli-1.1.10", "fork-HEAD"],
+    "note": "Both files at the SAME sync/ path at every ancestor. cli-1.1.8 tag was merely missing locally (fetched via upstream-happy). merge-base df4cdae8 = cli-1.1.7-89-gdf4cdae8, AFTER cli-1.1.8."
+  },
+  "hunkCounts": { "sync.ts": 22, "storage.ts": 24, "total": 46 },
+  "diffstat": {
+    "sync.ts": "1004 ins / 1607 del (fork SMALLER: removed multi-account + attachment-upload + per-session-encryption planes)",
+    "storage.ts": "745 ins / 681 del (balanced: convergent pagination + fork tree-grouping vs upstream unread)"
+  },
+  "forkPatchMarkers": 0,
+  "verdict": {
+    "cleanR8SeamAchievable": false,
+    "fileCountReduction": "2 -> 2 (neither file returns to upstream; neither is R8-seamable)",
+    "hunkReductionRealistic": "46 -> ~35-46 manual (only operator refactors reduce COUNT; catalogue+recipe reduce EFFORT)",
+    "dominantPattern": "convergent-evolution (both sides independently rewrote sendMessage, fetchMessages, fetchMachines, socket handlers, older-message pagination with different APIs)",
+    "whyNotSeamable": [
+      "storage.ts is one Zustand create() store object; methods close over set/get and cannot be relocated to sources/fork/",
+      "sync.ts is one Sync class; private methods share this-state and cannot be relocated",
+      "divergence INTERLEAVES with upstream rewrites of the same methods (not additive fork blocks like R8)",
+      "the fork's net-new helpers are ALREADY in zero-conflict fork-only modules; residual is un-relocatable call sites"
+    ],
+    "honestBottomLine": "Mostly must-stay-manual-3-way. Meaningful SEAM/file reduction NOT achievable. Realistic deliverable = KEEP-DELETED formalization + fork-only-overlay documentation + per-cluster intake recipe (effort reduction), plus 2 operator-gated convergence refactors that shave a handful of hunks but change behavior/perf."
+  },
+  "forkOnlyZeroConflictOverlay": [
+    "paginationMath.ts", "prefetchManager.ts", "messageWindow.ts",
+    "applyPrefetchedRange.ts", "machineSessionId.ts", "sessionGroupOrdering.ts",
+    "slashCommandIntercept.ts", "socketOptions.ts", "tunnelProvider.ts"
+  ],
+  "dispositionSplit": {
+    "KEEP-seamable": { "clusters": 0, "hunks": 0, "note": "extractable helpers already extracted; residual is un-relocatable call sites" },
+    "DISABLE-revertable": { "clusters": 0, "hunks": 0, "note": "every fork divergence is load-bearing (single-user loopback, e-ink prefetch, no-E2E, tree-grouping)" },
+    "RESTORE-toward-upstream": { "clusters": 3, "hunks": 9, "note": "unread-tracking + settingsToSyncPayload + machine-resilience-principle; ALL entangled -> adopt-with-manual-merge, operator-gated" },
+    "KEEP-DELETED": { "clusters": 1, "hunks": 5, "note": "multi-account graph (friends/users/feed/artifacts) guard-by-absence; mechanical take-ours" },
+    "must-stay-manual-3-way": { "clusters": 7, "hunks": 32, "note": "convergent pagination, sendMessage, fetchMessages, fetchMachines, socket-handlers, permission-mode" }
+  },
+  "clusters": {
+    "storage.ts": [
+      { "hunks": [4,6,14,16,17,18,23], "cluster": "convergent-older-message-pagination", "fork": "hasOlder/oldestLoadedSeq/loadingOlder/renderWindow/activePrefetch + setLoadingOlder/applyOlderMessages/setRenderWindow/setActivePrefetch/applyPrefetchedRange/applyMessagesLoaded(pagination)", "upstream": "hasMoreOlder/isLoadingOlder + applyOlderMessagesPagination/applyOlderMessagesLoading", "disposition": "must-stay-manual", "reduceLever": "operator-7B pagination-field rename" },
+      { "hunks": [5,8,9,10,11,12,15,22,24], "cluster": "upstream-unread-tracking-vs-fork-tree-grouping", "fork": "parent/children DFS tree-grouping in buildSessionRowData/buildSessionListViewData (TreeSessionRowData, depth, machineSessionId)", "upstream": "unreadSessionIds/currentViewingSessionId + markSessionRead/markSessionUnread/setCurrentViewingSession/useIsSessionUnread threaded through same fns", "disposition": "must-stay-manual", "restoreCandidate": "unread sub-part (entangled)" },
+      { "hunks": [3,7,8,22,24], "cluster": "multi-account-graph-removal", "fork": "DELETED friends/users/feed/artifacts state+methods+hooks+realtimeMode debounce", "upstream": "kept+extended", "disposition": "KEEP-DELETED", "verified": "0 applyFriends/applyFeedItems/friendTypes refs in fork" },
+      { "hunks": [7,13,19], "cluster": "permission-mode-userChosen-vs-nullable", "disposition": "must-stay-manual" },
+      { "hunks": [2,20,21], "cluster": "fork-persistence-adds-pinnedAvatars-treeExpanded", "disposition": "must-stay-manual" },
+      { "hunks": [1], "cluster": "import-line", "disposition": "must-stay-manual-trivial" }
+    ],
+    "sync.ts": [
+      { "hunks": [4,7,8,9], "cluster": "sendMessage-enqueueUserMessage", "fork": "switchMode/when-idle deferred-switch + UserMessageAttachment + Modal handling", "upstream": "image-attachment upload pipeline (AttachmentPreview/getImageAttachmentSendPlan/uploadAttachmentsForSession) + awaitQueue retry + resolveMessageModeMeta + effort", "disposition": "must-stay-manual", "trap": "auto-merge pulls upstream attachmentSupport import into fork that lacks the module -> build break" },
+      { "hunks": [13,14,15,16,17], "cluster": "fetchMessages-older-history-pagination", "fork": "PrefetchManager + computeInitialAfterSeq/computeOlderPageAfterSeq + computeRenderWindow; forSession scoping; decodeApiMessages(no-decrypt) + normalizeRawMessage(seq)", "upstream": "fetchInitialLatestPage/fetchForwardSince/loadOlderMessages/prefetchOlderMessagesInBackground; encryption.decryptMessages", "disposition": "must-stay-manual", "note": "deepest convergent cluster + collides with fork no-E2E divergence" },
+      { "hunks": [5,6,19,20,21], "cluster": "socket-update-handlers-encryption-readiness", "fork": "dropped encryption-required gate (no-E2E, app analog of HC-1/HC-2); optimistic placeholder session (perf-WS2 BOOX latency) + compositeSessionId; drops removeSessionEncryption", "upstream": "awaitQueue() retry (#1251 chat-title race, session-not-found-after-sync)", "disposition": "must-stay-manual" },
+      { "hunks": [10,11], "cluster": "fetchMachines", "fork": "loopback/tunnel single-user model (machineId/hostname/tunnelUrl un-encrypted)", "upstream": "encrypted multi-machine decryption + resilience (never-drop-on-decrypt-fail h10, dont-wipe-populated-store h11)", "disposition": "must-stay-manual", "restoreCandidate": "resilience principle (port by hand, not code)" },
+      { "hunks": [12], "cluster": "syncSettings", "fork": "PUT + settings-error-classes (SettingsPayloadTooLargeError/SettingsAuthError/SettingsSyncError); drops feed filter", "upstream": "account-settings POST + settingsToSyncPayload wrapper", "disposition": "must-stay-manual + KEEP-DELETED(feed)" },
+      { "hunks": [1,2,3,18], "cluster": "imports-reconnect-appstate", "fork": "adds pagination/prefetch/machineSessionId/settings-error imports; DROPS Encryption imports", "upstream": "adds apiAttachments/attachmentTypes/encryptBlob, webTabTitle(unread), settingsToSyncPayload, getCurrentAppState; reconnect sendAppState(getCurrentAppState())", "disposition": "must-stay-manual", "restoreCandidate": "settingsToSyncPayload + sendAppState (entangled w/ unread)" },
+      { "hunks": [22], "cluster": "update-session-body-agentState-parse", "disposition": "must-stay-manual-trivial" }
+    ]
+  },
+  "proposedCatalogueRows": ["HA-1 (updated)", "HA-1a (new, KEEP-DELETED)", "HA-2 (updated)", "HA-2a (new, KEEP-DELETED)", "HA-1b (new, RESTORE? operator-gated)"],
+  "operatorDecisionCalls": [
+    { "id": "7-A", "call": "adopt upstream unread-session tracking?", "reduction": "~6 hunks lighter (storage 5/8/22/24, sync 1/18)", "cost": "entangled re-thread through fork tree-build + e-ink repaint churn (unread badges, web tab-title)", "recommendation": "DEFER (lean no for e-ink); if adopted, own task + e-ink perf pass + default-false toggle" },
+    { "id": "7-B", "call": "rename fork pagination fields toward upstream (hasOlder->hasMoreOlder, loadingOlder->isLoadingOlder)?", "reduction": "storage 4/14/16/17/23 collapse to additive diffs (~5-7 hunks lighter)", "cost": "touches e-ink render-window prefetch system; needs fork sync test suite + BOOX scroll-perf check", "recommendation": "DEFER until intake friction is actually felt; highest-leverage count-reducer but touches the differentiating perf feature" },
+    { "id": "7-C", "call": "port fetchMachines resilience principle + awaitQueue race guard into fork loopback path?", "reduction": "none (method stays fully manual)", "cost": "small correctness follow-up", "recommendation": "FILE as correctness follow-up, not a reduction" }
+  ],
+  "intakeRecipeSummary": {
+    "doNotBlindMerge": "auto-merge silently pulls upstream attachment/unread imports into a fork lacking the backing modules -> build break",
+    "storage.ts": "start-from-OURS; take-ours multi-account(HA-2a) + pagination + permission-mode; drop-or-rethread unread per 7-A",
+    "sync.ts": "start-from-OURS; prune upstream imports w/o backing modules; take-ours fetchMachines/sendMessage/fetchMessages(decodeApiMessages, NOT decryptMessages); evaluate awaitQueue race port",
+    "postMergeGate": "tsc --noEmit + fork-only sync test suite (paginationMath/prefetchManager/messageWindow/applyPrefetchedRange/loadOlderDedup/machineFallbacks/storage.tree/storagePermissionModeUserChosen specs)"
+  }
+}
