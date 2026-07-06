@@ -6,16 +6,19 @@ describe('processImage', () => {
         const sharp = (await import('sharp')).default;
         const img = await sharp({
             create: {
-                width: 20,
-                height: 10,
+                width: 200,
+                height: 100,
                 channels: 3,
-                background: { r: 255, g: 0, b: 0 },
+                background: '#ff0000',
             },
         }).jpeg().toBuffer();
-        let result = await processImage(img);
-        expect(result.width).toBe(20);
-        expect(result.height).toBe(10);
+
+        const result = await processImage(img);
+
         expect(result.format).toBe('jpeg');
-        expect(result.thumbhash.length).toBeGreaterThan(0);
+        expect(result.width).toBe(200);
+        expect(result.height).toBe(100);
+        expect(result.thumbhash).toBeTruthy();
+        expect(result.pixels).toHaveLength(100 * 50 * 4);
     });
 });
