@@ -101,6 +101,7 @@ upstream is deliberately collapsed. See [`packages/happy-server/AGENTS.md`](../p
 | HS-12 | `app/api/routes/pushRoutes.ts` — `pushRoutes(app, tofuConfig)` server-owned per-machine push | KEEP | Fork's **server-owned per-machine** push registration (single-user): tokens keyed by `tofuConfig.localUserId` as `machineId` via `@/app/push/pushNotifications` (`registerPushToken` / `unregisterPushToken` / `listPushTokens`), plus the extra `/push/register` route. Upstream's multi-tenant `request.userId` + `db.accountPushToken` (`accountId`) wiring stays **removed** with the deleted `Account`/`AccountPushToken` models (HS-6). Take-upstream re-adds per-account push tokens. | ✅ inline (fork route entry) | server compiles with no `db.accountPushToken` / `request.userId`; `publicAuthGate.spec.ts` (routes gated behind `app.authenticate`) | [§8 Rsrv](#rsrv--happy-server-conflict-surface-reduction-hs-9hs-16) |
 | HS-13 | `app/monitoring/metrics2.ts` — `updateDatabaseMetrics` DB-count gauges | KEEP-DELETED | HS-6-driven: the multi-tenant `Account` model is removed (single-user), so the updater counts **only** the 3 fork-schema tables (`session`, `sessionMessage`, `machine`) and emits **no** `accounts` gauge. Exact `db.*.count()` is kept (single-user tables are tiny); upstream's `getEstimatedRecordCount` (`pg_class`/`reltuples` catalog estimate) is **declined** — it references the removed `"Account"` table and targets Postgres, not the fork's embedded PGlite. Take-upstream resurrects the `Account` count. | ❌ (guard by absence) | server compiles with **no** `db.account` reference and no `accounts` gauge label; `updateDatabaseMetrics` sets exactly the 3 fork-schema gauges | [§8 Rsrv](#rsrv--happy-server-conflict-surface-reduction-hs-9hs-16) |
 | HS-14 | `index.ts` — fork embedded-server entry (`createApp` / `HappyServerConfig` / `bootstrapMachineForEmbedded`) | KEEP-ours | Fork's `index.ts` is the **embedded-server entry** (`createApp`, `HappyServerConfig`, `bootstrapMachineForEmbedded`, the HS-5 operator-identity gate re-export, and the `HAPPY_SERVER_QUIET_LOGGER` bootstrap that drives HS-11). Upstream's same-named file is a **different-purpose package entry** (`startApi` / `StartApiOptions`, top-level bootstrap) — an **add/add** divergence. Intake = **take-ours, do not merge**: upstream's entry does not fit the embedded single-user server. Take-upstream would replace the embedded entry wholesale. | ❌ (whole-file fork-owned, take-ours; the HS-5 re-export marker inside is catalogued under HS-5) | `index.spec.ts` (boots the embedded server, asserts the operator-identity gate + dual-listener binding) | [§8 Rsrv](#rsrv--happy-server-conflict-surface-reduction-hs-9hs-16) |
+| HS-15 | `package.json` — embedded pkgroll packaging + fork dependency set | KEEP (mechanical) | Fork's `package.json` uses an **embedded pkgroll `dist/` layout** (`main`/`module`/`exports`/`files` + `build` scripts producing a library-style bundle) instead of upstream's `bin/`+`webapp/` app packaging, and carries fork-only deps (auth/crypto: `@noble/ed25519`, `@noble/hashes`, `jose`, `@octokit/webhooks`; tooling: `tsx`, `vitest`, `vite-tsconfig-paths`). Upstream-only `@fastify/static` is **declined** — the fork serves no bundled webapp (see HS-7). Version diffs are intentional, **not** trivially-alignable bumps: the fork pins `pino`/`chalk` exactly and stays on `zod` v3 / `prisma` 6.11 / `fastify-type-provider-zod` v4, whereas upstream's `zod` v4 / `prisma` 6.19 / `fastify-type-provider-zod` v6 are breaking major bumps that are not behavior-preserving. Intake = **accept manual-merge**: take dep bumps deliberately (each with its own testing), keep fork packaging + fork-only deps. | ❌ (`package.json` is not scanned by the marker audit — `.ts`/`.tsx`/`.mts`/`.cts`/`.prisma` only) | manual review at intake; `pnpm --filter happy-server typecheck` + the auth-plane vitest set exercise the pinned dep versions | [§8 Rsrv](#rsrv--happy-server-conflict-surface-reduction-hs-9hs-16) |
 | HS-16 | `storage/processImage.spec.ts` — image-resize test | RESTORE | Fork's stale spec (20×10 fixture, `thumbhash.length`) diverged from upstream's (200×100, asserts `pixels` length) while `storage/processImage.ts` is **byte-identical to upstream `cli-1.1.10`** (0 diff-hunks; returns `pixels: data`). Adopting upstream's spec **verbatim** passes against the fork's already-upstream impl and **eliminates the hard-conflict** — this is a test-only RESTORE, not a behavior change. | ❌ (adopted upstream verbatim; no fork delta to mark) | `processImage.spec.ts` (upstream assertions: format/width/height/thumbhash/`pixels` length) | [§8 Rsrv](#rsrv--happy-server-conflict-surface-reduction-hs-9hs-16) |
 
 ## 4. happy-cli invariants (`HC-*`)
@@ -624,6 +625,42 @@ JSX) rather than `.ts` as the plan literally wrote; 4e's attachment pipeline fol
 `sources/fork/composer/useFileAttachment.ts`; compose-start tracking lives with `useForkComposer` (consumed
 by `useBoundaryAdvisory`). The two `sync.sendMessage` / machine-fallback source-audit guards
 (`sync/sync.test.ts`, `sync/machineFallbacks.test.ts`) were repointed to the relocated call sites.
+
+---
+
+### Rsrv — happy-server conflict-surface reduction (HS-9…HS-16)
+
+**Goal:** localize (not eliminate) the fork's residual happy-server divergence vs upstream so the next
+`cli-1.1.x` intake is fully *governed* — every hard-conflict block is either catalogued with a marker or
+provably a whole-file take-ours. This subsection is the replant anchor for **HS-9…HS-16**; all eight rows
+link here.
+
+- **HS-9 (`app/api/socket.ts` connection data) + HS-10 (`app/events/eventRouter.ts` single-user room model):**
+  the socket/eventRouter connection payloads intentionally **omit `userId`** (single-user posture — the fork
+  collapses identity to `tofuConfig.localUserId`). US-006 adopted upstream's optional `happyClient?` field
+  *additively* so a future 3-way merge resolves the `userId` removal as an ours-only deletion. **Intake rule:
+  never reintroduce per-request/per-socket `userId` threading.**
+- **HS-11 (`utils/log.ts` + `sources/fork/forkLogger.ts`):** the quiet-logger gate + `shutdownLogger` moved
+  into a fork seam so `log.ts` reconciles onto upstream's `pretty()` + `pino.multistream` shape.
+- **HS-12 (`routes/pushRoutes.ts`):** KEEP marker only — fork-owned single-user push route.
+- **HS-13 (`monitoring/metrics2.ts`):** removed the vestigial `Account` gauge; kept exact `db.count()` (declined
+  upstream's PGlite-unsafe `getEstimatedRecordCount`).
+- **HS-14 (`index.ts`):** whole-file **take-ours** embedded-server entry (see the HS-14 row).
+- **HS-15 (`package.json`):** KEEP mechanical — embedded pkgroll packaging + fork-only deps; dep bumps taken
+  deliberately at intake, not auto-merged.
+- **HS-16 (`storage/processImage.spec.ts`):** RESTORE — adopted upstream's spec verbatim, eliminating the
+  add/add conflict against the already-upstream impl.
+
+**HS-7 extension (route allowlist + CORS):** US-007 relocated the fork's curated route registration into
+`sources/fork/registerForkRoutes.ts` and the CORS policy into `sources/fork/forkCors.ts`, shrinking
+`app/api/api.ts:configureApi` toward upstream shape. Behavior-preserving: identical routes/CORS on identical
+listeners, and `installForkAuthPlane` still runs **before** `registerForkRoutes` so the public-mode
+`onRequest` httpGuard fronts every route (default-deny). See the HS-7 row and [§8 Guard-by-absence](#guard-by-absence-hs-6-hs-7).
+
+**Net:** hard-conflict file count 9 → ~8 (`processImage.spec.ts` eliminated) + `index.ts` → take-ours, with
+material hunk reduction on `api.ts` (6 → ~2), `log.ts` (4 → ~1), and `socket.ts` (3 → ~1). This is deliberate
+M1-style localization — the residual (single-user removals, embedded packaging, fork route architecture) is
+genuine, load-bearing fork divergence.
 
 ---
 

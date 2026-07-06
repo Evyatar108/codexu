@@ -15,6 +15,14 @@ single-process surfaces. Do not reintroduce per-request or per-socket `userId`
 threading in `sources/`; auth still validates the operator boundary, but route
 and socket code should not carry a tenant identity just to scope updates.
 
+The `socket.ts` connection payloads and the `eventRouter.ts` `ClientConnection`
+interfaces intentionally **omit `userId`** for this reason — they carry only
+`sessionId`/`machineId` scope plus the optional `happyClient?` telemetry field
+(adopted additively from upstream). Catalogued as **HS-9** (socket connection
+data) and **HS-10** (eventRouter single-user room model) in
+[`docs/happy-patch-surface.md`](../../docs/happy-patch-surface.md); a future
+upstream intake must keep `userId` removed from these payloads.
+
 The "Local Development" section below still describes how to run the server
 in standalone mode for testing; production use is via the embedded path in
 the daemon.
