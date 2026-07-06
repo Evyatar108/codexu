@@ -22,6 +22,7 @@ export type ClaudeSessionProtocolState = {
 type ClaudeMapperResult = {
     currentTurnId: string | null;
     envelopes: SessionEnvelope[];
+    // FORK PATCH: KEEP typed context-boundary intents (`boundaries` + `detectWrappedSlashCommandBoundary`/`planModeBoundaryForTool`) — fork wire feature for `/clear`,`/compact` and plan-mode transitions; upstream keys on `claudeUuid` with no boundary intents (invariant HC-16)
     boundaries: ClaudeContextBoundaryIntent[];
 };
 

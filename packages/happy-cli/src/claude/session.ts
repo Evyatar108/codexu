@@ -32,6 +32,7 @@ export class Session {
     sessionId: string | null;
     mode: 'local' | 'remote' = 'local';
     thinking: boolean = false;
+    // FORK PATCH: KEEP Claude deferred-switch session state (`pendingSwitch`, `deferredSwitchCompleting`, `switchFired`) — load-bearing for the deferred-switch protocol; upstream has no deferred-switch (invariant HC-10)
     pendingSwitch: PendingSwitch | undefined;
     deferredSwitchCompleting: boolean = false;
     switchFired: boolean = false;

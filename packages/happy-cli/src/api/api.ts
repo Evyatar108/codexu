@@ -138,4 +138,6 @@ export class ApiClient {
   machineSyncClient(machine: Machine): ApiMachineClient {
     return new ApiMachineClient(this.credential.token, machine);
   }
+
+  // FORK PATCH: KEEP-DELETED push-notification client (upstream's `push(): PushNotificationClient` getter + `pushClient` + vendor-token/deactivate helpers land here). The fork has NO central server (distributed per-daemon), so there is no push infra — do NOT resurrect the push client on upstream intake (invariant HC-18)
 }

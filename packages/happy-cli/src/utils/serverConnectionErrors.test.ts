@@ -1,3 +1,4 @@
+// FORK PATCH: test tracks HC-12
 /**
  * Unit tests for serverConnectionErrors utility.
  *

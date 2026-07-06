@@ -34,6 +34,7 @@ class Configuration {
 
   constructor() {
     // Server configuration - priority: parameter > environment > default
+    // FORK PATCH: KEEP embedded per-daemon server default URL (`127.0.0.1:3005`) — load-bearing fork architecture; upstream defaults to `https://api.cluster-fluster.com` (invariant HC-12)
     this.serverUrl = process.env.HAPPY_SERVER_URL || 'http://127.0.0.1:3005'
     this.webappUrl = process.env.HAPPY_WEBAPP_URL || this.serverUrl
 

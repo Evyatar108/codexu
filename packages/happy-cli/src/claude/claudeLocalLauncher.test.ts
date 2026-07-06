@@ -1,3 +1,4 @@
+// FORK PATCH: test tracks HC-10
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Metadata } from '@/api/types';
 import { mergeSDKInitMetadata } from './utils/sdkMetadata';

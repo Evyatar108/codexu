@@ -21,6 +21,7 @@ export async function handleCodexCommand(args: string[]): Promise<void> {
   }
 
   let startedBy: 'daemon' | 'terminal' | undefined = undefined
+  // FORK PATCH: KEEP fork codex arg parsing (`--effort`, `--idle-timeout`, resume/model/permission-mode/transport/project-doc flag extractors) — fork codex UX; upstream consolidates into `codexArgs` + `permissionMode` (invariant HC-14)
   const sandboxArgs = extractNoSandboxFlag(args)
   const resumeArgs = extractCodexResumeFlag(sandboxArgs.args)
   const effortArgs = extractCodexEffortFlag(resumeArgs.args)

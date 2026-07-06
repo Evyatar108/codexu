@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 import { logger } from "@/ui/logger";
 import { startFileWatcher } from "@/modules/watcher/startFileWatcher";
 import { getProjectPath } from "./path";
+// FORK PATCH: KEEP session-log title normalization (`normalizeSessionLogMessage`) + `getSessionLogMessageKey` helper; upstream restructured to entries/`transcript-event`/`claudeGoalStatus` (invariant HC-9)
 import { getSessionLogMessageKey, normalizeSessionLogMessage } from "./normalizeSessionLogMessage";
 
 /**

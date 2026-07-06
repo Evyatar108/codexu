@@ -45,6 +45,7 @@ export function query(params: { prompt: QueryPrompt; options?: QueryOptions }): 
         effort: opts?.effort,
     }
 
+    // FORK PATCH: KEEP Claude-SDK env passthrough (`opts.env` merged over `process.env`); upstream has no per-query env injection (invariant HC-13)
     let env: Record<string, string> | undefined
     if (opts?.env) {
         env = {

@@ -303,6 +303,7 @@ export class CodexAppServerClient {
 
     constructor(sandboxConfig?: SandboxConfig, options: CodexAppServerClientOptions = {}) {
         this.sandboxConfig = sandboxConfig;
+        // FORK PATCH: KEEP fork codex ws-transport app-server client (`ws` default transport + `createWsTransport`/discovery-lock/`--ws-auth` fallback to stdio) — fork codex feature; upstream is stdio-only (invariant HC-19)
         this.transport = options.transport ?? 'ws';
         this.transportSource = options.transportSource ?? (options.transport ? 'explicit' : 'default');
         this.logFilePath = options.logFilePath;

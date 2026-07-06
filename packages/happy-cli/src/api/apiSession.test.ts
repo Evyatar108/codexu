@@ -1,3 +1,4 @@
+// FORK PATCH: test tracks HC-2
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiSessionClient, MessageConsumptionTimeoutError } from './apiSession';
 import { encodeBase64, encrypt } from './encryption';

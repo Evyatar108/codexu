@@ -125,6 +125,7 @@ export interface SpawnSessionOptions {
     agent?: SupportedAgent;
     environmentVariables?: Record<string, string>;
     token?: string;
+    // FORK PATCH: KEEP spawn-metadata fields (`model`, `permissionMode`, `effortLevel`) threaded into the common spawn handler — additive fork config; upstream spawn payload omits them (invariant HC-17)
     model?: string;
     permissionMode?: string;
     effortLevel?: string;

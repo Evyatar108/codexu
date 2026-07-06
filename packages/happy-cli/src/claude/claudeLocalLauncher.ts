@@ -85,6 +85,7 @@ export async function claudeLocalLauncher(session: Session): Promise<LauncherRes
             await abort();
         }
 
+        // FORK PATCH: KEEP Claude deferred-switch protocol (`performSwitch` + `pendingSwitch` + `request-switch`/`cancel-pending-switch` RPC + `closeClaudeSessionTurn`) and SDK-summary forwarding (upstream's "Block SDK summary messages" filter is intentionally removed); upstream uses `doSwitch`/`onAbort` (invariant HC-10)
         async function performSwitch(reason: 'cancelled' | 'completed') {
             logger.debug(`[local]: performSwitch ${reason}`);
             if (session.switchFired) {

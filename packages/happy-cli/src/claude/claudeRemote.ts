@@ -17,6 +17,7 @@ import type { MessageQueueAttachment } from '@/utils/MessageQueue2';
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages';
 
 export type ClaudeRemoteContextBoundary = Omit<SessionContextBoundaryEvent, 't'>;
+// FORK PATCH: KEEP remote queued-message type carrying attachment-by-ref (`MessageQueueAttachment[]`) for the consumption-ack path; upstream attaches inline per-message bytes (invariant HC-11)
 type ClaudeRemoteQueuedMessage = { message: string, mode: EnhancedMode, attachments?: MessageQueueAttachment[] };
 type ClaudeImageMediaType = 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp';
 

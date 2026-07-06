@@ -295,6 +295,7 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
 
     try {
         let pending: MessageBatch<EnhancedMode> | null = null;
+        // FORK PATCH: KEEP remote consumption-receipt emission (`emitConsumptionReceipts` over `MessageBatch.consumedMessages`) — pairs with HC-8 delivery tracking; upstream sends per-message attachments with no consumption-ack (invariant HC-11)
         const emitConsumptionReceipts = (batch: MessageBatch<EnhancedMode>) => {
             for (const delivery of batch.consumedMessages) {
                 session.client.sendMessageConsumption({

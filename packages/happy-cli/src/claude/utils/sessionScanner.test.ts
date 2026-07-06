@@ -1,3 +1,4 @@
+// FORK PATCH: test tracks HC-9
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createSessionScanner } from './sessionScanner'
 import { RawJSONLines } from '../types'

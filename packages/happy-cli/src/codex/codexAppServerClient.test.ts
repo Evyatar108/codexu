@@ -1,3 +1,4 @@
+// FORK PATCH: test tracks HC-19
 import { EventEmitter } from 'node:events';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';

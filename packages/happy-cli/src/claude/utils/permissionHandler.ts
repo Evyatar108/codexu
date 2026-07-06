@@ -264,6 +264,7 @@ export class PermissionHandler {
     /**
      * Resets all state for new sessions
      */
+    // FORK PATCH: KEEP session-allowlist reset signature (`reset({clearAllowlist})`) — allowlist survives non-session resets; upstream uses `reset(reason)` with no session-allowlist concept (invariant HC-15)
     reset(options: { clearAllowlist?: boolean } = {}): void {
         this.responses.clear();
         this.permissionMode = 'default';

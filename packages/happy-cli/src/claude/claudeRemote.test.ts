@@ -1,3 +1,4 @@
+// FORK PATCH: test tracks HC-11
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { claudeRemote } from './claudeRemote';
 import type { SDKMessage, SDKResultMessage, SDKSystemMessage } from '@/claude/sdk';

@@ -44,6 +44,7 @@ interface Settings {
   daemonAutoStartWhenRunningHappy?: boolean
   chromeMode?: boolean
   sandboxConfig?: SandboxConfig
+  // FORK PATCH: KEEP opaque codex-MCP notification routing config (`mcpNotificationRouting`, validated at use-site by `loadMcpNotificationRouting()`) — additive fork field; upstream has no codex-channels routing (invariant HC-17)
   /**
    * Opaque routing config for codex MCP-server notifications (Option B for
    * codex-channels). Parsed and validated at use-site by

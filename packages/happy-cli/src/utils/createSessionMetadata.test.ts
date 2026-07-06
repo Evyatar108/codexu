@@ -1,3 +1,4 @@
+// FORK PATCH: test tracks HC-17
 import { afterEach, describe, expect, it } from 'vitest';
 import type { SandboxConfig } from '@/persistence';
 import { createSessionMetadata } from './createSessionMetadata';

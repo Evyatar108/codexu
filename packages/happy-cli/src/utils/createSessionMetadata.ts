@@ -69,6 +69,7 @@ export interface SessionMetadataResult {
  * ```
  */
 export function createSessionMetadata(opts: CreateSessionMetadataOptions): SessionMetadataResult {
+    // FORK PATCH: KEEP spawn-ancestry metadata (`parentSessionId` from `HAPPY_PARENT_SESSION_ID`) — small additive fork field for the spawn/fork lineage; upstream has no ancestry link (invariant HC-17)
     const parentSessionId = process.env[HAPPY_PARENT_SESSION_ID];
     const state: AgentState = {
         controlledByUser: false,

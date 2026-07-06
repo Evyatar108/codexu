@@ -1,5 +1,6 @@
 import { logger } from "@/ui/logger";
 
+// FORK PATCH: KEEP attachment-by-ref model (`{type, ref, mimeType}`) vs upstream inline-bytes `PendingAttachment{data, mimeType, name}`; ref-indirection powers the `.happy/attachments/*` writeFile-RPC path (invariant HC-8)
 export type MessageQueueAttachment = {
     type: 'image';
     ref: string;
@@ -15,6 +16,7 @@ interface QueueItem<T> {
     delivery?: MessageDelivery;
 }
 
+// FORK PATCH: KEEP consumption-ack delivery tracking (`MessageDelivery` + `MessageBatch.consumedMessages`) — load-bearing; upstream has no delivery-receipt surface (invariant HC-8)
 export type MessageDelivery = {
     messageId: string;
     seq: number;

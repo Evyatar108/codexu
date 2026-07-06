@@ -1,3 +1,4 @@
+// FORK PATCH: test tracks HC-8
 import { describe, it, expect } from 'vitest';
 import { MessageQueue2 } from './MessageQueue2';
 import { hashObject } from './deterministicJson';
