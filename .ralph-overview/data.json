@@ -1745,6 +1745,14 @@
         {
           "class": "cmd-warn",
           "html": "THE PAYOFF (depends on the 5 reduction+enabling tasks): first selective per-file 3-way intake of cli-1.1.10 (server->cli->app), governed by the catalogue. Pulls ~2 releases of upstream improvements."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Plan shipped @ b2756b352. REAL intake set (upstream delta cli-1.1.8->cli-1.1.10 per pkg): server 32 (7 hard, all catalogued), cli 98 (30 hard, ALL catalogued, 0 gaps), app 190 (59 hard: 22 HA + ~36 uncatalogued + ~8 fork-deleted resurrection hazards). 96 hard-conflict files total. 8 operator-decision calls (#0 merge-base doc-fix DONE; #1 server 2 catalogue rows; #2 server new-file adopts; #3 app catalogue-extension; #4 app resurrection guard; #5 tag vs +3-commits; #6 HA-1b keep-deferred; #7 package.json dep bumps x3; #8 RESTORE/adopts tested)."
+        },
+        {
+          "className": "cmd-warn",
+          "html": "EXECUTION GATED ON OPERATOR REVIEW. Plan autonomy rec = HYBRID: lead may PREPARE server+cli on topic branches to green but PAUSE before merging any stage to main (first behavior-affecting intake across production pkgs; operator away); app needs operator review before execution (~36 uncatalogued hard files + resurrection hazards). REINFORCED by a premise-changing finding: a real merge-base (df4cdae8) DOES exist (§6 corrected @ 2a1e6462) — so a real 'git merge' is now an OPTION (git auto-resolves clean files, surfaces only the 96 catalogued conflicts) vs the planned selective per-file cherry-pick. Operator should choose the strategy before execution."
         }
       ],
       "command": {
