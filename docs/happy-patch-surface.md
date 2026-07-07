@@ -202,6 +202,18 @@ Paths relative to `packages/happy-app/sources/` unless noted. See [`packages/hap
 > intake recipe), **not** a relocation. The removed multi-account plane is recorded as `HA-1a`/`HA-2a`
 > (KEEP-DELETED); upstream's unread-tracking is recorded as `HA-1b` (RESTORE?, deferred / e-ink-gated).
 
+> **A0 update (`cli-1.1.10` intake — uncatalogued hard-conflict extension).** Rows **`HA-13`…`HA-52`** below
+> catalogue the app files that hard-three-way-conflict against `cli-1.1.10` (`git merge-file --diff3` exit>0,
+> CRLF→LF normalized; BASE `cli-1.1.8`, THEIRS `cli-1.1.10`, OURS = fork HEAD) but were **not** yet in this
+> inventory. The app hard set is **59 files = 23 already catalogued (HA-1…HA-12) + 35 newly-catalogued
+> diverged files (HA-13…HA-47) + 1 `package.json` (HA-48, §7-governed) + 8 fork-deleted resurrection
+> hazards (HA-49…HA-52, grouped by plane)**. **All are catalogue-only** (❌ marker column — A0 adds NO inline
+> marker; markers land at the A1–A5 code stages after operator sign-off). Every newly-catalogued diverged
+> file classified **KEEP** or **KEEP + adopt(?)** — **none** is a wholesale adopt-upstream RESTORE. The
+> `KEEP + adopt?` rows that change **observable app behavior** are flagged **operator-call** and enumerated
+> in [§5 A0 decision table](#app-intake--uncatalogued-hard-conflict-classification-a0). **This block gates
+> A1–A5 — do not begin the app code stages until the operator signs off the adopt-set.**
+
 | # | file:symbol | bucket | invariant — why it conflicts / must survive | marker? | test / guard | replant note |
 |---|---|---|---|---|---|---|
 | HA-1 | `sync/sync.ts` — `Sync` class (single-user sync orchestrator) | KEEP | Fork's single-user / embedded-server / loopback `Sync` class diverges broadly from upstream's multi-account sync. **Convergent evolution**, not liftable fork blocks: both sides independently rewrote `sendMessage`, `fetchMessages`, `fetchMachines`, and the socket update-handlers, so it is a permanent **manual three-way merge** (22 conflict hunks vs `cli-1.1.10`). Extractable helpers already live in zero-conflict fork-only modules (see the sync-plane overlay note below); only the call sites conflict. | ✅ inline — `[KEEP]` cluster-head at `class Sync` + `[KEEP-DELETED]` multi-account anchor (both cite HA-1) | `pnpm --filter happy-app typecheck`; `sync/messageWindow.spec.ts`, `sync/applyPrefetchedRange.spec.ts`, `sync/machineFallbacks.test.ts` | start-from-OURS — [§8 R5](#r5--happy-app-sync-plane-ha-1-ha-2) intake recipe |
@@ -219,6 +231,46 @@ Paths relative to `packages/happy-app/sources/` unless noted. See [`packages/hap
 | HA-10 | `components/SidebarView.tsx` — sidebar screen | KEEP | Fork's collapsible sidebar is a near-total rewrite (280 vs 97 upstream) for the tablet; upstream's same-named file is a DIFFERENT feature (new-session right sidebar). | ❌ (merge=ours shim — no inline marker) | intake: keep-ours via `.gitattributes` | **R8 stage 6 DONE** — operator call #1 = KEEP-as-shim. `.gitattributes merge=ours` keeps the fork version on import; do not adopt upstream's new-session sidebar. Requires `git config merge.ours.driver true` on import host (§7). |
 | HA-11 | `components/SidebarNavigator.tsx` — sidebar nav | KEEP | Fork simplified the navigator (125 vs 175 upstream); paired with HA-10; upstream's same-named file is the new-session-sidebar nav. | ❌ (merge=ours shim — no inline marker) | intake: keep-ours via `.gitattributes` | **R8 stage 6 DONE** — operator call #1 = KEEP-as-shim; paired with HA-10. |
 | HA-12 | `components/ChatHeaderView.tsx` — chat header | KEEP | Fork's sidebar-restore control + avatar-header redesign (324 vs 176 upstream). | ❌ (merge=ours shim — no inline marker) | intake: keep-ours via `.gitattributes` | **R8 stage 6 DONE** — operator call #1 = KEEP-as-shim (kept the whole fork header incl. the avatar redesign, rather than the selective restore-control-only seam). |
+| HA-13 | `app/(app)/new/index.tsx` — new-session screen | KEEP + adopt | Fork new-session composer diverges for the e-ink / remote-daemon target (fork input stack + machine/agent pickers); upstream rewrote the unified composer (20 hunks; fork 583 vs upstream 1851 lines). Only the internal PromptInput keystroke-isolation refactor is a safe hand-port. | ❌ catalogue-only (marker at code stage) | `app/(app)/new/index.unifiedComposer.test.ts` | A0 (`cli-1.1.10`) — KEEP fork body; hand-port keystroke-isolation only, drop upstream multi-account/agent hunks. Internal (no op-call). |
+| HA-14 | `components/ActiveSessionsGroupCompact.tsx` — compact session group | KEEP | Fork renders the tablet DFS parent/child session tree (fork-only grouping); upstream diverged on multi-account/unread rendering of the same component. | ❌ catalogue-only (marker at code stage) | `components/ActiveSessionsGroupCompact.dfs-order.spec.tsx` | A0 — KEEP fork body; drop upstream unread hunks. |
+| HA-15 | `components/SessionsList.tsx` — session list | KEEP + adopt | Fork's e-ink session list (DFS tree rows, no unread badges); upstream added unread badges + a FlatList selection-stability fix. Adopt the selection-stability hunk only. | ❌ catalogue-only (marker at code stage) | `components/SessionsList.test.tsx` | A0 — KEEP fork body; hand-port FlatList selection-stability, skip unread badges. Internal (no op-call). |
+| HA-16 | `hooks/useSessionQuickActions.ts` — quick-action menu | KEEP + adopt? | Fork quick-actions target single-user/e-ink; upstream reworked `resolveMessageModeMeta` (resume model/permission defaults). Adopting changes the model/permission preset applied on session resume. | ❌ catalogue-only (marker at code stage) | `hooks/useSessionQuickActions.test.tsx` | A0 — **operator-call**: adopting alters resume model/permission defaults. Default lean KEEP fork. |
+| HA-17 | `app/(app)/_layout.tsx` — app route-group layout | KEEP + adopt? | Fork route tree omits multi-account/github/feed screens; upstream added a new settings/agents route. Adopting makes a new settings route reachable. | ❌ catalogue-only (marker at code stage) | add at code stage: settings-route registry test; interim `sync/encryptionDeletion.spec.ts` (removed-plane absence) + `pnpm --filter happy-app typecheck` | A0 — **operator-call**: new settings/agents route becomes visible. |
+| HA-18 | `app/_layout.tsx` — root layout | KEEP + adopt? | Fork root layout drops the encryption/multi-account bootstrap and tunes push for the remote daemon; upstream added foreground-push suppression, a messages notification channel, and browser keyboard shortcuts. | ❌ catalogue-only (marker at code stage) | `sync/encryptionDeletion.spec.ts`, `auth/tokenStorage.test.ts` | A0 — **operator-call**: foreground-push suppression / messages channel / browser shortcuts change observable behavior. |
+| HA-19 | `app/(app)/session/[id]/info.tsx` — session-info screen | KEEP + adopt? | Fork session-info screen is single-user/e-ink; upstream added parent-session navigation. Adopting adds a parent-session nav affordance. | ❌ catalogue-only (marker at code stage) | `utils/sessionInfoPermissionMode.test.ts` | A0 — **operator-call**: parent-session nav becomes visible. |
+| HA-20 | `components/tools/ToolView.tsx` — tool-card frame | KEEP + adopt? | Fork tool card is e-ink-tuned (static, contrast-safe); upstream reworked compact/header `toolDisplay` layout. Adopting changes tool-card layout. | ❌ catalogue-only (marker at code stage) | `components/tools/ToolView.completedPolish.test.ts` | A0 — **operator-call**: tool-card compact/header layout change. |
+| HA-21 | `components/tools/views/CodexPatchView.tsx` — codex patch view | KEEP + adopt? | Fork-owned codex patch renderer (fork feature); upstream added patch-shape normalization (`materializeUnifiedDiffPatch`) + collapsed/embedded patch UI. | ❌ catalogue-only (marker at code stage) | `components/tools/views/CodexPatchView.test.tsx` | A0 — **operator-call**: collapsed/embedded patch UI change. Hand-port normalization carefully (codex feature). |
+| HA-22 | `components/tools/PermissionFooter.tsx` — permission footer | KEEP | Fork permission footer matches the e-ink permission-mode model; conflicts on shared imports with upstream. | ❌ catalogue-only (marker at code stage) | `components/tools/ToolView.completedPolish.test.ts` | A0 — KEEP fork body. |
+| HA-23 | `components/tools/views/_all.tsx` — tool-view registry | KEEP + adopt? | Fork tool-view registry wires fork-only views; upstream added a `permissionFooter` prop threading + a new `FileView` renderer. Adopting registers a new file renderer. | ❌ catalogue-only (marker at code stage) | `components/tools/FileEditView.test.ts`, `components/tools/views/EditView.test.tsx` | A0 — **operator-call**: new FileView renderer registered. |
+| HA-24 | `components/diff/PierreDiffView.tsx` — diff view | KEEP + adopt | Fork diff view is e-ink-styled; upstream added an additive `expandUnchanged` prop. Adopt the additive prop only. | ❌ catalogue-only (marker at code stage) | `components/diff/CollapsibleDiffPreview.test.tsx` | A0 — KEEP fork body; hand-port additive `expandUnchanged`. Internal (no op-call). |
+| HA-25 | `sync/apiSocket.ts` — socket client | KEEP + adopt? | Fork socket client targets the loopback/remote daemon; upstream added an `sendAppState`/`appState` handshake used for push suppression. Adopting changes push/appState behavior. | ❌ catalogue-only (marker at code stage) | `sync/apiSocket.test.ts` | A0 — **operator-call**: appState handshake / push suppression. Entangled with HA-18, HA-1b. |
+| HA-26 | `sync/ops.ts` — RPC op builders | KEEP + adopt | Fork op set diverges (daemon/codex ops); upstream added spawn-lineage fields, rewind/fork RPCs, and `sessionGoalAction` (additive builders). | ❌ catalogue-only (marker at code stage) | `sync/ops.test.ts` | A0 — KEEP fork body; hand-port additive op builders. Internal (no op-call). |
+| HA-27 | `sync/typesRaw.ts` — wire types | KEEP + adopt? | Fork raw wire types drop encryption/multi-account; upstream added `thumbhash`, `claudeUuid`, `codexItemId`, and file-event tool-result shapes. The file-event addition changes attachment rendering. | ❌ catalogue-only (marker at code stage) | `sync/typesRaw.spec.ts`, `sync/typesRaw.lifecycleState.test.ts` | A0 — **operator-call**: file-event attachment rendering. Additive fields otherwise safe. |
+| HA-28 | `sync/messageMeta.ts` — outgoing message metadata | KEEP + adopt? | Fork metadata carries codex/e-ink fields; upstream added `agentDefaultOverrides`. Fork maps upstream `effort` → fork `thinkingLevel`, so adopting requires the mapping and changes outgoing metadata. | ❌ catalogue-only (marker at code stage) | `sync/messageMeta.test.ts` | A0 — **operator-call**: outgoing metadata (effort→thinkingLevel mapping). |
+| HA-29 | `sync/messageMeta.test.ts` — messageMeta guard | KEEP + adopt | Mirrors HA-28; adopt only the assertions matching accepted HA-28 hunks. | ❌ catalogue-only (marker at code stage) | self (`sync/messageMeta.test.ts`) | A0 — KEEP; track HA-28 decision. |
+| HA-30 | `sync/typesMessageMeta.ts` — message-meta types | KEEP + adopt | Fork meta types; upstream added an additive `effort` field. Adopt additive field only. | ❌ catalogue-only (marker at code stage) | `sync/typesMessageMeta.test.ts` | A0 — KEEP fork body; hand-port additive `effort`. Internal (no op-call). |
+| HA-31 | `sync/storageTypes.ts` — persisted store types | KEEP + adopt | Fork store types (tree/permission fields); upstream added `forkedFromMessageId` + `AgentGoalStatusSchema` (additive). | ❌ catalogue-only (marker at code stage) | `sync/storageTypes.spec.ts` | A0 — KEEP fork body; hand-port additive schemas. Internal (no op-call). |
+| HA-32 | `sync/storageTypes.spec.ts` — storageTypes guard | KEEP + adopt | Mirrors HA-31; adopt assertions for accepted additive fields. | ❌ catalogue-only (marker at code stage) | self (`sync/storageTypes.spec.ts`) | A0 — KEEP; track HA-31 decision. |
+| HA-33 | `sync/localSettings.ts` — device-local settings | KEEP + adopt | Fork local settings (e-ink toggles, chatToolGrouping); upstream added an additive `zenMode`. Adopt additive field only. | ❌ catalogue-only (marker at code stage) | `sync/settings.spec.ts`; `pnpm --filter happy-app typecheck` | A0 — KEEP fork body; hand-port additive `zenMode`. Internal (no op-call). |
+| HA-34 | `sync/persistence.ts` — store persistence | KEEP | Fork persistence drops the encryption/multi-account persisted planes and keeps tree-expanded state; take-upstream resurrects removed planes. | ❌ catalogue-only (marker at code stage) | `sync/encryptionDeletion.spec.ts`, `sync/persistence.tree-expanded.spec.ts` | A0 — KEEP fork body (guard-by-absence adjacent). |
+| HA-35 | `sync/settings.spec.ts` — settings guard | KEEP + adopt | Mirrors the settings additive-field decisions (HA-33 zenMode etc). | ❌ catalogue-only (marker at code stage) | self (`sync/settings.spec.ts`) | A0 — KEEP; track HA-33 decision. |
+| HA-36 | `sync/suggestionCommands.ts` — slash-command suggestions | KEEP + adopt? | Fork slash set (codex/daemon); upstream added `/goal` + `metadata.skills` suggestions. Adopting changes the visible slash-suggestion list. | ❌ catalogue-only (marker at code stage) | `sync/suggestionCommands.test.ts` | A0 — **operator-call**: new `/goal` + skills slash suggestions. |
+| HA-37 | `components/autocomplete/suggestions.ts` — mention autocomplete | KEEP + adopt? | Fork autocomplete tuned for e-ink; upstream changed the file-mention limit to 50. Adopting changes the suggestion-list length. | ❌ catalogue-only (marker at code stage) | `components/autocomplete/suggestions.test.ts` | A0 — **operator-call**: file-mention suggestion count (50). |
+| HA-38 | `components/SettingsView.tsx` — settings screen | KEEP + adopt? | Fork settings screen removes multi-account/github/encryption rows and adds e-ink controls; upstream added `openExternalUrl`, a version-detail row, and an Agent Defaults section. Adopting adds visible rows. | ❌ catalogue-only (marker at code stage) | `components/SettingsView.test.tsx`, `sync/encryptionDeletion.spec.ts` | A0 — **operator-call**: version / Agent-Defaults rows. Defer Agent Defaults; keep guard-by-absence for removed rows. |
+| HA-39 | `components/FilesSidebar.tsx` — files sidebar | KEEP + adopt? | Fork files sidebar is e-ink-laid-out; upstream added an all-files mode, Windows path splitting, and per-file line totals. Adopting changes sidebar modes/layout. | ❌ catalogue-only (marker at code stage) | `components/FilesSidebar.test.tsx` | A0 — **operator-call**: sidebar all-files mode / layout. |
+| HA-40 | `components/modelModeOptions.ts` — model catalogue | KEEP + adopt | Fork model list (codex + fork defaults); upstream added Claude opus 4.8 + an `xhigh` effort tier (additive catalogue rows). | ❌ catalogue-only (marker at code stage) | `components/modelModeOptions.test.ts` | A0 — KEEP fork body; hand-port additive model/effort rows. Internal (no op-call). |
+| HA-41 | `components/modelModeOptions.test.ts` — model-catalogue guard | KEEP + adopt | Mirrors HA-40 additive rows. | ❌ catalogue-only (marker at code stage) | self (`components/modelModeOptions.test.ts`) | A0 — KEEP; track HA-40 decision. |
+| HA-42 | `hooks/useDemoMessages.ts` — demo / onboarding messages | KEEP | Fork demo content diverges; upstream demo rewrite conflicts. Fork-owned, no behavior contract. | ❌ catalogue-only (marker at code stage) | `pnpm --filter happy-app typecheck` | A0 — KEEP fork body. |
+| HA-43 | `changelog/changelog.json` (pkg root) — fork changelog data | KEEP | Fork-owned versioned changelog history; take-upstream overwrites fork release notes. | ❌ catalogue-only (marker at code stage) | n/a (fork-owned data; consumed by `scripts/parseChangelog.ts`) | A0 — KEEP fork file wholesale. Not audit-scanned (`.json`). |
+| HA-44 | `CHANGELOG.md` (pkg root) — fork changelog | KEEP | Fork-owned changelog; take-upstream overwrites fork history. | ❌ catalogue-only (marker at code stage) | n/a (fork-owned doc) | A0 — KEEP fork file wholesale. Not audit-scanned (`.md`). |
+| HA-45 | `scripts/parseChangelog.ts` (pkg root) — changelog parser | KEEP | Fork's versioned-changelog parser (fork feature); upstream parser diverges. | ❌ catalogue-only (marker at code stage) | `pnpm --filter happy-app typecheck` | A0 — KEEP fork body. Under `scripts/` (outside the audit scan root). |
+| HA-46 | `app.config.js` (pkg root) — Expo app config | KEEP + adopt | Fork build config (bundle ids, remote-daemon); upstream added `buildCommitSha` + iOS `NSAppTransportSecurity`. Adopt additive config only. | ❌ catalogue-only (marker at code stage) | `pnpm --filter happy-app typecheck` / build | A0 — KEEP fork body; hand-port additive config keys. Not audit-scanned (`.js`). |
+| HA-47 | `metro.config.js` (pkg root) — Metro bundler config | KEEP + adopt | Fork Metro config (Tauri exclusion, preact singleton for the desktop/e-ink build); upstream diverged on resolver config. | ❌ catalogue-only (marker at code stage) | `pnpm --filter happy-app typecheck` / build | A0 — KEEP fork body; hand-port only non-conflicting resolver hunks. Not audit-scanned (`.js`). |
+| HA-48 | `package.json` (pkg root) — app manifest | KEEP | Deps/scripts diverge every intake; **no merge driver** — resolved by manual 3-way per §7 (mirrors server HS-15). Keep fork deps; hand-add upstream's new prod deps only. | ❌ catalogue-only (marker at code stage) | `pnpm --filter happy-app typecheck`; `pnpm install` | A0 — KEEP + manual-3-way per [§7 package.json churn](#packagejson-churn-no-merge-driver--resolved-manual-3-way-is-correct). Not audit-scanned. |
+| HA-49 | `encryption/base64.ts`, `encryption/deriveKey.ts`, `sync/encryption/encryption.ts`, `sync/encryption/encryptor.ts`, `auth/secretKeyBackup.spec.ts` — E2E encryption plane (removed) | KEEP-DELETED | Fork **deleted** the end-to-end encryption plane (key derivation, base64 codec, encryptor, secret-key backup); upstream `cli-1.1.10` still ships them. A take-theirs merge **resurrects** the plane. **Resurrection hazard — NEVER take-theirs.** | ❌ (guard by absence — no code to mark) | `sync/encryptionDeletion.spec.ts` (asserts `@/encryption/` + `@/sync/encryption/` import absence) + per-file `Test-Path` == false | A0 — take-ours / keep-deleted, mechanical. Drop upstream re-adds every intake. |
+| HA-50 | `app/(app)/user/[id].tsx` — other-user profile screen (removed) | KEEP-DELETED | Fork is **single-user** and **deleted** the multi-account other-user profile screen; upstream still ships it. Take-theirs resurrects the multi-account plane. **Resurrection hazard — NEVER take-theirs.** | ❌ (guard by absence — no code to mark) | `sync/encryptionDeletion.spec.ts` (multi-account/friends absence) + file-absence | A0 — take-ours / keep-deleted, mechanical. |
+| HA-51 | `sync/apiGithub.spec.ts` — GitHub-connect plane (removed) | KEEP-DELETED | Fork **removed** the GitHub-connect plane; upstream still ships `apiGithub`. Take-theirs resurrects it (and its `apiGithub` import). **Resurrection hazard — NEVER take-theirs.** | ❌ (guard by absence — no code to mark) | `sync/encryptionDeletion.spec.ts` (asserts `apiGithub` absence) + file-absence | A0 — take-ours / keep-deleted, mechanical. |
+| HA-52 | `CLAUDE.md` (pkg root) — upstream per-package agent doc (removed) | KEEP-DELETED | Fork renamed the per-package agent guidance to `packages/happy-app/AGENTS.md`; upstream still ships `CLAUDE.md`. Take-theirs re-adds a stale duplicate that diverges from `AGENTS.md`. **Keep deleted.** | ❌ (guard by absence — no code to mark) | file-absence (`Test-Path packages/happy-app/CLAUDE.md` == false); `packages/happy-app/AGENTS.md` present | A0 — take-ours / keep-deleted. Docs-only (low risk) but avoid a duplicate divergent guidance doc. |
 
 > **Sync-plane fork-only overlay (zero-conflict, import-safe — context only, NO markers).** The R5
 > conflict is entirely in the `sync/sync.ts` and `sync/storage.ts` **call sites** that wire in these
@@ -243,6 +295,74 @@ each R8 stage lands it adds a sibling subdir; empty dirs are **not** scaffolded 
 | `message/` | `components/MessageView.tsx` | HA-9 | **R8 stage 3 (this ship)** |
 | `composer/` (dir name `agentInput/`) | `components/AgentInput.tsx` | HA-6 | **R8 stage 4 (this ship)** |
 | _(no overlay — `merge=ours` shim)_ | `components/SidebarView.tsx`, `components/SidebarNavigator.tsx`, `components/ChatHeaderView.tsx` | HA-10, HA-11, HA-12 | **R8 stage 6 DONE** — `.gitattributes merge=ours` (files kept in place, not relocated) |
+
+### App intake — uncatalogued hard-conflict classification (A0)
+
+**Scope.** Stage **A0** of the first selective intake of `cli-1.1.10` (task
+`happy-first-selective-intake-cli-1.1.10`). A0 is **catalogue / design only — ZERO edits to
+`packages/happy-app/sources/`**. It classifies every app file that hard-three-way-conflicts against
+`cli-1.1.10` so the app intake is 100% governed before the A1–A5 code stages. **Method:** for each file in
+`git diff --name-only cli-1.1.8 cli-1.1.10 -- packages/happy-app/sources`, keep only files where the fork
+HEAD blob also diverged from `cli-1.1.8`, then run `git merge-file -p --diff3 <ours> <base> <theirs>`
+(CRLF→LF normalized — the Windows CRLF trap) and keep exit>0 (hard conflict).
+
+**The app hard set = 59 files.** 23 already catalogued (HA-1…HA-12), 35 newly-catalogued diverged files
+(HA-13…HA-47), 1 `package.json` (HA-48, §7-governed), 8 fork-deleted resurrection hazards (HA-49…HA-52,
+4 plane-grouped rows). **Split:** KEEP **8** · KEEP + adopt (mechanical/additive, no sign-off) **14** ·
+KEEP + adopt? (operator-call) **14** · KEEP-DELETED **8 files** (4 rows). **No file classified wholesale
+adopt-upstream RESTORE** — every diverged file keeps the fork body; only specific upstream hunks are
+hand-port candidates at the code stage.
+
+**Operator sign-off required — 14 `KEEP + adopt?` calls (adopting changes observable app behavior).**
+A1–A5 must NOT begin until the operator rules ADOPT or DROP on each:
+
+| catalogue row | file | if ADOPTED, observable change | default lean |
+|---|---|---|---|
+| `HA-16` | `hooks/useSessionQuickActions.ts` | resume applies upstream model/permission defaults | KEEP fork |
+| `HA-17` | `app/(app)/_layout.tsx` | new settings/agents route becomes reachable | KEEP fork |
+| `HA-18` | `app/_layout.tsx` | foreground-push suppression + messages channel + browser shortcuts | KEEP fork (e-ink/daemon) |
+| `HA-19` | `app/(app)/session/[id]/info.tsx` | parent-session nav affordance appears | KEEP fork |
+| `HA-20` | `components/tools/ToolView.tsx` | tool-card compact/header layout changes | KEEP fork (e-ink) |
+| `HA-21` | `components/tools/views/CodexPatchView.tsx` | collapsed/embedded patch UI + patch normalization | operator (codex feature) |
+| `HA-23` | `components/tools/views/_all.tsx` | new FileView renderer registered | operator |
+| `HA-25` | `sync/apiSocket.ts` | appState handshake / push suppression | KEEP fork (entangled w/ HA-18, HA-1b) |
+| `HA-27` | `sync/typesRaw.ts` | file-event attachments render | operator (additive fields otherwise safe) |
+| `HA-28` | `sync/messageMeta.ts` | outgoing metadata gains agentDefaultOverrides (effort→thinkingLevel) | KEEP fork mapping |
+| `HA-36` | `sync/suggestionCommands.ts` | `/goal` + skills slash suggestions appear | operator |
+| `HA-37` | `components/autocomplete/suggestions.ts` | file-mention suggestion count → 50 | operator |
+| `HA-38` | `components/SettingsView.tsx` | version-detail row + Agent Defaults section appear | KEEP fork; defer Agent Defaults |
+| `HA-39` | `components/FilesSidebar.tsx` | all-files mode + path/line-total layout | KEEP fork (e-ink layout) |
+
+**Resurrection hazards — 8 fork-deleted files, KEEP-DELETED (NEVER take-theirs).** Guard = the existing
+`sources/sync/encryptionDeletion.spec.ts` (asserts absence of the encryption / github / multi-account planes
+via `apiGithub|apiArtifacts|apiFeed|@/encryption/|@/sync/encryption/` grep == 0) + per-file `Test-Path`
+== false. All 8 confirmed absent at A0:
+
+1. `sources/encryption/base64.ts` — encryption plane (`HA-49`)
+2. `sources/encryption/deriveKey.ts` — encryption plane (`HA-49`)
+3. `sources/sync/encryption/encryption.ts` — encryption plane (`HA-49`)
+4. `sources/sync/encryption/encryptor.ts` — encryption plane (`HA-49`)
+5. `sources/auth/secretKeyBackup.spec.ts` — E2E secret-key backup (`HA-49`)
+6. `sources/app/(app)/user/[id].tsx` — multi-account other-user profile (`HA-50`)
+7. `sources/sync/apiGithub.spec.ts` — GitHub-connect plane (`HA-51`)
+8. `packages/happy-app/CLAUDE.md` — upstream per-package doc; fork uses `AGENTS.md` (`HA-52`)
+
+**Mechanical `KEEP + adopt` (14 — no sign-off; additive/internal hand-ports at the code stage):** `HA-13`,
+`HA-15`, `HA-24`, `HA-26`, `HA-29`, `HA-30`, `HA-31`, `HA-32`, `HA-33`, `HA-35`, `HA-40`, `HA-41`, `HA-46`,
+`HA-47`. *(Test rows `HA-29`/`HA-32`/`HA-35`/`HA-41` mirror their subject's decision.)*
+
+**Pure `KEEP` (8 — keep fork wholesale):** `HA-14`, `HA-22`, `HA-34`, `HA-42`, `HA-43`, `HA-44`, `HA-45`,
+`HA-48` (`package.json`, via §7 manual-3-way).
+
+**Audit note.** All HA-13…HA-52 rows are **catalogue-only** (❌ marker column, no `✅`), so
+`node scripts/audit-happy-fork-patches.mjs` stays **zero-drift** — no inline marker is claimed and none
+exists in `sources/` yet. Markers are added per-file at the A1–A5 code stages (same pattern as the
+`merge=ours` HA-10/11/12 rows). Six of the catalogued files are outside the audit's scan set
+(`.ts`/`.tsx`/`.mts`/`.cts`/`.prisma` under the package `sources/` root): `changelog/changelog.json`,
+`CHANGELOG.md`, `app.config.js`, `metro.config.js`, `scripts/parseChangelog.ts`, and `package.json` — they
+are catalogued here for governance but never audit-scanned.
+
+**No `REVIEW:` items** — every uncatalogued hard-conflict file classified cleanly.
 
 ---
 
