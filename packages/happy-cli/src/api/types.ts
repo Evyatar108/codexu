@@ -250,6 +250,40 @@ export const UserMessageSchema = z.object({
 
 export type UserMessage = z.infer<typeof UserMessageSchema>
 
+/**
+ * File event message — sent by the app as a session envelope before the text message.
+ * Contains a ref pointing to the encrypted blob on the server.
+ */
+export const FileEventMessageSchema = z.object({
+  role: z.literal('session'),
+  content: z.object({
+    type: z.literal('session'),
+    data: z.object({
+      id: z.string(),
+      time: z.number(),
+      role: z.literal('user'),
+      ev: z.object({
+        t: z.literal('file'),
+        ref: z.string(),
+        name: z.string(),
+        size: z.number(),
+        mimeType: z.string().optional(),
+        image: z.object({
+          width: z.number(),
+          height: z.number(),
+          // Optional — native iOS picker has no Canvas to compute thumbhash.
+          // App-side schema relaxed this in the same commit; keeping CLI in
+          // sync so the file event isn't silently rejected by Zod and the
+          // attachment never reaches Claude.
+          thumbhash: z.string().optional(),
+        }).optional(),
+      }),
+    }),
+  }),
+})
+
+export type FileEventMessage = z.infer<typeof FileEventMessageSchema>
+
 export const AgentMessageSchema = z.object({
   role: z.literal('agent'),
   content: z.object({
@@ -347,6 +381,40 @@ export type Metadata = {
   dangerouslySkipPermissions?: boolean | null
 };
 
+export type AgentGoalStatus = {
+  source: 'claude' | 'codex',
+  observedAt: number,
+  sourceSessionId?: string,
+  sourceRevision?: string | number,
+} & (
+  | {
+      status: 'unavailable',
+      reason?: 'unsupported' | 'not_loaded' | 'stale' | 'malformed' | 'error' | 'unknown',
+    }
+  | {
+      status: 'inactive',
+      reason?: 'none' | 'cleared' | 'completed' | 'unknown',
+    }
+  | {
+      status: 'active',
+      sourceSessionId: string,
+      text: string,
+      capabilities?: {
+        clear?: boolean,
+        stop?: boolean,
+        edit?: boolean,
+      },
+      progress?: {
+        currentStep?: number,
+        totalSteps?: number,
+        steps?: Array<{
+          text: string,
+          status: 'pending' | 'in_progress' | 'completed',
+        }>,
+      },
+    }
+);
+
 export type AgentState = {
   controlledByUser?: boolean | null | undefined
   pendingSwitch?: {
@@ -374,4 +442,5 @@ export type AgentState = {
       allowTools?: string[]
     }
   }
+  agentGoalStatus?: AgentGoalStatus
 }
