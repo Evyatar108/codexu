@@ -1842,6 +1842,27 @@
         }
       ],
       "lastTouchedAt": "2026-07-06T21:59:17.490Z"
+    },
+    {
+      "id": "happy-app-upstream-feature-opt-ins-cli-1.1.10",
+      "status": "todo",
+      "command": {
+        "name": "happy-app-upstream-feature-opt-ins-cli-1.1.10",
+        "descriptionHtml": "Opt into any of the 5 declined upstream app features (FileView renderer, /goal+skills, file-event attachments, CodexPatchView, mention-limit) one at a time with an e-ink UX check. See docs/happy-patch-surface.md HA-21/23/27/36/37.",
+        "warnings": [],
+        "prompts": {
+          "plan": "/plan-with-ralph \"Opt into selected upstream cli-1.1.10 app features that were declined in the first intake (keep-all). Candidates: HA-23 FileView tool renderer, HA-36 /goal+skills slash suggestions, HA-27 file-event attachment rendering, HA-21 CodexPatchView UI, HA-37 file-mention limit 10->50 (see docs/happy-patch-surface.md §5). For each chosen feature: hand-port the upstream hunk into the fork file, verify it does not regress the e-ink UX (webapp debugging OK), keep behind a default-off toggle if it adds continuous repaint/animation. Gate: pnpm --filter happy-app typecheck + the relevant HA guard specs.\""
+        }
+      },
+      "scope": "happy-app",
+      "lastTouchedAt": "2026-07-07T02:17:15.659Z",
+      "lifecycle": "tracked",
+      "kanbanCards": [
+        {
+          "class": "cmd-warn",
+          "html": "5 upstream cli-1.1.10 app FEATURES were DECLINED during the first intake (keep-all posture, e-ink conservatism) and are available to opt into individually later: FileView tool renderer (HA-23), /goal+skills slash suggestions (HA-36), file-event attachment rendering (HA-27, relates to US-004), CodexPatchView collapsed/embedded UI (HA-21), file-mention limit 10->50 (HA-37). Each is a behavior-changing hand-port into an otherwise-KEEP file; each needs an e-ink UX check. Plus 9 other adopt-candidates defaulted KEEP-fork (settings/layout/tool-card/socket UI)."
+        }
+      ]
     }
   ],
   "phaseTree": [
