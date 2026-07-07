@@ -9,8 +9,9 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:3005';
 const MACHINE_SERVER_PREFIX = 'machine-server-url:';
 
 export function getServerUrl(): string {
-    return serverConfigStorage.getString(SERVER_KEY) || 
-           process.env.EXPO_PUBLIC_HAPPY_SERVER_URL || 
+    return serverConfigStorage.getString(SERVER_KEY) ||
+           (globalThis as any).__HAPPY_CONFIG__?.serverUrl ||
+           process.env.EXPO_PUBLIC_HAPPY_SERVER_URL ||
            DEFAULT_SERVER_URL;
 }
 
