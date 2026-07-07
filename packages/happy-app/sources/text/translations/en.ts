@@ -154,12 +154,14 @@ export const en: TranslationStructure = {
         permissionRequired: 'permission required',
         activeNow: 'Active now',
         unknown: 'unknown',
+        unread: 'new results',
     },
 
     time: {
         justNow: 'just now',
         minutesAgo: ({ count }: { count: number }) => `${count} minute${count !== 1 ? 's' : ''} ago`,
         hoursAgo: ({ count }: { count: number }) => `${count} hour${count !== 1 ? 's' : ''} ago`,
+        daysAgo: ({ count }: { count: number }) => `${count} day${count !== 1 ? 's' : ''} ago`,
     },
 
     connect: {
@@ -288,11 +290,15 @@ export const en: TranslationStructure = {
         unifiedNewSessionComposerSubtitle: 'Use the shared composer on the new-session screen',
         hideInactiveSessions: 'Hide inactive sessions',
         hideInactiveSessionsSubtitle: 'Show only active chats in your list',
+        groupToolCalls: 'Group Tool Calls',
+        groupToolCallsSubtitle: 'Collapse consecutive tool calls into one container',
         privacy: 'Privacy',
         privacyDescription: 'Completely disables all analytics and telemetry. No data will be sent to PostHog or any other tracking service.',
         disableAnalytics: 'Disable Analytics',
         analyticsDisabled: 'All tracking and telemetry disabled',
         analyticsEnabled: 'Anonymous usage analytics active',
+        imageUpload: 'Image Upload',
+        imageUploadSubtitle: 'Attach images to messages for supported agents to analyze',
     },
 
     errors: {
@@ -365,6 +371,24 @@ export const en: TranslationStructure = {
         inactiveArchived: 'This session is inactive.',
         resumeFromTerminal: 'To resume it from the terminal:',
         catalogNotReadyBanner: "Session hasn't loaded yet — send any message first to populate this list.",
+        newChat: 'New chat',
+        forkAction: 'Fork session',
+        forkSubtitle: 'Continue in a new session with the same context',
+        duplicateAction: 'Duplicate from message…',
+        duplicateSubtitle: 'Rewind to a chosen point and try again',
+        forkFromHere: 'Fork from here',
+        duplicateSheetTitle: 'Choose a rewind point',
+        duplicateSheetSubtitle: 'The new session keeps the chosen turn complete (your message and the agent’s response) and drops every prompt after it.',
+        duplicateSheetConfirm: 'Duplicate',
+        duplicateSheetEmpty: 'No messages eligible for rewind in this session yet.',
+        duplicateRowDisabled: "This message can't be used as a rewind point.",
+        forkedFromLabel: 'Forked from',
+        forkedFromSubtitle: 'Open the session this fork was branched from',
+        forkErrorOffline: 'This machine is offline. Fork is only available while the machine that owns the session is online.',
+        forkErrorMissingUuid: 'The chosen rewind point is no longer present in the source session — try forking without truncation.',
+        forkErrorMissingMetadata: 'Missing session metadata required to fork.',
+        forkErrorGeneric: 'Failed to fork the session.',
+        forkClaudeOnly: 'Fork is currently only supported for Claude sessions.',
     },
 
     commandPalette: {
@@ -554,6 +578,13 @@ export const en: TranslationStructure = {
             scanQrCode: 'Scan the QR code',
             openCamera: 'Open Camera',
         },
+        agentGoalBar: {
+            currentGoal: 'Current goal',
+            accessibilityLabel: ({ goal }: { goal: string }) => `Current goal: ${goal}`,
+            clearGoal: 'Clear goal',
+            stopGoal: 'Stop goal',
+            editGoal: 'Edit goal',
+        },
     },
 
     agentInput: {
@@ -650,6 +681,11 @@ export const en: TranslationStructure = {
         hideHint: 'Enters max-focus mode; a menu button restores the sidebar',
         expand: 'Expand sidebar',
         collapse: 'Collapse sidebar',
+        newSession: 'New session',
+    },
+
+    zen: {
+        toggle: 'Zen mode',
     },
 
     toolView: {
@@ -795,6 +831,16 @@ export const en: TranslationStructure = {
         noChangesTitle: 'No changes',
         noChangesSubtitle: 'Working tree is clean',
         deleted: 'Deleted',
+        changedFiles: ({ count }: { count: number }) => `${count} changed ${count === 1 ? 'file' : 'files'}`,
+        allFiles: 'All Files',
+        editFile: 'Edit',
+        saveFile: 'Save',
+        failedToRead: 'Failed to read file',
+        failedToSave: 'Failed to save file',
+        fileConflict: 'File conflict',
+        fileConflictDescription: 'This file was modified on the device while you were editing. Reload to see the latest version.',
+        reload: 'Reload',
+        overwrite: 'Overwrite',
     },
 
     settingsAccount: {
@@ -992,6 +1038,21 @@ export const en: TranslationStructure = {
         codeCopied: 'Code copied',
         copyFailed: 'Failed to copy',
         mermaidRenderFailed: 'Failed to render mermaid diagram',
+    },
+
+    imageUpload: {
+        permissionTitle: 'Photo Library Access',
+        permissionMessage: 'Allow access to your photo library to attach images to messages.',
+        limitTitle: 'Image Limit Reached',
+        limitMessage: ({ max }: { max: number }) => `You can attach up to ${max} images per message.`,
+        fileTooLargeTitle: 'File Too Large',
+        fileTooLargeMessage: ({ name, maxMb }: { name: string; maxMb: number }) => `"${name}" exceeds the ${maxMb}MB limit and was not added.`,
+        uploadFailedTitle: 'Upload Failed',
+        uploadFailedMessage: ({ count }: { count: number }) => count === 1
+            ? 'One image could not be uploaded and was not sent.'
+            : `${count} images could not be uploaded and were not sent.`,
+        notSupportedTitle: 'Images Not Supported',
+        notSupportedMessage: 'This agent does not support image attachments. Images were not sent.',
     },
 
 } as const;

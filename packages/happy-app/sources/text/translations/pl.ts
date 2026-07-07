@@ -150,12 +150,14 @@ export const pl: TranslationStructure = {
         permissionRequired: 'wymagane uprawnienie',
         activeNow: 'Aktywny teraz',
         unknown: 'nieznane',
+        unread: 'nowe wyniki',
     },
 
     time: {
         justNow: 'teraz',
         minutesAgo: ({ count }: { count: number }) => `${count} ${plural({ count, one: 'minuta', few: 'minuty', many: 'minut' })} temu`,
         hoursAgo: ({ count }: { count: number }) => `${count} ${plural({ count, one: 'godzina', few: 'godziny', many: 'godzin' })} temu`,
+        daysAgo: ({ count }: { count: number }) => `${count} ${plural({ count, one: 'dzień', few: 'dni', many: 'dni' })} temu`,
     },
 
     connect: {
@@ -291,11 +293,15 @@ export const pl: TranslationStructure = {
         unifiedNewSessionComposerSubtitle: 'Użyj wspólnego kompozytora na ekranie nowej sesji',
         hideInactiveSessions: 'Ukryj nieaktywne sesje',
         hideInactiveSessionsSubtitle: 'Wyświetlaj tylko aktywne czaty na liście',
+        groupToolCalls: 'Grupuj wywołania narzędzi',
+        groupToolCallsSubtitle: 'Zwijaj kolejne wywołania narzędzi w jeden kontener',
         privacy: 'Prywatność',
         privacyDescription: 'Całkowicie wyłącza wszystkie analizy i telemetrię. Żadne dane nie będą wysyłane do PostHog ani żadnego innego serwisu śledzącego.',
         disableAnalytics: 'Wyłącz analitykę',
         analyticsDisabled: 'Wszystkie śledzenie i telemetria wyłączone',
         analyticsEnabled: 'Anonimowa analityka użytkowania aktywna',
+        imageUpload: 'Przesyłanie obrazów',
+        imageUploadSubtitle: 'Dołączaj obrazy do wiadomości, aby obsługiwani agenci mogli je analizować',
     },
 
     errors: {
@@ -368,6 +374,24 @@ export const pl: TranslationStructure = {
         inactiveArchived: 'Ta sesja jest nieaktywna.',
         resumeFromTerminal: 'Aby wznowić ją z terminala:',
         catalogNotReadyBanner: 'Sesja jeszcze się nie załadowała — wyślij najpierw wiadomość, aby wypełnić tę listę.',
+        newChat: 'Nowy czat',
+        forkAction: 'Rozwidl sesję',
+        forkSubtitle: 'Kontynuuj w nowej sesji z tym samym kontekstem',
+        duplicateAction: 'Duplikuj od wiadomości…',
+        duplicateSubtitle: 'Cofnij się do wybranego punktu i spróbuj inaczej',
+        forkFromHere: 'Rozwidl od tego miejsca',
+        duplicateSheetTitle: 'Wybierz punkt cofnięcia',
+        duplicateSheetSubtitle: 'Nowa sesja zachowa wybraną turę w całości (twoja wiadomość i odpowiedź agenta) i odrzuci wszystkie kolejne wiadomości.',
+        duplicateSheetConfirm: 'Duplikuj',
+        duplicateSheetEmpty: 'W tej sesji nie ma jeszcze wiadomości, do których można się cofnąć.',
+        duplicateRowDisabled: 'Tej wiadomości nie można użyć jako punktu cofnięcia.',
+        forkedFromLabel: 'Rozwidlone z',
+        forkedFromSubtitle: 'Otwórz sesję, z której powstało rozwidlenie',
+        forkErrorOffline: 'Maszyna jest offline. Rozwidlenie jest dostępne tylko gdy maszyna sesji jest online.',
+        forkErrorMissingUuid: 'Wybrany punkt cofnięcia nie istnieje już w sesji źródłowej — spróbuj rozwidlić bez przycinania.',
+        forkErrorMissingMetadata: 'Brak metadanych sesji wymaganych do rozwidlenia.',
+        forkErrorGeneric: 'Nie udało się rozwidlić sesji.',
+        forkClaudeOnly: 'Rozwidlenie jest obecnie obsługiwane tylko dla sesji Claude.',
     },
 
     commandPalette: {
@@ -557,6 +581,13 @@ export const pl: TranslationStructure = {
             scanQrCode: 'Zeskanuj kod QR',
             openCamera: 'Otwórz kamerę',
         },
+        agentGoalBar: {
+            currentGoal: 'Bieżący cel',
+            accessibilityLabel: ({ goal }: { goal: string }) => `Bieżący cel: ${goal}`,
+            clearGoal: 'Wyczyść cel',
+            stopGoal: 'Zatrzymaj cel',
+            editGoal: 'Edytuj cel',
+        },
     },
 
     agentInput: {
@@ -653,6 +684,11 @@ export const pl: TranslationStructure = {
         hideHint: 'Włącza tryb maksymalnego skupienia; przycisk menu przywraca pasek boczny',
         expand: 'Rozwiń pasek boczny',
         collapse: 'Zwiń pasek boczny',
+        newSession: 'Nowa sesja',
+    },
+
+    zen: {
+        toggle: 'Tryb zen',
     },
 
     toolView: {
@@ -798,6 +834,16 @@ export const pl: TranslationStructure = {
         noChangesTitle: 'Brak zmian',
         noChangesSubtitle: 'Drzewo robocze jest czyste',
         deleted: 'Usunięty',
+        changedFiles: ({ count }: { count: number }) => `${count} ${count === 1 ? 'zmieniony plik' : 'zmienionych plików'}`,
+        allFiles: 'Wszystkie pliki',
+        editFile: 'Edytuj',
+        saveFile: 'Zapisz',
+        failedToRead: 'Nie udało się odczytać pliku',
+        failedToSave: 'Nie udało się zapisać pliku',
+        fileConflict: 'Konflikt pliku',
+        fileConflictDescription: 'Ten plik został zmodyfikowany na urządzeniu podczas edycji. Załaduj ponownie aby zobaczyć najnowszą wersję.',
+        reload: 'Załaduj ponownie',
+        overwrite: 'Nadpisz',
     },
 
     settingsAccount: {
@@ -995,6 +1041,21 @@ export const pl: TranslationStructure = {
         codeCopied: 'Kod skopiowany',
         copyFailed: 'Błąd kopiowania',
         mermaidRenderFailed: 'Nie udało się wyświetlić diagramu mermaid',
+    },
+
+    imageUpload: {
+        permissionTitle: 'Dostęp do biblioteki zdjęć',
+        permissionMessage: 'Zezwól na dostęp do biblioteki zdjęć, aby załączać obrazy do wiadomości.',
+        limitTitle: 'Osiągnięto limit obrazów',
+        limitMessage: ({ max }: { max: number }) => `Możesz dołączyć maksymalnie ${max} obrazów na wiadomość.`,
+        fileTooLargeTitle: 'Plik zbyt duży',
+        fileTooLargeMessage: ({ name, maxMb }: { name: string; maxMb: number }) => `"${name}" przekracza limit ${maxMb}MB i nie został dodany.`,
+        uploadFailedTitle: 'Przesyłanie nieudane',
+        uploadFailedMessage: ({ count }: { count: number }) => count === 1
+            ? 'Nie udało się przesłać jednego zdjęcia i nie zostało wysłane.'
+            : `Nie udało się przesłać ${count} zdjęć i nie zostały wysłane.`,
+        notSupportedTitle: 'Obrazy nieobsługiwane',
+        notSupportedMessage: 'Ten agent nie obsługuje załączników obrazów. Obrazy nie zostały wysłane.',
     },
 
 } as const;

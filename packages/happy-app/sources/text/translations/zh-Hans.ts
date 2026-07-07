@@ -141,12 +141,14 @@ export const zhHans: TranslationStructure = {
         permissionRequired: '需要权限',
         activeNow: '当前活跃',
         unknown: '未知',
+        unread: '新结果',
     },
 
     time: {
         justNow: '刚刚',
         minutesAgo: ({ count }: { count: number }) => `${count} 分钟前`,
         hoursAgo: ({ count }: { count: number }) => `${count} 小时前`,
+        daysAgo: ({ count }: { count: number }) => `${count} 天前`,
     },
 
     connect: {
@@ -275,11 +277,15 @@ export const zhHans: TranslationStructure = {
         unifiedNewSessionComposerSubtitle: '在新会话屏幕使用共享输入框',
         hideInactiveSessions: '隐藏非活跃会话',
         hideInactiveSessionsSubtitle: '仅在列表中显示活跃的聊天',
+        groupToolCalls: '分组工具调用',
+        groupToolCallsSubtitle: '将连续的工具调用折叠到一个容器中',
         privacy: '隐私',
         privacyDescription: '完全禁用所有分析和遥测。不会向 PostHog 或任何其他跟踪服务发送数据。',
         disableAnalytics: '禁用分析',
         analyticsDisabled: '所有跟踪和遥测已禁用',
         analyticsEnabled: '匿名使用分析已启用',
+        imageUpload: '图片上传',
+        imageUploadSubtitle: '将图片附加到消息中，以便受支持的代理进行分析',
     },
 
     errors: {
@@ -352,6 +358,24 @@ export const zhHans: TranslationStructure = {
         inactiveArchived: '此会话处于非活动状态。',
         resumeFromTerminal: '要从终端恢复它：',
         catalogNotReadyBanner: '会话尚未加载 — 请先发送任意消息以填充此列表。',
+        newChat: '新对话',
+        forkAction: '分叉会话',
+        forkSubtitle: '在相同上下文中开启新会话继续',
+        duplicateAction: '从消息处复制…',
+        duplicateSubtitle: '回到选定位置重新尝试',
+        forkFromHere: '从此处分叉',
+        duplicateSheetTitle: '选择回退点',
+        duplicateSheetSubtitle: '新会话将保留所选轮次完整内容（你的消息与智能体的回复），并丢弃其后的所有消息。',
+        duplicateSheetConfirm: '复制',
+        duplicateSheetEmpty: '此会话还没有可回退的消息。',
+        duplicateRowDisabled: '此消息不能作为回退点。',
+        forkedFromLabel: '分叉自',
+        forkedFromSubtitle: '打开分叉来源的会话',
+        forkErrorOffline: '机器离线。仅当会话所在的机器在线时才能分叉。',
+        forkErrorMissingUuid: '选定的回退点已不存在于源会话中 — 请尝试不截断地分叉。',
+        forkErrorMissingMetadata: '缺少分叉所需的会话元数据。',
+        forkErrorGeneric: '分叉会话失败。',
+        forkClaudeOnly: '目前仅支持 Claude 会话的分叉。',
     },
 
     commandPalette: {
@@ -542,6 +566,13 @@ export const zhHans: TranslationStructure = {
             scanQrCode: '扫描二维码',
             openCamera: '打开相机',
         },
+        agentGoalBar: {
+            currentGoal: '当前目标',
+            accessibilityLabel: ({ goal }: { goal: string }) => `当前目标：${goal}`,
+            clearGoal: '清除目标',
+            stopGoal: '停止目标',
+            editGoal: '编辑目标',
+        },
     },
 
     agentInput: {
@@ -638,6 +669,11 @@ export const zhHans: TranslationStructure = {
         hideHint: '进入专注模式；菜单按钮可恢复侧边栏',
         expand: '展开侧边栏',
         collapse: '折叠侧边栏',
+        newSession: '新建会话',
+    },
+
+    zen: {
+        toggle: '禅模式',
     },
 
     toolView: {
@@ -783,6 +819,16 @@ export const zhHans: TranslationStructure = {
         noChangesTitle: '没有更改',
         noChangesSubtitle: '工作区是干净的',
         deleted: '已删除',
+        changedFiles: ({ count }: { count: number }) => `${count} 个已更改的文件`,
+        allFiles: '所有文件',
+        editFile: '编辑',
+        saveFile: '保存',
+        failedToRead: '读取文件失败',
+        failedToSave: '保存文件失败',
+        fileConflict: '文件冲突',
+        fileConflictDescription: '编辑期间文件已在设备上被修改。重新加载以查看最新版本。',
+        reload: '重新加载',
+        overwrite: '覆盖',
     },
 
     settingsAccount: {
@@ -981,4 +1027,20 @@ export const zhHans: TranslationStructure = {
         copyFailed: '复制失败',
         mermaidRenderFailed: '渲染 mermaid 图表失败',
     },
+
+    imageUpload: {
+        permissionTitle: '访问照片库',
+        permissionMessage: '允许访问您的照片库以在消息中附加图片。',
+        limitTitle: '已达到图片限制',
+        limitMessage: ({ max }: { max: number }) => `每条消息最多可附加 ${max} 张图片。`,
+        fileTooLargeTitle: '文件过大',
+        fileTooLargeMessage: ({ name, maxMb }: { name: string; maxMb: number }) => `"${name}"超过了 ${maxMb}MB 的限制，未能添加。`,
+        uploadFailedTitle: '上传失败',
+        uploadFailedMessage: ({ count }: { count: number }) => count === 1
+            ? '一张图片上传失败，未发送。'
+            : `${count} 张图片上传失败，未发送。`,
+        notSupportedTitle: '不支持图片',
+        notSupportedMessage: '此代理不支持图片附件。图片未发送。',
+    },
+
 } as const;

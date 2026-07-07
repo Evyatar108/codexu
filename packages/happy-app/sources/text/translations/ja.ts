@@ -141,12 +141,14 @@ export const ja: TranslationStructure = {
         permissionRequired: '権限が必要です',
         activeNow: 'アクティブ',
         unknown: '不明',
+        unread: '新しい結果',
     },
 
     time: {
         justNow: 'たった今',
         minutesAgo: ({ count }: { count: number }) => `${count}分前`,
         hoursAgo: ({ count }: { count: number }) => `${count}時間前`,
+        daysAgo: ({ count }: { count: number }) => `${count}日前`,
     },
 
     connect: {
@@ -275,11 +277,15 @@ export const ja: TranslationStructure = {
         unifiedNewSessionComposerSubtitle: '新規セッション画面で共有コンポーザーを使用',
         hideInactiveSessions: '非アクティブセッションを非表示',
         hideInactiveSessionsSubtitle: 'アクティブなチャットのみをリストに表示',
+        groupToolCalls: 'ツール呼び出しをグループ化',
+        groupToolCallsSubtitle: '連続するツール呼び出しを1つのコンテナにまとめる',
         privacy: 'プライバシー',
         privacyDescription: 'すべての分析とテレメトリを完全に無効にします。PostHogやその他のトラッキングサービスにデータは送信されません。',
         disableAnalytics: '分析を無効化',
         analyticsDisabled: 'すべてのトラッキングとテレメトリが無効',
         analyticsEnabled: '匿名の使用状況分析がアクティブ',
+        imageUpload: '画像アップロード',
+        imageUploadSubtitle: '対応エージェントに分析させるため、メッセージに画像を添付する',
     },
 
     errors: {
@@ -352,6 +358,24 @@ export const ja: TranslationStructure = {
         inactiveArchived: 'このセッションは非アクティブです。',
         resumeFromTerminal: 'ターミナルから再開するには:',
         catalogNotReadyBanner: 'セッションがまだ読み込まれていません — 先にメッセージを送信してこのリストを生成してください。',
+        newChat: '新規チャット',
+        forkAction: 'セッションをフォーク',
+        forkSubtitle: '同じコンテキストで新しいセッションを続行',
+        duplicateAction: 'メッセージから複製…',
+        duplicateSubtitle: '選んだ地点まで巻き戻してやり直す',
+        forkFromHere: 'ここからフォーク',
+        duplicateSheetTitle: '巻き戻しポイントを選択',
+        duplicateSheetSubtitle: '新しいセッションは選んだターン全体（あなたのメッセージとエージェントの応答）を保持し、それ以降のメッセージは破棄します。',
+        duplicateSheetConfirm: '複製',
+        duplicateSheetEmpty: 'このセッションには巻き戻し可能なメッセージがまだありません。',
+        duplicateRowDisabled: 'このメッセージは巻き戻しポイントに使えません。',
+        forkedFromLabel: 'フォーク元',
+        forkedFromSubtitle: 'フォーク元のセッションを開く',
+        forkErrorOffline: 'マシンがオフラインです。セッションのマシンがオンラインの間のみフォークできます。',
+        forkErrorMissingUuid: '選んだ巻き戻しポイントがソースセッションに存在しません — 切り詰めなしのフォークをお試しください。',
+        forkErrorMissingMetadata: 'フォークに必要なセッションのメタデータがありません。',
+        forkErrorGeneric: 'セッションのフォークに失敗しました。',
+        forkClaudeOnly: 'フォークは現在 Claude セッションのみ対応しています。',
     },
 
     commandPalette: {
@@ -542,6 +566,13 @@ export const ja: TranslationStructure = {
             scanQrCode: 'QRコードをスキャン',
             openCamera: 'カメラを開く',
         },
+        agentGoalBar: {
+            currentGoal: '現在の目標',
+            accessibilityLabel: ({ goal }: { goal: string }) => `現在の目標: ${goal}`,
+            clearGoal: '目標をクリア',
+            stopGoal: '目標を停止',
+            editGoal: '目標を編集',
+        },
     },
 
     agentInput: {
@@ -638,6 +669,11 @@ export const ja: TranslationStructure = {
         hideHint: '集中モードに入ります。メニューボタンでサイドバーを戻せます',
         expand: 'サイドバーを展開',
         collapse: 'サイドバーを折りたたむ',
+        newSession: '新しいセッション',
+    },
+
+    zen: {
+        toggle: 'Zenモード',
     },
 
     toolView: {
@@ -783,6 +819,16 @@ export const ja: TranslationStructure = {
         noChangesTitle: '変更なし',
         noChangesSubtitle: 'ワーキングツリーはクリーンです',
         deleted: '削除済み',
+        changedFiles: ({ count }: { count: number }) => `${count}件の変更ファイル`,
+        allFiles: 'すべてのファイル',
+        editFile: '編集',
+        saveFile: '保存',
+        failedToRead: 'ファイルの読み取りに失敗しました',
+        failedToSave: 'ファイルの保存に失敗しました',
+        fileConflict: 'ファイルの競合',
+        fileConflictDescription: '編集中にデバイス上でファイルが変更されました。最新版を表示するには再読み込みしてください。',
+        reload: '再読み込み',
+        overwrite: '上書き',
     },
 
     settingsAccount: {
@@ -981,4 +1027,20 @@ export const ja: TranslationStructure = {
         copyFailed: 'コピーに失敗しました',
         mermaidRenderFailed: 'Mermaidダイアグラムのレンダリングに失敗しました',
     },
+
+    imageUpload: {
+        permissionTitle: 'フォトライブラリへのアクセス',
+        permissionMessage: 'メッセージに画像を添付するには、フォトライブラリへのアクセスを許可してください。',
+        limitTitle: '画像の上限に達しました',
+        limitMessage: ({ max }: { max: number }) => `1メッセージに添付できる画像は最大${max}枚です。`,
+        fileTooLargeTitle: 'ファイルが大きすぎます',
+        fileTooLargeMessage: ({ name, maxMb }: { name: string; maxMb: number }) => `"${name}"は${maxMb}MBの制限を超えているため追加されませんでした。`,
+        uploadFailedTitle: 'アップロードに失敗しました',
+        uploadFailedMessage: ({ count }: { count: number }) => count === 1
+            ? '1枚の画像をアップロードできず、送信されませんでした。'
+            : `${count}枚の画像をアップロードできず、送信されませんでした。`,
+        notSupportedTitle: '画像はサポートされていません',
+        notSupportedMessage: 'このエージェントは画像の添付に対応していません。画像は送信されませんでした。',
+    },
+
 } as const;
