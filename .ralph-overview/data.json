@@ -1791,6 +1791,27 @@
         }
       ],
       "lastTouchedAt": "2026-07-08T03:53:03.219Z"
+    },
+    {
+      "id": "happy-fork-make-truly-rebasable-on-upstream",
+      "lifecycle": "tracked",
+      "lastTouchedAt": "2026-07-08T19:35:33.115Z",
+      "kanbanCards": [
+        {
+          "html": "OPERATOR DIRECTION (2026-07-08): change the approach so upstream tracking becomes a real git rebase/merge, NOT the current manual selective per-file intake + keep-all posture (which leaves upstream features unadopted + needs per-feature opt-in). Brainstorm-first. A real merge-base (df4cdae8) now exists so a real merge IS topologically possible, but ~96 files still hard-conflict and the worst (sync.ts, storage.ts, app new/index.tsx, MessageQueue2.ts) are CONVERGENT EVOLUTION (both sides rewrote the same logic) - the crux to crack. Compare: (1) big-bang real git merge of cli-1.1.10 now (get features + merge lineage, resolve 96 via catalogue); (2) codex-style overlay restructure (upstream near-unmodified base + fork overlay + small patch, like codex-patched submodule + codex-rs-overlay); (3) hybrid. Reference the codex-patched rebasability model as north star.",
+          "class": "cmd-warn"
+        }
+      ],
+      "command": {
+        "name": "happy-fork-make-truly-rebasable-on-upstream",
+        "prompts": {
+          "brainstorm": "(see spawn prompt)"
+        },
+        "warnings": [],
+        "descriptionHtml": "Brainstorm how to restructure the happy fork so upstream tracking is a real git rebase/merge instead of manual selective intake. Crux = the convergent core files. North star = codex-patched overlay model."
+      },
+      "status": "todo",
+      "scope": "happy"
     }
   ],
   "phaseTree": [
