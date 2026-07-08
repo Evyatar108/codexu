@@ -1,0 +1,45 @@
+{
+  "task": "happy-fork-make-truly-rebasable-on-upstream",
+  "type": "brainstorm-analysis-readonly",
+  "verdict": "achievable-as-phased-hybrid-not-codex-grade",
+  "recommendedDirection": "Option 3 (hybrid): one-time real `git merge cli-1.1.10` now to establish merge lineage (cheap: HEAD already has the selective intake, resolution is take-ours-dominant) -> flip cadence to per-release `git merge` -> incrementally R8-overlay the UI surface + fork-own new/index.tsx -> accept ~a dozen convergent sync-core files as permanent catalogued manual-3-way.",
+  "mergeBase": "df4cdae8 (cli-1.1.8+4)",
+  "forkAheadCommits": 2580,
+  "upstreamSideCommits": 213,
+  "throwawayMergeConflicts": {
+    "command": "git merge --no-commit --no-ff cli-1.1.10 (aborted)",
+    "mergeOursDriverActive": true,
+    "files": { "server": 12, "cli": 34, "app": 64, "other": 5, "total": 115 },
+    "totalConflictHunks": 382,
+    "note": "115 > catalogued ~96/103 because no merge lineage exists yet, so git re-derives across all 213 upstream commits from the ancient base df4cdae8, re-conflicting files the ordinary-commit selective intake already reconciled."
+  },
+  "lineageArgument": {
+    "withoutLineage": "merge-base stuck at df4cdae8; every future selective intake re-derives the full ~115-file surface forever.",
+    "withLineage": "after one committed merge, merge-base advances to cli-1.1.10; next merge (upstream-happy/main = 3 commits / 7 files) surfaces only the incremental delta.",
+    "mainDeltaToday": { "commits": 3, "files": 7 }
+  },
+  "convergentFileVerdicts": {
+    "packages/happy-app/sources/sync/storage.ts": { "hunks": 27, "verdict": "IRREDUCIBLE", "reason": "single Zustand create() closure; app consumes internal methods by name; convergent pagination + tree-grouping vs unread; deleted multi-account state." },
+    "packages/happy-app/sources/sync/sync.ts": { "hunks": 15, "verdict": "IRREDUCIBLE", "reason": "single Sync class; divergence is removals (multi-account, per-session E2E) + body-replacements (loopback fetchMachines, no-decrypt fetch); no upstream seam to overlay against." },
+    "packages/happy-app/sources/app/(app)/new/index.tsx": { "hunks": 16, "forkLoc": 583, "upstreamLoc": 1851, "verdict": "PARTIALLY_RESTRUCTURABLE", "reason": "leaf UI screen; adopt upstream file + move fork lean e-ink screen to sources/fork/newSession/ behind a route flag; removes it from the conflict set; cost ~M." },
+    "packages/happy-cli/src/utils/MessageQueue2.ts": { "hunks": 12, "verdict": "PARTIALLY", "reason": "standalone util; delivery-ack additive (wrappable), attachment-by-ref type replacement threaded through batch bodies (manual); catalogue as HC-8." }
+  },
+  "codexModelGap": "codex is rebasable because upstream openai/codex exposes provider/trait/plugin seams the fork implements in 7 overlay crates + a submodule on a small sandbox-patches branch. Upstream happy's sync plane is a monolithic Sync class + Zustand store with NO extension seams, so there is nowhere to hang an overlay without editing the file (=the conflict) or landing seam PRs upstream. Happy already copied the codex *mechanics* (overlay dirs, markers, catalogue) for UI/server/cli; the sync core is the irreducible gap.",
+  "operatorDecisionCalls": [
+    "Stay vendored (recommended) vs migrate to submodule — lineage, not a submodule, is what enables rebasability.",
+    "Minimal upfront investment (recommended: just the lineage merge) vs big-bang overlay rewrite (blocked by the seam-less sync core).",
+    "Adopt upstream convergent files wholesale — NO for sync.ts/storage.ts (reverts single-user + e-ink architecture), MAYBE for new/index.tsx (behind a flag).",
+    "Big-bang resolution policy: take-ours-dominant + spot-adopt (recommended) vs re-review every hunk.",
+    "Merge target: cli-1.1.10 tag (recommended anchor) then the +3 main commits as the first incremental merge.",
+    "Pursue upstream seam PRs? optional/slow/external — not a dependency of the workstream."
+  ],
+  "effortEstimate": "Phase 1 (lineage merge) ~1-2 days is the only near-term cost; Phases 2-4 spread across future releases and pay for themselves per merge.",
+  "decomposesToTasks": [
+    "happy-establish-merge-lineage-cli-1.1.10",
+    "happy-per-release-merge-cadence",
+    "happy-intake-upstream-main-post-1.1.10",
+    "happy-r8-remaining-ui-overlays",
+    "happy-new-session-screen-fork-owned",
+    "happy-catalogue-uncatalogued-sync-hotspots"
+  ]
+}
