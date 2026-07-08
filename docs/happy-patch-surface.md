@@ -1,8 +1,8 @@
 # Happy Patch Surface vs Upstream (slopus/happy)
 
-**Last Updated**: 2026-06-30
-**Import baseline (inferred)**: `cli-1.1.8` @ `b72fd8111a43395e9991cfbdabba36f5a3285e5e` (upstream `slopus/happy`, 2026-04-27) — see [§6 Baseline record](#6-baseline-record).
-**Latest upstream release (forward target)**: `cli-1.1.10` @ `71c417e1092e73cf34eb24f9601d569394c1f359` (2026-06-23).
+**Last Updated**: 2026-07-07
+**Import baseline**: `cli-1.1.10` @ `71c417e1092e73cf34eb24f9601d569394c1f359` (upstream `slopus/happy`, 2026-06-23) — **imported via the first selective intake, 2026-07-07** (server+cli+app; see [§6 Baseline record](#6-baseline-record)). Prior baseline was the inferred `cli-1.1.8`.
+**Forward target (next intake)**: `upstream-happy/main` @ `d2ef88de` (3 commits past `cli-1.1.10`), or the next upstream `cli-*` release.
 
 > Sibling reference: [`codex/docs/implementation/patch-surface.md`](../codex/docs/implementation/patch-surface.md) — the mature model this catalogue mirrors (marker discipline, invariant-to-guard table, replant notes). Read its §14/§15 before adding a row here.
 
@@ -370,8 +370,8 @@ are catalogued here for governance but never audit-scanned.
 
 | Field | Value |
 |---|---|
-| **Import baseline (inferred)** | `cli-1.1.8` → `b72fd8111a43395e9991cfbdabba36f5a3285e5e` (upstream `slopus/happy`, 2026-04-27) |
-| **Latest upstream release / forward import target** | `cli-1.1.10` → `71c417e1092e73cf34eb24f9601d569394c1f359` (2026-06-23) |
+| **Import baseline (imported 2026-07-07)** | `cli-1.1.10` → `71c417e1092e73cf34eb24f9601d569394c1f359` (upstream `slopus/happy`, 2026-06-23) — imported via the **first selective intake**: server `52df4e2d` + cli `c815c581` + app `41f6b677b`. Prior inferred baseline: `cli-1.1.8` (`b72fd8111a43395e9991cfbdabba36f5a3285e5e`). |
+| **Forward import target (next intake)** | `upstream-happy/main` → `d2ef88de` (3 commits past `cli-1.1.10`), or the next upstream `cli-*` release. The 3 post-tag commits are deferred (intake op-call #5 → follow-up). |
 | **Upstream mirror clone (read-only reference)** | `D:/harness-efforts/happy` — remotes: `origin` = `slopus/happy`, `fork` = `Evyatar108/happy` |
 | **In-repo upstream remote (permanent — PRIMARY reference)** | codexu remote **`upstream-happy`** = `slopus/happy`; fetched refs `upstream-happy/main` (`d2ef88de`) + tag `cli-1.1.10` (`71c417e1`). 3-way diffs + intake run **directly in codexu** — `git show cli-1.1.10:<path>`, `git merge-file` — no external mirror dependency. Refresh per upstream release: `git fetch --no-tags upstream-happy main` + `git fetch --no-tags upstream-happy tag <new-tag>`. |
 
@@ -387,10 +387,12 @@ possible** (git would auto-resolve the clean files and surface only the ~96 cata
 apply the `.gitattributes merge=ours` drivers). The selective per-file approach is still a *valid*
 option, but it is a **choice**, not a topological necessity.
 
-**Why `cli-1.1.8` is still the classification anchor.** The intake still classifies each file against
-the **release anchor** `cli-1.1.8` (BASE) → `cli-1.1.10` (THEIRS) → fork HEAD (OURS), because
-`cli-1.1.8` is the tightest *release* the vendored tree was imported at (the `df4cdae8` true merge-base
-is only 4 commits later and the classification is base-neutral between them). An exact per-file
+**Classification anchor: `cli-1.1.8` for the first intake; `cli-1.1.10` going forward.** The **first**
+intake (2026-07-07) classified each file against the **release anchor** `cli-1.1.8` (BASE) → `cli-1.1.10`
+(THEIRS) → fork HEAD (OURS), because `cli-1.1.8` was the tightest *release* the vendored tree was
+imported at (the `df4cdae8` true merge-base is only 4 commits later and the classification is
+base-neutral between them). **Now that `cli-1.1.10` has been imported, the next intake's BASE anchor
+advances to `cli-1.1.10`** (THEIRS = the next upstream release, OURS = fork HEAD). An exact per-file
 tree-match is not achievable — an 8-file sample of upstream-canonical files
 (`packages/happy-wire/src/index.ts`, `.../text/translations/pl.ts`, `.../components/StyledText.tsx`,
 `packages/happy-cli/src/index.ts`, `.../happy-server/.../v3SessionRoutes.ts`, `docs/README.md`,
