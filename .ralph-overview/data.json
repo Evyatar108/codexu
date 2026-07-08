@@ -1800,6 +1800,10 @@
         {
           "html": "OPERATOR DIRECTION (2026-07-08): change the approach so upstream tracking becomes a real git rebase/merge, NOT the current manual selective per-file intake + keep-all posture (which leaves upstream features unadopted + needs per-feature opt-in). Brainstorm-first. A real merge-base (df4cdae8) now exists so a real merge IS topologically possible, but ~96 files still hard-conflict and the worst (sync.ts, storage.ts, app new/index.tsx, MessageQueue2.ts) are CONVERGENT EVOLUTION (both sides rewrote the same logic) - the crux to crack. Compare: (1) big-bang real git merge of cli-1.1.10 now (get features + merge lineage, resolve 96 via catalogue); (2) codex-style overlay restructure (upstream near-unmodified base + fork overlay + small patch, like codex-patched submodule + codex-rs-overlay); (3) hybrid. Reference the codex-patched rebasability model as north star.",
           "class": "cmd-warn"
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Brainstorm shipped @ f8550710. VERDICT: truly-rebasable achievable as a PHASED HYBRID, NOT codex-grade. Measured throwaway git merge cli-1.1.10 = 115 files/382 hunks (server 12/cli 34/app 64/other 5) — higher than the catalogued 96 because there's NO merge lineage yet (git re-derives from base df4cdae8 across all 213 commits). RECOMMEND: (1) commit a real git merge cli-1.1.10 NOW — cheap (HEAD already has the intake -> take-ours-dominant) — establishes lineage so FUTURE syncs are incremental (new-release delta only, e.g. today upstream/main = 3 commits/7 files); (2) flip cadence to per-release git merge; (3) incrementally R8-overlay the reducible UI + fork-own new/index.tsx; (4) accept ~dozen convergent sync-core files as permanent catalogued manual-3-way. Convergent verdict: storage.ts + sync.ts IRREDUCIBLE (monolithic Zustand closure, no upstream seam); new/index.tsx + MessageQueue2 PARTIAL. Deep finding: codex is rebasable because upstream exposes provider/trait seams; upstream happy's sync plane has NONE — the irreducible gap. 6 operator-decision calls."
         }
       ],
       "command": {
