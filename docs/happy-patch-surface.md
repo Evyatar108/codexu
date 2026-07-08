@@ -370,8 +370,8 @@ are catalogued here for governance but never audit-scanned.
 
 | Field | Value |
 |---|---|
-| **Import baseline (imported 2026-07-07)** | `cli-1.1.10` → `71c417e1092e73cf34eb24f9601d569394c1f359` (upstream `slopus/happy`, 2026-06-23) — imported via the **first selective intake**: server `52df4e2d` + cli `c815c581` + app `41f6b677b`. Prior inferred baseline: `cli-1.1.8` (`b72fd8111a43395e9991cfbdabba36f5a3285e5e`). |
-| **Forward import target (next intake)** | `upstream-happy/main` → `d2ef88de` (3 commits past `cli-1.1.10`), or the next upstream `cli-*` release. The 3 post-tag commits are deferred (intake op-call #5 → follow-up). |
+| **Import baseline (imported 2026-07-07; merge-lineage anchored 2026-07-08)** | `cli-1.1.10` → `71c417e1092e73cf34eb24f9601d569394c1f359` (upstream `slopus/happy`, 2026-06-23). First imported via the **selective intake** (server `52df4e2d` + cli `c815c581` + app `41f6b677b`), then **anchored as a true merge ancestor** via a `git merge -s ours cli-1.1.10` lineage commit **`761518813`** (zero content change — the ours strategy kept the fork tree byte-identical; the merge only advances the merge-base). `git merge-base HEAD cli-1.1.10` is now `71c417e1` itself. Prior inferred baseline: `cli-1.1.8` (`b72fd8111a43395e9991cfbdabba36f5a3285e5e`). |
+| **Forward import target (next intake)** | The next upstream `cli-*` release, or `upstream-happy/main`. Because cli-1.1.10 is now a merged ancestor, the next `git merge` reconciles **only the new-release delta** (the incremental cadence — see [§9](#9-ownership--cadence)). The 3 post-tag commits past cli-1.1.10 were folded in as the first incremental-merge demo (see §9). |
 | **Upstream mirror clone (read-only reference)** | `D:/harness-efforts/happy` — remotes: `origin` = `slopus/happy`, `fork` = `Evyatar108/happy` |
 | **In-repo upstream remote (permanent — PRIMARY reference)** | codexu remote **`upstream-happy`** = `slopus/happy`; fetched refs `upstream-happy/main` (`d2ef88de`) + tag `cli-1.1.10` (`71c417e1`). 3-way diffs + intake run **directly in codexu** — `git show cli-1.1.10:<path>`, `git merge-file` — no external mirror dependency. Refresh per upstream release: `git fetch --no-tags upstream-happy main` + `git fetch --no-tags upstream-happy tag <new-tag>`. |
 
@@ -945,7 +945,24 @@ genuine, load-bearing fork divergence.
 - **Cadence**: re-validate this catalogue on **every upstream import** (each `cli-*` bump). For each
   row: confirm the marker still grep-matches, the guard still passes, and the `file:symbol` anchor
   still exists. Re-tree-match the [§6 baseline](#6-baseline-record) if the import advances it.
-- **Per-release intake loop** (concrete): (1) `git fetch --no-tags upstream-happy main` + `git fetch --no-tags upstream-happy tag <new-cli-tag>` (the permanent in-repo `upstream-happy` remote — [§6](#6-baseline-record)); (2) diff the new tag vs the current baseline per package to refresh the conflict heatmap (`git diff <baseline>..<new-tag> -- packages/happy-*` / per-file `git merge-file`); (3) run any pending **reduction** passes (keep/disable triage + overlay seams) for the hottest files first — see the `happy-{cli,server}-conflict-reduction-*` + `happy-app-r5-*` tasks; (4) ensure `git config merge.ours.driver true` is set on the host (§7); (5) selective per-file 3-way **intake** server→cli→app, carrying fork-only trees (`codex/`, `agentComms/`, `tunnel/`, `daemon/`, `sources/fork/`) forward untouched and applying each row's KEEP / KEEP-DELETED / RESTORE / `merge=ours` rule; (6) re-run each package's gates + `node scripts/audit-happy-fork-patches.mjs`; (7) advance the [§6 baseline](#6-baseline-record) to the imported tag.
+- **Per-release intake loop — now a REAL `git merge` (incremental cadence, adopted 2026-07-08).**
+  As of the `761518813` lineage anchor ([§6](#6-baseline-record)), cli-1.1.10 is a **merged ancestor**,
+  so upstream tracking is a real `git merge` that reconciles **only the new-release delta** — no more
+  full-tree selective re-derivation. The loop: (1) `git fetch --no-tags upstream-happy main` +
+  `git fetch --no-tags upstream-happy tag <new-cli-tag>`; (2) ensure `git config merge.ours.driver true`
+  is set on the host (§7 — the `.gitattributes merge=ours` drivers auto-resolve lockfile/dist/sidebar-trio);
+  (3) on a topic branch, `git merge <new-cli-tag>` — git auto-merges everything the fork never diverged
+  on and surfaces **only** the catalogued conflict files (the ~dozen convergent sync-core files + the
+  KEEP/KEEP-DELETED rows); (4) resolve each conflict per its catalogue row — **take-ours** for
+  KEEP/KEEP-DELETED/manual-3-way, **spot-adopt** upstream hunks for any feature you want (this is where
+  upstream features are pulled in — see the `happy-app-upstream-feature-opt-ins-*` follow-ups); (5)
+  re-run each package's gates + `node scripts/audit-happy-fork-patches.mjs`; (6) commit the merge and
+  advance the [§6 baseline](#6-baseline-record) to the imported tag. **The convergent core files
+  (`sync.ts`, `storage.ts`, `new/index.tsx`, `MessageQueue2.ts`) conflict on every merge and are
+  resolved take-ours by design** — upstream happy's sync plane is seam-less, so they are permanent
+  manual-3-way (see the `happy-fork-make-truly-rebasable-on-upstream` brainstorm). Everything else flows
+  in cleanly. The **selective per-file 3-way cherry-pick** described previously is now only a fallback
+  for a from-scratch re-baseline; normal cadence is the `git merge` above.
 - **When adding a row**: prefer the smallest-possible conflict surface first (overlay/seam placement,
   per the RESTORE bucket) before committing a new permanent inline KEEP. Mirror the codex tenant in
   [`codex/docs/implementation/patch-surface.md`](../codex/docs/implementation/patch-surface.md) §14.
