@@ -1736,53 +1736,6 @@
       }
     },
     {
-      "id": "happy-first-selective-intake-cli-1.1.10",
-      "scope": "happy",
-      "lifecycle": "tracked",
-      "status": "todo",
-      "lastTouchedAt": "2026-07-06",
-      "kanbanCards": [
-        {
-          "class": "cmd-warn",
-          "html": "THE PAYOFF (depends on the 5 reduction+enabling tasks): first selective per-file 3-way intake of cli-1.1.10 (server->cli->app), governed by the catalogue. Pulls ~2 releases of upstream improvements."
-        },
-        {
-          "className": "cmd-ok",
-          "html": "Plan shipped @ b2756b352. REAL intake set (upstream delta cli-1.1.8->cli-1.1.10 per pkg): server 32 (7 hard, all catalogued), cli 98 (30 hard, ALL catalogued, 0 gaps), app 190 (59 hard: 22 HA + ~36 uncatalogued + ~8 fork-deleted resurrection hazards). 96 hard-conflict files total. 8 operator-decision calls (#0 merge-base doc-fix DONE; #1 server 2 catalogue rows; #2 server new-file adopts; #3 app catalogue-extension; #4 app resurrection guard; #5 tag vs +3-commits; #6 HA-1b keep-deferred; #7 package.json dep bumps x3; #8 RESTORE/adopts tested)."
-        },
-        {
-          "className": "cmd-warn",
-          "html": "EXECUTION GATED ON OPERATOR REVIEW. Plan autonomy rec = HYBRID: lead may PREPARE server+cli on topic branches to green but PAUSE before merging any stage to main (first behavior-affecting intake across production pkgs; operator away); app needs operator review before execution (~36 uncatalogued hard files + resurrection hazards). REINFORCED by a premise-changing finding: a real merge-base (df4cdae8) DOES exist (§6 corrected @ 2a1e6462) — so a real 'git merge' is now an OPTION (git auto-resolves clean files, surfaces only the 96 catalogued conflicts) vs the planned selective per-file cherry-pick. Operator should choose the strategy before execution."
-        },
-        {
-          "className": "cmd-ok",
-          "html": "SERVER slice PREPARED + staged (NOT merged) on ralph/intake-cli-1.1.10-server (S1 878962b3 / S2 80b9de1e / S3 c52fb9a5 / S4 515cc289). Gates green: typecheck 0, 102 auth tests, audit zero-drift. KEY VALIDATION: S1/S2 were EMPTY commits — the fork's Rsrv reduction (HS-9..HS-16) already pre-absorbed cli-1.1.10's improvements, so no non-fork hunks remained to port. Real intake in S3: v3 backward pagination, 2 GAP files (sessionDelete/files.ts single-user attachment GC, HS-17/18 added), 5 clean-adopts. S4 op-call#2: ADOPT pushSend.ts (flagged redundant/dead), SKIP focusTracker/standalone.spec/multi-tenant planes. 2 REVIEW flags: standalone.ts reclassified clean-adopt->DECLINE (resurrects self-host plane); pushSend.ts redundancy. Awaiting operator review before FF-merge."
-        },
-        {
-          "className": "cmd-ok",
-          "html": "CLI slice PREPARED + staged (NOT merged) on ralph/intake-cli-1.1.10-cli (S5 966df8a3 / S6 910539c7 / S7 cf44311b empty-pre-absorbed / S8 9f74a44d = 20 files). Gates green: typecheck 0, test = baseline 4 known publishPermissionModeWiring fails only, audit zero-drift. SAME PILOT VALIDATION as server: S5-S7 empty (HC reduction pre-absorbed upstream). S8 adopted 14 clean-adopt + upstream-new test adopts (encryption blob helpers, startFileWatcher, RemoteModeDisplay, permissionMode/sdkToLogConverter). Lead caught + fixed a regression: sub-agent's vitest.config.ts adopt broadened test scope to scripts/, surfacing 9 pre-existing Windows fails in claude_version_utils.test.ts -> RECLASSIFIED to KEEP (fork excludes scripts/). 6 over-eager clean-auto adopts reverted to fork-KEEP. HC-12 127.0.0.1:3005 intact; no push client; no E2E on send/live. Awaiting operator review before FF-merge."
-        },
-        {
-          "className": "cmd-ok",
-          "html": "SERVER + CLI intakes MERGED to main (operator chose selective/merge-both @ 2026-07-06). Server @ 52df4e2d (S1-S4, validated on main: typecheck 0, 102 auth tests green). CLI @ c815c581 (S5-S8, validated on main: typecheck 0, baseline 4 known publishPermissionModeWiring fails, 1327 passed). Audit zero-drift. Both pushed to origin+personal. REMAINING: app slice (A0-A5) — operator chose start-catalogue: A0 catalogue-extension (no code) then pause for sign-off. Task stays tracked until app lands + baseline advances to cli-1.1.10 (Sfin)."
-        },
-        {
-          "className": "cmd-warn",
-          "html": "APP slice PREPARED + STAGED for operator review (NOT merged) on ralph/intake-cli-1.1.10-app (pushed to origin), under KEEP-ALL posture. A1/A2/A3 empty (sync+UI seams+KEEP-DELETED all verify-only, fork bodies verbatim); A4 8cf..82b09e7e translations additive reconcile (parity 8/8, 0 dup keys); A5 0e390a7a clean-adopt 33 + clean-auto 13 + upstream-new 2 (66 skipped by plane). Independently verified: typecheck 0, audit zero-drift, 6 HA guard specs + translations parity pass, 8 KEEP-DELETED files absent, e-ink toggles intact. encryptionDeletion.spec 2 fails are PRE-EXISTING (match R8 mic/voice seams, confirmed on main). Member conservatively declined 8 risky files (native deps, crypto-guard, nested-list markdown). REMAINING: operator FF-merge app + Sfin baseline advance to cli-1.1.10."
-        }
-      ],
-      "command": {
-        "name": "happy-first-selective-intake-cli-1.1.10",
-        "descriptionHtml": "THE PAYOFF: perform the FIRST selective upstream intake of cli-1.1.10 (then advance to origin/main, ~3 commits past the tag) into codexu's packages/happy-*. Mechanism = selective per-file 3-way cherry-pick governed by docs/happy-patch-surface.md (NOT a rebase — history-detached, no merge-base). Order easiest->hardest: happy-server (9) -> happy-cli (33) -> happy-app; carry fork-only additive trees (codex/, agentComms/, tunnel/, daemon/, sources/fork/) forward UNTOUCHED; apply the catalogue's KEEP/KEEP-DELETED/RESTORE/merge=ours rules per file; re-run all package gates. Pulls ~2 releases of upstream improvements. Part of the post-R8 upstream conflict-surface reduction objective (umbrella task happy-fork-upstream-divergence-reconciliation). Approach = the R8 codex-fork playbook: per-divergence KEEP vs DISABLE-for-now triage; for KEEPs relocate fork logic into fork-owned modules (src/fork/ or sources/fork/) + // FORK PATCH: markers + thin call-site seams (never inline edits); RESTORE upstream toward-upstream where the feature is wanted (with a Settings toggle for experimentation) to reduce conflict. Governed by docs/happy-patch-surface.md; assessment at .ralph/investigations/happy-upstream-rebase-assessment-v2/. Upstream target cli-1.1.10 @ 71c417e1 in mirror D:/harness-efforts/happy (remote origin=slopus/happy).",
-        "warnings": [
-          "DEPENDS ON the reduction tasks (happy-cli-conflict-reduction-hotspots, happy-server-conflict-reduction-remaining, happy-app-r5-sync-plane-residual) + the enabling tasks (permanent-remote, gitattributes-normalization). Best run AFTER those to minimize conflicts, though a partial server-first intake could start earlier on the reduced surface. NOT a git rebase/merge (history-detached) — it is a selective per-file 3-way cherry-pick governed by the catalogue."
-        ],
-        "prompts": {
-          "plan": "/plan-with-ralph \"Perform the first selective upstream intake of cli-1.1.10 into codexu packages/happy-* via per-file 3-way cherry-pick governed by docs/happy-patch-surface.md (history-detached, NOT a rebase). Order server(9)->cli(33)->app; carry fork-only trees untouched; apply catalogue KEEP/KEEP-DELETED/RESTORE/merge=ours rules; re-run all gates. Depends on the reduction+enabling tasks. See .ralph/investigations/happy-upstream-rebase-assessment-v2/findings.md.\""
-        }
-      }
-    },
-    {
       "id": "happy-cli-permission-mode-wiring-gap",
       "lifecycle": "tracked",
       "command": {
@@ -1867,6 +1820,27 @@
           "html": "5 upstream cli-1.1.10 app FEATURES were DECLINED during the first intake (keep-all posture, e-ink conservatism) and are available to opt into individually later: FileView tool renderer (HA-23), /goal+skills slash suggestions (HA-36), file-event attachment rendering (HA-27, relates to US-004), CodexPatchView collapsed/embedded UI (HA-21), file-mention limit 10->50 (HA-37). Each is a behavior-changing hand-port into an otherwise-KEEP file; each needs an e-ink UX check. Plus 9 other adopt-candidates defaulted KEEP-fork (settings/layout/tool-card/socket UI)."
         }
       ]
+    },
+    {
+      "id": "happy-upstream-post-tag-commits-intake",
+      "scope": "happy",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "command": {
+        "prompts": {
+          "plan": "/plan-with-ralph \"Intake the ~3 upstream-happy/main commits past the cli-1.1.10 tag (git log cli-1.1.10..upstream-happy/main -- packages/happy-*). Classify per docs/happy-patch-surface.md §9 loop with BASE=cli-1.1.10 (the new baseline), THEIRS=upstream-happy/main. Likely tiny. Alternatively recommend deferring to the next tagged cli-* release if the delta is trivial.\""
+        },
+        "descriptionHtml": "Intake the 3 upstream-happy/main commits past cli-1.1.10 (d2ef88de), or defer to the next tagged release.",
+        "warnings": [],
+        "name": "happy-upstream-post-tag-commits-intake"
+      },
+      "kanbanCards": [
+        {
+          "class": "cmd-warn",
+          "html": "The first intake landed cli-1.1.10 (tag 71c417e1). upstream-happy/main is 3 commits past the tag (d2ef88de). Those 3 post-tag commits were deferred (intake op-call #5). Intake them via the §9 per-release loop when convenient, OR fold into the next tagged-release intake."
+        }
+      ],
+      "lastTouchedAt": "2026-07-08T03:53:03.219Z"
     }
   ],
   "phaseTree": [
