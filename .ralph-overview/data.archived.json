@@ -10187,6 +10187,37 @@
           }
         ]
       }
+    },
+    {
+      "id": "happy-cli-permission-mode-wiring-gap",
+      "lifecycle": "merged",
+      "command": {
+        "descriptionHtml": "Wire publishPermissionModeIfChanged into runClaude.ts/runCodex.ts (or retire the test). Pre-existing failure on main.",
+        "name": "happy-cli-permission-mode-wiring-gap",
+        "warnings": [],
+        "prompts": {
+          "plan": "/plan-with-ralph \"happy-cli publishPermissionModeWiring.test.ts asserts runClaude.ts + runCodex.ts import AND call publishPermissionModeIfChanged (packages/happy-cli/src/utils/), but they do not — 4 failing tests on main. Investigate git history (cce771476 area) to determine whether the wiring was intentionally removed or never landed. Either wire the helper call into both runners at the permission-mode change site (behavior change — verify it publishes the mode delta correctly), OR if the wiring is deliberately absent, retire/skip the test with a rationale. Gate: pnpm --filter happy typecheck + the full happy test suite green (the 4 failures resolved).\""
+        }
+      },
+      "scope": "happy-cli",
+      "status": "todo",
+      "kanbanCards": [
+        {
+          "class": "cmd-warn",
+          "html": "PRE-EXISTING (surfaced during cli conflict-reduction, NOT caused by it): publishPermissionModeWiring.test.ts has 4 failing tests on main — runClaude.ts + runCodex.ts do not import/call publishPermissionModeIfChanged. The helper exists but is unwired into the runners. Fixing requires adding the runtime call (a behavior change), so it was out of scope for the behavior-preserving reduction. Decide: wire the helper into the runners, OR delete/skip the aspirational test if the wiring was intentionally removed."
+        }
+      ],
+      "lastTouchedAt": "2026-07-08T03:56:31.194Z",
+      "shipManifest": {
+        "shippedAt": "2026-07-08T03:56:31.194Z",
+        "summary": "Fixed the happy-cli permission-mode wiring test gap. publishPermissionModeWiring.test.ts asserted runClaude.ts/runCodex.ts call publishPermissionModeIfChanged, but the fork's RESTORE-R4 refactor relocated the agent-loop wiring into thin-seam-delegated fork/onClaudeRun.ts + fork/onCodexRun.ts (which correctly import+call it). Repointed the test's RUNNER_FILES at the fork seams. Behavior was always correct; the test was checking stale pre-refactor paths. Resolves the 4 pre-existing failures that were the known baseline throughout the cli-1.1.10 intake. Test-only change, 4/4 pass.\r\n",
+        "commits": [
+          {
+            "sha": "63c131812fb6811c8a7d1ac8f7d295a68fac1639",
+            "oneLine": "fix(happy-cli): point permission-mode wiring test at fork R4 seams"
+          }
+        ]
+      }
     }
   ]
 }
