@@ -19,7 +19,7 @@ export interface AuthCredentials {
     connectToken?: string;
     connectTokenExpiry?: number;
     tunnelId?: string;
-    // Public-server (single-user evyatar.dev) mode. Present only when the device
+    // Public-server (single-user example.com) mode. Present only when the device
     // was enrolled via a public pairing invite; absent for the default Dev
     // Tunnels path. Their presence is what switches request auth into public
     // mode (CF-Access headers + Ed25519 device proof) — see machineAuth.ts.

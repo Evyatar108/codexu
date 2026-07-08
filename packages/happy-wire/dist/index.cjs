@@ -912,7 +912,7 @@ function decodePublicPairingInvite(token) {
 const PUBLIC_PAIRING_INVITE_TEST_VECTOR = (() => {
   const invite = {
     version: PUBLIC_PAIRING_INVITE_VERSION,
-    serverUrl: "https://happy.evyatar.dev",
+    serverUrl: "https://happy.example.com",
     machineId: "machine-test-0001",
     pairSecret: "cGFpci1zZWNyZXQtZml4dHVyZQ==",
     cloudflareAccess: {

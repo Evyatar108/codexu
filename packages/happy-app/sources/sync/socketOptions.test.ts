@@ -33,7 +33,7 @@ function hexToBytes(hex: string): Uint8Array {
 
 const publicCredentials: AuthCredentials = {
     machineId: 'public-machine',
-    tunnelUrl: 'https://happy.evyatar.dev',
+    tunnelUrl: 'https://happy.example.com',
     firstSeenAt: 1,
     cloudflareAccessClientId: 'cf-id.example',
     cloudflareAccessClientSecret: 'cf-secret-value',

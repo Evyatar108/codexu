@@ -11,7 +11,7 @@ const HAPPY_TUNNEL_ID = '11111111-2222-3333-4444-555555555555';
 
 const TUNNEL_LIST_JSON = JSON.stringify([
   { id: 'aaaaaaaa-1111-2222-3333-444444444444', name: 'other-tunnel' },
-  { id: HAPPY_TUNNEL_ID, name: 'happy-evyatar' },
+  { id: HAPPY_TUNNEL_ID, name: 'happy-example' },
 ]);
 
 type FakeChild = EventEmitter & { kill: ReturnType<typeof vi.fn>; unref: ReturnType<typeof vi.fn> };
@@ -51,7 +51,7 @@ function makeRunner(options: {
 
 describe('parseCloudflareTunnelId', () => {
   it('extracts the UUID matching the tunnel name', () => {
-    expect(parseCloudflareTunnelId(TUNNEL_LIST_JSON, 'happy-evyatar')).toBe('11111111-2222-3333-4444-555555555555');
+    expect(parseCloudflareTunnelId(TUNNEL_LIST_JSON, 'happy-example')).toBe('11111111-2222-3333-4444-555555555555');
   });
 
   it('returns null when the name is absent', () => {
@@ -60,7 +60,7 @@ describe('parseCloudflareTunnelId', () => {
 
   it('tolerates leading log noise before the JSON array', () => {
     const noisy = `2024-01-01T00:00:00Z INF Using default configuration\n${TUNNEL_LIST_JSON}`;
-    expect(parseCloudflareTunnelId(noisy, 'happy-evyatar')).toBe('11111111-2222-3333-4444-555555555555');
+    expect(parseCloudflareTunnelId(noisy, 'happy-example')).toBe('11111111-2222-3333-4444-555555555555');
   });
 
   it('finds the tunnel when an outdated-version WARNING object trails the array', () => {
@@ -69,26 +69,26 @@ describe('parseCloudflareTunnelId', () => {
     const withWarning =
       `${TUNNEL_LIST_JSON}\n` +
       `{"level":"warn","message":"Your version 2026.5.0 is outdated. We recommend upgrading.","time":"2026-05-11T00:00:00Z"}`;
-    expect(parseCloudflareTunnelId(withWarning, 'happy-evyatar')).toBe('11111111-2222-3333-4444-555555555555');
+    expect(parseCloudflareTunnelId(withWarning, 'happy-example')).toBe('11111111-2222-3333-4444-555555555555');
   });
 
   it('finds the tunnel when a warning object leads the array', () => {
     const leadingWarning =
       `{"level":"warn","message":"Your version is outdated.","time":"2026-05-11T00:00:00Z"}\n` +
       `${TUNNEL_LIST_JSON}`;
-    expect(parseCloudflareTunnelId(leadingWarning, 'happy-evyatar')).toBe('11111111-2222-3333-4444-555555555555');
+    expect(parseCloudflareTunnelId(leadingWarning, 'happy-example')).toBe('11111111-2222-3333-4444-555555555555');
   });
 
   it('resolves a single bare object (not wrapped in an array)', () => {
-    const single = JSON.stringify({ id: '99999999-0000-0000-0000-000000000000', name: 'happy-evyatar' });
-    expect(parseCloudflareTunnelId(single, 'happy-evyatar')).toBe('99999999-0000-0000-0000-000000000000');
+    const single = JSON.stringify({ id: '99999999-0000-0000-0000-000000000000', name: 'happy-example' });
+    expect(parseCloudflareTunnelId(single, 'happy-example')).toBe('99999999-0000-0000-0000-000000000000');
   });
 
   it('resolves a single object even with a trailing warning object', () => {
     const single =
-      `${JSON.stringify({ id: '99999999-0000-0000-0000-000000000000', name: 'happy-evyatar' })}\n` +
+      `${JSON.stringify({ id: '99999999-0000-0000-0000-000000000000', name: 'happy-example' })}\n` +
       `{"level":"warn","message":"outdated"}`;
-    expect(parseCloudflareTunnelId(single, 'happy-evyatar')).toBe('99999999-0000-0000-0000-000000000000');
+    expect(parseCloudflareTunnelId(single, 'happy-example')).toBe('99999999-0000-0000-0000-000000000000');
   });
 
   it('does not match a name that only appears inside the warning object', () => {
@@ -99,11 +99,11 @@ describe('parseCloudflareTunnelId', () => {
   });
 
   it('returns null on malformed JSON after the opening bracket', () => {
-    expect(parseCloudflareTunnelId('[ { "id": "x", "name": "happy-evyatar" ', 'happy-evyatar')).toBeNull();
+    expect(parseCloudflareTunnelId('[ { "id": "x", "name": "happy-example" ', 'happy-example')).toBeNull();
   });
 
   it('returns null on non-JSON output', () => {
-    expect(parseCloudflareTunnelId('cloudflared: command not found', 'happy-evyatar')).toBeNull();
+    expect(parseCloudflareTunnelId('cloudflared: command not found', 'happy-example')).toBeNull();
   });
 });
 
@@ -135,13 +135,13 @@ describe('CloudflareTunnelDaemonProvider', () => {
   it('rejects an unsafe hostname before any subprocess runs', () => {
     expect(() => new CloudflareTunnelDaemonProvider({
       hostname: 'evil;rm -rf/',
-      tunnelName: 'happy-evyatar',
+      tunnelName: 'happy-example',
     })).toThrow(/invalid characters/);
   });
 
   it('rejects an unsafe tunnel name before any subprocess runs', () => {
     expect(() => new CloudflareTunnelDaemonProvider({
-      hostname: 'happy.evyatar.dev',
+      hostname: 'happy.example.com',
       tunnelName: 'evil; rm -rf /',
     })).toThrow(/invalid characters/);
   });
@@ -155,8 +155,8 @@ describe('CloudflareTunnelDaemonProvider', () => {
       return child as unknown as ReturnType<ProcessSpawner>;
     };
     const provider = new CloudflareTunnelDaemonProvider({
-      hostname: 'happy.evyatar.dev',
-      tunnelName: 'happy-evyatar',
+      hostname: 'happy.example.com',
+      tunnelName: 'happy-example',
       runner: makeRunner({ calls }),
       spawner,
       now: () => new Date('2026-05-11T12:00:00.000Z'),
@@ -168,12 +168,12 @@ describe('CloudflareTunnelDaemonProvider', () => {
 
     expect(config).toEqual({
       tunnelId: '11111111-2222-3333-4444-555555555555',
-      tunnelName: 'happy-evyatar',
-      tunnelUrl: 'https://happy.evyatar.dev',
+      tunnelName: 'happy-example',
+      tunnelUrl: 'https://happy.example.com',
       createdAt: '2026-05-11T12:00:00.000Z',
     });
     expect(calls).toContainEqual(['cloudflared', 'tunnel', 'list', '--output', 'json']);
-    expect(calls).toContainEqual(['cloudflared', 'tunnel', 'route', 'dns', 'happy-evyatar', 'happy.evyatar.dev']);
+    expect(calls).toContainEqual(['cloudflared', 'tunnel', 'route', 'dns', 'happy-example', 'happy.example.com']);
     // Bug 2: the daemon runs cloudflared with its OWN --config so the global
     // ~/.cloudflared/config.yml can no longer override the intended ingress.
     // No positional tunnel name and no --url: the config file is authoritative.
@@ -186,7 +186,7 @@ describe('CloudflareTunnelDaemonProvider', () => {
     const written = readFileSync(daemonConfigPath(), 'utf8');
     expect(written).toContain(`tunnel: ${HAPPY_TUNNEL_ID}`);
     expect(written).toContain(join(cloudflaredHomeDir, `${HAPPY_TUNNEL_ID}.json`));
-    expect(written).toContain('hostname: happy.evyatar.dev');
+    expect(written).toContain('hostname: happy.example.com');
     expect(written).toContain('service: http://127.0.0.1:62000');
     expect(written).toContain('service: http_status:404');
   });
@@ -196,8 +196,8 @@ describe('CloudflareTunnelDaemonProvider', () => {
     const spawned: string[][] = [];
     const child = makeFakeChild();
     const provider = new CloudflareTunnelDaemonProvider({
-      hostname: 'happy.evyatar.dev',
-      tunnelName: 'happy-evyatar',
+      hostname: 'happy.example.com',
+      tunnelName: 'happy-example',
       runner: makeRunner({ calls }),
       spawner: (command, args) => {
         spawned.push([command, ...args]);
@@ -210,7 +210,7 @@ describe('CloudflareTunnelDaemonProvider', () => {
 
     const config = await provider.loadHostTunnel({ port: 62000, additionalPorts: [62001] });
 
-    expect(config.tunnelUrl).toBe('https://happy.evyatar.dev');
+    expect(config.tunnelUrl).toBe('https://happy.example.com');
     expect(spawned).toEqual([[
       'cloudflared', 'tunnel', '--config', daemonConfigPath(), 'run',
     ]]);
@@ -219,8 +219,8 @@ describe('CloudflareTunnelDaemonProvider', () => {
   it('treats an already-existing DNS route as success', async () => {
     const child = makeFakeChild();
     const provider = new CloudflareTunnelDaemonProvider({
-      hostname: 'happy.evyatar.dev',
-      tunnelName: 'happy-evyatar',
+      hostname: 'happy.example.com',
+      tunnelName: 'happy-example',
       runner: makeRunner({
         calls: [],
         dnsResult: {
@@ -235,14 +235,14 @@ describe('CloudflareTunnelDaemonProvider', () => {
     });
 
     await expect(provider.createHostTunnel({ port: 62000, machineId: 'm' })).resolves.toMatchObject({
-      tunnelName: 'happy-evyatar',
+      tunnelName: 'happy-example',
     });
   });
 
   it('throws a clear error when cloudflared is not installed', async () => {
     const provider = new CloudflareTunnelDaemonProvider({
-      hostname: 'happy.evyatar.dev',
-      tunnelName: 'happy-evyatar',
+      hostname: 'happy.example.com',
+      tunnelName: 'happy-example',
       runner: makeRunner({ calls: [], versionStatus: 127 }),
       spawner: () => makeFakeChild() as unknown as ReturnType<ProcessSpawner>,
     });
@@ -252,7 +252,7 @@ describe('CloudflareTunnelDaemonProvider', () => {
 
   it('throws when the named tunnel does not exist', async () => {
     const provider = new CloudflareTunnelDaemonProvider({
-      hostname: 'happy.evyatar.dev',
+      hostname: 'happy.example.com',
       tunnelName: 'missing-tunnel',
       runner: makeRunner({ calls: [] }),
       spawner: () => makeFakeChild() as unknown as ReturnType<ProcessSpawner>,
@@ -264,8 +264,8 @@ describe('CloudflareTunnelDaemonProvider', () => {
   it('stop() terminates the spawned host process', async () => {
     const child = makeFakeChild();
     const provider = new CloudflareTunnelDaemonProvider({
-      hostname: 'happy.evyatar.dev',
-      tunnelName: 'happy-evyatar',
+      hostname: 'happy.example.com',
+      tunnelName: 'happy-example',
       runner: makeRunner({ calls: [] }),
       spawner: () => child as unknown as ReturnType<ProcessSpawner>,
       configDir,
@@ -283,8 +283,8 @@ describe('CloudflareTunnelDaemonProvider', () => {
     rmSync(join(cloudflaredHomeDir, `${HAPPY_TUNNEL_ID}.json`), { force: true });
     const spawned: string[][] = [];
     const provider = new CloudflareTunnelDaemonProvider({
-      hostname: 'happy.evyatar.dev',
-      tunnelName: 'happy-evyatar',
+      hostname: 'happy.example.com',
+      tunnelName: 'happy-example',
       runner: makeRunner({ calls: [] }),
       spawner: (command, args) => {
         spawned.push([command, ...args]);
@@ -304,8 +304,8 @@ describe('CloudflareTunnelDaemonProvider', () => {
     const spawned: string[][] = [];
     const child = makeFakeChild();
     const provider = new CloudflareTunnelDaemonProvider({
-      hostname: 'happy.evyatar.dev',
-      tunnelName: 'happy-evyatar',
+      hostname: 'happy.example.com',
+      tunnelName: 'happy-example',
       runner: makeRunner({ calls: [] }),
       spawner: (command, args) => {
         spawned.push([command, ...args]);
@@ -325,7 +325,7 @@ describe('CloudflareTunnelDaemonProvider', () => {
     // stale/foreign hostname rule cannot leak through.
     const written = readFileSync(daemonConfigPath(), 'utf8');
     expect(written).toMatch(/ingress:/);
-    expect(written).toMatch(/- hostname: happy\.evyatar\.dev\s+service: http:\/\/127\.0\.0\.1:62000/);
+    expect(written).toMatch(/- hostname: happy\.example\.com\s+service: http:\/\/127\.0\.0\.1:62000/);
     expect(written).toMatch(/- service: http_status:404/);
   });
 });

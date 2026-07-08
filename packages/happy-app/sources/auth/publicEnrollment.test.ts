@@ -48,7 +48,7 @@ describe('enrollPublicServer', () => {
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
         const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-        expect(url).toBe('https://happy.evyatar.dev/pair/complete');
+        expect(url).toBe('https://happy.example.com/pair/complete');
         expect(init.method).toBe('POST');
         expect(init.headers).toMatchObject({
             'Content-Type': 'application/json',
@@ -65,7 +65,7 @@ describe('enrollPublicServer', () => {
         expect(parsed.machineId).toBe(invite.machineId);
         expect(credentials).toEqual({
             machineId: 'server-machine-id',
-            tunnelUrl: 'https://happy.evyatar.dev',
+            tunnelUrl: 'https://happy.example.com',
             firstSeenAt: withinWindow(),
             login: 'octocat',
             cloudflareAccessClientId: invite.cloudflareAccess.clientId,

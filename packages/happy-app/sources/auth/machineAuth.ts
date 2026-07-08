@@ -7,7 +7,7 @@ import { buildPublicDeviceProofHeader, type DeviceProofBinding } from './publicD
 import { CF_ACCESS_CLIENT_ID_HEADER, CF_ACCESS_CLIENT_SECRET_HEADER } from './publicEnrollment';
 
 /**
- * A device is in public-server (evyatar.dev single-user) mode once it has been
+ * A device is in public-server (example.com single-user) mode once it has been
  * enrolled via a public pairing invite: it then holds Cloudflare Access
  * service-token creds plus an Ed25519 device key. Their presence is what
  * switches request auth away from the default Dev Tunnels path.

@@ -20,7 +20,7 @@ import { configuration } from '@/configuration';
  * (and without the opt-in env flag) the daemon keeps the Dev Tunnels path.
  */
 export const PublicTunnelConfigSchema = z.object({
-  /** Public hostname the named tunnel serves, e.g. `happy.evyatar.dev`. */
+  /** Public hostname the named tunnel serves, e.g. `happy.example.com`. */
   hostname: z.string().min(1),
   /** Cloudflare named-tunnel name (must already exist via `cloudflared tunnel create`). */
   tunnelName: z.string().min(1),
@@ -30,7 +30,7 @@ export const PublicTunnelConfigSchema = z.object({
       .array(z.object({ clientId: z.string().min(1), clientSecret: z.string().min(1) }))
       .min(1),
     /**
-     * Cloudflare Access team domain (e.g. `evyatar-codexu.cloudflareaccess.com`).
+     * Cloudflare Access team domain (e.g. `example-team.cloudflareaccess.com`).
      * The origin uses it to derive the JWKS issuer + certs URL when verifying the
      * CF-injected `Cf-Access-Jwt-Assertion` JWT. Machine-specific — never hardcoded.
      */

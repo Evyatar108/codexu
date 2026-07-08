@@ -13,7 +13,7 @@ const DEFAULT_CLOUDFLARED_COMMAND = 'cloudflared';
 const DAEMON_CONFIG_DIR_NAME = 'cloudflared';
 const DAEMON_CONFIG_FILE_NAME = 'config.yml';
 
-// Hostnames like `happy.evyatar.dev`: dotted labels of alphanumerics/hyphens, no leading/trailing hyphen per label.
+// Hostnames like `happy.example.com`: dotted labels of alphanumerics/hyphens, no leading/trailing hyphen per label.
 const HOSTNAME_PATTERN = /^(?=.{1,253}$)([A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
 // Cloudflare named-tunnel names: alphanumerics plus dot/underscore/hyphen; must start alphanumeric.
 const TUNNEL_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -40,7 +40,7 @@ const defaultSpawner: ProcessSpawner = (command, args) => spawn(command, args, {
 });
 
 export type CloudflareTunnelDaemonProviderOptions = {
-  /** Public hostname the named tunnel serves, e.g. `happy.evyatar.dev`. */
+  /** Public hostname the named tunnel serves, e.g. `happy.example.com`. */
   hostname: string;
   /** Cloudflare named-tunnel name (must already exist via `cloudflared tunnel create`). */
   tunnelName: string;

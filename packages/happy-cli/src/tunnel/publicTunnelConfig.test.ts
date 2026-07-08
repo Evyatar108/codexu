@@ -14,11 +14,11 @@ import {
 import { decodePublicPairingInvite, isPublicPairingInviteValid } from '@slopus/happy-wire';
 
 const VALID_CONFIG: PublicTunnelConfig = {
-  hostname: 'happy.evyatar.dev',
-  tunnelName: 'happy-evyatar',
+  hostname: 'happy.example.com',
+  tunnelName: 'happy-example',
   cloudflareAccess: {
     serviceTokens: [{ clientId: 'cf-id', clientSecret: 'cf-secret' }],
-    teamDomain: 'evyatar-codexu.cloudflareaccess.com',
+    teamDomain: 'example-team.cloudflareaccess.com',
     appAud: '3978a5b707e4bfa1d94adfef748c8b7549db394cc7d6866e75adc1aaf1ebe88e',
   },
 };
@@ -98,7 +98,7 @@ describe('buildPublicMode', () => {
     const now = () => new Date('2026-05-11T12:00:00.000Z');
     const { publicAuth, invite } = buildPublicMode({
       config: VALID_CONFIG,
-      serverUrl: 'https://happy.evyatar.dev',
+      serverUrl: 'https://happy.example.com',
       machineId: 'machine-xyz',
       now,
     });
@@ -108,7 +108,7 @@ describe('buildPublicMode', () => {
     expect(publicAuth.edge.serviceTokens).toEqual([{ clientId: 'cf-id', clientSecret: 'cf-secret' }]);
     // The assertion config is threaded from cloudflareAccess.teamDomain/appAud.
     expect(publicAuth.edge.assertion).toEqual({
-      teamDomain: 'evyatar-codexu.cloudflareaccess.com',
+      teamDomain: 'example-team.cloudflareaccess.com',
       appAud: '3978a5b707e4bfa1d94adfef748c8b7549db394cc7d6866e75adc1aaf1ebe88e',
     });
 
@@ -119,7 +119,7 @@ describe('buildPublicMode', () => {
     expect(publicAuth.pairing?.windowClosesAt).toBe(new Date(invite.expiresAt).getTime());
 
     // Invite carries the public URL + machineId + edge creds.
-    expect(invite.serverUrl).toBe('https://happy.evyatar.dev');
+    expect(invite.serverUrl).toBe('https://happy.example.com');
     expect(invite.machineId).toBe('machine-xyz');
     expect(invite.cloudflareAccess).toEqual({ clientId: 'cf-id', clientSecret: 'cf-secret' });
     expect(isPublicPairingInviteValid(invite, new Date('2026-05-11T12:05:00.000Z'))).toBe(true);
@@ -128,7 +128,7 @@ describe('buildPublicMode', () => {
   it('propagates freshness/skew overrides into publicAuth', () => {
     const { publicAuth } = buildPublicMode({
       config: { ...VALID_CONFIG, freshnessMs: 1000, clockSkewMs: 500 },
-      serverUrl: 'https://happy.evyatar.dev',
+      serverUrl: 'https://happy.example.com',
       machineId: 'm',
     });
     expect(publicAuth.freshnessMs).toBe(1000);
@@ -141,17 +141,17 @@ describe('buildPublicMode', () => {
         ...VALID_CONFIG,
         cloudflareAccess: {
           ...VALID_CONFIG.cloudflareAccess,
-          jwksUrl: 'https://evyatar-codexu.cloudflareaccess.com/cdn-cgi/access/certs',
+          jwksUrl: 'https://example-team.cloudflareaccess.com/cdn-cgi/access/certs',
           expectedServiceTokenNames: ['operator@example.com'],
         },
       },
-      serverUrl: 'https://happy.evyatar.dev',
+      serverUrl: 'https://happy.example.com',
       machineId: 'm',
     });
     expect(publicAuth.edge.assertion).toEqual({
-      teamDomain: 'evyatar-codexu.cloudflareaccess.com',
+      teamDomain: 'example-team.cloudflareaccess.com',
       appAud: '3978a5b707e4bfa1d94adfef748c8b7549db394cc7d6866e75adc1aaf1ebe88e',
-      jwksUrl: 'https://evyatar-codexu.cloudflareaccess.com/cdn-cgi/access/certs',
+      jwksUrl: 'https://example-team.cloudflareaccess.com/cdn-cgi/access/certs',
       expectedIdentities: ['operator@example.com'],
     });
   });
@@ -166,7 +166,7 @@ describe('writePublicPairingInvite', () => {
   it('writes JSON and returns a decodable token', async () => {
     const { invite } = buildPublicMode({
       config: VALID_CONFIG,
-      serverUrl: 'https://happy.evyatar.dev',
+      serverUrl: 'https://happy.example.com',
       machineId: 'machine-xyz',
     });
     const file = join(workDir, 'public-pairing-invite.json');

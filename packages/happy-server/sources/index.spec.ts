@@ -190,7 +190,7 @@ describe("operator identity gate", () => {
                 edge: {
                     serviceTokens: [{ clientId: "id", clientSecret: "secret" }],
                     assertion: {
-                        teamDomain: "evyatar-codexu.cloudflareaccess.com",
+                        teamDomain: "example-team.cloudflareaccess.com",
                         appAud: "3978a5b707e4bfa1d94adfef748c8b7549db394cc7d6866e75adc1aaf1ebe88e",
                     },
                 },

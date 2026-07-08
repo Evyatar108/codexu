@@ -247,11 +247,11 @@ describe('TokenStorage', () => {
         );
     });
 
-    // --- Public-server (evyatar.dev) credential migration (US-007) ---
+    // --- Public-server (example.com) credential migration (US-007) ---
 
     const publicCredentials: AuthCredentials = {
         machineId: 'machine-public',
-        tunnelUrl: 'https://happy.evyatar.dev',
+        tunnelUrl: 'https://happy.example.com',
         firstSeenAt: 789,
         login: 'octocat',
         cloudflareAccessClientId: 'cf-access-client-id.example',

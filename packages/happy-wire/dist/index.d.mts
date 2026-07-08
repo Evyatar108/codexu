@@ -6242,6 +6242,7 @@ declare const AgentCommsIngestBodySchema: z.ZodObject<{
         ed25519Fingerprint?: string | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
+    signature: string;
     envelope: {
         id: string;
         kind: "request" | "reply" | "notify" | "spawn-request" | "spawn-result";
@@ -6262,13 +6263,13 @@ declare const AgentCommsIngestBodySchema: z.ZodObject<{
         body?: unknown;
         correlationId?: string | undefined;
     };
-    signature: string;
     senderKeys: {
         ed25519PublicKey: string;
         ecdhPublicKey: string;
         ed25519Fingerprint?: string | undefined;
     };
 }, {
+    signature: string;
     envelope: {
         id: string;
         kind: "request" | "reply" | "notify" | "spawn-request" | "spawn-result";
@@ -6289,7 +6290,6 @@ declare const AgentCommsIngestBodySchema: z.ZodObject<{
         body?: unknown;
         correlationId?: string | undefined;
     };
-    signature: string;
     senderKeys: {
         ed25519PublicKey: string;
         ecdhPublicKey: string;
@@ -6341,23 +6341,23 @@ declare const PublicSignedRequestEnvelopeSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     path: string;
     v: 1;
-    signature: string;
     keyId: string;
     publicKey: string;
     nonce: string;
     issuedAt: number;
     method: string;
     bodyHash: string;
+    signature: string;
 }, {
     path: string;
     v: 1;
-    signature: string;
     keyId: string;
     publicKey: string;
     nonce: string;
     issuedAt: number;
     method: string;
     bodyHash: string;
+    signature: string;
 }>;
 type PublicSignedRequestEnvelope = z.infer<typeof PublicSignedRequestEnvelopeSchema>;
 declare function normalizeMethod(method: string): string;

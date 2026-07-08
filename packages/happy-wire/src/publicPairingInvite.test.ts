@@ -12,7 +12,7 @@ import {
 } from './index';
 
 const BASE_INPUT = {
-  serverUrl: 'https://happy.evyatar.dev',
+  serverUrl: 'https://happy.example.com',
   machineId: 'machine-abc',
   cloudflareAccess: {
     clientId: 'client-id.example',
@@ -26,7 +26,7 @@ describe('createPublicPairingInvite', () => {
     const invite = createPublicPairingInvite({ ...BASE_INPUT, issuedAt, ttlMs: 60_000 });
 
     expect(invite.version).toBe(PUBLIC_PAIRING_INVITE_VERSION);
-    expect(invite.serverUrl).toBe('https://happy.evyatar.dev');
+    expect(invite.serverUrl).toBe('https://happy.example.com');
     expect(invite.machineId).toBe('machine-abc');
     expect(invite.issuedAt).toBe('2026-05-11T12:00:00.000Z');
     expect(invite.expiresAt).toBe('2026-05-11T12:01:00.000Z');
@@ -94,7 +94,7 @@ describe('encode/decode round-trip', () => {
 describe('isPublicPairingInviteValid', () => {
   const invite = {
     version: PUBLIC_PAIRING_INVITE_VERSION,
-    serverUrl: 'https://happy.evyatar.dev',
+    serverUrl: 'https://happy.example.com',
     machineId: 'm',
     pairSecret: 's',
     cloudflareAccess: { clientId: 'a', clientSecret: 'b' },

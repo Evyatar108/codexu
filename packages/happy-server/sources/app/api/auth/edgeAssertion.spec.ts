@@ -16,7 +16,7 @@ import {
     type EdgeAssertionConfig,
 } from "./edgeAssertion";
 
-const TEAM_DOMAIN = "evyatar-codexu.cloudflareaccess.com";
+const TEAM_DOMAIN = "example-team.cloudflareaccess.com";
 const APP_AUD = "3978a5b707e4bfa1d94adfef748c8b7549db394cc7d6866e75adc1aaf1ebe88e";
 const ISSUER = `https://${TEAM_DOMAIN}`;
 const KID = "test-key-1";

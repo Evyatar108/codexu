@@ -10,7 +10,7 @@ import { CF_ACCESS_JWT_ASSERTION_HEADER, type EdgeAssertionConfig } from "./edge
 // nonces, are not single-use).
 // ---------------------------------------------------------------------------
 
-export const TEST_TEAM_DOMAIN = "evyatar-codexu.cloudflareaccess.com";
+export const TEST_TEAM_DOMAIN = "example-team.cloudflareaccess.com";
 export const TEST_APP_AUD = "3978a5b707e4bfa1d94adfef748c8b7549db394cc7d6866e75adc1aaf1ebe88e";
 const TEST_ISSUER = `https://${TEST_TEAM_DOMAIN}`;
 const TEST_KID = "test-edge-key";

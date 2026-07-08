@@ -34,7 +34,7 @@ import {
 export const CF_ACCESS_JWT_ASSERTION_HEADER = "cf-access-jwt-assertion";
 
 export interface EdgeAssertionConfig {
-    /** Cloudflare Access team domain, e.g. "evyatar-codexu.cloudflareaccess.com". */
+    /** Cloudflare Access team domain, e.g. "example-team.cloudflareaccess.com". */
     teamDomain: string;
     /** The Access application AUD tag (the token's `aud` must include this). */
     appAud: string;
