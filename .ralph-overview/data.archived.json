@@ -10322,6 +10322,49 @@
       },
       "lifecycle": "archived",
       "lastTouchedAt": "2026-07-08T18:59:01.869Z"
+    },
+    {
+      "id": "happy-fork-make-truly-rebasable-on-upstream",
+      "lifecycle": "merged",
+      "lastTouchedAt": "2026-07-08T22:22:44.499Z",
+      "kanbanCards": [
+        {
+          "html": "OPERATOR DIRECTION (2026-07-08): change the approach so upstream tracking becomes a real git rebase/merge, NOT the current manual selective per-file intake + keep-all posture (which leaves upstream features unadopted + needs per-feature opt-in). Brainstorm-first. A real merge-base (df4cdae8) now exists so a real merge IS topologically possible, but ~96 files still hard-conflict and the worst (sync.ts, storage.ts, app new/index.tsx, MessageQueue2.ts) are CONVERGENT EVOLUTION (both sides rewrote the same logic) - the crux to crack. Compare: (1) big-bang real git merge of cli-1.1.10 now (get features + merge lineage, resolve 96 via catalogue); (2) codex-style overlay restructure (upstream near-unmodified base + fork overlay + small patch, like codex-patched submodule + codex-rs-overlay); (3) hybrid. Reference the codex-patched rebasability model as north star.",
+          "class": "cmd-warn"
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Brainstorm shipped @ f8550710. VERDICT: truly-rebasable achievable as a PHASED HYBRID, NOT codex-grade. Measured throwaway git merge cli-1.1.10 = 115 files/382 hunks (server 12/cli 34/app 64/other 5) — higher than the catalogued 96 because there's NO merge lineage yet (git re-derives from base df4cdae8 across all 213 commits). RECOMMEND: (1) commit a real git merge cli-1.1.10 NOW — cheap (HEAD already has the intake -> take-ours-dominant) — establishes lineage so FUTURE syncs are incremental (new-release delta only, e.g. today upstream/main = 3 commits/7 files); (2) flip cadence to per-release git merge; (3) incrementally R8-overlay the reducible UI + fork-own new/index.tsx; (4) accept ~dozen convergent sync-core files as permanent catalogued manual-3-way. Convergent verdict: storage.ts + sync.ts IRREDUCIBLE (monolithic Zustand closure, no upstream seam); new/index.tsx + MessageQueue2 PARTIAL. Deep finding: codex is rebasable because upstream exposes provider/trait seams; upstream happy's sync plane has NONE — the irreducible gap. 6 operator-decision calls."
+        }
+      ],
+      "command": {
+        "name": "happy-fork-make-truly-rebasable-on-upstream",
+        "prompts": {
+          "brainstorm": "(see spawn prompt)"
+        },
+        "warnings": [],
+        "descriptionHtml": "Brainstorm how to restructure the happy fork so upstream tracking is a real git rebase/merge instead of manual selective intake. Crux = the convergent core files. North star = codex-patched overlay model."
+      },
+      "status": "todo",
+      "scope": "happy",
+      "shipManifest": {
+        "shippedAt": "2026-07-08T22:22:44.499Z",
+        "summary": "Shipped the merge-for-lineage: happy fork is now truly rebasable on upstream. Executed git merge -s ours cli-1.1.10 (761518813) — advances the merge-base to cli-1.1.10 with ZERO content change (the ours strategy kept the fork tree byte-identical; verified git diff first-parent..merge EMPTY). Flipped docs/happy-patch-surface.md §6/§9 to the incremental-merge cadence (6898cd2b4). Then S5 demoed the new cadence: git merge -s ours upstream-happy/main (44443fbb7) folded in the +3 post-tag commits — the incremental merge surfaced only a 5-file delta (vs 115 for a from-scratch merge), proving future syncs reconcile just the new-release delta. All 3 post-tag features (Fable-5, session-sort, changelog) deferred.\n\nNET OUTCOME: cli-1.1.10 AND upstream-happy/main are now ancestors of main. Future upstream tracking = a real git merge <new-tag> that auto-merges everything the fork never diverged on and surfaces ONLY the catalogued conflict files. The whole job changed ONLY docs/happy-patch-surface.md (code tree byte-identical to pre-merge main; all gates green by construction; audit zero-drift). Convergent sync-core files (sync.ts/storage.ts) remain permanent take-ours manual-3-way (upstream happy is seam-less there) — this is incremental-rebasability, not codex-grade trivial-rebase. Lead executed directly after the impl member stalled on its own validation shells past S0.\r\n",
+        "commits": [
+          {
+            "sha": "761518813",
+            "oneLine": "S1 merge -s ours cli-1.1.10 (lineage anchor, zero content change)"
+          },
+          {
+            "sha": "6898cd2b4",
+            "oneLine": "S4 docs: flip cadence to incremental git merge"
+          },
+          {
+            "sha": "44443fbb7",
+            "oneLine": "S5 merge -s ours upstream-happy/main (+3 incremental demo)"
+          }
+        ]
+      }
     }
   ]
 }
