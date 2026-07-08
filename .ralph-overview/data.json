@@ -1766,31 +1766,6 @@
           "html": "ADDED 2026-07-08 (post-tag commits past cli-1.1.10): (6) 'fable 5' Claude model picker option (f6adffb4, 1 line); (7) sort-session-list-by-last-activity toggle (55faebc8, touches diverged storage.ts tree-grouping). Both are opt-in UX decisions in the same class as the original 5. Total opt-in candidates now 7."
         }
       ]
-    },
-    {
-      "id": "happy-upstream-post-tag-commits-intake",
-      "scope": "happy",
-      "lifecycle": "tracked",
-      "status": "todo",
-      "command": {
-        "prompts": {
-          "plan": "/plan-with-ralph \"Intake the ~3 upstream-happy/main commits past the cli-1.1.10 tag (git log cli-1.1.10..upstream-happy/main -- packages/happy-*). Classify per docs/happy-patch-surface.md §9 loop with BASE=cli-1.1.10 (the new baseline), THEIRS=upstream-happy/main. Likely tiny. Alternatively recommend deferring to the next tagged cli-* release if the delta is trivial.\""
-        },
-        "descriptionHtml": "Intake the 3 upstream-happy/main commits past cli-1.1.10 (d2ef88de), or defer to the next tagged release.",
-        "warnings": [],
-        "name": "happy-upstream-post-tag-commits-intake"
-      },
-      "kanbanCards": [
-        {
-          "class": "cmd-warn",
-          "html": "The first intake landed cli-1.1.10 (tag 71c417e1). upstream-happy/main is 3 commits past the tag (d2ef88de). Those 3 post-tag commits were deferred (intake op-call #5). Intake them via the §9 per-release loop when convenient, OR fold into the next tagged-release intake."
-        },
-        {
-          "className": "cmd-ok",
-          "html": "Assessed 2026-07-08: upstream-happy/main is exactly 3 app-only commits past cli-1.1.10 (d2ef88de), NO new release. (1) f6adffb4 add 'fable 5' to Claude model picker (1 line, modelModeOptions.ts — fork's list is diverged: opus 4.7 vs upstream 4.8, so partial-adopt is inconsistent); (2) 55faebc8 sort session list by last-activity behind a features.tsx toggle (+20/-7 in the fork's diverged tree-grouping storage.ts); (3) d2ef88de Fable changelog cleanup (fork-specific -> SKIP). Under the app keep-all posture, #1 and #2 are product/UX decisions = same class as the app-feature opt-ins. Folded into happy-app-upstream-feature-opt-ins-cli-1.1.10. Changelog skipped."
-        }
-      ],
-      "lastTouchedAt": "2026-07-08T03:53:03.219Z"
     }
   ],
   "phaseTree": [

@@ -1,5 +1,24 @@
 # Fork notes
 
+> **CURRENT STATE (updated 2026-07-08) — read this first; the sections below are pre-vendoring history.**
+>
+> - **happy is now vendored IN-TREE inside codexu** at `packages/happy-{app,cli,server,wire,agent}`. Active
+>   development happens in the codexu monorepo (`D:/harness-efforts/codexu`), **not** in the standalone
+>   `D:/harness-efforts/happy` clone — that clone is now only a **read-only upstream mirror**.
+> - **Upstream tracking is now a real incremental `git merge`** (not the old standalone-fork rebase, and not
+>   the manual selective per-file intake used during the transition). As of the `-s ours` lineage merge
+>   `761518813` (2026-07-08), **`cli-1.1.10` is a merged ancestor of `main`**, so the next sync is
+>   `git fetch upstream-happy && git merge <new-cli-tag>` — it auto-merges everything the fork never
+>   diverged on and surfaces only the catalogued conflicts. **The authoritative source of truth for the
+>   upstream relationship, the conflict catalogue, and the intake cadence is
+>   [`docs/happy-patch-surface.md`](./happy-patch-surface.md) §6 (baseline/lineage) + §9 (cadence).**
+> - The `## Fork`, `## Working trees`, `## Branches`, and PR-batch sections below describe the **2026-04
+>   pre-vendoring standalone-fork era** and are retained for historical reference only; the branch/working-tree
+>   details there no longer reflect how the code is built or synced.
+> - The `https://happy.evyatar.dev` Cloudflare single-user-server section (further down) documents the
+>   operator's personal deployment; treat the domain there as **operator-environment config**, not a fork
+>   default (a task tracks moving any in-code domain default to an env var + defaulting autoconnect off).
+
 Personal fork of [slopus/happy](https://github.com/slopus/happy), started to fix a UI-hang bug on an Android e-ink tablet and tack on some tablet-UX conveniences the upstream app doesn't have. This file is the source of truth for where the code lives, which branch does what, and how to rebuild when something changes.
 
 ## Fork
