@@ -1763,27 +1763,6 @@
       "lastTouchedAt": "2026-07-06T21:59:17.490Z"
     },
     {
-      "id": "happy-app-fetchmachines-resilience-followup",
-      "lifecycle": "tracked",
-      "command": {
-        "descriptionHtml": "Port upstream fetchMachines resilience + awaitQueue race guard into happy-app sync plane (app-r5 7-C).",
-        "name": "happy-app-fetchmachines-resilience-followup",
-        "warnings": [],
-        "prompts": {
-          "plan": "/plan-with-ralph \"Port the upstream cli-1.1.10 fetchMachines resilience improvements + the awaitQueue race guard into happy-app sources/sync/ (sync.ts/storage.ts). See .ralph/brainstorms/happy-app-r5-sync-plane-residual/brainstorm.md item 7-C for the specific divergence. This is a correctness/robustness fix, not a conflict reducer — verify against upstream blob (git show cli-1.1.10:packages/happy-app/sources/sync/sync.ts) and preserve the fork single-Sync-class + e-ink posture. Gate: pnpm --filter happy-app typecheck.\""
-        }
-      },
-      "scope": "happy-app",
-      "status": "todo",
-      "kanbanCards": [
-        {
-          "class": "cmd-warn",
-          "html": "CORRECTNESS follow-up (surfaced by app-r5 sync-plane brainstorm 7-C, cc598916). Port upstream cli-1.1.10 fetchMachines resilience + the awaitQueue race guard into happy-app sources/sync/. Independent of conflict reduction — a real robustness improvement upstream added that the fork lacks. Not a reducer."
-        }
-      ],
-      "lastTouchedAt": "2026-07-06T21:59:17.490Z"
-    },
-    {
       "id": "happy-app-upstream-feature-opt-ins-cli-1.1.10",
       "status": "todo",
       "command": {
