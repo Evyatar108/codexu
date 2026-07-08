@@ -1766,34 +1766,6 @@
           "html": "ADDED 2026-07-08 (post-tag commits past cli-1.1.10): (6) 'fable 5' Claude model picker option (f6adffb4, 1 line); (7) sort-session-list-by-last-activity toggle (55faebc8, touches diverged storage.ts tree-grouping). Both are opt-in UX decisions in the same class as the original 5. Total opt-in candidates now 7."
         }
       ]
-    },
-    {
-      "id": "happy-depersonalize-domain-verify-autoconnect-default-off",
-      "scope": "happy",
-      "status": "todo",
-      "lastTouchedAt": "2026-07-08T22:42:23.318Z",
-      "lifecycle": "tracked",
-      "command": {
-        "name": "happy-depersonalize-domain-verify-autoconnect-default-off",
-        "descriptionHtml": "Remove operator personal domain happy.evyatar.dev from shippable happy-* source (fixture + comments; optional deploy-script param) + verify/document autoconnect stays default-off. Investigation shows both goals are largely already satisfied.",
-        "warnings": [
-          "Optional deploy-script parameterization is an operator decision.",
-          "Do NOT add the domain to codex-happy auth.rs — invariant_75 forbids it."
-        ],
-        "prompts": {
-          "impl": "/implement-with-ralph \"De-personalize the operator domain happy.evyatar.dev from shippable happy-* source, and verify+document that autoconnect stays default-off. Per .ralph/investigations/autoconnect-default-and-domain/findings.md:\n\nCONTEXT (already true, just verify/document): autoconnect is ALREADY default-off — the codex remote features (remote_session, loopback_inject, remote_auto_attach, remote_subagent_sessions, remote_public_server) are Experimental with default_enabled:false (codex-rs/features/src/lib.rs:1107-1173), invariant-guarded (happy_seam_invariants.rs invariant_55/71/75). happy-cli public tunnel is opt-in + fail-closed (HAPPY_TUNNEL_PROVIDER=cloudflare). Runtime server URL is ALREADY env-driven: HAPPY_SERVER_URL (configuration.ts:37), public-tunnel.json hostname (forkHooks.ts:155). NO code change is needed for default-off or for runtime env-driving — assert this with a short note/test rather than editing gates.\n\nACTUAL WORK (remove the operator personal domain from shippable source):\n1. packages/happy-wire/src/publicPairingInvite.ts:161 — the PUBLIC_PAIRING_INVITE_TEST_VECTOR fixture hardcodes https://happy.evyatar.dev. Replace with a neutral https://happy.example.com. Update the fixture-asserting tests so they stay green: publicPairingInvite.test.ts + any of publicTunnelConfig.test.ts / cloudflareTunnelDaemonProvider.test.ts / tokenStorage.test.ts / publicEnrollment.test.ts / machineAuth.test.ts / socketOptions.test.ts that assert the literal.\n2. Comments that name happy.evyatar.dev (publicTunnelConfig.ts:23, cloudflareTunnelDaemonProvider.ts:16,43, happy-app tokenStorage.ts:22, machineAuth.ts:10) — genericize to <your-public-hostname> / note it comes from public-tunnel.json.\n3. OPTIONAL (operator decision): parameterize scripts/fork-setup/setup-services.ps1 (lines 12,98,116,137) via a new HAPPY_PUBLIC_HOSTNAME env/param instead of the literal, defaulting to a placeholder. This is a personal deploy script — genericize only if the operator wants it de-personalized too.\n4. DO NOT add the domain to codex-happy auth.rs — invariant_75 (happy_seam_invariants.rs:634-635) forbids evyatar/external-HTTPS refs there; codex-happy is loopback-only.\n5. Docs (fork-notes.md, security-model.md, backend-architecture.md, etc.) legitimately document the operator deployment — leave the domain there OR add a note that it is operator-environment config, not a fork default (already noted in the fork-notes current-state banner).\n\nGate: pnpm --filter happy-wire typecheck + the happy-cli/wire test suites green (npm_config_script_shell=bash NOT needed on this box); node scripts/audit-happy-fork-patches.mjs zero-drift. Keep the change minimal + surgical.\"\r\n"
-        }
-      },
-      "kanbanCards": [
-        {
-          "class": "cmd-ok",
-          "html": "INVESTIGATED 2026-07-08 (.ralph/investigations/autoconnect-default-and-domain/findings.md): (A) autoconnect is ALREADY default-OFF everywhere — codex Experimental Features registry, default_enabled:false, invariant-guarded (invariant_55/71/75); happy-cli public tunnel opt-in + fail-closed. Nothing to flip. (B) domain is NOT baked into runtime — server URL already env-driven (HAPPY_SERVER_URL + public-tunnel.json hostname). The operator domain happy.evyatar.dev appears as a literal in SHIPPABLE source only at packages/happy-wire/src/publicPairingInvite.ts:161 (a test-vector fixture, no runtime effect) + comments/tests/deploy-script/docs. codex-happy is contractually forbidden (invariant_75) from containing it."
-        },
-        {
-          "class": "cmd-warn",
-          "html": "REMAINING WORK (small): swap the publicPairingInvite.ts:161 fixture literal happy.evyatar.dev -> happy.example.com + update the ~7 asserting tests; genericize the naming comments; OPTIONALLY parameterize setup-services.ps1 via a new HAPPY_PUBLIC_HOSTNAME (operator decision). Add a short note/test asserting autoconnect stays default-off (already true). Do NOT touch codex-happy auth.rs (invariant_75). Leave docs domain refs (they document the operator deployment)."
-        }
-      ]
     }
   ],
   "phaseTree": [
