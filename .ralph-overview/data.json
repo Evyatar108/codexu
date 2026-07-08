@@ -1804,6 +1804,10 @@
         {
           "className": "cmd-warn",
           "html": "REFINED DIAGNOSIS 2026-07-08 (lead bounded-probe): NOT an sccache issue. RUSTC_WRAPPER only wraps rustc, not the C compiler; and the default shell has RUSTC_WRAPPER empty already. Root: codex uses the xwin+LLVM release toolchain (clang-cl C:/Program Files/LLVM/bin/clang-cl.exe + xwin ~/.xwin, both INSTALLED), NOT standard MSVC (vswhere finds no VS install; a bare 'cargo build -p aws-lc-sys' fails EARLIER with 'linker link.exe not found' because the release env isn't loaded). The 0xc0000142 (STATUS_DLL_INIT_FAILED) happens when clang-cl compiles the hundreds of aws-lc C files under the loaded release env. So the fix is in the clang-cl/LLVM layer: likely an LLVM install repair/reinstall (0xc0000142 = corrupt/mismatched runtime DLL), OR bypassing an sccache-wrap of clang-cl specifically (CMAKE_C_COMPILER_LAUNCHER/CC launcher), OR an xwin<->clang-cl mismatch. NEXT: load the full release env per codex/.claude/commands/publish-sandbox-patch.md, reproduce, then try (a) LLVM repair, (b) unset any C-compiler sccache launcher, (c) fresh clang-cl. Needs a focused member with the release toolchain loaded (~6min/attempt), not a quick probe."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "RESOLVED (workaround) 2026-07-08: root cause is the SCCACHE path in the iteration profile, NOT clang-cl/LLVM (no invasive reinstall needed). WORKING RECIPE (no sccache): from codex/external/repos/codex-patched/codex-rs, unset RUSTC_WRAPPER/SCCACHE_DIR/CARGO_INCREMENTAL; CC=CXX=clang-cl, AR=llvm-lib, linker=lld-link, LIB/INCLUDE=~/.xwin crt+sdk, RUSTUP_TOOLCHAIN=1.95.0, PATH+=C:/Program Files/LLVM/bin. PROVEN: aws-lc-sys built 49s; full codex-invariant-tests workspace compiled 6m22s; invariant-15 test PASSED. This UNBLOCKS local validation of all codex build-gated tasks. Stored as a repo memory (codex build). REMAINING (optional, low-pri): restore the sccache speedup — the 0xc0000142 is likely a corrupt sccache cache (see build-env-sccache-cache-wipe-and-rewarm); until then, build without sccache."
         }
       ],
       "command": {
@@ -1817,7 +1821,7 @@
         }
       },
       "lifecycle": "tracked",
-      "lastTouchedAt": "2026-07-08T17:20:14.576Z"
+      "lastTouchedAt": "2026-07-08T18:55:05.852Z"
     }
   ],
   "phaseTree": [
