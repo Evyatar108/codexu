@@ -1246,6 +1246,26 @@ class Sync {
         const decryptedMachines: Machine[] = [];
 
         await Promise.all(this.credentialsList.map(async (credentials) => {
+            // Resilience (ports upstream cli-1.1.10 fetchMachines h10 principle
+            // to the fork's loopback path): a single machine whose fetch/parse
+            // fails transiently must NOT be dropped. `applyMachines(..., true)`
+            // REPLACES the whole machine map (see storage.ts), so any machine
+            // missing from this batch vanishes from /new until the next
+            // successful sync. On any per-machine failure we re-preserve the
+            // existing store record (if any) instead of silently dropping it.
+            // Upstream degrades to null-metadata on decrypt failure; the fork
+            // has no per-session E2E, so the analog is a transient tunnel
+            // fetch/parse failure. `credentials.machineId` is the store key
+            // here — it is set from the server-reported machineId at pairing
+            // time (auth/pairing.ts, auth/publicEnrollment.ts) and matches the
+            // `id: machine.machineId` written on the success path below.
+            const preserveExistingMachine = () => {
+                const existing = storage.getState().machines[credentials.machineId];
+                if (existing) {
+                    decryptedMachines.push(existing);
+                }
+            };
+
             let response: Response;
             try {
                 response = await tunnelFetch(`${credentials.tunnelUrl}/v2/me/machine`, credentials, {
@@ -1256,20 +1276,33 @@ class Sync {
                 });
             } catch (error) {
                 console.error(`Failed to fetch machines from ${credentials.machineId}:`, error);
+                preserveExistingMachine();
                 return;
             }
 
             if (!response.ok) {
                 console.error(`Failed to fetch machines from ${credentials.machineId}: ${response.status}`);
+                preserveExistingMachine();
                 return;
             }
 
-            const machine = await response.json() as {
+            let machine: {
                 machineId: string;
                 hostname: string;
                 tunnelUrl: string;
                 lastSeenAt: number | string;
             };
+            try {
+                machine = await response.json();
+            } catch (error) {
+                // A malformed body would otherwise reject the whole Promise.all
+                // and reject fetchMachines — InvalidateSync's backoff only warns
+                // and retries forever, so applyMachines is never reached and
+                // every machine silently vanishes. Degrade per-machine instead.
+                console.error(`Failed to parse machine response from ${credentials.machineId}:`, error);
+                preserveExistingMachine();
+                return;
+            }
             const activeAt = typeof machine.lastSeenAt === 'number' ? machine.lastSeenAt : Date.parse(machine.lastSeenAt);
             decryptedMachines.push({
                 id: machine.machineId,
@@ -1289,6 +1322,17 @@ class Sync {
             });
         }));
 
+        // Resilience (ports upstream cli-1.1.10 fetchMachines h11): never wipe
+        // a populated store with an empty result. An empty batch here almost
+        // always means a transient fetch problem, not "user has no machines";
+        // destroying good state would blank /new until app restart. With the
+        // per-machine preservation above this should be rare, but it also
+        // covers the all-credentials-failed case defensively.
+        const existingMachineCount = Object.keys(storage.getState().machines).length;
+        if (decryptedMachines.length === 0 && existingMachineCount > 0) {
+            log.log(`🖥️ fetchMachines: empty result, keeping ${existingMachineCount} existing machine(s)`);
+            return;
+        }
         storage.getState().applyMachines(decryptedMachines, true);
         log.log(`🖥️ fetchMachines completed - processed ${decryptedMachines.length} machines`);
     }
@@ -1896,7 +1940,23 @@ class Sync {
             deferredInvalidate = this.sessionsSync.invalidateAndAwait();
         } else if (updateData.body.t === 'update-session') {
             const sessionId = sourceMachineId ? compositeSessionId(sourceMachineId, updateData.body.id) : updateData.body.id;
-            const session = storage.getState().sessions[sessionId];
+            // #1251 race guard (ports upstream cli-1.1.10's awaitQueue retry
+            // shape to the fork's no-E2E path): an update-session event carries
+            // the chat title/metadata and can arrive before the session row is
+            // loaded while sessions are still syncing on startup (or mid
+            // new-session fetch). Silently dropping it here loses the metadata
+            // update — the upstream symptom was "every chat stuck on New chat".
+            // Unlike new-message (which synthesizes an optimistic placeholder,
+            // perf-WS2), update-session has no placeholder, so mirror upstream:
+            // await the in-flight sessions sync queue and re-check before giving
+            // up. `awaitQueue()` waits for the current sync without kicking a new
+            // one, matching upstream's shape (the fork has no per-session
+            // encryption to re-check).
+            let session = storage.getState().sessions[sessionId];
+            if (!session) {
+                await this.sessionsSync.awaitQueue();
+                session = storage.getState().sessions[sessionId];
+            }
             if (session) {
                 const agentState = updateData.body.agentState
                     ? parsePlainJson(updateData.body.agentState.value, null)

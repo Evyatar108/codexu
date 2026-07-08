@@ -1153,6 +1153,140 @@ describe('sync new-message lifecycle state', () => {
     });
 });
 
+describe('sync fetchMachines resilience', () => {
+    beforeEach(() => {
+        vi.restoreAllMocks();
+        vi.clearAllMocks();
+        resetStorageHarness();
+    });
+
+    it('preserves a machine whose fetch fails while others succeed (h10: never drop a machine)', async () => {
+        (sync as any).credentialsList = [
+            { machineId: 'machine-1', tunnelUrl: 'https://m1.example.test' },
+            { machineId: 'machine-2', tunnelUrl: 'https://m2.example.test' },
+        ];
+        mocks.storageState.machines = {
+            'machine-2': { id: 'machine-2', metadata: { host: 'old-host-2' }, seq: 5 },
+        };
+        mocks.tunnelFetch.mockImplementation(async (url: string) => {
+            if (url.includes('m1.example.test')) {
+                return {
+                    ok: true,
+                    status: 200,
+                    json: async () => ({
+                        machineId: 'machine-1',
+                        hostname: 'host-1',
+                        tunnelUrl: 'https://m1.example.test',
+                        lastSeenAt: 1000,
+                    }),
+                };
+            }
+            throw new Error('machine-2 unreachable');
+        });
+
+        await (sync as any).refreshMachines();
+
+        expect(mocks.storageState.applyMachines).toHaveBeenCalledTimes(1);
+        const [machines, replace] = mocks.storageState.applyMachines.mock.calls[0];
+        expect(replace).toBe(true);
+        expect(machines.map((m: any) => m.id).sort()).toEqual(['machine-1', 'machine-2']);
+        // The transiently-failing machine keeps its prior record instead of vanishing.
+        expect(machines.find((m: any) => m.id === 'machine-2').metadata.host).toBe('old-host-2');
+    });
+
+    it('preserves a machine when its response body cannot be parsed (h10 extends to JSON failure)', async () => {
+        (sync as any).credentialsList = [{ machineId: 'machine-1', tunnelUrl: 'https://m1.example.test' }];
+        mocks.storageState.machines = { 'machine-1': { id: 'machine-1', metadata: { host: 'kept' }, seq: 3 } };
+        mocks.tunnelFetch.mockResolvedValueOnce({
+            ok: true,
+            status: 200,
+            json: async () => { throw new Error('bad json'); },
+        });
+
+        await (sync as any).refreshMachines();
+
+        expect(mocks.storageState.applyMachines).toHaveBeenCalledWith(
+            [expect.objectContaining({ id: 'machine-1', metadata: { host: 'kept' } })],
+            true,
+        );
+    });
+
+    it('does not wipe a populated store with an empty result (h11)', async () => {
+        (sync as any).credentialsList = [{ machineId: 'machine-1', tunnelUrl: 'https://m1.example.test' }];
+        // A stored machine with no matching credential in this failing cycle exercises the
+        // empty-batch guard: preservation finds nothing for machine-1, so the batch is empty.
+        mocks.storageState.machines = { 'machine-2': { id: 'machine-2', metadata: { host: 'host-2' } } };
+        mocks.tunnelFetch.mockRejectedValueOnce(new Error('network down'));
+
+        await (sync as any).refreshMachines();
+
+        expect(mocks.storageState.applyMachines).not.toHaveBeenCalled();
+        expect(mocks.storageState.machines['machine-2']).toBeDefined();
+    });
+});
+
+describe('sync update-session session-load race guard (#1251)', () => {
+    beforeEach(() => {
+        vi.restoreAllMocks();
+        vi.clearAllMocks();
+        resetStorageHarness();
+    });
+
+    function updateSessionEvent() {
+        return makeUpdate(1, {
+            t: 'update-session',
+            id: 'session-1',
+            metadata: {
+                version: 2,
+                value: JSON.stringify({ flavor: 'claude', path: '/repo', host: 'host', summary: { text: 'Real title' } }),
+            },
+        });
+    }
+
+    it('applies an update-session that arrives before the session row is loaded', async () => {
+        mocks.storageState.sessions = {};
+        const applySpy = vi.spyOn(sync as any, 'applySessions').mockImplementation(() => undefined);
+        const session = makeSession({ metadata: { flavor: 'claude', path: '/repo', host: 'host' }, metadataVersion: 1 });
+        const sessionsSync = {
+            awaitQueue: vi.fn(async () => {
+                // Simulate the in-flight sessions sync completing and loading the row.
+                mocks.storageState.sessions = { 'session-1': session };
+            }),
+        };
+        (sync as any).sessionsSync = sessionsSync;
+
+        await (sync as any).handleUpdate(updateSessionEvent());
+
+        expect(sessionsSync.awaitQueue).toHaveBeenCalledTimes(1);
+        expect(applySpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not throw when the session is still missing after awaiting the sync queue', async () => {
+        mocks.storageState.sessions = {};
+        const applySpy = vi.spyOn(sync as any, 'applySessions').mockImplementation(() => undefined);
+        const sessionsSync = { awaitQueue: vi.fn(async () => undefined) };
+        (sync as any).sessionsSync = sessionsSync;
+
+        await expect((sync as any).handleUpdate(updateSessionEvent())).resolves.toBeUndefined();
+
+        expect(sessionsSync.awaitQueue).toHaveBeenCalledTimes(1);
+        expect(applySpy).not.toHaveBeenCalled();
+    });
+
+    it('does not await the sync queue when the session is already loaded', async () => {
+        const session = makeSession({ metadata: { flavor: 'claude', path: '/repo', host: 'host' }, metadataVersion: 1 });
+        mocks.storageState.sessions = { 'session-1': session };
+        const applySpy = vi.spyOn(sync as any, 'applySessions').mockImplementation(() => undefined);
+        const sessionsSync = { awaitQueue: vi.fn(async () => undefined) };
+        (sync as any).sessionsSync = sessionsSync;
+
+        await (sync as any).handleUpdate(updateSessionEvent());
+
+        expect(sessionsSync.awaitQueue).not.toHaveBeenCalled();
+        expect(applySpy).toHaveBeenCalledTimes(1);
+    });
+});
+
 function collectTsFiles(dir: string, results: string[] = []): string[] {
     for (const entry of readdirSync(dir)) {
         if (entry === 'node_modules' || entry === 'build' || entry === 'dist') {
