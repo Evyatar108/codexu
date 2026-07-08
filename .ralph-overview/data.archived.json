@@ -10249,6 +10249,40 @@
           }
         ]
       }
+    },
+    {
+      "id": "codex-prerelease-rebase-debt-invariant15-and-codex-happy-fmt",
+      "scope": "codex",
+      "lifecycle": "merged",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-08T17:20:15.598Z",
+      "command": {
+        "name": "codex-prerelease-rebase-debt-invariant15-and-codex-happy-fmt",
+        "descriptionHtml": "Two PRE-EXISTING codex debt items surfaced (NOT caused by) the autoconnect work + its pre-release review: (1) codex-invariant-tests invariant-15 <code>background_completion.rs</code> fails because the structural test references <code>PreparedBackgroundCompletion</code> which was renamed upstream (in <code>core/src/unified_exec/process_manager.rs</code>); (2) the <code>codex-happy</code> overlay crate (autoconnect US-002..007 files) has cargo-fmt debt under the repo-pinned 1.95.0 toolchain (the iteration-env forces RUSTUP_TOOLCHAIN=stable, so stable-fmt contaminates). Neither blocked the autoconnect release. Clean both up.",
+        "prompts": {
+          "plan": "Fix two pre-existing codex debt items flagged during the autoconnect ship (impl-autoconnect-7 + the pre-release review @ 5a50c43f, findings.md):\n\n1. codex-invariant-tests invariant-15: the structural test on background_completion.rs references `PreparedBackgroundCompletion`, renamed upstream. Update the invariant test to the current struct name in core/src/unified_exec/process_manager.rs (verify the rename + the invariant's intent still holds).\n\n2. codex-happy crate fmt debt: run `cargo fmt` on the codex-happy overlay crate files (US-002..007) with the REPO-PINNED 1.95.0 toolchain (NOT stable — the iteration-env forces RUSTUP_TOOLCHAIN=stable which mis-formats; use the pinned toolchain explicitly). Commit only the fmt-clean result.\n\nBoth are in the codex submodule. Two-commit flow (inner first, then wrapper pointer). Do on a topic branch off current sandbox-patches (post-autoconnect-release). HARD gate: cargo check --workspace = 0 + the invariant-tests pass.\n\nRUN: /plan-with-ralph codex-prerelease-rebase-debt-invariant15-and-codex-happy-fmt"
+        }
+      },
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "PRE-EXISTING codex debt surfaced during the autoconnect ship (flagged by impl-autoconnect-7 + review @ <code>5a50c43f</code>): (1) codex-invariant-tests <strong>invariant-15</strong> <code>background_completion.rs</code> fails &mdash; references upstream-renamed <code>PreparedBackgroundCompletion</code>; (2) <code>codex-happy</code> crate cargo-fmt debt under the pinned 1.95.0 toolchain. Neither blocked the autoconnect release; clean up post-release."
+        }
+      ],
+      "shipManifest": {
+        "shippedAt": "2026-07-08T17:20:15.598Z",
+        "summary": "Shipped both codex pre-release rebase-debt items. (1) invariant-15: the background_completion structural test referenced PreparedBackgroundCompletion, which upstream REFACTORED (not just renamed) into ProcessEntry (unified_exec/mod.rs) + moved the completion read into spawn_exit_watcher (unified_exec/async_watcher.rs). Rewrote the test to assert the same invariant under the new names (background completion reads the durable transcript Arc<Mutex<HeadTailBuffer>>, never the drainable output_buffer, via lock->to_bytes ordered) - intent preserved, not mechanical. (2) codex-happy fmt: rustfmt'd 12 codex-happy overlay files with the pinned 1.95.0 toolchain (NOT stable), formatting-only, idempotent under rustfmt --check.\n\nShip: codex 263000a2b1 -> 0e94f80ed3 (gim-home/codex main) + codexu pointer bump cc858e0b5 (origin+personal). Single wrapper commit (overlay crates are wrapper-owned; inner codex-patched gitlink unchanged). CAVEAT: cargo build gate env-blocked locally by pre-existing aws-lc-sys 0xc0000142 (Windows DLL-init in the aws-lc C build under sccache-wrapped clang-cl, reproduced jobs=8 + jobs=2); validated structurally (include_str pattern->source mapping) + rustfmt parse/idempotency; full cargo test deferred to CI (invariant-check.yml, ubuntu+windows). Test-only + fmt-only, zero production/release-binary change.\r\n",
+        "commits": [
+          {
+            "sha": "cc858e0b5",
+            "oneLine": "chore(codex): bump pointer for invariant-15 + codex-happy fmt debt"
+          },
+          {
+            "sha": "0e94f80ed3",
+            "oneLine": "codex debt (invariant-15 test + codex-happy fmt)"
+          }
+        ]
+      }
     }
   ]
 }
