@@ -1800,6 +1800,10 @@
         {
           "class": "cmd-warn",
           "html": "BLOCKER (found 2026-07-08 during codex-debt-fmt): local cargo check/test of the codex workspace FAILS building aws-lc-sys with 0xc0000142 (Windows STATUS_DLL_INIT_FAILED) during the aws-lc C compilation under sccache-wrapped clang-cl. Reproduced at jobs=8 AND jobs=2; clang-cl --version works direct + wrapped, so it is a process/DLL-init issue on the hundreds of aws-lc C files, not a toolchain-missing issue. This blocks LOCAL validation of any codex build-gated task (cargo check --workspace, cargo test). Combined with CI being org-policy-blocked (escalate-gim-home-actions-policy), codex build-gated changes currently have NEITHER local nor CI validation. Investigate: try RUSTC_WRAPPER= (disable sccache), a clean sccache cache (build-env-sccache-cache-wipe-and-rewarm), MSVC vs clang-cl for the C build, or a VS/Windows SDK repair."
+        },
+        {
+          "className": "cmd-warn",
+          "html": "REFINED DIAGNOSIS 2026-07-08 (lead bounded-probe): NOT an sccache issue. RUSTC_WRAPPER only wraps rustc, not the C compiler; and the default shell has RUSTC_WRAPPER empty already. Root: codex uses the xwin+LLVM release toolchain (clang-cl C:/Program Files/LLVM/bin/clang-cl.exe + xwin ~/.xwin, both INSTALLED), NOT standard MSVC (vswhere finds no VS install; a bare 'cargo build -p aws-lc-sys' fails EARLIER with 'linker link.exe not found' because the release env isn't loaded). The 0xc0000142 (STATUS_DLL_INIT_FAILED) happens when clang-cl compiles the hundreds of aws-lc C files under the loaded release env. So the fix is in the clang-cl/LLVM layer: likely an LLVM install repair/reinstall (0xc0000142 = corrupt/mismatched runtime DLL), OR bypassing an sccache-wrap of clang-cl specifically (CMAKE_C_COMPILER_LAUNCHER/CC launcher), OR an xwin<->clang-cl mismatch. NEXT: load the full release env per codex/.claude/commands/publish-sandbox-patch.md, reproduce, then try (a) LLVM repair, (b) unset any C-compiler sccache launcher, (c) fresh clang-cl. Needs a focused member with the release toolchain loaded (~6min/attempt), not a quick probe."
         }
       ],
       "command": {
