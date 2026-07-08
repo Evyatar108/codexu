@@ -1,0 +1,55 @@
+{
+  "task": "happy-app-restore-voice-realtime-subsystem",
+  "type": "brainstorm-analysis",
+  "readOnly": true,
+  "baseCommit": "412f98502",
+  "branch": "ralph/bs-voice-realtime",
+  "recommendedDirection": "keep-removed-default; minimal-bypass-only-restore-if-operator-wants-voice; reject-full-restore",
+  "removedFiles": [
+    "packages/happy-app/sources/realtime/RealtimeProvider.tsx",
+    "packages/happy-app/sources/realtime/RealtimeProvider.web.tsx",
+    "packages/happy-app/sources/realtime/RealtimeSession.ts",
+    "packages/happy-app/sources/realtime/RealtimeVoiceSession.tsx",
+    "packages/happy-app/sources/realtime/RealtimeVoiceSession.web.tsx",
+    "packages/happy-app/sources/realtime/hooks/contextFormatters.ts",
+    "packages/happy-app/sources/realtime/hooks/voiceHooks.ts",
+    "packages/happy-app/sources/realtime/realtimeClientTools.ts",
+    "packages/happy-app/sources/realtime/types.ts",
+    "packages/happy-app/sources/realtime/voiceConfig.ts",
+    "packages/happy-app/sources/realtime/voiceExperiment.ts",
+    "packages/happy-app/sources/realtime/voiceSystemPrompt.ts"
+  ],
+  "externalDeps": [
+    "@elevenlabs/react-native (native; LiveKit/WebRTC transitive) - ABSENT from fork package.json",
+    "@elevenlabs/react (web; WebSocket) - ABSENT from fork package.json",
+    "ElevenLabs cloud (live mic audio egress; per-minute billing)"
+  ],
+  "whyForkRemoved": "Sprint D/E systematic deletion of central-server + monetization coupling: server voice route removed (api.md:12,94; backend-architecture.md:153), client apiVoice.ts + encryption removed (encryption.md:63), storage realtimeMode debounce removed (storage.ts:219), enforced by guard test encryptionDeletion.spec.ts:62. Voice was a paid cloud feature (experimental/roadmap.md:9) and e-ink-hostile (animated VoiceBars).",
+  "verdict": "Full functional restore NOT worth it on an e-ink, no-central-server, self-host fork. It re-couples to a central-server credential broker + RevenueCat gating + streams mic audio to ElevenLabs cloud (cost+privacy) + animated status bar (e-ink hostile). Bypass mode (user-owned public ElevenLabs agent, agentId only, no server) makes a minimal restore feasible if voice is wanted. Mic UI already restored inert (HA-6), so keep-removed loses nothing.",
+  "infraGaps": [
+    "Server /v1/voice/conversations route removed (Sprint E) - needed for FULL mode only; bypass mode needs none",
+    "config.elevenLabsAgentId removed",
+    "Storage realtimeStatus/realtimeMode + hooks removed (HA-2a)",
+    "sources/sync/persistence.ts voice counters removed",
+    "sources/utils/microphonePermissions.ts removed (guard-forbidden)",
+    "VoiceAssistantStatusBar + VoiceBars removed",
+    "settings voiceBypassToken/voiceCustomAgentId/voiceAssistantLanguage/voiceUpsellOverride removed",
+    "@elevenlabs/react-native + @elevenlabs/react not in package.json"
+  ],
+  "survivingDeps": [
+    "happy-wire voice.ts schemas RETAINED (unused in bypass mode)",
+    "Languages.ts getElevenLabsCodeFromPreference RETAINED",
+    "track/ (PostHog) RETAINED",
+    "RevenueCat presentPaywall RETAINED (donations only)",
+    "AgentInput mic props onMicPress/isMicActive RESTORED but INERT (HA-6)"
+  ],
+  "operatorDecisionCalls": [
+    "Want voice at all on an e-ink reading tablet?",
+    "Accept live mic audio egress to ElevenLabs cloud (privacy)?",
+    "Accept ElevenLabs per-minute cost (bypass = billed to user's own agent account)?",
+    "Accept adding @elevenlabs/* native deps to a hand-maintained no-prebuild Android build?",
+    "Bypass-only (user supplies public agent id) vs full (re-add server route + ElevenLabs API key on daemon)?"
+  ],
+  "einkPlacement": "Reuse upstream tablet convention: full bar suppressed on tablet, compact sidebar variant (VoiceAssistantStatusBar already has variant 'full'|'sidebar'). Replace animated VoiceBars + pulsing StatusDot with a STATIC text status row. Gate whole feature behind default-OFF enableVoiceAssistant toggle.",
+  "guardTestNote": "encryptionDeletion.spec.ts:62 'has no voice or realtime production surfaces' will FAIL on any restore; must be scoped/relaxed as a first-class story."
+}
