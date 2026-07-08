@@ -1724,6 +1724,10 @@
         {
           "class": "cmd-warn",
           "html": "FOLLOW-UP from R8 (operator decision #4 = RESTORE mic/voice). The fork removed upstream's ENTIRE voice/realtime subsystem (@/realtime/RealtimeSession start/stopRealtimeSession, @/realtime/hooks/voiceHooks, components/VoiceAssistantStatusBar, the ElevenLabs agent integration, voice persistence counters). R8 stage 4 (ed9b7b17) restored only the AgentInput mic UI as INERT (mic button + props present, no onMicPress runtime); R8 stage 5 deliberately did NOT import @/realtime/* (fully restoring the subsystem is a large FEATURE restore, out of scope for the conflict-reduction pass). This task restores the @/realtime/ subsystem from upstream cli-1.1.10 (71c417e1) + wires it into SessionView (VoiceAssistantStatusBar, voiceHooks.onVoiceStarted, startRealtimeSession/stopRealtimeSession) + onMicPress so mic/voice is FUNCTIONAL again. Reduces SessionView conflict further (moves toward upstream) AND returns the feature. NOTE: elevenLabsAgentId is already in the app config (agent_6701k211syvvegba4kt7m68nxjmw). Check the fork didn't remove it for a reason (cost/privacy) before restoring."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Brainstorm shipped @ 94f35f2b. VERDICT: full restore NOT worth it — re-couples to central-server credential broker + RevenueCat gating + ElevenLabs cloud mic egress + animated e-ink-hostile VoiceBars, all antithetical to the e-ink/self-host/no-central-server fork. RECOMMEND keep-removed as default (mic UI already inert via HA-6, nothing lost). Only acceptable restore = minimal bypass-only (RealtimeSession voiceCustomAgentId bypass mode, no server) IF operator wants voice. 12 removed files need 2 absent npm deps (@elevenlabs/react-native + @elevenlabs/react). OPERATOR-DECISION: (1) want voice on e-ink at all? (2) accept mic->ElevenLabs cloud egress? (3) per-minute cost? (4) add native deps to no-prebuild Android? (5) bypass-only vs full."
         }
       ],
       "command": {
