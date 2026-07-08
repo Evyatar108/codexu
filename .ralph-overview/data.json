@@ -1780,6 +1780,10 @@
         {
           "class": "cmd-warn",
           "html": "5 upstream cli-1.1.10 app FEATURES were DECLINED during the first intake (keep-all posture, e-ink conservatism) and are available to opt into individually later: FileView tool renderer (HA-23), /goal+skills slash suggestions (HA-36), file-event attachment rendering (HA-27, relates to US-004), CodexPatchView collapsed/embedded UI (HA-21), file-mention limit 10->50 (HA-37). Each is a behavior-changing hand-port into an otherwise-KEEP file; each needs an e-ink UX check. Plus 9 other adopt-candidates defaulted KEEP-fork (settings/layout/tool-card/socket UI)."
+        },
+        {
+          "className": "cmd-warn",
+          "html": "ADDED 2026-07-08 (post-tag commits past cli-1.1.10): (6) 'fable 5' Claude model picker option (f6adffb4, 1 line); (7) sort-session-list-by-last-activity toggle (55faebc8, touches diverged storage.ts tree-grouping). Both are opt-in UX decisions in the same class as the original 5. Total opt-in candidates now 7."
         }
       ]
     },
@@ -1800,6 +1804,10 @@
         {
           "class": "cmd-warn",
           "html": "The first intake landed cli-1.1.10 (tag 71c417e1). upstream-happy/main is 3 commits past the tag (d2ef88de). Those 3 post-tag commits were deferred (intake op-call #5). Intake them via the §9 per-release loop when convenient, OR fold into the next tagged-release intake."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Assessed 2026-07-08: upstream-happy/main is exactly 3 app-only commits past cli-1.1.10 (d2ef88de), NO new release. (1) f6adffb4 add 'fable 5' to Claude model picker (1 line, modelModeOptions.ts — fork's list is diverged: opus 4.7 vs upstream 4.8, so partial-adopt is inconsistent); (2) 55faebc8 sort session list by last-activity behind a features.tsx toggle (+20/-7 in the fork's diverged tree-grouping storage.ts); (3) d2ef88de Fable changelog cleanup (fork-specific -> SKIP). Under the app keep-all posture, #1 and #2 are product/UX decisions = same class as the app-feature opt-ins. Folded into happy-app-upstream-feature-opt-ins-cli-1.1.10. Changelog skipped."
         }
       ],
       "lastTouchedAt": "2026-07-08T03:53:03.219Z"
