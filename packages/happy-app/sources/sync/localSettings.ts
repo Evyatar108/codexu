@@ -1,4 +1,5 @@
 import * as z from 'zod';
+import { forkLocalSettingsFields, forkLocalSettingsDefaults } from '@/fork/sync/forkLocalSettings';
 
 //
 // Schema
@@ -8,24 +9,15 @@ export const LocalSettingsSchema = z.object({
     // Developer settings (device-specific)
     debugMode: z.boolean().describe('Enable debug logging'),
     devModeEnabled: z.boolean().describe('Enable developer menu in settings'),
-    chatFontScale: z.number().min(0.85).max(1.6).describe('Scale factor for chat typography'),
-    chatWidthMode: z.number().int().min(0).max(50).describe('Side-margin percentage for chat layout on large screens (0 = no margin / full width; picker exposes 0/3/5/10/15)'),
-    pinchToZoomEnabled: z.boolean().describe('Enable pinch-to-zoom chat text preview'),
-    chatPaginatedScroll: z.boolean().describe('Enable page-turn chat pagination mode'),
-    chatToolGrouping: z.enum(['flat', 'grouped']).describe("Chat message rendering: 'flat' (fork e-ink default — every message inline) or 'grouped' (restored upstream tool-call/agent-work grouping)"),
-    messageCommandChips: z.boolean().describe('Restore upstream slash-command/goal chips + fork-from-message long-press in MessageView (off by default — fork renders user messages as a flat e-ink band)'),
-    enableSocketRangeFetch: z.boolean().describe('Route older-page fetch through the socket-pushed prefetch path instead of HTTP loadOlder()'),
     commandPaletteEnabled: z.boolean().describe('Enable CMD+K command palette (web only)'),
     themePreference: z.enum(['light', 'dark', 'adaptive']).describe('Theme preference: light, dark, or adaptive (follows system)'),
     markdownCopyV2: z.boolean().describe('Replace native paragraph selection with long-press modal for full markdown copy'),
-    unifiedNewSessionComposer: z.boolean().describe('Enable the unified composer on the new-session screen'),
     consoleLoggingEnabled: z.boolean().describe('Enable console output in production builds'),
     verboseLogging: z.boolean().describe('Log all network requests and responses'),
-    // Tablet UX
-    sidebarMode: z.enum(['expanded', 'collapsed', 'hidden']).describe('Permanent tablet sidebar mode: expanded (full list), collapsed (72px icon rail), hidden (off — max focus)'),
-    sidebarCollapsed: z.boolean().describe('Whether the right file-diffs sidebar is collapsed on desktop'),
     // CLI version acknowledgments - keyed by machineId
     acknowledgedCliVersions: z.record(z.string(), z.string()).describe('Acknowledged CLI versions per machine'),
+    // FORK PATCH: [MOVE-W2] e-ink/tablet fields relocated to @/fork/sync/forkLocalSettings (invariant HA-33)
+    ...forkLocalSettingsFields,
 });
 
 //
@@ -44,22 +36,14 @@ export type LocalSettings = z.infer<typeof LocalSettingsSchema>;
 export const localSettingsDefaults: LocalSettings = {
     debugMode: false,
     devModeEnabled: false,
-    chatFontScale: 1.0,
-    chatWidthMode: 5,
-    pinchToZoomEnabled: false,
-    chatPaginatedScroll: false,
-    chatToolGrouping: 'flat',
-    messageCommandChips: false,
-    enableSocketRangeFetch: true,
     commandPaletteEnabled: false,
     themePreference: 'adaptive',
     markdownCopyV2: false,
-    unifiedNewSessionComposer: false,
     consoleLoggingEnabled: false,
     verboseLogging: false,
-    sidebarMode: 'expanded',
-    sidebarCollapsed: false,
     acknowledgedCliVersions: {},
+    // FORK PATCH: [MOVE-W2] e-ink/tablet defaults relocated to @/fork/sync/forkLocalSettings (invariant HA-33)
+    ...forkLocalSettingsDefaults,
 };
 Object.freeze(localSettingsDefaults);
 

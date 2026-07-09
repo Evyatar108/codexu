@@ -31,7 +31,7 @@ const scanRoots = [
     'packages/happy-app/sources',
 ];
 const scanExts = new Set(['.ts', '.tsx', '.mts', '.cts', '.prisma']);
-const skipDirs = new Set(['node_modules', 'dist', '.git', 'tools', '__snapshots__']);
+const skipDirs = new Set(['node_modules', 'dist', '.git', '__snapshots__']);
 
 const ID_RE = /\b(H[SCA]-\d+)\b/;
 const INVARIANT_RE = /\(invariant\s+(H[SCA]-\d+)\)/;

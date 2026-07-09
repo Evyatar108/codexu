@@ -8,8 +8,6 @@ import { TodoView } from './TodoView';
 import { ExitPlanToolView } from './ExitPlanToolView';
 import { MultiEditView } from './MultiEditView';
 import { TaskView } from './TaskView';
-import { TaskOutputView } from './TaskOutputView';
-import { TaskStopView } from './TaskStopView';
 import { BashViewFull } from './BashViewFull';
 import { EditViewFull } from './EditViewFull';
 import { MultiEditViewFull } from './MultiEditViewFull';
@@ -19,7 +17,8 @@ import { CodexDiffView } from './CodexDiffView';
 import { AskUserQuestionView } from './AskUserQuestionView';
 import { GeminiEditView } from './GeminiEditView';
 import { GeminiExecuteView } from './GeminiExecuteView';
-import { FileEditView } from './FileEditView';
+// FORK PATCH: [MOVE-W2] fork tool-view registrations relocated to @/fork/tools/forkToolViews (invariant HA-23)
+import { forkToolViewRegistry } from '@/fork/tools/forkToolViews';
 
 export type ToolViewProps = {
     tool: ToolCall;
@@ -34,7 +33,6 @@ export type ToolViewComponent = React.ComponentType<ToolViewProps>;
 // Registry of tool-specific view components
 export const toolViewRegistry: Record<string, ToolViewComponent> = {
     Edit: EditView,
-    'file-edit': FileEditView,
     Bash: BashView,
     CodexBash: CodexBashView,
     CodexPatch: CodexPatchView,
@@ -45,13 +43,13 @@ export const toolViewRegistry: Record<string, ToolViewComponent> = {
     exit_plan_mode: ExitPlanToolView,
     MultiEdit: MultiEditView,
     Task: TaskView,
-    TaskOutput: TaskOutputView,
-    TaskStop: TaskStopView,
     Agent: TaskView,
     AskUserQuestion: AskUserQuestionView,
     // Gemini tools (lowercase)
     edit: GeminiEditView,
     execute: GeminiExecuteView,
+    // FORK PATCH: [MOVE-W2] fork tool-view registry entries (file-edit / TaskOutput / TaskStop) (invariant HA-23)
+    ...forkToolViewRegistry,
 };
 
 export const toolFullViewRegistry: Record<string, ToolViewComponent> = {
@@ -75,7 +73,6 @@ export function getToolFullViewComponent(toolName: string): ToolViewComponent | 
 
 // Export individual components
 export { EditView } from './EditView';
-export { FileEditView } from './FileEditView';
 export { BashView } from './BashView';
 export { CodexBashView } from './CodexBashView';
 export { CodexPatchView } from './CodexPatchView';
@@ -86,8 +83,8 @@ export { MultiEditViewFull } from './MultiEditViewFull';
 export { ExitPlanToolView } from './ExitPlanToolView';
 export { MultiEditView } from './MultiEditView';
 export { TaskView } from './TaskView';
-export { TaskOutputView } from './TaskOutputView';
-export { TaskStopView } from './TaskStopView';
 export { AskUserQuestionView } from './AskUserQuestionView';
 export { GeminiEditView } from './GeminiEditView';
 export { GeminiExecuteView } from './GeminiExecuteView';
+// FORK PATCH: [MOVE-W2] fork tool-view re-exports from @/fork/tools/forkToolViews (invariant HA-23)
+export { FileEditView, TaskOutputView, TaskStopView } from '@/fork/tools/forkToolViews';
