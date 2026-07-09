@@ -1,63 +1,64 @@
 {
   "task": "happy-app-minimal-conflict-reduction-inherit-upstream",
   "type": "brainstorm-analysis-readonly",
-  "verdict": "modest-REVERT-bucket-plus-OVERLAY-plus-lineage-not-a-free-59-to-15",
-  "reframe": "Upstream app features flow in automatically only if the fork stops diverging on that feature's file. Re-triage every app hard-conflict file into REVERT (drop non-essential divergence -> auto-inherit upstream), OVERLAY (relocate essential fork behavior to sources/fork/* + revert canonical file to near-upstream + thin seam), or ACCEPT (irreducibly convergent -> permanent manual-3-way).",
-  "appHardConflictFiles": { "a0Catalogue": 59, "liveMergeMeasure": 64, "note": "A0 git merge-file (ignores .gitattributes) = 59; live git merge = 64 (extra test/i18n re-conflicts)." },
+  "framingCorrectionApplied": "2026-07-08 operator: DROP revert-to-upstream. Never drop ANY fork behavior (essential or not). MOVE fork divergence into fork-only sources/fork/* overlays so upstream-canonical files stay near-upstream (merge clean, inherit upstream) while fork behavior is PRESERVED in the overlay. Axis: REDUCIBLE->MOVE vs IRREDUCIBLE->ACCEPT. essential/non-essential only informs overlay design.",
+  "verdict": "MOVE-everything-reducible-to-overlays; permanent expensive floor ~5-7 irreducible ACCEPT files; zero fork behavior dropped",
+  "dispositionModel": {
+    "MOVE": "relocate fork divergence (essential OR tweak) into sources/fork/* + revert canonical to near-upstream + thin seam; canonical inherits upstream, fork behavior preserved. DEFAULT.",
+    "ALIGN": "rare/narrow; ONLY where a file carries NO intentional fork behavior (pure convergent noise). NOT reverting a feature. Provisionally EMPTY.",
+    "ACCEPT": "irreducible convergent core that can't be seamed (sync.ts/storage.ts + honest few adjacent monoliths)."
+  },
+  "appHardConflictFiles": { "a0Catalogue": 59, "liveMergeMeasure": 64 },
   "dispositionSplit": {
-    "REVERT": { "count": 7, "note": "cheap, symbol-disjoint cosmetics; auto-inherit upstream", "rows": ["HA-23 _all.tsx (preserve codex/gemini)", "HA-37 suggestions.ts", "HA-20 ToolView (e-ink spot-check)", "HA-24 PierreDiffView", "HA-19 info.tsx", "HA-16 useSessionQuickActions (lean KEEP)", "HA-39 FilesSidebar (lean KEEP)"] },
-    "OVERLAY_r8": { "count": 8, "doneCount": 5, "note": "R8 seam pattern; 5 already done (HA-4/5/6/8/9), + HA-13 new/index, HA-14/15 session-list", "rows": ["HA-4 SessionView DONE", "HA-5 ChatList DONE", "HA-6 AgentInput DONE", "HA-8 MarkdownView DONE", "HA-9 MessageView DONE", "HA-13 new/index.tsx", "HA-14 ActiveSessionsGroupCompact", "HA-15 SessionsList"] },
-    "OVERLAY_list_new_lever": { "count": 4, "note": "concat-from-fork: canonical list file = upstream.concat(FORK_ROWS from sources/fork/*) -> auto-merges + inherits upstream rows", "rows": ["HA-40/41 modelModeOptions", "HA-36 suggestionCommands", "HA-7 i18n (future)"] },
-    "ACCEPT_expensive_irreducible": { "count": 7, "rows": ["HA-1 sync.ts", "HA-2 storage.ts", "HA-3 reducer.ts", "HA-25 apiSocket.ts", "HA-26 ops.ts", "HA-7 i18n (if not OVERLAY-list)", "HA-48 package.json"] },
-    "ACCEPT_cheap_additive_adopt": { "count": 18, "note": "keep fork body (drops E1/E3/E5 planes or carries E2/E4 fields); hand-port small additive upstream hunks; conflicts only when upstream touches them", "examples": ["HA-17", "HA-18", "HA-21", "HA-22", "HA-27", "HA-28", "HA-30", "HA-31", "HA-33", "HA-34", "HA-38", "HA-42", "HA-43", "HA-44", "HA-45", "HA-46", "HA-47"] },
-    "KEEP_DELETED_guard": { "count": 8, "plusVoice": true, "rows": ["HA-49 encryption x5", "HA-50 user/[id].tsx", "HA-51 apiGithub.spec.ts", "HA-52 CLAUDE.md", "voice sources/realtime/* (12 files, add-conflict not content)"] },
-    "merge_ours_shim_zero_cost": { "count": 3, "rows": ["HA-10 SidebarView", "HA-11 SidebarNavigator", "HA-12 ChatHeaderView"] }
+    "MOVE": { "count": 31, "doneCount": 5, "note": "5 R8 stages already shipped (HA-4/5/6/8/9); rest planned across waves", "subPatterns": { "r8UiOverlay": ["HA-4 DONE","HA-5 DONE","HA-6 DONE","HA-8 DONE","HA-9 DONE","HA-13 new/index","HA-14","HA-15","HA-20","HA-22","HA-24","HA-19","HA-16","HA-38 partial","HA-39","HA-21"], "moveListConcatFromFork": ["HA-40/41 modelModeOptions","HA-36 suggestionCommands","HA-23 _all.tsx","HA-37 suggestions.ts","HA-7 i18n future"], "moveConstAdditive": ["HA-26 ops partial","HA-27 typesRaw partial","HA-28 messageMeta","HA-30","HA-31","HA-33","HA-46","HA-47","HA-42 follows-storage"], "movePartialPlaneRemoval": ["HA-17 _layout(app)","HA-18 _layout(root)","HA-34 persistence"] } },
+    "ALIGN": { "count": 0, "note": "provisionally empty; criterion = no intentional fork behavior in the hunk; confirm per-hunk at code stage; small size alone is NOT ALIGN (e.g. 9-line e-ink cap is fork intent -> MOVE)" },
+    "ACCEPT_irreducible": { "count": 5, "hardCore": ["HA-1 sync.ts","HA-2 storage.ts"], "moveInvestigate": ["HA-3 reducer.ts","HA-25 apiSocket.ts"], "structural": ["HA-48 package.json"], "note": "HA-7 i18n ACCEPT if not MOVE-list'd" },
+    "KEEP_DELETED_guard": { "count": 8, "plusVoice": true, "rows": ["HA-49 encryption x5","HA-50 user/[id].tsx","HA-51 apiGithub.spec.ts","HA-52 CLAUDE.md","voice sources/realtime/* 12 files add-conflict"] },
+    "merge_ours_shim_zero_cost": { "count": 3, "rows": ["HA-10 SidebarView","HA-11 SidebarNavigator","HA-12 ChatHeaderView"] },
+    "fork_owned_wholesale": { "count": 3, "rows": ["HA-43 changelog.json","HA-44 CHANGELOG.md","HA-45 parseChangelog.ts"], "note": "whole file is fork content; nothing to move out; take-ours; no upstream feature to inherit" }
   },
-  "headlineReduction": "REVERT + OVERLAY + OVERLAY-list remove ~19 files from the diverged/expensive set, leaving a permanent EXPENSIVE manual-3-way floor of ~7 files + ~18 cheap additive-adopts (conflict only when upstream touches them). Not a free 59->15; the prize is a small bounded catalogued floor + auto-inheritance of everything reducible, unlocked by merge lineage.",
-  "essentialDivergenceBoundary": {
-    "E1_single_user_no_multi_account": "Sync class + Zustand store dropped friends/feed/artifacts/other-user; DFS session tree; userChosen permission mode",
-    "E2_no_central_server": "loopback fetchMachines, remote-daemon socket/tunnel, daemon/codex ops, remote-daemon push tuning",
-    "E3_no_per_session_e2e": "no-decrypt decodeApiMessages; deleted encryption plane; dropped encryption wire types",
-    "E4_eink_perf": "inverted-FlatList tuning, static markdown/message/tool rendering, page-turn scroll, pinch scale, chatToolGrouping/messageCommandChips default-off toggles",
-    "E5_removed_planes_keep_deleted": "voice/ElevenLabs, encryption, multi-account, github, upstream CLAUDE.md"
-  },
-  "keyFinding": "The fork's identity threads through the MAJORITY of the 59 files via shared symbol names (storage state shape hasOlder/renderWindow, no-central-server socket/ops, codex/gemini tooling, DFS session tree, e-ink permission model). A file is a clean REVERT only if its divergence is BOTH cosmetic AND symbol-disjoint from the accepted core. Worked example: useDemoMessages.ts looks like throwaway demo content but carries the render-window pagination field rename -> NOT a revert. Verify per-file, not by category.",
-  "newLever_overlay_list": "Catalogue/list files (model catalogue, slash commands, i18n) can revert to near-upstream and auto-merge if the fork consumes upstream_list.concat(FORK_ROWS) with FORK_ROWS in a fork-only module. Converts ACCEPT->clean-merge and inherits upstream's new rows for free.",
+  "headlineReduction": "59 app hard-conflict files -> MOVE ~31 to fork-only overlays + thin seams (inherit upstream, preserve fork behavior), KEEP-DELETED 8 guards, merge=ours 3 shims, leaving a permanent EXPENSIVE floor of ~5-7 irreducible ACCEPT files (sync.ts + storage.ts the hard core). Zero fork behaviors dropped.",
+  "honestCaveat": "MOVE does NOT zero the conflict-MARKER count: R8/M1 finding (findings-v2 §2.3) = relocation removed ZERO hard-conflict FILES at a snapshot because the canonical still carries a thin seam that can re-collide. What MOVE removes is RESOLUTION COST + FREQUENCY: whole-file re-derivation -> 1-line seam re-apply that mostly auto-merges. The ~5-7 ACCEPT are the expensive residue; the ~31 MOVE seams are the cheap residue.",
+  "newLever_move_list_concat_from_fork": "Catalogue/list files (model catalogue, slash commands, tool registry, i18n, suggestion caps): canonical consumes upstream_list.concat(FORK_ROWS) with FORK_ROWS in a fork-only module -> canonical reverts near-upstream + auto-merges + inherits upstream's new rows, fork rows preserved.",
+  "planeRemovalResidual": "typesRaw/persistence/route-layouts/SettingsView diverge by DELETING an upstream plane; you cannot overlay an absence, so their canonical can only be 'upstream minus the guarded removed plane' = thin residual divergence even after MOVE-ing fork additions out. This is why ACCEPT-adjacent is slightly bigger than just sync.ts/storage.ts.",
+  "essentialBoundaryRole": "No longer decides keep-vs-drop (we keep everything). Now informs overlay DESIGN: what must stay behavior-identical (default-off toggles, byte-identical e-ink render) + which guards to preserve (guard-by-absence for removed planes) + which files can only be 'upstream minus a guarded removal'.",
   "specialCaseRulings": {
-    "new_index_tsx": "OVERLAY recommended (not pure REVERT): 1917 delta, fork 583 vs upstream 1851; leaf UI screen but carries E2 remote-daemon pickers. Relocate fork screen to sources/fork/newSession/ + route flag; upstream screen merges near-clean. Operator-call REVERT-vs-OVERLAY.",
-    "voice_realtime": "KEEP-DELETED (E5). Minimal-conflict reframe does NOT override: restoring re-adds central-server credential broker (E2), continuous mic->cloud egress, animated VoiceAssistantStatusBar (E4), + 2 npm deps. Maintaining the deletion is cheap/guard-tested; owning the restored subsystem is not. Mic UI already inert (HA-6). Restore only on explicit operator request, bypass-only e-ink-static default-off variant.",
-    "removed_planes": "ESSENTIAL keep-deleted (HA-49..52 + voice). Confirmed absent at HEAD. Every REVERT wave gates on encryptionDeletion.spec.ts + per-file Test-Path==false so no revert resurrects them."
+    "new_index_tsx": "MOVE (not revert): relocate fork lean e-ink+daemon screen (incl E2 remote-daemon pickers) to sources/fork/newSession/ behind a route flag; canonical near-upstream inherits upstream's richer screen by flag; fork screen preserved. Largest single file (1917 delta).",
+    "voice_realtime": "KEEP-DELETED. Keeping it removed is an INTENTIONAL divergence to maintain; the minimal-conflict reframe does NOT force restoring it (maintenance is cheap guard-tested take-ours; restore re-adds central-server broker E2 + mic->cloud egress + animated status bar E4 + 2 npm deps). Mic UI already inert (HA-6). Surface restore-vs-keep-removed; restore only on explicit request, bypass-only e-ink-static default-off.",
+    "removed_planes": "KEEP-DELETED guard by absence (HA-49..52 + voice). Every MOVE wave gates on encryptionDeletion.spec.ts + Test-Path==false; MOVE-partial files keep the removal as explicit guarded residual, never adopt upstream removed-plane code."
   },
   "wavePlan": [
-    "Wave 0: establish/confirm merge lineage (prerequisite; already operator direction happy-establish-merge-lineage-cli-1.1.10)",
-    "Wave 1: cheap disjoint REVERTs (HA-23, HA-37, HA-24) + audit HA-42; -3 files; gate encryptionDeletion.spec.ts + e-ink spot-check",
-    "Wave 2: OVERLAY-list concat-from-fork (HA-40/41, HA-36); -2-3 files to clean-merge",
-    "Wave 3: operator-gated REVERTs (HA-20, HA-19, HA-16, HA-39); -2-4 files (whichever ADOPT)",
-    "Wave 4: finish OVERLAY (HA-13 new/index -> route flag, HA-14/15 DFS tree renderer)",
-    "Wave 5 (no action): ACCEPT the core (sync.ts, storage.ts, reducer.ts, apiSocket.ts, ops.ts, package.json, i18n)"
+    "Wave 0: establish/confirm merge lineage (prerequisite; happy-establish-merge-lineage-cli-1.1.10)",
+    "Wave 1: MOVE-list/const (HA-40/41, HA-36, HA-23, HA-37, HA-30/31/33/46/47); ~7-9 files; inherit model/slash/tool-view/config additions",
+    "Wave 2: MOVE tool/diff/permission renderers (HA-20, HA-24, HA-22, HA-21)",
+    "Wave 3: MOVE session-tree + screens (HA-14, HA-15, HA-19, HA-16, HA-38 partial, HA-39)",
+    "Wave 4: MOVE new/index.tsx (route flag) - largest single file",
+    "Wave 5: MOVE-partial residuals + i18n (HA-17/18, HA-26, HA-27, HA-28, HA-7)",
+    "Wave 6 (no action): ACCEPT the core (sync.ts, storage.ts, reducer.ts?, apiSocket.ts?, package.json)"
   ],
   "operatorDecisionCalls": [
-    "new/index.tsx OVERLAY (recommended) vs pure REVERT",
-    "voice restore vs KEEP-DELETED (lean KEEP-DELETED)",
-    "HA-16 useSessionQuickActions adopt resume defaults? (lean KEEP)",
-    "HA-39 FilesSidebar REVERT? (lean KEEP unless e-ink spot-check favors upstream)",
-    "HA-20 ToolView REVERT? (lean REVERT iff e-ink spot-check passes)",
-    "HA-36 suggestionCommands OVERLAY-list vs KEEP (lean OVERLAY-list)",
-    "HA-17/18 route + root-layout adopts (lean KEEP fork, adopt additive settings route only)",
-    "HA-19 info.tsx REVERT for parent-session nav (lean REVERT)",
-    "HA-24/HA-37 small REVERTs after consumer check",
-    "HA-27 typesRaw file-event attachments adopt (lean additive-only, defer file-event)"
+    "Voice restore vs KEEP-DELETED (lean KEEP-DELETED)",
+    "HA-17 surface upstream new settings/agents route? (lean keep hidden by default)",
+    "HA-18 surface upstream push-suppression/messages-channel/browser-shortcuts? (lean cautious, verify vs remote-daemon)",
+    "HA-38 surface upstream Agent Defaults section? (lean defer; adopt version row now)",
+    "HA-16 surface upstream resume defaults on canonical? (lean keep fork default)",
+    "HA-39 surface upstream all-files mode? (lean yes additive)",
+    "HA-27 file-event attachment rendering? (lean additive-only, defer file-event behind toggle)",
+    "HA-3/HA-25 MOVE-investigate vs ACCEPT (lean spike once, ACCEPT if not cleanly separable)",
+    "merge=ours trio -> MOVE only if upstream new-session-sidebar wanted (lean leave as shim)",
+    "i18n HA-7 fund fork-namespaced strings MOVE now or accept (lean fund when conflicts recur)"
   ],
   "risks": [
-    "REVERT loses fork tweaks (e-ink suggestion caps, diff maxVisibleLines, tool-card tuning, files-sidebar layout) - enumerate at ship.",
-    "e-ink regression from inheriting upstream animated UI - HARD e-ink spot-check gate on every REVERT/adopt wave.",
-    "resurrection hazard - encryptionDeletion.spec.ts + Test-Path gate on every wave.",
-    "entanglement mis-classification - verify each REVERT symbol-disjoint (grep consumers) before landing.",
-    "OVERLAY-list ordering/precedence - guard with catalogue *.test.ts.",
-    "honesty ceiling - the ~7 expensive irreducibles are permanent manual-3-way by convergent evolution vs a seam-less upstream."
+    "MOVE is real multi-wave effort (~31 files; R8 done 5); sequence by leverage, no big-bang.",
+    "thin seams still conflict occasionally (M1: relocation removed zero hard-conflict files at snapshot) - post-reduction = expensive floor ~5-7, not zero markers.",
+    "behavior-identity risk in the MOVE itself - gate each MOVE on the file test row + e-ink spot-check.",
+    "inheriting upstream animated UI on canonical - seam keeps fork static path default; surfacing upstream animated feature needs e-ink pass.",
+    "resurrection hazard on plane-removal MOVE-partial files - encryptionDeletion.spec.ts + Test-Path gate every wave.",
+    "ALIGN mis-judgment is the ONLY remaining drop-risk - ALIGN provisionally empty; per-hunk fork-intent check required before any ALIGN.",
+    "honesty ceiling - sync.ts/storage.ts (+ likely reducer/apiSocket + package.json) permanent manual-3-way vs seam-less upstream."
   ],
   "measuredDivergenceLines": {
-    "app/(app)/new/index.tsx": 1917, "FilesSidebar.tsx": 442, "ActiveSessionsGroupCompact.tsx": 376, "sync/typesRaw.ts": 364, "tools/views/CodexPatchView.tsx": 306, "SettingsView.tsx": 295, "SessionsList.tsx": 265, "tools/ToolView.tsx": 206, "hooks/useSessionQuickActions.ts": 199, "sync/suggestionCommands.ts": 192, "sync/persistence.ts": 185, "tools/PermissionFooter.tsx": 146, "app/(app)/_layout.tsx": 139, "session/[id]/info.tsx": 127, "app/_layout.tsx": 73, "sync/messageMeta.ts": 60, "modelModeOptions.ts": 53, "diff/PierreDiffView.tsx": 35, "tools/views/_all.tsx": 14, "autocomplete/suggestions.ts": 9, "hooks/useDemoMessages.ts": 8, "sync/apiSocket.ts": 578, "sync/ops.ts": 614, "sync/reducer/reducer.ts": 580 },
+    "app/(app)/new/index.tsx": 1917, "sync/apiSocket.ts": 578, "sync/ops.ts": 614, "sync/reducer/reducer.ts": 580, "FilesSidebar.tsx": 442, "ActiveSessionsGroupCompact.tsx": 376, "sync/typesRaw.ts": 364, "tools/views/CodexPatchView.tsx": 306, "SettingsView.tsx": 295, "SessionsList.tsx": 265, "tools/ToolView.tsx": 206, "hooks/useSessionQuickActions.ts": 199, "sync/suggestionCommands.ts": 192, "sync/persistence.ts": 185, "tools/PermissionFooter.tsx": 146, "app/(app)/_layout.tsx": 139, "session/[id]/info.tsx": 127, "app/_layout.tsx": 73, "sync/messageMeta.ts": 60, "modelModeOptions.ts": 53, "diff/PierreDiffView.tsx": 35, "tools/views/_all.tsx": 14, "autocomplete/suggestions.ts": 9, "hooks/useDemoMessages.ts": 8 },
   "guardState": { "realtimeDirInFork": false, "realtimeFilesInUpstream": 12, "elevenlabsDeps": 0, "forkOverlayModules": 26 },
   "productionCodeChanged": false
 }
