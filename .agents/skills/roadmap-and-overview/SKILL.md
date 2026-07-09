@@ -57,6 +57,22 @@ data.json edit anchor, confirming a commit landed, rendering the page). Full
 boundary + delegation recipes: codexu `AGENTS.md` >
 "Bookkeeper operating invariants" > "Lead orchestrates; members do the work."
 
+### Direct sub-agent model routing
+
+Whenever this workflow dispatches a direct Task-tool sub-agent, pin the model
+explicitly according to the canonical policy in codexu `AGENTS.md`:
+
+- UI-related work (including web/mobile/desktop/TUI interaction, visual design,
+  layout/styling, browser visual QA, and e-ink UX): `claude-opus-4.8`.
+- All non-UI work (including research, planning, backend, CLI runtime,
+  protocol/security, release, and non-UI review): `gpt-5.6-sol`.
+- Split mixed UI/non-UI work into separate agents where practical; if it cannot
+  be split, use `claude-opus-4.8`.
+
+Never rely on the Task tool's default model and do not use GPT-5.5 for direct
+sub-agents. Ralph/crews subprocess model routing is separate and must not be
+treated as compliant until the plugin implementation is updated and released.
+
 ## Continuous-flow pipeline
 
 Prefer **continuous flow** over batch-and-wait: keep the pipeline saturated

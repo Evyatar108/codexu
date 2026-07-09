@@ -803,6 +803,25 @@ handoff). Re-bind it EARLY, before arming:
   `CREWS_ENGINE=codex` explicitly. If codex regresses, revert per the
   engine-policy bullet above.
 
+- **Direct sub-agent model routing (operator decision 2026-07-09).** Every
+  direct `task(...)` / Task-tool dispatch MUST pin its model explicitly; do not
+  rely on the tool default and do not use GPT-5.5. Route by work surface:
+  - **UI-related work -> `claude-opus-4.8`.** This includes web/mobile/desktop
+    visual design, React/React Native component UX, layout/styling, browser
+    visual QA, e-ink interaction design, and terminal/TUI presentation or
+    interaction work.
+  - **All non-UI work -> `gpt-5.6-sol`.** This includes backend/server, CLI
+    runtime, protocol/wire, security, build/release, infrastructure,
+    source investigations, planning, bookkeeping analysis, and code review
+    when the reviewed surface is not UI.
+  - **Mixed UI + non-UI work:** split into separate agents by surface whenever
+    practical. If the work cannot be split cleanly and one agent must own it,
+    route it to `claude-opus-4.8` because the task includes UI judgment.
+  This rule governs direct Copilot CLI Task sub-agents. Ralph/crews plugin
+  subprocess model defaults are a separate implementation surface; do not
+  claim they follow this policy until their hard-coded model routing has been
+  updated and released.
+
 - **Codex member reasoning effort = global `~/.codex/config.toml`
   `model_reasoning_effort` (codified 2026-06-27; operator set `xhigh`).** The
   crews launcher has NO per-spawn reasoning-effort override (it only passes the

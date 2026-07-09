@@ -1770,6 +1770,50 @@
           "html": "REFRAMED/SUPERSEDED 2026-07-08 by happy-app-minimal-conflict-reduction-inherit-upstream. Operator: don't adopt features one-by-one; instead REDUCE the fork's conflict surface so ALL upstream features flow in via merge. This per-feature-opt-in task is subsumed by the minimal-conflict reduction re-triage (REVERT non-essential divergences to upstream -> inherit the features on those files). Keep as a reference list of the specific features; the reduction brainstorm decides per-file REVERT/OVERLAY/ACCEPT."
         }
       ]
+    },
+    {
+      "id": "codex-native-happy-server-local-web-dual-control",
+      "scope": "codexu|codex",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-09T22:44:18.4312529Z",
+      "initialStage": "brainstorming",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Hard requirement: eliminate happy-cli from the live Codex-to-Happy path. Phase 1 must run the real fork Codex TUI and an on-machine existing happy-app web build against a Codex-owned native Rust Happy session server; both surfaces must observe and control the SAME session simultaneously. Local loopback only first—no tunnel, Cloudflare, mobile device, central server, or happy-cli process/runtime dependency."
+        }
+      ],
+      "command": {
+        "name": "codex-native-happy-server-local-web-dual-control",
+        "descriptionHtml": "Node-free local proof: live Codex TUI + existing Happy web app co-control one session through a Codex-owned Rust server.",
+        "warnings": [],
+        "prompts": {
+          "brainstorm": "Design and source-verify the smallest implementation that removes happy-cli from the live Codex↔Happy path. Use the existing packages/happy-app web build as the real local acceptance UI. Codex must own/embed a native Rust Happy session server and connect its existing codex-happy live-TUI tap to it over loopback. Hard constraints: no happy-cli executable/daemon or Node server runtime in the Codex path; no central server; no Dev Tunnels/Cloudflare/mobile in Phase 1; preserve default-off experimental gating and vanilla Codex behavior. Reuse prior artifacts: .ralph/investigations/codex-appserver-vs-happy-wiring/findings.md, .ralph/investigations/happy-agent-driving-modes/findings.md, .ralph/investigations/codex-autoconnect-rust-crate-feasibility/findings.md, and the codex-autoconnect-northstar brainstorm. Resolve: minimal REST/session/storage/control surface; browser transport (existing Socket.IO compatibility vs additive plain WebSocket adapter); loopback CORS/auth/pairing; whether the web app needs only configuration or code changes; persistence/reconnect semantics; how to package/launch the existing web build for local testing without introducing a happy-cli dependency. Required acceptance design: launch the fork Codex TUI, open the existing Happy web UI locally, see one shared session, alternate user turns from CLI and browser, stream assistant/tool events to both, approve/deny and interrupt from browser, reconnect without duplicate sessions, and prove no happy-cli process is running. Produce a phased plan: P0 transport/browser spike, P1 Rust server + web compatibility, P2 real same-machine dual-control dogfood, then release/remote transports only after local acceptance. Verify feasibility; do not rubber-stamp the prior Rust direction."
+        }
+      }
+    },
+    {
+      "id": "ralph-model-routing-ui-opus48-nonui-gpt56sol",
+      "scope": "ralph",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-09T22:58:00Z",
+      "initialStage": "brainstorming",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Operator model policy (2026-07-09): UI-related sub-agent work must use <code>claude-opus-4.8</code>; every non-UI sub-agent task must use <code>gpt-5.6-sol</code>. Direct Task-tool policy is now documented in codexu <code>AGENTS.md</code> and project skills, but Ralph plugin code/generated artifacts still contain older hard-coded model routing (GPT-5.5/GPT-5.4/Opus 4.7 across 26 files). Implement and release the policy—do not merely rewrite docs."
+        }
+      ],
+      "command": {
+        "name": "ralph-model-routing-ui-opus48-nonui-gpt56sol",
+        "descriptionHtml": "Make Ralph sub-agent model routing use Opus 4.8 for UI work and GPT-5.6 Sol for all non-UI work.",
+        "warnings": [],
+        "prompts": {
+          "brainstorm": "Design and source-verify the Ralph plugin implementation for the operator's model-routing policy: UI-related sub-agent work -> `claude-opus-4.8`; all non-UI sub-agent work -> `gpt-5.6-sol`; never GPT-5.5 and never an implicit/default model. Scope the actual ai-developer-toolkit/plugins/ralph surfaces, not just documentation. Inventory hard-coded model IDs and model defaults across src/codex-exec.mjs, src/copilot-exec.mjs, src/ralph.mjs, src/review-loop.mjs, scripts/generate-copilot-artifacts.mjs, source skills, generated .copilot-plugin skills/internal workflows, and agent YAML files (current scan: 26 files reference GPT-5.5/GPT-5.4/Opus 4.7). Resolve how UI-vs-non-UI is classified at each callsite: explicit callsite metadata is preferred over guessing from prompt text; mixed UI/non-UI jobs should split agents where practical, otherwise route to Opus 4.8. Preserve multi-model diversity only when it does not violate the policy. Identify which generated files are source-of-truth vs generated outputs; update generators first and regenerate artifacts. Include tests that assert exact model IDs for representative UI and non-UI dispatches, reject GPT-5.5 regressions, and cover defaults. Ship as a Ralph plugin version bump with all six version stamps, CHANGELOG/AGENTS updates, marketplace index updates, and installed-plugin dogfood through the real Copilot CLI path. Note that codexu's direct Task-tool policy is already documented; this task is specifically the plugin implementation/release needed for runtime compliance."
+        }
+      }
     }
   ],
   "phaseTree": [
