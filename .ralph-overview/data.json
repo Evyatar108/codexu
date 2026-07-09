@@ -1795,6 +1795,10 @@
         {
           "className": "cmd-warn",
           "html": "FRAMING CORRECTION (operator 2026-07-08): do NOT revert/drop any fork behavior. MOVE it. Disposition model = (1) MOVE/OVERLAY (default for every REDUCIBLE file): relocate the fork divergence — essential OR non-essential — into a fork-only sources/fork/ module + keep the upstream-canonical file near-upstream + thin seam (R8 pattern), so the canonical file merges cleanly (inherits upstream features) while ALL fork behavior is preserved in the overlay; (2) ALIGN-to-upstream ONLY for pure convergent-noise files with NO intentional fork behavior to keep (narrow; not 'reverting a feature'); (3) ACCEPT-CONFLICT only for the irreducible sync core (sync.ts/storage.ts). The axis is REDUCIBLE(->MOVE, preserve) vs IRREDUCIBLE(->ACCEPT); never drop an intentional fork change. new/index.tsx -> MOVE (fork-own e-ink behind overlay), not revert. Voice removal stays an intentional KEEP-DELETED."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Brainstorm shipped @ 6ca3a002e (MOVE model). Of 59 app hard-conflict files: ~31 MOVE to sources/fork/* overlays+seams (fork behavior preserved, canonical files near-upstream so they inherit upstream features on future merges), ~0 ALIGN, ~5-7 IRREDUCIBLE ACCEPT (sync.ts/storage.ts/reducer/apiSocket/ops core), 8 KEEP-DELETED guards, 3 merge=ours. ZERO fork behaviors dropped. HONESTY CAVEAT: MOVE removes resolution COST+frequency (whole-file re-derivation -> 1-line seam re-apply), not the conflict-marker count to zero (seams can re-collide); the ~5-7 ACCEPT are the permanent expensive floor (upstream sync plane is seam-less). Wave plan W0(lineage done)->W1 MOVE-list/const->W2 renderers->W3 session-tree+screens->W4 new/index.tsx(route flag)->W5 plane residuals+i18n->W6 accept core; every wave gates encryptionDeletion.spec + e-ink spot-check. new/index.tsx=MOVE; voice=KEEP-DELETED; removed planes=KEEP-DELETED. 10 operator-decision calls."
         }
       ]
     }
