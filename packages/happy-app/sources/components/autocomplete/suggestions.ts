@@ -2,8 +2,10 @@ import { CommandSuggestion, FileMentionSuggestion } from '@/components/AgentInpu
 import * as React from 'react';
 import { searchFiles, FileItem } from '@/sync/suggestionFile';
 import { searchCommands, CommandItem } from '@/sync/suggestionCommands';
+// FORK PATCH: [MOVE-W1] e-ink suggestion caps sourced from fork overlay (invariant HA-37)
+import { FORK_COMMAND_SUGGESTION_LIMIT, FORK_FILE_MENTION_LIMIT } from '@/fork/autocomplete/forkSuggestionLimits';
 
-export const MAX_COMMAND_SUGGESTIONS = 15;
+export const MAX_COMMAND_SUGGESTIONS = FORK_COMMAND_SUGGESTION_LIMIT;
 
 export async function getCommandSuggestions(sessionId: string, query: string): Promise<{
     key: string;
@@ -43,7 +45,8 @@ export async function getFileMentionSuggestions(sessionId: string, query: string
 
     try {
         // Use the file search cache with fuzzy matching
-        const files = await searchFiles(sessionId, searchTerm, { limit: 5 });
+        // FORK PATCH: [MOVE-W1] e-ink file-mention cap from fork overlay (invariant HA-37)
+        const files = await searchFiles(sessionId, searchTerm, { limit: FORK_FILE_MENTION_LIMIT });
 
         // Convert FileItem to suggestion format
         return files.map((file: FileItem) => ({
