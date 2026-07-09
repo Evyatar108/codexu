@@ -10438,6 +10438,63 @@
           }
         ]
       }
+    },
+    {
+      "id": "happy-app-minimal-conflict-reduction-inherit-upstream",
+      "scope": "happy-app",
+      "command": {
+        "prompts": {
+          "brainstorm": "(see spawn prompt)"
+        },
+        "warnings": [
+          "Supersedes happy-app-upstream-feature-opt-ins-cli-1.1.10 (per-feature adoption) + the conservative keep-all A0 triage."
+        ],
+        "name": "happy-app-minimal-conflict-reduction-inherit-upstream",
+        "descriptionHtml": "Minimal-conflict rebase for happy-app: re-triage the app hard-conflict surface under an AGGRESSIVE-REDUCE lens (revert non-essential divergences to upstream to inherit features; overlay essential ones; accept only the irreducible sync core) so upstream features flow in via merge. Reframes the per-feature opt-in approach."
+      },
+      "status": "todo",
+      "lifecycle": "merged",
+      "lastTouchedAt": "2026-07-09T02:59:19.950Z",
+      "kanbanCards": [
+        {
+          "html": "OPERATOR REFRAME (2026-07-08): the goal is MINIMAL-CONFLICT REBASE, not per-feature adoption. Upstream app features do not flow in today because the fork DIVERGED on the same files (merge conflict -> take-ours -> feature dropped). To have ALL upstream features, REDUCE the fork divergence so upstream files merge cleanly: (1) REVERT-to-upstream where the fork change is NON-essential (inherit the feature, lose a non-essential tweak); (2) OVERLAY to sources/fork/ where the fork change IS essential (keep fork behavior + inherit upstream file); (3) ACCEPT permanent conflict only for the irreducible sync.ts/storage.ts. Essential fork divergences to KEEP: single-user, no-central-server, no-E2E, e-ink perf, removed voice/multi-account/encryption planes. Everything else is a REVERT candidate. Supersedes the conservative keep-all A0 triage + the per-feature opt-in framing (happy-app-upstream-feature-opt-ins-cli-1.1.10). Brainstorm-first: produce the essential-vs-nonessential boundary + per-file REVERT/OVERLAY/ACCEPT disposition for the app hard-conflict surface + expected post-reduction conflict count, then execute in waves.",
+          "class": "cmd-warn"
+        },
+        {
+          "className": "cmd-warn",
+          "html": "FRAMING CORRECTION (operator 2026-07-08): do NOT revert/drop any fork behavior. MOVE it. Disposition model = (1) MOVE/OVERLAY (default for every REDUCIBLE file): relocate the fork divergence — essential OR non-essential — into a fork-only sources/fork/ module + keep the upstream-canonical file near-upstream + thin seam (R8 pattern), so the canonical file merges cleanly (inherits upstream features) while ALL fork behavior is preserved in the overlay; (2) ALIGN-to-upstream ONLY for pure convergent-noise files with NO intentional fork behavior to keep (narrow; not 'reverting a feature'); (3) ACCEPT-CONFLICT only for the irreducible sync core (sync.ts/storage.ts). The axis is REDUCIBLE(->MOVE, preserve) vs IRREDUCIBLE(->ACCEPT); never drop an intentional fork change. new/index.tsx -> MOVE (fork-own e-ink behind overlay), not revert. Voice removal stays an intentional KEEP-DELETED."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Brainstorm shipped @ 6ca3a002e (MOVE model). Of 59 app hard-conflict files: ~31 MOVE to sources/fork/* overlays+seams (fork behavior preserved, canonical files near-upstream so they inherit upstream features on future merges), ~0 ALIGN, ~5-7 IRREDUCIBLE ACCEPT (sync.ts/storage.ts/reducer/apiSocket/ops core), 8 KEEP-DELETED guards, 3 merge=ours. ZERO fork behaviors dropped. HONESTY CAVEAT: MOVE removes resolution COST+frequency (whole-file re-derivation -> 1-line seam re-apply), not the conflict-marker count to zero (seams can re-collide); the ~5-7 ACCEPT are the permanent expensive floor (upstream sync plane is seam-less). Wave plan W0(lineage done)->W1 MOVE-list/const->W2 renderers->W3 session-tree+screens->W4 new/index.tsx(route flag)->W5 plane residuals+i18n->W6 accept core; every wave gates encryptionDeletion.spec + e-ink spot-check. new/index.tsx=MOVE; voice=KEEP-DELETED; removed planes=KEEP-DELETED. 10 operator-decision calls."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Operator chose plan-impl-wave1 (2026-07-08). Executing Wave 1 (MOVE-list/const, cheapest + highest feature-yield): HA-40/41 modelModeOptions, HA-36 suggestionCommands, HA-23 _all.tsx tool registry, HA-37 suggestions.ts, HA-30/31/33/46/47 additive-const. Pattern for additive-list files: canonical reverts to upstream's list (inherits upstream's new entries e.g. opus-4.8/xhigh, /goal+skills, new tool views), fork's extra entries MOVE to a sources/fork/ module concatenated back via a seam ([...upstream, ...fork]). Plan-then-impl, gated per-file + encryptionDeletion + e-ink spot-check."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "<strong>Wave 1 shipped @ 7e701893b</strong> — HA-37 autocomplete caps relocated to <code>sources/fork/autocomplete/forkSuggestionLimits.ts</code> (thin import seam; behavior byte-identical) + HA-40 ALIGN (opus 4.7→4.8 label, re-added <code>xhigh</code> Claude effort tier at upstream position; resolvers untouched). Typecheck clean; per-file tests green; audit zero-drift. The 3 encryptionDeletion.spec failures are pre-existing baseline (identical on main).<br><br><strong>Re-ground-truth @ 183f9cf88</strong> (<code>.ralph/investigations/happy-app-move-surface-reground/findings.md</code>): the brainstorm §3 \"~31 clean MOVE\" is optimistic ~5×. Verified against <code>git diff cli-1.1.10 (merge-base) HEAD</code>: genuinely reducible surface = <strong>4–6 TRUE-MOVE-CLEAN files</strong>; 19 ENTANGLED (interleaved rewrites/removals, not relocations); 7 ACCEPT (sync-plane monoliths). Several \"inherit for free\" claims are inverted — the fork deliberately removed xhigh/effort/zenMode/expandUnchanged/buildCommitSha, so reverting toward upstream = the forbidden fork-behavior regression. Future-wave scope pending operator decision.\r\n"
+        }
+      ],
+      "shipManifest": {
+        "shippedAt": "2026-07-09T02:59:19.950Z",
+        "summary": "The happy-app minimal-conflict MOVE-reduction workstream is complete. Its goal was to shrink the app's whole-file conflict surface against upstream so future `git merge` intakes flow cleanly while preserving every fork behavior (no drops, no upstream-construct resurrection).\r\n\r\nGround-truthing corrected the brainstorm's optimistic \"~31 clean MOVE / 6 waves\" premise (`183f9cf88`): because cli-1.1.10 is now the merge-base, reverting a canonical file toward upstream would DROP fork behavior — the opposite of the goal. The genuinely reducible surface (cheap relocate-to-overlay + thin behavior-preserving seam) is only ~4–6 files, of which 2 were already done (ChatList earlier, and HA-37 in Wave 1). The remaining ~26 candidates are ENTANGLED (interleaved rewrites/removals — MOVE = a full canonical-file re-derivation, no cheaper than the manual 3-way they'd escape) or ACCEPT (sync-plane monoliths / structural configs with no seam), and are re-labeled as such in `docs/happy-patch-surface.md`.\r\n\r\nShipped two small waves covering the real surface. Wave 1 (`7e701893b`): HA-37 relocated the e-ink autocomplete caps to `sources/fork/autocomplete/forkSuggestionLimits.ts`, plus HA-40 ALIGN (adopt upstream opus-4.8 label + re-add the `xhigh` Claude effort tier — the one genuine additive upstream inherit). Wave 2 (`747a468c0`): HA-23/30/33 relocated fork-diverged definitions in `_all.tsx`, `typesMessageMeta.ts`, and `localSettings.ts` into `sources/fork/` overlays spread into the canonical schemas/registry, keeping every removal (voiceUpsellOverride/zenMode/effort/file:FileView/permissionFooter) as guarded absence; also un-blinded the fork-patch audit to `components/tools/`. HA-21 (CodexPatchView) was re-ground-truthed to ENTANGLED (a 94/-212 rewrite of an upstream file; relocating would shadow-duplicate on every merge) and kept as in-place take-ours.\r\n\r\nAll ships were typecheck-clean, audit zero-drift, with target + moved-field behavior tests green; the only remaining test failures are pre-existing baseline noise (encryptionDeletion + settings.spec settingsDefaults), verified identical on main. The workstream's durable value is forward-looking: MOVE'd files inherit FUTURE upstream changes cleanly and re-apply their fork seam cheaply. Closed with the reducible surface exhausted and the irreducible surface honestly documented for future intakes.\r\n",
+        "commits": [
+          {
+            "sha": "7e701893b",
+            "oneLine": "feat(happy-app): Wave 1 MOVE — autocomplete caps overlay + opus-4.8/xhigh align (HA-37/HA-40)"
+          },
+          {
+            "sha": "183f9cf88",
+            "oneLine": "docs(happy): re-ground-truth the app MOVE surface — 4-6 real targets, not ~31"
+          },
+          {
+            "sha": "747a468c0",
+            "oneLine": "feat(happy-app): Wave 2 MOVE — overlay 3 fork-diverged files (HA-23/30/33) + audit tools/ fix"
+          }
+        ]
+      }
     }
   ]
 }
