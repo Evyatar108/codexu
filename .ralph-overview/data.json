@@ -1766,6 +1766,29 @@
           "html": "ADDED 2026-07-08 (post-tag commits past cli-1.1.10): (6) 'fable 5' Claude model picker option (f6adffb4, 1 line); (7) sort-session-list-by-last-activity toggle (55faebc8, touches diverged storage.ts tree-grouping). Both are opt-in UX decisions in the same class as the original 5. Total opt-in candidates now 7."
         }
       ]
+    },
+    {
+      "id": "happy-app-minimal-conflict-reduction-inherit-upstream",
+      "scope": "happy-app",
+      "command": {
+        "prompts": {
+          "brainstorm": "(see spawn prompt)"
+        },
+        "warnings": [
+          "Supersedes happy-app-upstream-feature-opt-ins-cli-1.1.10 (per-feature adoption) + the conservative keep-all A0 triage."
+        ],
+        "name": "happy-app-minimal-conflict-reduction-inherit-upstream",
+        "descriptionHtml": "Minimal-conflict rebase for happy-app: re-triage the app hard-conflict surface under an AGGRESSIVE-REDUCE lens (revert non-essential divergences to upstream to inherit features; overlay essential ones; accept only the irreducible sync core) so upstream features flow in via merge. Reframes the per-feature opt-in approach."
+      },
+      "status": "todo",
+      "lifecycle": "tracked",
+      "lastTouchedAt": "2026-07-09T00:49:19.384Z",
+      "kanbanCards": [
+        {
+          "html": "OPERATOR REFRAME (2026-07-08): the goal is MINIMAL-CONFLICT REBASE, not per-feature adoption. Upstream app features do not flow in today because the fork DIVERGED on the same files (merge conflict -> take-ours -> feature dropped). To have ALL upstream features, REDUCE the fork divergence so upstream files merge cleanly: (1) REVERT-to-upstream where the fork change is NON-essential (inherit the feature, lose a non-essential tweak); (2) OVERLAY to sources/fork/ where the fork change IS essential (keep fork behavior + inherit upstream file); (3) ACCEPT permanent conflict only for the irreducible sync.ts/storage.ts. Essential fork divergences to KEEP: single-user, no-central-server, no-E2E, e-ink perf, removed voice/multi-account/encryption planes. Everything else is a REVERT candidate. Supersedes the conservative keep-all A0 triage + the per-feature opt-in framing (happy-app-upstream-feature-opt-ins-cli-1.1.10). Brainstorm-first: produce the essential-vs-nonessential boundary + per-file REVERT/OVERLAY/ACCEPT disposition for the app hard-conflict surface + expected post-reduction conflict count, then execute in waves.",
+          "class": "cmd-warn"
+        }
+      ]
     }
   ],
   "phaseTree": [
