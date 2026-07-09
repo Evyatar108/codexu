@@ -1,0 +1,215 @@
+{
+  "brainstormName": "ralph-model-routing-ui-opus48-nonui-gpt56sol",
+  "overviewTaskId": "ralph-model-routing-ui-opus48-nonui-gpt56sol",
+  "idea": "Make the Ralph plugin runtime enforce exact surface-based model routing: UI work uses claude-opus-4.8, all non-UI work uses gpt-5.6-sol, mixed work splits by story/call where practical and otherwise uses Opus, with no GPT-5.5 or implicit model default.",
+  "method": "Single-owner source audit of Ralph runtime, source skills, generator/lowering code, generated Copilot/Codex artifacts, schemas, tests, and release surfaces. Nested delegation was intentionally not used.",
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Central fail-closed router plus structured work-surface propagation",
+      "summary": "Add one model-routing module, persist workSurface across brainstorm/plan/PRD/story/review boundaries, validate engine compatibility, require every wrapper and generated Task call to resolve an approved exact model, inventory all dispatch sites, and regenerate artifacts.",
+      "status": "recommended"
+    },
+    {
+      "id": "D-002",
+      "name": "Literal model-ID replacement sweep",
+      "summary": "Replace GPT-5.5/GPT-5.4/Opus-4.7 strings in place without adding structured surface metadata.",
+      "status": "rejected",
+      "reason": "Engine branches would still decide the model, mixed jobs would not split, missing/default callsites would remain, and future drift would be uncontrolled."
+    },
+    {
+      "id": "D-003",
+      "name": "Codex means GPT, Copilot means Opus",
+      "summary": "Keep current engine-driven routing and update each engine to one approved model.",
+      "status": "rejected",
+      "reason": "The operator policy is surface-based. Copilot must run GPT for non-UI work, and UI through Codex is not safely portable."
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "recommendedDirectionDetails": {
+    "models": {
+      "ui": "claude-opus-4.8",
+      "non-ui": "gpt-5.6-sol",
+      "mixedUnsplit": "claude-opus-4.8"
+    },
+    "engineMatrix": {
+      "copilot": ["ui", "non-ui", "mixed"],
+      "codex": ["non-ui"]
+    },
+    "classification": {
+      "field": "workSurface",
+      "values": ["ui", "non-ui", "mixed"],
+      "missingBehavior": "fail-closed",
+      "mixedBehavior": "Require per-story workSurface for executable stories; an unsplittable mixed story or whole-job judgment uses Opus."
+    },
+    "fixedNonUiRoles": [
+      "criteria-validator",
+      "docs-reviewer",
+      "docs-updater",
+      "progress-analyst",
+      "story-doctor",
+      "dsat-analyst",
+      "skill-suggester",
+      "followup-task-gatherer",
+      "repo-detector",
+      "bookkeeping/orchestration-only skill delegates",
+      "security-reviewer and security-fixer when re-enabled"
+    ],
+    "inheritedSurfaceRoles": [
+      "code-reviewer",
+      "code-fixer",
+      "refactoring-agent",
+      "manifest-verifier",
+      "generic brainstorm/research/architecture/plan-review agents",
+      "PRD generator",
+      "implementation workflow entry"
+    ],
+    "releaseVersion": "5.63.0"
+  },
+  "sourceOfTruth": {
+    "authored": [
+      "ai-developer-toolkit/plugins/ralph/src/**",
+      "ai-developer-toolkit/plugins/ralph/skills/**/SKILL.md",
+      "ai-developer-toolkit/plugins/ralph/agents/*.md",
+      "ai-developer-toolkit/plugins/ralph/schemas/prd-schema.json",
+      "ai-developer-toolkit/plugins/ralph/scripts/generate-copilot-artifacts.mjs",
+      "ai-developer-toolkit/plugins/ralph/scripts/codex-lowering.mjs",
+      "ai-developer-toolkit/plugins/ralph/.copilot-plugin/copilot-skills/implement-with-ralph/SKILL.md"
+    ],
+    "generated": [
+      "ai-developer-toolkit/plugins/ralph/.copilot-plugin/agents/**",
+      "ai-developer-toolkit/plugins/ralph/.copilot-plugin/internal-workflows/**",
+      "ai-developer-toolkit/plugins/ralph/.copilot-plugin/copilot-skills/{brainstorm-with-ralph,plan-with-ralph,multi-model-investigate,prepare-handoff}/**",
+      "ai-developer-toolkit/plugins/ralph/.codex-plugin/agents/**",
+      "ai-developer-toolkit/plugins/ralph/.codex-plugin/internal-workflows/**",
+      "ai-developer-toolkit/plugins/ralph/.codex-plugin/codex-skills/**"
+    ],
+    "regenerationCommand": "From ai-developer-toolkit/: node plugins/ralph/scripts/generate-copilot-artifacts.mjs --target=all --write"
+  },
+  "nextStagePlanSeed": {
+    "goal": "Release Ralph 5.63.0 with fail-closed, exact, surface-based model routing across subprocess wrappers, iteration/review loops, source skills, generated Copilot Task calls, custom-agent YAML, and generated Codex artifacts.",
+    "targetRepo": "ai-developer-toolkit",
+    "implementationWorktree": "ai-developer-toolkit/.worktrees/ralph-model-routing-ui-opus48-nonui-gpt56sol",
+    "stories": [
+      {
+        "id": "US-001",
+        "title": "Add central model policy and durable work-surface schema",
+        "scope": [
+          "plugins/ralph/src/model-routing.mjs",
+          "plugins/ralph/schemas/prd-schema.json",
+          "plugins/ralph/src/ralph.mjs",
+          "plugins/ralph/skills/convert-to-ralph-prd/SKILL.md",
+          "brainstorm/plan artifact propagation"
+        ],
+        "acceptance": [
+          "Only ui, non-ui, and mixed are accepted.",
+          "Exact mapping is UI/mixed to claude-opus-4.8 and non-UI to gpt-5.6-sol.",
+          "Missing classification fails; mixed PRDs require per-story classification."
+        ]
+      },
+      {
+        "id": "US-002",
+        "title": "Route wrappers, iterations, planning, and re-review through the policy",
+        "scope": [
+          "plugins/ralph/src/codex-exec.mjs",
+          "plugins/ralph/src/copilot-exec.mjs",
+          "plugins/ralph/src/ralph.mjs",
+          "plugins/ralph/src/review-loop.mjs",
+          "plugins/ralph/skills/run-ralph/SKILL.md"
+        ],
+        "acceptance": [
+          "Copilot UI uses claude-opus-4.8.",
+          "Codex and Copilot non-UI use gpt-5.6-sol.",
+          "UI plus Codex is rejected before spawn.",
+          "No raw arbitrary-model fallback exists."
+        ]
+      },
+      {
+        "id": "US-003",
+        "title": "Propagate surface through source skills and nested workflows",
+        "scope": [
+          "plugins/ralph/skills/brainstorm-with-ralph/SKILL.md",
+          "plugins/ralph/skills/plan-with-ralph/SKILL.md",
+          "plugins/ralph/skills/multi-model-investigate/SKILL.md",
+          "plugins/ralph/skills/review-plan-with-ralph/SKILL.md",
+          "plugins/ralph/skills/review-changes/SKILL.md",
+          "plugins/ralph/skills/implement-with-ralph/SKILL.md",
+          "plugins/ralph/skills/analyze-iteration/SKILL.md",
+          "plugins/ralph/agents/plan-reviewer.md"
+        ],
+        "acceptance": [
+          "Every wrapper call receives a structured surface.",
+          "Every direct Task path resolves and pins an exact approved model.",
+          "Nested workflow calls carry the surface.",
+          "Review attribution no longer mislabels a GPT reviewer as Opus."
+        ]
+      },
+      {
+        "id": "US-004",
+        "title": "Make generator and generated artifacts policy-aware",
+        "scope": [
+          "plugins/ralph/scripts/generate-copilot-artifacts.mjs",
+          "plugins/ralph/scripts/codex-lowering.mjs or a new routing-site inventory",
+          "plugins/ralph/agents/*.md",
+          "plugins/ralph/.copilot-plugin/**",
+          "plugins/ralph/.codex-plugin/**"
+        ],
+        "acceptance": [
+          "Generated YAML contains only the two approved IDs.",
+          "Every generated Copilot task call has explicit model routing.",
+          "Every dispatch site is inventory-covered.",
+          "Generated parity checks pass."
+        ]
+      },
+      {
+        "id": "US-005",
+        "title": "Add routing, migration, parity, and stale-model regression tests",
+        "scope": [
+          "plugins/ralph/tests/test-codex-exec.mjs",
+          "plugins/ralph/tests/test-copilot-exec.mjs",
+          "plugins/ralph/tests/test-ralph.mjs",
+          "plugins/ralph/tests/test-review-loop*.{mjs,sh}",
+          "plugins/ralph/tests/test-codex-generator.mjs",
+          "plugins/ralph/tests/test-copilot-generator.sh",
+          "affected fixtures"
+        ],
+        "acceptance": [
+          "Representative UI/non-UI/mixed dispatches assert exact IDs.",
+          "Missing/default/GPT-5.5 paths are rejected.",
+          "Generated source parity is clean.",
+          "A scan rejects GPT-5.5, GPT-5.4, and Opus-4.7 in active surfaces."
+        ]
+      },
+      {
+        "id": "US-006",
+        "title": "Ship Ralph 5.63.0 and dogfood installed routing",
+        "scope": [
+          "plugins/ralph/CHANGELOG.md",
+          "plugins/ralph/AGENTS.md",
+          "all six plugin/marketplace version stamps",
+          "codexu ai-developer-toolkit pointer",
+          "codexu AGENTS.md active-plugin-version table"
+        ],
+        "acceptance": [
+          "All release gates pass.",
+          "Installed Copilot plugin runs a non-UI GPT-5.6 Sol flow and a UI Opus 4.8 flow.",
+          "Codex runs a non-UI GPT-5.6 Sol flow.",
+          "Unavailable models fail closed without fallback."
+        ]
+      }
+    ]
+  },
+  "risks": [
+    "Nested Skill and prose-only Agent callsites can be missed without a stable inventory.",
+    "Custom agent YAML may override an explicit Task model; run a Phase-0 installed CLI probe and generate surface variants if needed.",
+    "Existing jobs lack workSurface and require a one-time explicit migration.",
+    "UI through Codex is feature/version-gated; keep it out of the minimal release.",
+    "Same-plugin Ralph work conflicts on generator, skills, AGENTS, CHANGELOG, generated trees, and version stamps."
+  ],
+  "operatorDecisionsRequired": [],
+  "blockers": [],
+  "deferred": [
+    "Optional future support for Opus 4.8 through Codex after version/gate compatibility is designed and tested.",
+    "Optional structured pre-PRD surface-slice maps for splitting mixed brainstorm/plan lenses more finely than story boundaries."
+  ]
+}
