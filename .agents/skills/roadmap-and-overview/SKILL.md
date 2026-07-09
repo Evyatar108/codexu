@@ -62,12 +62,16 @@ boundary + delegation recipes: codexu `AGENTS.md` >
 Whenever this workflow dispatches a direct Task-tool sub-agent, pin the model
 explicitly according to the canonical policy in codexu `AGENTS.md`:
 
-- UI-related work (including web/mobile/desktop/TUI interaction, visual design,
-  layout/styling, browser visual QA, and e-ink UX): `claude-opus-4.8`.
+- Work requiring UI/UX judgment (including web/mobile/desktop/TUI interaction,
+  visual design, layout/styling, browser visual QA, and e-ink UX):
+  `claude-opus-4.8`.
 - All non-UI work (including research, planning, backend, CLI runtime,
   protocol/security, release, and non-UI review): `gpt-5.6-sol`.
+- A task is not UI-related merely because it uses an existing UI as an
+  acceptance/test surface. Server/protocol/runtime architecture tested through
+  a web/mobile/TUI client still uses `gpt-5.6-sol`.
 - Split mixed UI/non-UI work into separate agents where practical; if it cannot
-  be split, use `claude-opus-4.8`.
+  be split, use Opus only when the task itself requires UI/UX judgment.
 
 Never rely on the Task tool's default model and do not use GPT-5.5 for direct
 sub-agents. Ralph/crews subprocess model routing is separate and must not be

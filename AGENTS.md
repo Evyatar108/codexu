@@ -806,17 +806,20 @@ handoff). Re-bind it EARLY, before arming:
 - **Direct sub-agent model routing (operator decision 2026-07-09).** Every
   direct `task(...)` / Task-tool dispatch MUST pin its model explicitly; do not
   rely on the tool default and do not use GPT-5.5. Route by work surface:
-  - **UI-related work -> `claude-opus-4.8`.** This includes web/mobile/desktop
-    visual design, React/React Native component UX, layout/styling, browser
-    visual QA, e-ink interaction design, and terminal/TUI presentation or
-    interaction work.
+  - **Work that requires UI/UX judgment -> `claude-opus-4.8`.** This includes
+    web/mobile/desktop visual design, React/React Native component UX,
+    layout/styling, browser visual QA, e-ink interaction design, and
+    terminal/TUI presentation or interaction work.
   - **All non-UI work -> `gpt-5.6-sol`.** This includes backend/server, CLI
     runtime, protocol/wire, security, build/release, infrastructure,
     source investigations, planning, bookkeeping analysis, and code review
     when the reviewed surface is not UI.
+  - **A UI acceptance surface does not make an architecture task UI work.**
+    If a task designs a server/protocol/runtime and merely uses an existing web,
+    mobile, desktop, or TUI surface to test it, route it to `gpt-5.6-sol`.
   - **Mixed UI + non-UI work:** split into separate agents by surface whenever
-    practical. If the work cannot be split cleanly and one agent must own it,
-    route it to `claude-opus-4.8` because the task includes UI judgment.
+    practical. If the work cannot be split cleanly, use `claude-opus-4.8` only
+    when the task itself requires UI/UX judgment; otherwise use `gpt-5.6-sol`.
   This rule governs direct Copilot CLI Task sub-agents. Ralph/crews plugin
   subprocess model defaults are a separate implementation surface; do not
   claim they follow this policy until their hard-coded model routing has been

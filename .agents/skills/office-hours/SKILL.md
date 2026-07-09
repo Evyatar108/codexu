@@ -337,9 +337,11 @@ If B: skip Phase 3.5 entirely. Remember that a second opinion did NOT run (affec
 **If A: Run the cold read.**
 
 Pin the reviewer model explicitly:
-- If the session is about UI/UX, visual design, interaction design, web/mobile/
-  desktop/TUI presentation, or e-ink UX, use `claude-opus-4.8`.
+- If the review requires UI/UX judgment, visual design, interaction design,
+  web/mobile/desktop/TUI presentation, or e-ink UX, use `claude-opus-4.8`.
 - Otherwise use `gpt-5.6-sol`.
+- Merely using an existing UI as an acceptance/test surface does not make an
+  architecture or protocol review UI-related.
 - Do not use GPT-5.5 or an implicit/default Task model.
 
 1. Assemble a structured context block from Phases 1-3:
@@ -603,9 +605,10 @@ Before presenting the document to the user for approval, run an adversarial revi
 
 Use a subagent or second model to independently review the document. The reviewer has fresh context and cannot see the brainstorming conversation — only the document. This ensures genuine adversarial independence.
 
-Pin the reviewer model explicitly: use `claude-opus-4.8` when the reviewed
-document is UI-related; otherwise use `gpt-5.6-sol`. Do not use GPT-5.5 or an
-implicit/default Task model.
+Pin the reviewer model explicitly: use `claude-opus-4.8` when reviewing the
+document requires UI/UX judgment; otherwise use `gpt-5.6-sol`. A UI used only
+as an acceptance surface does not change an architecture/protocol review into
+UI work. Do not use GPT-5.5 or an implicit/default Task model.
 
 Prompt the reviewer with:
 - The document content
