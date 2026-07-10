@@ -10495,6 +10495,39 @@
           }
         ]
       }
+    },
+    {
+      "id": "codex-native-happy-p0-rust-compat",
+      "scope": "codex",
+      "lifecycle": "merged",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-10T16:15:00Z",
+      "initialStage": "plan-ready",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "P0/J0 from parent plan <code>codex-native-happy-server-local-web-dual-control</code>. Build a throwaway/portable Codex-wrapper Rust fixture proving Axum + Socketioxide + rust_socketio compatibility, exact-origin CORS, paired proof, acks/replay/overflow, fixed-port restart and nonce-replay rejection. No production store, no nested patched-workspace edits, no happy-cli/Node runtime."
+        }
+      ],
+      "command": {
+        "name": "codex-native-happy-p0-rust-compat",
+        "descriptionHtml": "P0 Rust fixture proving Socketioxide/browser/Rust-client compatibility for the Node-free Happy session plane.",
+        "warnings": [],
+        "prompts": {
+          "impl": "Implement Job J0 / US-001..003 exactly from `.ralph/jobs/codex-native-happy-server-local-web-dual-control/plan.md` and `stories-outline.md` in a Codex wrapper worktree at `codex/.worktrees/codex-native-happy-p0-rust`, branch `ralph/codex-native-happy-p0-rust`, using GPT-5.6 Sol (`uiUxJudgment: not-required`). Create only the fork-overlay fixture under `codex-rs-overlay/codex-happy-compat-spike/`: pinned Cargo.toml/lock, main/contract/server/rust_client/auth modules and compatibility tests. Bind only 127.0.0.1:43127; prove Engine.IO v4 browser-polling contract + Rust websocket roles, auth-derived rooms, RPC/range/CAS/update/reconnect/replay-overflow acks, exact Origin/CORS/LNA behavior, paired proof query/body binding, replay rejection across restart, and fresh invite after restart. No production session store, no nested codex-patched edits, no custom Engine.IO packet implementation, no browser app code, no happy-cli/Node runtime. Hard NO-GO if success requires Socketioxide fork/custom framing/browser patch/substantial Socket.IO reimplementation; small path/serde/middleware adapter allowed. Run cargo test/run commands from plan, Phase 5a code review and 5b docs/review convergence explicitly on GPT-5.6 Sol, commit locally, do not push, report GO/NO-GO and exact proven versions/shims."
+        }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-07-10T16:15:00Z",
+        "summary": "P0/J0 Rust compatibility fixture shipped to gim-home/codex main. The standalone overlay-only fixture proves the intended local loopback server stack with Axum 0.8.8, Socketioxide 0.18.2, rust_socketio 0.6.0, Tokio 1.52.3, rusqlite 0.40.1, and ed25519-dalek 2.2.0. It binds only 127.0.0.1:43127, implements the frozen Happy ack/replay/CAS/RPC/range contract, fail-closed exact-origin/host paired proof with nonce replay persistence, and a Rust websocket smoke. cargo check --offline and 20/20 tests passed; separate server/Rust-client smoke passed; Phase 5a converged clean after five rounds and Phase 5b after one.\n\nVerdict: GO for J1 local-browser interoperability testing; explicitly NO-GO for remote exposure. Allowed compatibility shims are limited to the parser pin, ack-array normalization, auth-probe settling, polling-upgrade guard, and fixture-only named-pipe capability handoff. J1 remains responsible for real Chromium polling, actual socket.io-client 4.8.1, acknowledgements/reconnect/isolation, and existing renderer evidence.",
+        "commits": [
+          {
+            "sha": "65e87b23dd857c71199529bbb46120c7ca3b3e51",
+            "oneLine": "feat(happy): add Rust compatibility spike",
+            "repo": "gim-home/codex"
+          }
+        ]
+      }
     }
   ]
 }

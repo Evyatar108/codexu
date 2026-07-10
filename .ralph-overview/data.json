@@ -1863,28 +1863,6 @@
           "impl": "After blocker `codex-native-happy-p0-rust-compat` ships a runnable server, implement Job J1 / US-004..006 from `.ralph/jobs/codex-native-happy-server-local-web-dual-control/plan.md` in a codexu worktree `codex-native-happy-p0-browser`, using GPT-5.6 Sol. Pin exact socket.io-client 4.8.1; add a dev-only route/probe inside the existing Expo Happy web build; run real Chromium via agent-browser against J0; prove Ed25519 local pairing, polling, acks, ranges, reconnect, auth/CORS/tamper/replay, and keyed transient snapshot replacement through the existing renderer. Write redacted compatibility-result.json and browser-proof.png. No toy client, production UI redesign, happy-cli, Node happy-server, tunnel or remote transport. Emit explicit GO/NO-GO and stop if renderer needs actual UI judgment, filing a narrow Opus 4.8 task."
         }
       }
-    },
-    {
-      "id": "codex-native-happy-p0-rust-compat",
-      "scope": "codex",
-      "lifecycle": "tracked",
-      "status": "todo",
-      "lastTouchedAt": "2026-07-10T15:35:00Z",
-      "initialStage": "plan-ready",
-      "kanbanCards": [
-        {
-          "className": "cmd-warn",
-          "html": "P0/J0 from parent plan <code>codex-native-happy-server-local-web-dual-control</code>. Build a throwaway/portable Codex-wrapper Rust fixture proving Axum + Socketioxide + rust_socketio compatibility, exact-origin CORS, paired proof, acks/replay/overflow, fixed-port restart and nonce-replay rejection. No production store, no nested patched-workspace edits, no happy-cli/Node runtime."
-        }
-      ],
-      "command": {
-        "name": "codex-native-happy-p0-rust-compat",
-        "descriptionHtml": "P0 Rust fixture proving Socketioxide/browser/Rust-client compatibility for the Node-free Happy session plane.",
-        "warnings": [],
-        "prompts": {
-          "impl": "Implement Job J0 / US-001..003 exactly from `.ralph/jobs/codex-native-happy-server-local-web-dual-control/plan.md` and `stories-outline.md` in a Codex wrapper worktree at `codex/.worktrees/codex-native-happy-p0-rust`, branch `ralph/codex-native-happy-p0-rust`, using GPT-5.6 Sol (`uiUxJudgment: not-required`). Create only the fork-overlay fixture under `codex-rs-overlay/codex-happy-compat-spike/`: pinned Cargo.toml/lock, main/contract/server/rust_client/auth modules and compatibility tests. Bind only 127.0.0.1:43127; prove Engine.IO v4 browser-polling contract + Rust websocket roles, auth-derived rooms, RPC/range/CAS/update/reconnect/replay-overflow acks, exact Origin/CORS/LNA behavior, paired proof query/body binding, replay rejection across restart, and fresh invite after restart. No production session store, no nested codex-patched edits, no custom Engine.IO packet implementation, no browser app code, no happy-cli/Node runtime. Hard NO-GO if success requires Socketioxide fork/custom framing/browser patch/substantial Socket.IO reimplementation; small path/serde/middleware adapter allowed. Run cargo test/run commands from plan, Phase 5a code review and 5b docs/review convergence explicitly on GPT-5.6 Sol, commit locally, do not push, report GO/NO-GO and exact proven versions/shims."
-        }
-      }
     }
   ],
   "phaseTree": [
