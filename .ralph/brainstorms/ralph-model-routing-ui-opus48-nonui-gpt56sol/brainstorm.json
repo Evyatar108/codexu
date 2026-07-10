@@ -1,48 +1,93 @@
 {
   "brainstormName": "ralph-model-routing-ui-opus48-nonui-gpt56sol",
   "overviewTaskId": "ralph-model-routing-ui-opus48-nonui-gpt56sol",
-  "idea": "Make the Ralph plugin runtime enforce exact surface-based model routing: UI work uses claude-opus-4.8, all non-UI work uses gpt-5.6-sol, mixed work splits by story/call where practical and otherwise uses Opus, with no GPT-5.5 or implicit model default.",
-  "method": "Single-owner source audit of Ralph runtime, source skills, generator/lowering code, generated Copilot/Codex artifacts, schemas, tests, and release surfaces. Nested delegation was intentionally not used.",
+  "idea": "Make the Ralph plugin runtime enforce exact judgment-based model routing: work that itself requires UI/UX judgment uses claude-opus-4.8; all other work uses gpt-5.6-sol. An existing web/mobile/desktop/TUI acceptance surface does not make server/protocol/runtime architecture UI work. Mixed work splits where practical; an unsplit unit uses Opus only when that unit itself requires UI/UX judgment. Never use GPT-5.5 or an implicit model default.",
+  "method": "Single-owner source audit of Ralph runtime, source skills, generator/lowering code, generated Copilot/Codex artifacts, schemas, tests, and release surfaces. Rebased onto main and incorporated operator correction bf977fa70. Nested delegation was intentionally not used.",
+  "policyCorrection": {
+    "commit": "bf977fa70",
+    "source": "AGENTS.md:806-826",
+    "rule": "Classify the work itself by whether it requires UI/UX judgment; do not classify by UI mentions, touched UI files, or an existing UI acceptance harness."
+  },
   "candidateDirections": [
     {
       "id": "D-001",
-      "name": "Central fail-closed router plus structured work-surface propagation",
-      "summary": "Add one model-routing module, persist workSurface across brainstorm/plan/PRD/story/review boundaries, validate engine compatibility, require every wrapper and generated Task call to resolve an approved exact model, inventory all dispatch sites, and regenerate artifacts.",
+      "name": "Central fail-closed router plus structured UI/UX-judgment propagation",
+      "summary": "Add one model-routing module, persist uiUxJudgment across brainstorm/plan/PRD/story/review boundaries, distinguish actual UI/UX judgment from an existing UI acceptance harness, validate engine compatibility, require every wrapper and generated Task call to resolve an approved exact model, inventory all dispatch sites, and regenerate artifacts.",
       "status": "recommended"
     },
     {
       "id": "D-002",
       "name": "Literal model-ID replacement sweep",
-      "summary": "Replace GPT-5.5/GPT-5.4/Opus-4.7 strings in place without adding structured surface metadata.",
+      "summary": "Replace GPT-5.5/GPT-5.4/Opus-4.7 strings in place without adding structured UI/UX-judgment metadata.",
       "status": "rejected",
-      "reason": "Engine branches would still decide the model, mixed jobs would not split, missing/default callsites would remain, and future drift would be uncontrolled."
+      "reason": "Engine branches would still decide the model, server architecture tested through a UI could be misrouted to Opus, mixed jobs would not split, missing/default callsites would remain, and future drift would be uncontrolled."
     },
     {
       "id": "D-003",
       "name": "Codex means GPT, Copilot means Opus",
       "summary": "Keep current engine-driven routing and update each engine to one approved model.",
       "status": "rejected",
-      "reason": "The operator policy is surface-based. Copilot must run GPT for non-UI work, and UI through Codex is not safely portable."
+      "reason": "The operator policy is based on whether the work itself requires UI/UX judgment, not the engine or acceptance surface. Copilot must run GPT for not-required work, and Opus through Codex is not safely portable."
     }
   ],
   "recommendedDirection": "D-001",
   "recommendedDirectionDetails": {
     "models": {
-      "ui": "claude-opus-4.8",
-      "non-ui": "gpt-5.6-sol",
-      "mixedUnsplit": "claude-opus-4.8"
+      "uiUxJudgmentRequired": "claude-opus-4.8",
+      "uiUxJudgmentNotRequired": "gpt-5.6-sol"
     },
     "engineMatrix": {
-      "copilot": ["ui", "non-ui", "mixed"],
-      "codex": ["non-ui"]
+      "copilot": ["required", "not-required"],
+      "codex": ["not-required"],
+      "mixed": "Reject at executable dispatch until split or explicitly resolved to required/not-required."
     },
     "classification": {
-      "field": "workSurface",
-      "values": ["ui", "non-ui", "mixed"],
+      "field": "uiUxJudgment",
+      "values": ["required", "not-required", "mixed"],
+      "definitions": {
+        "required": "The work itself must make or assess visual, interaction, layout, styling, presentation, or other UI/UX decisions.",
+        "not-required": "The work itself does not require UI/UX judgment, even when it mentions, touches, or tests through an existing UI.",
+        "mixed": "Container-only classification. Split into executable units and classify each required or not-required."
+      },
       "missingBehavior": "fail-closed",
-      "mixedBehavior": "Require per-story workSurface for executable stories; an unsplittable mixed story or whole-job judgment uses Opus."
+      "mixedBehavior": "Require per-story uiUxJudgment for executable stories. Story-level mixed is rejected. If a combined unit cannot be split, resolve it to required only when that unit itself requires UI/UX judgment; otherwise resolve it to not-required.",
+      "acceptanceSurfaceRule": "A server/protocol/runtime architecture task that uses an existing web/mobile/desktop/TUI surface only for acceptance is not-required and uses gpt-5.6-sol.",
+      "examples": [
+        {
+          "work": "Design a per-daemon server/protocol and verify it through the existing Happy web app.",
+          "classification": "not-required",
+          "model": "gpt-5.6-sol"
+        },
+        {
+          "work": "Change a CLI runtime and smoke-test it through the existing TUI.",
+          "classification": "not-required",
+          "model": "gpt-5.6-sol"
+        },
+        {
+          "work": "Design React layout, interaction flow, e-ink affordances, or terminal presentation.",
+          "classification": "required",
+          "model": "claude-opus-4.8"
+        }
+      ]
     },
-    "fixedNonUiRoles": [
+    "cliContract": {
+      "flag": "--ui-ux-judgment required|not-required|mixed",
+      "helpText": "Classify whether the work itself requires UI/UX judgment. Merely using an existing web/mobile/desktop/TUI surface for acceptance is not-required.",
+      "interactivePrompt": "Does this work itself require visual, interaction, layout, styling, presentation, or other UI/UX judgment? required, not-required, or mixed.",
+      "missingBehavior": "Interactive mode may prompt once and persist. Autonomous/batch mode fails closed.",
+      "rawModelOverride": "Remove it or accept it only as an equality assertion against the model resolved from uiUxJudgment."
+    },
+    "requiredTests": [
+      "required -> claude-opus-4.8",
+      "not-required -> gpt-5.6-sol",
+      "unresolved mixed rejects",
+      "server/protocol/runtime architecture through an existing web/mobile/TUI acceptance surface -> not-required -> gpt-5.6-sol",
+      "React/layout/interaction/terminal-presentation judgment -> required -> claude-opus-4.8",
+      "mixed jobs split per story; unsplit units resolve from actual judgment rather than UI presence",
+      "missing/default/GPT-5.5/arbitrary model paths reject",
+      "generated artifacts and installed CLI help preserve the same definitions"
+    ],
+    "fixedNotRequiredRoles": [
       "criteria-validator",
       "docs-reviewer",
       "docs-updater",
@@ -55,7 +100,7 @@
       "bookkeeping/orchestration-only skill delegates",
       "security-reviewer and security-fixer when re-enabled"
     ],
-    "inheritedSurfaceRoles": [
+    "inheritedJudgmentRoles": [
       "code-reviewer",
       "code-fixer",
       "refactoring-agent",
@@ -87,13 +132,13 @@
     "regenerationCommand": "From ai-developer-toolkit/: node plugins/ralph/scripts/generate-copilot-artifacts.mjs --target=all --write"
   },
   "nextStagePlanSeed": {
-    "goal": "Release Ralph 5.63.0 with fail-closed, exact, surface-based model routing across subprocess wrappers, iteration/review loops, source skills, generated Copilot Task calls, custom-agent YAML, and generated Codex artifacts.",
+    "goal": "Release Ralph 5.63.0 with fail-closed, exact, UI/UX-judgment-based model routing across subprocess wrappers, iteration/review loops, source skills, generated Copilot Task calls, custom-agent YAML, and generated Codex artifacts. Existing UI acceptance harnesses must not cause non-UI architecture/runtime work to route to Opus.",
     "targetRepo": "ai-developer-toolkit",
     "implementationWorktree": "ai-developer-toolkit/.worktrees/ralph-model-routing-ui-opus48-nonui-gpt56sol",
     "stories": [
       {
         "id": "US-001",
-        "title": "Add central model policy and durable work-surface schema",
+        "title": "Add central model policy and durable UI/UX-judgment schema",
         "scope": [
           "plugins/ralph/src/model-routing.mjs",
           "plugins/ralph/schemas/prd-schema.json",
@@ -102,9 +147,10 @@
           "brainstorm/plan artifact propagation"
         ],
         "acceptance": [
-          "Only ui, non-ui, and mixed are accepted.",
-          "Exact mapping is UI/mixed to claude-opus-4.8 and non-UI to gpt-5.6-sol.",
-          "Missing classification fails; mixed PRDs require per-story classification."
+          "Only required, not-required, and mixed are accepted for uiUxJudgment.",
+          "Exact mapping is required to claude-opus-4.8 and not-required to gpt-5.6-sol; unresolved mixed rejects.",
+          "Missing classification fails; mixed PRDs require per-story required/not-required classification.",
+          "Server/protocol/runtime architecture with an existing UI/TUI acceptance harness is defined as not-required."
         ]
       },
       {
@@ -118,15 +164,16 @@
           "plugins/ralph/skills/run-ralph/SKILL.md"
         ],
         "acceptance": [
-          "Copilot UI uses claude-opus-4.8.",
-          "Codex and Copilot non-UI use gpt-5.6-sol.",
-          "UI plus Codex is rejected before spawn.",
-          "No raw arbitrary-model fallback exists."
+          "Copilot required uses claude-opus-4.8.",
+          "Codex and Copilot not-required use gpt-5.6-sol.",
+          "Required plus Codex and unresolved mixed are rejected before spawn.",
+          "No raw arbitrary-model fallback exists.",
+          "A server architecture story verified through the existing Happy web app uses gpt-5.6-sol."
         ]
       },
       {
         "id": "US-003",
-        "title": "Propagate surface through source skills and nested workflows",
+        "title": "Propagate UI/UX-judgment classification through source skills and nested workflows",
         "scope": [
           "plugins/ralph/skills/brainstorm-with-ralph/SKILL.md",
           "plugins/ralph/skills/plan-with-ralph/SKILL.md",
@@ -138,9 +185,10 @@
           "plugins/ralph/agents/plan-reviewer.md"
         ],
         "acceptance": [
-          "Every wrapper call receives a structured surface.",
+          "Every wrapper call receives structured uiUxJudgment.",
           "Every direct Task path resolves and pins an exact approved model.",
-          "Nested workflow calls carry the surface.",
+          "Nested workflow calls carry the judgment classification.",
+          "CLI/help copy asks whether the work itself requires UI/UX judgment and states that an existing UI acceptance surface does not.",
           "Review attribution no longer mislabels a GPT reviewer as Opus."
         ]
       },
@@ -157,7 +205,7 @@
         "acceptance": [
           "Generated YAML contains only the two approved IDs.",
           "Every generated Copilot task call has explicit model routing.",
-          "Every dispatch site is inventory-covered.",
+          "Every dispatch site is inventory-covered as fixed not-required or inherited uiUxJudgment.",
           "Generated parity checks pass."
         ]
       },
@@ -174,7 +222,9 @@
           "affected fixtures"
         ],
         "acceptance": [
-          "Representative UI/non-UI/mixed dispatches assert exact IDs.",
+          "Representative required/not-required/mixed dispatches assert exact IDs or fail-closed behavior.",
+          "Existing web/mobile/TUI acceptance-only architecture examples route to gpt-5.6-sol.",
+          "Actual layout/interaction/presentation examples route to claude-opus-4.8.",
           "Missing/default/GPT-5.5 paths are rejected.",
           "Generated source parity is clean.",
           "A scan rejects GPT-5.5, GPT-5.4, and Opus-4.7 in active surfaces."
@@ -192,8 +242,9 @@
         ],
         "acceptance": [
           "All release gates pass.",
-          "Installed Copilot plugin runs a non-UI GPT-5.6 Sol flow and a UI Opus 4.8 flow.",
-          "Codex runs a non-UI GPT-5.6 Sol flow.",
+          "Installed Copilot plugin runs a not-required GPT-5.6 Sol flow and a required UI/UX-judgment Opus 4.8 flow.",
+          "Codex runs a not-required GPT-5.6 Sol flow.",
+          "Installed help and live dogfood prove that opening an existing UI/TUI for acceptance does not select Opus.",
           "Unavailable models fail closed without fallback."
         ]
       }
@@ -201,15 +252,16 @@
   },
   "risks": [
     "Nested Skill and prose-only Agent callsites can be missed without a stable inventory.",
-    "Custom agent YAML may override an explicit Task model; run a Phase-0 installed CLI probe and generate surface variants if needed.",
-    "Existing jobs lack workSurface and require a one-time explicit migration.",
-    "UI through Codex is feature/version-gated; keep it out of the minimal release.",
+    "Tasks can be misclassified by touched UI files or acceptance harness instead of the judgment the work itself requires; mitigate with uiUxJudgment naming, explicit help/examples, and regression tests.",
+    "Custom agent YAML may override an explicit Task model; run a Phase-0 installed CLI probe and generate UI-judgment/no-UI-judgment variants if needed.",
+    "Existing jobs lack uiUxJudgment and require a one-time explicit migration.",
+    "Opus through Codex is feature/version-gated; keep required work on Copilot in the minimal release.",
     "Same-plugin Ralph work conflicts on generator, skills, AGENTS, CHANGELOG, generated trees, and version stamps."
   ],
   "operatorDecisionsRequired": [],
   "blockers": [],
   "deferred": [
     "Optional future support for Opus 4.8 through Codex after version/gate compatibility is designed and tested.",
-    "Optional structured pre-PRD surface-slice maps for splitting mixed brainstorm/plan lenses more finely than story boundaries."
+    "Optional structured pre-PRD judgment-slice maps for splitting mixed brainstorm/plan lenses more finely than story boundaries."
   ]
 }
