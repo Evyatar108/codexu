@@ -1786,6 +1786,10 @@
         {
           "className": "cmd-ok",
           "html": "<strong>Brainstorm shipped @ 74ccda861</strong> (GPT-5.6 Sol). Recommended D-001: a scoped Codex-owned Rust compatibility plane—new overlay <code>codex-happy-server</code> using Axum + Socketioxide + SQLx/SQLite, existing Happy HTTP/Socket.IO browser contract, direct in-process <code>CodexControlAdapter</code>, stable thread identity, explicit local plaintext codec, and fail-closed Ed25519 paired-device auth. No <code>happy-cli</code> or Node server runtime; existing Happy web app is the acceptance surface, not a UI redesign. P0 hard gate: real Chromium/socket.io-client ↔ Socketioxide/Rust-client compatibility. Implementation gates: authoritative first-answer-wins approvals, codec compatibility, prompt mirroring/dedup, transient streaming. No fundamental blocker."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "<strong>Plan shipped @ dae9621b6</strong> (GPT-5.6 Sol). Eight repo-owned jobs / 24 stories; 12 plan-review findings resolved. Cross-repo implementation is explicitly split—never one PRD. P0 is J0 Rust compatibility fixture followed by J1 real existing-web Chromium proof. Hard NO-GO: stop if Socketioxide needs a fork/custom packet framing/substantial ack-reconnect reimplementation or a browser-client patch. Later jobs remain blocked until P0 GO."
         }
       ],
       "command": {
@@ -1827,6 +1831,58 @@
           "brainstorm": "Design and source-verify the Ralph plugin implementation for the operator's model-routing policy: UI-related sub-agent work -> `claude-opus-4.8`; all non-UI sub-agent work -> `gpt-5.6-sol`; never GPT-5.5 and never an implicit/default model. Scope the actual ai-developer-toolkit/plugins/ralph surfaces, not just documentation. Inventory hard-coded model IDs and model defaults across src/codex-exec.mjs, src/copilot-exec.mjs, src/ralph.mjs, src/review-loop.mjs, scripts/generate-copilot-artifacts.mjs, source skills, generated .copilot-plugin skills/internal workflows, and agent YAML files (current scan: 26 files reference GPT-5.5/GPT-5.4/Opus 4.7). Resolve how UI-vs-non-UI is classified at each callsite: explicit callsite metadata is preferred over guessing from prompt text; mixed UI/non-UI jobs should split agents where practical, otherwise route to Opus 4.8. Preserve multi-model diversity only when it does not violate the policy. Identify which generated files are source-of-truth vs generated outputs; update generators first and regenerate artifacts. Include tests that assert exact model IDs for representative UI and non-UI dispatches, reject GPT-5.5 regressions, and cover defaults. Ship as a Ralph plugin version bump with all six version stamps, CHANGELOG/AGENTS updates, marketplace index updates, and installed-plugin dogfood through the real Copilot CLI path. Note that codexu's direct Task-tool policy is already documented; this task is specifically the plugin implementation/release needed for runtime compliance.",
           "plan": "Create a Phase-4 reviewed implementation plan from `.ralph/brainstorms/ralph-model-routing-ui-opus48-nonui-gpt56sol/brainstorm.md` and `.json` using GPT-5.6 Sol (this is non-UI plugin/runtime work). Preserve D-001: one fail-closed `model-routing.mjs` plus durable `uiUxJudgment` metadata (`required|not-required|mixed`, with mixed container-only and per-story classification). The work itself—not touched UI files or an existing UI acceptance harness—determines the model: required -> `claude-opus-4.8`; not-required -> `gpt-5.6-sol`. Plan the six brainstorm stories: (1) policy module/schema/durable classification; (2) wrapper/core runtime routing; (3) planning/review/mixed-story routing and historical `copilot-opus` compatibility; (4) generators/agent metadata/generated-artifact regeneration; (5) regression tests and literal ban; (6) Ralph 5.63.0 ship ceremony + codexu pointer/version table + installed Copilot CLI dogfood. Begin with the required empirical probe that Task `model=` overrides custom agent YAML; branch the plan if it does not. Include exact source/generated file boundaries, all six version stamps, commands/tests, backward-compat migration for old PRDs lacking `uiUxJudgment`, fail-closed model availability behavior, and no GPT-5.5 fallback. Target implementation repo is the `ai-developer-toolkit` submodule; plan must specify the submodule worktree and the parent codexu pointer-bump worktree/ceremony.",
           "impl": "Implement the Phase-4-reviewed plan at `.ralph/jobs/ralph-model-routing-ui-opus48-nonui-gpt56sol/plan.md` in the `ai-developer-toolkit` submodule using GPT-5.6 Sol (`uiUxJudgment: not-required`). Work only in a dedicated submodule worktree under `ai-developer-toolkit/.worktrees/ralph-model-routing-ui-opus48-nonui-gpt56sol` on a topic branch off current toolkit main. Implement all six stories serially: central fail-closed routing/schema/metadata; wrappers/runtime; planning/review/nested workflows; generators/agent metadata/regenerated artifacts; regression/literal-ban/docs migration; Ralph 5.63.0 six-stamp release metadata and dogfood preparation. Exact policy: work itself requires UI/UX judgment -> `claude-opus-4.8`; otherwise -> `gpt-5.6-sol`; existing UI/TUI acceptance surfaces remain Sol; unresolved mixed rejects. Explicit Task `model=` precedence over agent YAML is proven; keep one YAML per role and add regression coverage. No GPT-5.5 fallback. Drive targeted tests, generator/parity checks, marketplace policy, full Ralph suite, Phase 5a code review-fix convergence and Phase 5b docs review-fix convergence to clean. Do not push or update codexu pointer; lead owns toolkit multi-remote push, codexu gitlink + active-version table, `copilot plugin update`, and installed-path dogfood. Report local toolkit commit SHA, branch, tests, version stamps, and review convergence."
+        }
+      }
+    },
+    {
+      "id": "codex-native-happy-p0-browser-proof",
+      "scope": "happy-app|codexu",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-10T15:35:00Z",
+      "initialStage": "plan-ready",
+      "blockedOn": [
+        "codex-native-happy-p0-rust-compat"
+      ],
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "P0/J1 real-browser proof from parent plan. BLOCKED on <code>codex-native-happy-p0-rust-compat</code> producing a runnable J0 server and exact contract. Uses the existing Expo web build and actual socket.io-client 4.8.1; no toy client and no UI redesign."
+        }
+      ],
+      "command": {
+        "name": "codex-native-happy-p0-browser-proof",
+        "descriptionHtml": "P0 existing Happy web/Chromium proof against the J0 Rust compatibility server.",
+        "warnings": [
+          {
+            "className": "cmd-warn",
+            "html": "Do not start until J0 is runnable and its server contract/version is reported. If the existing renderer cannot replace keyed transient snapshots, stop that narrow story and file a separate Opus 4.8 UI task."
+          }
+        ],
+        "prompts": {
+          "impl": "After blocker `codex-native-happy-p0-rust-compat` ships a runnable server, implement Job J1 / US-004..006 from `.ralph/jobs/codex-native-happy-server-local-web-dual-control/plan.md` in a codexu worktree `codex-native-happy-p0-browser`, using GPT-5.6 Sol. Pin exact socket.io-client 4.8.1; add a dev-only route/probe inside the existing Expo Happy web build; run real Chromium via agent-browser against J0; prove Ed25519 local pairing, polling, acks, ranges, reconnect, auth/CORS/tamper/replay, and keyed transient snapshot replacement through the existing renderer. Write redacted compatibility-result.json and browser-proof.png. No toy client, production UI redesign, happy-cli, Node happy-server, tunnel or remote transport. Emit explicit GO/NO-GO and stop if renderer needs actual UI judgment, filing a narrow Opus 4.8 task."
+        }
+      }
+    },
+    {
+      "id": "codex-native-happy-p0-rust-compat",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-10T15:35:00Z",
+      "initialStage": "plan-ready",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "P0/J0 from parent plan <code>codex-native-happy-server-local-web-dual-control</code>. Build a throwaway/portable Codex-wrapper Rust fixture proving Axum + Socketioxide + rust_socketio compatibility, exact-origin CORS, paired proof, acks/replay/overflow, fixed-port restart and nonce-replay rejection. No production store, no nested patched-workspace edits, no happy-cli/Node runtime."
+        }
+      ],
+      "command": {
+        "name": "codex-native-happy-p0-rust-compat",
+        "descriptionHtml": "P0 Rust fixture proving Socketioxide/browser/Rust-client compatibility for the Node-free Happy session plane.",
+        "warnings": [],
+        "prompts": {
+          "impl": "Implement Job J0 / US-001..003 exactly from `.ralph/jobs/codex-native-happy-server-local-web-dual-control/plan.md` and `stories-outline.md` in a Codex wrapper worktree at `codex/.worktrees/codex-native-happy-p0-rust`, branch `ralph/codex-native-happy-p0-rust`, using GPT-5.6 Sol (`uiUxJudgment: not-required`). Create only the fork-overlay fixture under `codex-rs-overlay/codex-happy-compat-spike/`: pinned Cargo.toml/lock, main/contract/server/rust_client/auth modules and compatibility tests. Bind only 127.0.0.1:43127; prove Engine.IO v4 browser-polling contract + Rust websocket roles, auth-derived rooms, RPC/range/CAS/update/reconnect/replay-overflow acks, exact Origin/CORS/LNA behavior, paired proof query/body binding, replay rejection across restart, and fresh invite after restart. No production session store, no nested codex-patched edits, no custom Engine.IO packet implementation, no browser app code, no happy-cli/Node runtime. Hard NO-GO if success requires Socketioxide fork/custom framing/browser patch/substantial Socket.IO reimplementation; small path/serde/middleware adapter allowed. Run cargo test/run commands from plan, Phase 5a code review and 5b docs/review convergence explicitly on GPT-5.6 Sol, commit locally, do not push, report GO/NO-GO and exact proven versions/shims."
         }
       }
     }
