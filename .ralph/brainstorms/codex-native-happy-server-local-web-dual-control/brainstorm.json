@@ -1,0 +1,441 @@
+{
+  "brainstormName": "codex-native-happy-server-local-web-dual-control",
+  "overviewTaskId": "codex-native-happy-server-local-web-dual-control",
+  "status": "brainstorm-complete",
+  "date": "2026-07-09",
+  "idea": "Run the live fork Codex TUI and the existing Happy web app against the same Codex-owned, loopback-only Rust Happy session plane, with simultaneous observation/control and no happy-cli or Node happy-server runtime.",
+  "recommendedDirection": "D-001",
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Scoped Rust compatibility plane with Socket.IO and direct Codex control",
+      "summary": "Add a fork-exclusive Axum + Socketioxide + SQLx/SQLite server crate. Keep codex-happy as a real loopback session client, keep the existing web app on its current Happy HTTP/Socket.IO contract, and route browser RPC calls directly to a serialized in-process CodexControlAdapter.",
+      "selected": true,
+      "complexity": "large but bounded",
+      "primaryRisk": "Socketioxide interoperability with the actual browser client",
+      "disconfirmingTest": "P0 must prove the real Expo web origin, socket.io-client polling headers, acks, reconnect, and the existing Rust socket client against the intended Rust server stack."
+    },
+    {
+      "id": "D-002",
+      "name": "Add a parallel plain-WebSocket transport",
+      "summary": "Use a custom WebSocket protocol and modify happy-app, happy-wire, and codex-happy to recreate rooms, acknowledgements, RPC, replay, pagination, reconnect, and auth.",
+      "selected": false,
+      "complexity": "extra-large",
+      "rejectionReason": "Duplicates mature Socket.IO semantics and expands the highest-conflict app sync surface before the first real UI proof."
+    },
+    {
+      "id": "D-003",
+      "name": "Direct in-process transcript store plus browser gateway",
+      "summary": "Write TUI events directly to a Rust store and expose only a browser gateway, bypassing the session-scoped codex-happy loopback client.",
+      "selected": false,
+      "complexity": "medium",
+      "rejectionReason": "Would prove a custom diagnostics gateway rather than the requested real Happy client/server session path."
+    },
+    {
+      "id": "D-004",
+      "name": "Full happy-server port or bundled Node sidecar",
+      "summary": "Port the broad Node server surface or retain happy-cli/Node as a sidecar.",
+      "selected": false,
+      "complexity": "extra-large or constraint-violating",
+      "rejectionReason": "Bundled Node violates the hard requirement; a full port adds unused account/social/push/Redis/multi-replica surface."
+    }
+  ],
+  "recommendedArchitecture": {
+    "serverCrate": "codex/codex-rs-overlay/codex-happy-server",
+    "http": "Axum",
+    "socket": "Socketioxide using Socket.IO v4 compatibility at /v1/updates",
+    "database": "SQLx SQLite with WAL",
+    "browserClient": "Existing packages/happy-app web build",
+    "sessionClient": "Existing codex-happy Rust client over 127.0.0.1",
+    "control": "Serialized CodexControlAdapter backed by AppServerRequestHandle, with authoritative resolution dispositions published back through the local app-server-client event stream",
+    "browserAuth": "Versioned local paired-device Ed25519 proof with method/canonical path+query/body hash, freshness, persistent nonce replay rejection, pinned key, exact Origin, and one-time pairing window",
+    "internalAuth": "Random 256-bit in-memory capability on every HTTP/socket request",
+    "contentCodec": "Explicit LegacyPlainJson codec for message bodies and agent state, preserving the legacy {t:'encrypted',c:<JSON>} message envelope; metadata remains plaintext",
+    "sessionIdentity": "Stable tag derived from the primary Codex thread ID",
+    "streaming": "Coalesced ephemeral full-text snapshots keyed by item ID; durable final text and tool boundaries"
+  },
+  "minimumServerSurface": {
+    "httpRoutes": [
+      "POST /pair/complete",
+      "GET /v1/sessions",
+      "POST /v1/sessions",
+      "GET /v3/sessions/:id/messages",
+      "POST /v3/sessions/:id/messages",
+      "GET /v2/me/machine",
+      "GET /v2/me/settings",
+      "PUT /v2/me/settings",
+      "GET /v2/me/profile"
+    ],
+    "socketPath": "/v1/updates",
+    "socketOutgoing": [
+      "update",
+      "replay-overflow",
+      "ephemeral",
+      "ack responses"
+    ],
+    "socketIncoming": [
+      "update-metadata",
+      "update-state",
+      "session-alive",
+      "session-output-snapshot",
+      "session-message-range",
+      "rpc-call"
+    ],
+    "tables": [
+      "server_identity",
+      "sessions",
+      "session_messages",
+      "settings",
+      "paired_devices",
+      "auth_nonces",
+      "server_meta"
+    ],
+    "invariants": [
+      "UNIQUE session tag",
+      "UNIQUE(session_id, local_id)",
+      "UNIQUE(session_id, seq)",
+      "transactional per-session monotonic message sequence",
+      "version-checked metadata and agent-state CAS",
+      "persisted global update cursor",
+      "1024-entry in-memory replay ring with replay-overflow on uncovered gaps"
+    ]
+  },
+  "phasedMilestones": [
+    {
+      "id": "P0",
+      "name": "Transport/browser/auth spike",
+      "goal": "Prove the intended Rust Socket.IO stack against the actual browser and Rust clients before building persistence.",
+      "exitCriteria": [
+        "Existing Expo web origin reaches loopback with exact-origin CORS.",
+        "Browser paired-device headers work over Socket.IO polling.",
+        "Existing rust_socketio session client connects over websocket with internal capability.",
+        "rpc-call and session-message-range acknowledgements round-trip.",
+        "metadata/state CAS acknowledgement shapes round-trip.",
+        "update/reconnect/lastSeenSeq/replay-overflow behavior is proven.",
+        "Signed query tampering and nonce replay fail closed.",
+        "No browser WebSocket custom-header assumption remains."
+      ],
+      "stopCondition": "A substantial Engine.IO/Socket.IO reimplementation would be required."
+    },
+    {
+      "id": "P1",
+      "name": "Native Rust server and real web compatibility",
+      "goal": "Implement the scoped compatibility server, local auth/codec/identity, direct control adapter, and small additive app/wire changes.",
+      "exitCriteria": [
+        "Existing web UI pairs through its existing server screen.",
+        "Exactly one real Codex session is listed and opened.",
+        "A TUI-origin prompt and output appear in web.",
+        "An idle browser message starts a real turn.",
+        "Browser reconnect retains durable state without duplication.",
+        "Negative auth tests fail closed."
+      ]
+    },
+    {
+      "id": "P2",
+      "name": "Same-machine dual-control dogfood",
+      "goal": "Prove simultaneous terminal/browser control of one live Codex thread.",
+      "exitCriteria": [
+        "Alternating terminal and browser turns.",
+        "Active-turn steering from the opposite surface.",
+        "Idle-start race loses no message.",
+        "Coalesced assistant streaming and tool boundaries appear on both.",
+        "Approve/deny from each surface.",
+        "First-answer-wins returns Applied then AlreadyResolved/Stale.",
+        "Interrupt from each surface.",
+        "Browser reconnect, /remote off/on, and an idle fully-consumed fixed-port restart preserve one session/history.",
+        "/remote off during a pending approval detaches web control without auto-denying the live TUI approval.",
+        "Process/port evidence proves no happy-cli or Node happy-server runtime."
+      ]
+    },
+    {
+      "id": "P3",
+      "name": "Release and later transports",
+      "goal": "Package only after local proof; then separately harden remote/tablet transports.",
+      "exitCriteria": [
+        "Production feature/documentation and auto-attach are ready.",
+        "Remote-grade encryption and transport threat model are complete before LAN/public/tablet exposure."
+      ]
+    }
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-01",
+      "criterion": "The existing Happy web UI, not a toy client, pairs with the embedded Rust server and lists exactly one session for the live primary Codex thread."
+    },
+    {
+      "id": "AC-02",
+      "criterion": "Terminal-origin and browser-origin user messages are each rendered exactly once on both surfaces, using happy:<localId> client IDs plus a server-enforced codex-origin: internal localId namespace to suppress both echo boundaries; browser messages receive message-consumption only after Codex accepts them."
+    },
+    {
+      "id": "AC-03",
+      "criterion": "A browser message while idle uses TurnStart; while active it uses TurnSteer; all requests target the TUI root thread, no second Codex thread/process is created, and steer/completion and start/start races lose no input."
+    },
+    {
+      "id": "AC-04",
+      "criterion": "Assistant text streams to web as coalesced full snapshots, final text is durable, and tool start/end events are visible on both surfaces."
+    },
+    {
+      "id": "AC-05",
+      "criterion": "Approval/deny is available from both surfaces with authoritative first-answer-wins outcomes and no false success for a second response."
+    },
+    {
+      "id": "AC-06",
+      "criterion": "Interrupt from browser cancels pending approvals then interrupts the active turn; TUI interrupt is reflected in web."
+    },
+    {
+      "id": "AC-07",
+      "criterion": "Message sequence, update cursor, localId idempotency, reconnect replay, overflow recovery, CAS, and range pagination match the existing app contract."
+    },
+    {
+      "id": "AC-08",
+      "criterion": "The listener binds only to 127.0.0.1 and every non-OPTIONS request/socket is authenticated by paired-device proof or the in-memory internal capability."
+    },
+    {
+      "id": "AC-09",
+      "criterion": "The native-local backend never invokes happy, reads ~/.happy discovery/credentials, starts a Node server, or falls back to the legacy daemon."
+    },
+    {
+      "id": "AC-10",
+      "criterion": "Structured logs and Windows process/port inventory prove the session-plane listener belongs to the Codex PID; no Node process owns or hosts the Happy session plane, and unrelated Node tooling is classified separately."
+    },
+    {
+      "id": "AC-11",
+      "criterion": "/remote off/on and fixed-port restart/resume reopen the same stable thread-tagged session rather than creating duplicates."
+    },
+    {
+      "id": "AC-12",
+      "criterion": "Default-off gating preserves vanilla Codex behavior byte-for-byte when the feature/backend is not selected."
+    }
+  ],
+  "settledDecisions": [
+    "Preserve Socket.IO for P0-P2.",
+    "Implement a scoped compatibility server rather than the full happy-server.",
+    "Use a separate fork-overlay codex-happy-server crate.",
+    "Route browser RPC directly to an in-process control adapter.",
+    "Keep browser user messages on the real Happy HTTP/update/session-client path.",
+    "Add an explicit paired-device auth mode and a distinct local invite; leave the existing Cloudflare-backed public invite strict and unchanged.",
+    "Use an explicit local plaintext codec and retain legacy encrypted codecs.",
+    "Derive the Happy session tag from the primary Codex thread ID.",
+    "Persist message/update sequence and replay nonces in SQLite.",
+    "Default to an ephemeral loopback port with a fixed-port test override.",
+    "Use per-thread persistence for Phase 1.",
+    "Stop the embedded server immediately on /remote off.",
+    "Require browser streaming snapshots before claiming P2 success.",
+    "Defer all remote/tablet transports until local acceptance passes."
+  ],
+  "openDecisions": [
+    {
+      "id": "OD-001",
+      "decision": "Exact UI rendering of one transient streaming item",
+      "recommendation": "Use the existing message surface and static replacement; if a genuine presentation judgment remains, assign only that narrow question to an Opus 4.8 UI sub-agent.",
+      "blocking": false
+    },
+    {
+      "id": "OD-002",
+      "decision": "Pairing window duration",
+      "recommendation": "Two minutes and one successful enrollment, reopened explicitly.",
+      "blocking": false
+    },
+    {
+      "id": "OD-003",
+      "decision": "Product behavior after restart when the default ephemeral port changes",
+      "recommendation": "Re-import a fresh invite in Phase 1; use a fixed port for deterministic dogfood; do not add a daemon merely for rendezvous.",
+      "blocking": false
+    },
+    {
+      "id": "OD-004",
+      "decision": "Aggregation of multiple simultaneous Codex TUI processes",
+      "recommendation": "Out of scope; one embedded server per live TUI is correct for this proof.",
+      "blocking": false
+    }
+  ],
+  "blockers": [
+    {
+      "id": "B-001",
+      "description": "Socketioxide compatibility has source plausibility but no executed real-browser proof.",
+      "phase": "P0"
+    },
+    {
+      "id": "B-002",
+      "description": "Current approval resolution cannot authoritatively distinguish first from second response.",
+      "phase": "P1"
+    },
+    {
+      "id": "B-003",
+      "description": "Current web plaintext and Rust ciphertext handling are incompatible for both message bodies and agent state.",
+      "phase": "P1"
+    },
+    {
+      "id": "B-004",
+      "description": "Current mapping drops local user messages and token deltas.",
+      "phase": "P1"
+    }
+  ],
+  "reuseReplaceBypass": {
+    "reuse": [
+      "TUI happy_tap and AppServerRequestHandle seam",
+      "ControlState and existing TurnStart/TurnSteer/TurnInterrupt mappings",
+      "approval payload mapping and cancel-before-interrupt behavior",
+      "Happy session envelope and HTTP/Socket.IO contracts",
+      "existing web sessions/chat/server-pairing screens",
+      "paired-device signed-request format and test vectors",
+      "default-off RemoteSession and later RemoteAutoAttach gates"
+    ],
+    "replace": [
+      "NodeDaemonSupervisor for native-local",
+      "happy daemon start-sync",
+      "~/.happy machine/access discovery",
+      "random per-attach session tag",
+      "ciphertext-only local message/agent-state codec",
+      "generic socket-room RPC bridge for local control",
+      "ambiguous approval resolution outcome",
+      "blanket approval cancellation on remote detach while the live TUI remains available"
+    ],
+    "bypass": [
+      "GitHub/self-onboarding",
+      "Dev Tunnels",
+      "Cloudflare",
+      "LAN/public listeners",
+      "central server",
+      "physical tablet",
+      "push delivery",
+      "unsupported file/bash/directory RPCs",
+      "RemoteAutoAttach until P2"
+    ]
+  },
+  "conflictSurface": [
+    {
+      "repo": "codex",
+      "kind": "new overlay",
+      "paths": [
+        "codex-rs-overlay/codex-happy-server/**",
+        "codex-rs-overlay/codex-happy/src/{attach,inbound,mapping,session,session_state,wire}.rs"
+      ],
+      "risk": "low upstream conflict"
+    },
+    {
+      "repo": "codex",
+      "kind": "bounded upstream-canonical patch",
+      "paths": [
+        "external/repos/codex-patched/codex-rs/Cargo.toml",
+        "external/repos/codex-patched/codex-rs/app-server-client/src/lib.rs",
+        "external/repos/codex-patched/codex-rs/app-server/src/in_process.rs",
+        "external/repos/codex-patched/codex-rs/app-server/src/outgoing_message.rs",
+        "external/repos/codex-patched/codex-rs/tui/src/app.rs",
+        "external/repos/codex-patched/codex-rs/tui/src/app/event_dispatch.rs (only if required)",
+        "docs/implementation/patch-surface.md"
+      ],
+      "risk": "medium rebase surface; keep to marked seams"
+    },
+    {
+      "repo": "codexu",
+      "kind": "Happy app/wire compatibility",
+      "paths": [
+        "packages/happy-wire/src/localPairingInvite.ts",
+        "packages/happy-wire/src/localDeviceAuth.ts",
+        "packages/happy-wire/src/sessionOutputSnapshot.ts",
+        "packages/happy-wire/src/index.ts",
+        "packages/happy-app/sources/auth/{tokenStorage,machineAuth}.ts",
+        "packages/happy-app/sources/auth/localEnrollment.ts",
+        "packages/happy-app/sources/sync/{socketOptions,apiSocket,apiTypes,sync,storage}.ts",
+        "packages/happy-app/sources/app/(app)/server.tsx",
+        "packages/happy-app/sources/-session/SessionView.tsx",
+        "packages/happy-app/sources/components/MessageView.tsx",
+        "packages/happy-app/sources/components/ChatList.tsx (only if needed)",
+        "packages/happy-app/sources/text/_default.ts and locale files only if copy changes",
+        "packages/happy-app/CHANGELOG.md",
+        "packages/happy-app/sources/changelog/changelog.json"
+      ],
+      "risk": "sync.ts is a known manual-three-way hotspot; keep changes surgical"
+    },
+    {
+      "repo": "codexu",
+      "kind": "documentation",
+      "paths": [
+        "docs/security-model.md",
+        "docs/fork-notes.md"
+      ],
+      "risk": "must explicitly document local plaintext and Node-web-tooling exception"
+    }
+  ],
+  "securityReview": {
+    "verdict": "GO for loopback-only local proof; NO-GO for remote exposure",
+    "requiredControls": [
+      "127.0.0.1-only bind",
+      "exact Host for all traffic and exact Origin for paired browser traffic",
+      "default-deny route inventory",
+      "paired Ed25519 key pinning",
+      "method/canonical-target/body-hash binding including query parameters",
+      "freshness and persistent nonce replay rejection",
+      "one-time pairing window and constant-time secret comparison",
+      "rate limiting",
+      "in-memory internal capability",
+      "no secret logging",
+      "fail-closed native backend with no legacy fallback",
+      "negative HTTP and Socket.IO auth inventory tests"
+    ],
+    "acceptedLocalLimitations": [
+      "Browser device seed is in localStorage and is exposed by same-origin XSS.",
+      "Conversation JSON and agent state are plaintext in the local SQLite database.",
+      "Same-user malware/admin access is out of scope."
+    ],
+    "remoteReleaseBlockers": [
+      "remote-grade content encryption",
+      "TLS/edge threat model",
+      "multi-device revocation",
+      "browser websocket challenge auth or equivalent",
+      "explicit LAN/public transport design"
+    ]
+  },
+  "hiddenDependencyReview": {
+    "verdict": "No hidden happy-cli or Node happy-server dependency in the recommended session path.",
+    "forbidden": [
+      "Command::new('happy') or shell equivalent",
+      "happy daemon start-sync",
+      "packages/happy-cli runtime import",
+      "packages/happy-server runtime import",
+      "~/.happy/machine.json",
+      "~/.happy/access.key",
+      "Node child process for the session plane",
+      "standalone codex app-server child",
+      "fallback from native-local to legacy-daemon"
+    ],
+    "allowed": [
+      "Node/Expo process used solely to build or serve the existing Happy web UI during development",
+      "Unrelated Node tooling or model-invoked Node tool processes whose command lines are classified and which do not own or host the session plane"
+    ],
+    "verification": [
+      "process-spawn sentinel test",
+      "source invariants for forbidden legacy paths",
+      "Windows listening-port owner check",
+      "full process command-line inventory in P2 evidence"
+    ]
+  },
+  "sources": [
+    ".ralph/investigations/codex-appserver-vs-happy-wiring/findings.md",
+    ".ralph/investigations/happy-agent-driving-modes/findings.md",
+    ".ralph/investigations/codex-autoconnect-rust-crate-feasibility/findings.md",
+    ".ralph/brainstorms/codex-autoconnect-northstar-design-doc/selected-direction.md",
+    "codex/codex-rs-overlay/codex-happy/src/attach.rs",
+    "codex/codex-rs-overlay/codex-happy/src/inbound.rs",
+    "codex/codex-rs-overlay/codex-happy/src/mapping.rs",
+    "codex/codex-rs-overlay/codex-happy/src/session.rs",
+    "codex/external/repos/codex-patched/codex-rs/tui/src/app.rs",
+    "codex/external/repos/codex-patched/codex-rs/app-server-client/src/lib.rs",
+    "codex/external/repos/codex-patched/codex-rs/app-server/src/in_process.rs",
+    "codex/external/repos/codex-patched/codex-rs/app-server/src/outgoing_message.rs",
+    "packages/happy-app/sources/auth/tokenStorage.ts",
+    "packages/happy-app/sources/auth/machineAuth.ts",
+    "packages/happy-app/sources/auth/publicEnrollment.ts",
+    "packages/happy-app/sources/sync/socketOptions.ts",
+    "packages/happy-app/sources/sync/apiSocket.ts",
+    "packages/happy-app/sources/sync/sync.ts",
+    "packages/happy-server/sources/app/api/socket.ts",
+    "packages/happy-server/sources/app/api/socket/rpcHandler.ts",
+    "packages/happy-server/sources/app/api/auth/remoteDeviceAuth.ts",
+    "packages/happy-server/sources/app/api/routes/sessionRoutes.ts",
+    "packages/happy-server/sources/app/api/routes/v3SessionRoutes.ts",
+    "packages/happy-server/sources/app/events/eventRouter.ts",
+    "packages/happy-server/prisma/schema.prisma"
+  ]
+}
