@@ -1839,15 +1839,20 @@
       "scope": "happy-app|codexu",
       "lifecycle": "tracked",
       "status": "todo",
-      "lastTouchedAt": "2026-07-10T15:35:00Z",
+      "lastTouchedAt": "2026-07-10T23:30:00Z",
       "initialStage": "plan-ready",
       "blockedOn": [
-        "codex-native-happy-p0-rust-compat"
+        "codex-native-happy-p0-rust-hardening",
+        "codex-native-happy-p0-renderer-visible"
       ],
       "kanbanCards": [
         {
           "className": "cmd-warn",
-          "html": "P0/J1 real-browser proof from parent plan. BLOCKED on <code>codex-native-happy-p0-rust-compat</code> producing a runnable J0 server and exact contract. Uses the existing Expo web build and actual socket.io-client 4.8.1; no toy client and no UI redesign."
+          "html": "P0/J1 real-browser proof from parent plan. Uses the existing Expo web build and actual socket.io-client 4.8.1; no toy client and no UI redesign."
+        },
+        {
+          "className": "cmd-warn",
+          "html": "<strong>P0 NO-GO evidence committed locally @ 29df8f860 (not merged)</strong>. Real Chromium/socket.io-client 4.8.1 proved polling, pairing, acks, room isolation, CAS, replay/reconnect/overflow, restart, and Rust-client compatibility. Blocking failures: (1) J0 malformed UTF-8 percent query canonicalization returned 200 instead of fail-closed 401; (2) exact <code>server_stopping</code> ack transition unavailable. Renderer state replacement (revisions 7→8 + durable replacement) passed, but computed text was <code>0px</code>; separate Opus 4.8 UI task required. Keep this branch/evidence for rerun; do not merge as GO."
         }
       ],
       "command": {
@@ -1856,11 +1861,55 @@
         "warnings": [
           {
             "className": "cmd-warn",
-            "html": "Do not start until J0 is runnable and its server contract/version is reported. If the existing renderer cannot replace keyed transient snapshots, stop that narrow story and file a separate Opus 4.8 UI task."
+            "html": "Blocked on the Sol Rust hardening task and Opus renderer-visibility task. After both land, rebase the retained J1 branch, rerun the same real Chromium evidence, and replace the NO-GO artifact only if every required check passes."
           }
         ],
         "prompts": {
-          "impl": "After blocker `codex-native-happy-p0-rust-compat` ships a runnable server, implement Job J1 / US-004..006 from `.ralph/jobs/codex-native-happy-server-local-web-dual-control/plan.md` in a codexu worktree `codex-native-happy-p0-browser`, using GPT-5.6 Sol. Pin exact socket.io-client 4.8.1; add a dev-only route/probe inside the existing Expo Happy web build; run real Chromium via agent-browser against J0; prove Ed25519 local pairing, polling, acks, ranges, reconnect, auth/CORS/tamper/replay, and keyed transient snapshot replacement through the existing renderer. Write redacted compatibility-result.json and browser-proof.png. No toy client, production UI redesign, happy-cli, Node happy-server, tunnel or remote transport. Emit explicit GO/NO-GO and stop if renderer needs actual UI judgment, filing a narrow Opus 4.8 task."
+          "impl": "After blockers `codex-native-happy-p0-rust-hardening` and `codex-native-happy-p0-renderer-visible` ship, resume the retained J1 worktree/branch at commit 29df8f860. Rebase onto current main (including new Codex pointer), integrate the renderer fix, and rerun Job J1 / US-004..006 from `.ralph/jobs/codex-native-happy-server-local-web-dual-control/plan.md` using GPT-5.6 Sol. Use the existing Expo web app and actual socket.io-client 4.8.1. The rerun must prove malformed UTF-8 query returns 401, exact server_stopping ack, visible nonzero-font renderer replacement, plus all previously passing pairing/polling/acks/ranges/CAS/isolation/reconnect/replay/restart checks. Update redacted compatibility-result.json and browser-proof.png with explicit overall GO/NO-GO. No toy client, UI redesign, happy-cli/Node happy-server, tunnel or remote transport. Phase 5a/5b reviews, commit locally, do not push."
+        }
+      }
+    },
+    {
+      "id": "codex-native-happy-p0-rust-hardening",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-10T23:30:00Z",
+      "initialStage": "plan-ready",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "P0 remediation after real Chromium NO-GO. Fix the shipped J0 Rust fixture so malformed UTF-8 percent-encoded query bytes fail closed (401, not replacement-character collision/200) and expose a deterministic browser-accessible shutdown transition proving exact <code>{ok:false,error:\"server_stopping\"}</code> RPC acknowledgement. No architecture expansion."
+        }
+      ],
+      "command": {
+        "name": "codex-native-happy-p0-rust-hardening",
+        "descriptionHtml": "Harden the J0 Rust fixture for malformed-query fail-closed behavior and server-stopping ack evidence.",
+        "warnings": [],
+        "prompts": {
+          "impl": "In a Codex wrapper worktree off current main, use GPT-5.6 Sol to implement the two P0/J1 transport remediation items from `.ralph/jobs/codex-native-happy-server-local-web-dual-control/p0/compatibility-result.json` (read it from the retained J1 branch/worktree if not on main). Scope only `codex-rs-overlay/codex-happy-compat-spike/`. (1) Canonicalization must reject malformed UTF-8 percent bytes before lossy replacement; the exact browser proof that previously returned 200 must return 401, with query/path/body binding and valid canonical queries preserved. (2) Add a deterministic browser-accessible fixture-only shutdown transition that puts RPC handling into stopping state and returns exact `{ok:false,error:\"server_stopping\"}` without terminating before the ack is observed. Add focused regression tests plus full 20-test baseline. Preserve pins, loopback bind, no custom packet framing/browser patch/production store/happy-cli. Phase 5a/5b reviews on GPT-5.6 Sol, commit locally, do not push, report exact J1 rerun interface."
+        }
+      }
+    },
+    {
+      "id": "codex-native-happy-p0-renderer-visible",
+      "scope": "happy-app",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-10T23:30:00Z",
+      "initialStage": "plan-ready",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "UI-only remediation from real P0 Chromium evidence: keyed transient replacement is correct, but the existing MessageView proof renders durable/transient text at computed <code>font-size: 0px</code>. Diagnose and make the dev proof visibly render without redesigning chat UI or changing transport/state semantics."
+        }
+      ],
+      "command": {
+        "name": "codex-native-happy-p0-renderer-visible",
+        "descriptionHtml": "Fix the existing Happy web renderer/probe visibility for P0 keyed transient snapshots.",
+        "warnings": [],
+        "prompts": {
+          "impl": "Use Claude Opus 4.8 because this task requires actual browser UI/UX rendering judgment. Work from the retained J1 commit/branch `ralph/codex-native-happy-p0-browser` (commit 29df8f860) in a separate codexu worktree/branch. Diagnose why the existing MessageView-based P0 proof has correct state replacement (revisions 7→8; final durable replacement; one stable key) but Chromium computes text font-size 0px and shows no visible text. Determine whether the cause is missing runtime/theme/font-scale context in the dev probe, a layout/style propagation bug, or an existing web renderer defect. Apply the smallest e-ink-safe, production-pattern-compatible fix: prefer correct provider/context composition or state plumbing; do not invent a new chat design, animation, smooth streaming, or P0-only fake renderer. Add focused tests and real agent-browser screenshot proving visible text with nonzero computed size while replacement/dedup remains correct. Phase 5a/5b reviews; commit locally, do not push. Report whether the fix belongs only in dev probe wiring or production renderer code, with exact visual evidence."
         }
       }
     }
