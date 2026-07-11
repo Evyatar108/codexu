@@ -1772,41 +1772,6 @@
       ]
     },
     {
-      "id": "codex-native-happy-server-local-web-dual-control",
-      "scope": "codexu|codex",
-      "lifecycle": "tracked",
-      "status": "todo",
-      "lastTouchedAt": "2026-07-09T22:44:18.4312529Z",
-      "initialStage": "brainstorming",
-      "kanbanCards": [
-        {
-          "className": "cmd-warn",
-          "html": "Hard requirement: eliminate happy-cli from the live Codex-to-Happy path. Phase 1 must run the real fork Codex TUI and an on-machine existing happy-app web build against a Codex-owned native Rust Happy session server; both surfaces must observe and control the SAME session simultaneously. Local loopback only first—no tunnel, Cloudflare, mobile device, central server, or happy-cli process/runtime dependency."
-        },
-        {
-          "className": "cmd-ok",
-          "html": "<strong>Brainstorm shipped @ 74ccda861</strong> (GPT-5.6 Sol). Recommended D-001: a scoped Codex-owned Rust compatibility plane—new overlay <code>codex-happy-server</code> using Axum + Socketioxide + SQLx/SQLite, existing Happy HTTP/Socket.IO browser contract, direct in-process <code>CodexControlAdapter</code>, stable thread identity, explicit local plaintext codec, and fail-closed Ed25519 paired-device auth. No <code>happy-cli</code> or Node server runtime; existing Happy web app is the acceptance surface, not a UI redesign. P0 hard gate: real Chromium/socket.io-client ↔ Socketioxide/Rust-client compatibility. Implementation gates: authoritative first-answer-wins approvals, codec compatibility, prompt mirroring/dedup, transient streaming. No fundamental blocker."
-        },
-        {
-          "className": "cmd-ok",
-          "html": "<strong>Plan shipped @ dae9621b6</strong> (GPT-5.6 Sol). Eight repo-owned jobs / 24 stories; 12 plan-review findings resolved. Cross-repo implementation is explicitly split—never one PRD. P0 is J0 Rust compatibility fixture followed by J1 real existing-web Chromium proof. Hard NO-GO: stop if Socketioxide needs a fork/custom packet framing/substantial ack-reconnect reimplementation or a browser-client patch. Later jobs remain blocked until P0 GO."
-        },
-        {
-          "className": "cmd-ok",
-          "html": "<strong>P0 GO @ Codex 3ff55692e + codexu 054d2b3f7</strong>. Real existing Expo web/Chromium proof passed 44/44 with zero limitations using socket.io-client 4.8.1, Socketioxide 0.18.2, Axum 0.8.8 and rust_socketio 0.6.0. Proven: signed one-use Ed25519 pairing, exact Origin/CORS, malformed UTF-8 fail-closed, query/body tamper + nonce replay, Engine.IO v4 polling, acks/CAS/ranges/room isolation, reconnect/replay/overflow, fixed-port restart/fresh invite, exact server_stopping ack, Rust client smoke, and visible existing-renderer revision 7→8/durable replacement at 16px. No happy-cli/Node happy-server runtime. P0 gate is cleared; production jobs J2–J5 may begin per plan dependency graph."
-        }
-      ],
-      "command": {
-        "name": "codex-native-happy-server-local-web-dual-control",
-        "descriptionHtml": "Node-free local proof: live Codex TUI + existing Happy web app co-control one session through a Codex-owned Rust server.",
-        "warnings": [],
-        "prompts": {
-          "brainstorm": "Design and source-verify the smallest implementation that removes happy-cli from the live Codex↔Happy path. Use the existing packages/happy-app web build as the real local acceptance UI. Codex must own/embed a native Rust Happy session server and connect its existing codex-happy live-TUI tap to it over loopback. Hard constraints: no happy-cli executable/daemon or Node server runtime in the Codex path; no central server; no Dev Tunnels/Cloudflare/mobile in Phase 1; preserve default-off experimental gating and vanilla Codex behavior. Reuse prior artifacts: .ralph/investigations/codex-appserver-vs-happy-wiring/findings.md, .ralph/investigations/happy-agent-driving-modes/findings.md, .ralph/investigations/codex-autoconnect-rust-crate-feasibility/findings.md, and the codex-autoconnect-northstar brainstorm. Resolve: minimal REST/session/storage/control surface; browser transport (existing Socket.IO compatibility vs additive plain WebSocket adapter); loopback CORS/auth/pairing; whether the web app needs only configuration or code changes; persistence/reconnect semantics; how to package/launch the existing web build for local testing without introducing a happy-cli dependency. Required acceptance design: launch the fork Codex TUI, open the existing Happy web UI locally, see one shared session, alternate user turns from CLI and browser, stream assistant/tool events to both, approve/deny and interrupt from browser, reconnect without duplicate sessions, and prove no happy-cli process is running. Produce a phased plan: P0 transport/browser spike, P1 Rust server + web compatibility, P2 real same-machine dual-control dogfood, then release/remote transports only after local acceptance. Verify feasibility; do not rubber-stamp the prior Rust direction.",
-          "plan": "Create a Phase-4 reviewed implementation plan from `.ralph/brainstorms/codex-native-happy-server-local-web-dual-control/brainstorm.md` and `.json` using GPT-5.6 Sol. This is non-UI architecture/protocol/runtime work; the existing Happy web app is only the acceptance surface. Preserve D-001: scoped Codex-owned Rust `codex-happy-server` compatibility plane using Axum + Socketioxide + SQLx/SQLite, existing Happy HTTP/Socket.IO browser contract, direct serialized `CodexControlAdapter`, stable Codex thread identity, explicit local plaintext codec, and fail-closed Ed25519 paired-device auth. Hard constraint: no `happy-cli` executable/daemon and no Node happy-server runtime; no fallback to legacy daemon paths. Operator decisions: pairing window is 2 minutes, closes after one successful enrollment, explicitly reopened; Phase-1 dogfood uses a fixed configured port and a fresh invite after process restart; do not add UI design work unless P0 proves the existing renderer cannot replace keyed in-progress snapshots—then file a separate Opus 4.8 UI task. Decompose by proof boundary: (P0) actual Chromium existing-web-build + socket.io-client 4.8.1 ↔ minimal Socketioxide server/Rust-client compatibility spike, including polling, headers, acks, ranges, reconnect and paired auth; (P1) Rust server foundation/routes/SQLite/auth; (P1b) Codex lifecycle/codec/identity/control adapter and removal of happy-cli fallback; (P1c) minimal happy-app/happy-wire local paired-mode + transient snapshot compatibility; (P1d) authoritative first-answer-wins approvals, prompt mirroring/dedup, turn steer/start and interrupt arbitration; (P2) real same-machine TUI + existing Happy web dual-control dogfood with process inventory proving no happy-cli/Node server. Include exact relative paths across codex wrapper/inner repo and codexu happy-app/wire/docs, repo/worktree boundaries, dependencies, security model, plaintext-at-rest limitation, acceptance evidence, cargo/typecheck/vitest/browser commands, Phase 5a/5b convergence, and explicit stop/go criteria after P0. Because implementation spans codex plus codexu packages, plan must split into coordinated jobs/phases rather than pretending one Ralph PRD can own two repos."
-        }
-      }
-    },
-    {
       "id": "ralph-model-routing-ui-opus48-nonui-gpt56sol",
       "scope": "ralph",
       "lifecycle": "tracked",
@@ -1878,33 +1843,6 @@
       }
     },
     {
-      "id": "codex-native-happy-app-local-compat",
-      "scope": "happy-app|codexu",
-      "lifecycle": "tracked",
-      "status": "todo",
-      "lastTouchedAt": "2026-07-11T02:25:00Z",
-      "initialStage": "plan-ready",
-      "kanbanCards": [
-        {
-          "className": "cmd-warn",
-          "html": "Production Job J5 from the Node-free Happy plan, unblocked by P0 GO. Implement shared local pairing/proof/snapshot schemas plus Happy app explicit paired-device auth mode, local enrollment, polling socket proof, ephemeral transient snapshot state, and existing-renderer replacement semantics. No UI redesign; remove P0 dev probe after production coverage absorbs it."
-        }
-      ],
-      "command": {
-        "name": "codex-native-happy-app-local-compat",
-        "descriptionHtml": "Implement Happy wire/app local paired-device and transient snapshot compatibility for the native Rust session plane.",
-        "warnings": [
-          {
-            "className": "cmd-warn",
-            "html": "This is protocol/auth/state work despite touching app files; use GPT-5.6 Sol. The existing renderer is proven by P0. If implementation uncovers a new genuine UI/UX choice, file a separate Opus task instead of expanding scope."
-          }
-        ],
-        "prompts": {
-          "impl": "Implement Job J5 / US-016..019 from `.ralph/jobs/codex-native-happy-server-local-web-dual-control/plan.md` and stories outline in a codexu worktree `codex-native-happy-app-compat`, using GPT-5.6 Sol (`uiUxJudgment: not-required`). P0 is GO at Codex 3ff55692e / codexu 054d2b3f7; reuse exact invite/proof/codec/snapshot contract and fixtures. Add happy-wire localPairingInvite/localDeviceAuth/sessionOutputSnapshot modules, tests and cross-language vector fixture; export through index. Add happy-app explicit persisted `authMode = dev-tunnel | paired-device` migration (never infer local from URL), local enrollment with key possession and no secret persistence, fail-closed incomplete credentials, normal HTTP signed proof and polling-only Socket.IO options, explicit local plaintext codec compatibility, ephemeral monotonic latest-only snapshot map excluded from persistence, existing-renderer keyed replacement/clear/reconnect behavior, and existing server screen support for distinct strict local invite without a new navigation flow. Preserve public/Cloudflare and Dev-Tunnels auth behavior. Update all translations, translation parity tests, changelog + generated JSON. Remove J1 dev-only probe only after production tests absorb it; retain redacted P0 evidence. Do not redesign UI or add remote transport. Run wire typecheck/tests, targeted happy-app tests from plan, app typecheck, real browser regression, audit if markers change, Phase 5a/5b GPT-5.6 Sol reviews clean. Commit locally, do not push, report SHA/tests/contract and any interface assumptions J3/J4 must consume."
-        }
-      }
-    },
-    {
       "id": "subagent-model-routing-policy-parity-v1.1",
       "scope": "ai-developer-toolkit",
       "lifecycle": "tracked",
@@ -1923,6 +1861,45 @@
         "warnings": [],
         "prompts": {
           "plan": "Plan subagent-model-routing v1.1 on released toolkit origin/main 964c36f7. Scope ONLY plugins/subagent-model-routing plus its three manifests/marketplace entries and directly related toolkit docs. This plugin governs ordinary delegated Task/spawn_agent children via SessionStart guidance; it must remain independent from Ralph and must not reference/import/generate plugins/ralph. Final mapping: exploration and repo detection -> GPT-5.6 Luna medium; planning/research/review/orchestration -> GPT-5.6 Sol xhigh; non-UI implementation/code-fixer/docs-updater/refactoring -> GPT-5.6 Sol medium; any delegated executable UI implementation/design/review requiring UI/UX judgment -> Claude Opus 4.8 high. Clarify that it does not choose the parent session model. Ensure Copilot and Codex guidance are semantically identical and instruct the parent to classify the actual delegated work, with a UI acceptance surface alone remaining non-UI. Do not use Ralph's prompt-text heuristic or couple to uiUxJudgment artifacts; this generic plugin has no PRD runtime. Evaluate whether the current broad route table needs explicit categories for repo detection/planning/review/fixers and whether hook parse failures should stay fail-open for SessionStart. Add exact guidance snapshot/tests, cross-engine parity, no-Ralph-reference guard, manifests/index version bump to 1.1.0, CHANGELOG/README/AGENTS, installed plugin dogfood. Produce a Phase-4-reviewed implementation plan; do not implement in plan phase."
+        }
+      }
+    },
+    {
+      "id": "codex-native-happy-server-local-web-dual-control",
+      "scope": "codexu|codex",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-11T19:31:00.000Z",
+      "initialStage": "brainstorming",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Hard requirement: eliminate happy-cli from the live Codex-to-Happy path. Phase 1 must run the real fork Codex TUI and an on-machine existing happy-app web build against a Codex-owned native Rust Happy session server; both surfaces must observe and control the SAME session simultaneously. Local loopback only first—no tunnel, Cloudflare, mobile device, central server, or happy-cli process/runtime dependency."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "<strong>Brainstorm shipped @ 74ccda861</strong> (GPT-5.6 Sol). Recommended D-001: a scoped Codex-owned Rust compatibility plane—new overlay <code>codex-happy-server</code> using Axum + Socketioxide + SQLx/SQLite, existing Happy HTTP/Socket.IO browser contract, direct in-process <code>CodexControlAdapter</code>, stable thread identity, explicit local plaintext codec, and fail-closed Ed25519 paired-device auth. No <code>happy-cli</code> or Node server runtime; existing Happy web app is the acceptance surface, not a UI redesign. P0 hard gate: real Chromium/socket.io-client ↔ Socketioxide/Rust-client compatibility. Implementation gates: authoritative first-answer-wins approvals, codec compatibility, prompt mirroring/dedup, transient streaming. No fundamental blocker."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "<strong>Plan shipped @ dae9621b6</strong> (GPT-5.6 Sol). Eight repo-owned jobs / 24 stories; 12 plan-review findings resolved. Cross-repo implementation is explicitly split—never one PRD. P0 is J0 Rust compatibility fixture followed by J1 real existing-web Chromium proof. Hard NO-GO: stop if Socketioxide needs a fork/custom packet framing/substantial ack-reconnect reimplementation or a browser-client patch. Later jobs remain blocked until P0 GO."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "<strong>P0 GO @ Codex 3ff55692e + codexu 054d2b3f7</strong>. Real existing Expo web/Chromium proof passed 44/44 with zero limitations using socket.io-client 4.8.1, Socketioxide 0.18.2, Axum 0.8.8 and rust_socketio 0.6.0. Proven: signed one-use Ed25519 pairing, exact Origin/CORS, malformed UTF-8 fail-closed, query/body tamper + nonce replay, Engine.IO v4 polling, acks/CAS/ranges/room isolation, reconnect/replay/overflow, fixed-port restart/fresh invite, exact server_stopping ack, Rust client smoke, and visible existing-renderer revision 7→8/durable replacement at 16px. No happy-cli/Node happy-server runtime. P0 gate is cleared; production jobs J2–J5 may begin per plan dependency graph."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "<strong>Production J5 shipped @ e49e8237d</strong>. Happy Wire now owns the strict local invite, paired-device proof, and transient snapshot contracts; Happy App has explicit paired-device enrollment/auth, signed HTTP and polling Socket.IO proof, local plaintext codec compatibility, and ephemeral latest-only snapshot replacement through the existing renderer. Public Cloudflare and Dev Tunnels behavior remains unchanged. The temporary P0 app probe was removed after production coverage absorbed it. J3/J4 must consume these exact contracts."
+        }
+      ],
+      "command": {
+        "name": "codex-native-happy-server-local-web-dual-control",
+        "descriptionHtml": "Node-free local proof: live Codex TUI + existing Happy web app co-control one session through a Codex-owned Rust server.",
+        "warnings": [],
+        "prompts": {
+          "brainstorm": "Design and source-verify the smallest implementation that removes happy-cli from the live Codex↔Happy path. Use the existing packages/happy-app web build as the real local acceptance UI. Codex must own/embed a native Rust Happy session server and connect its existing codex-happy live-TUI tap to it over loopback. Hard constraints: no happy-cli executable/daemon or Node server runtime in the Codex path; no central server; no Dev Tunnels/Cloudflare/mobile in Phase 1; preserve default-off experimental gating and vanilla Codex behavior. Reuse prior artifacts: .ralph/investigations/codex-appserver-vs-happy-wiring/findings.md, .ralph/investigations/happy-agent-driving-modes/findings.md, .ralph/investigations/codex-autoconnect-rust-crate-feasibility/findings.md, and the codex-autoconnect-northstar brainstorm. Resolve: minimal REST/session/storage/control surface; browser transport (existing Socket.IO compatibility vs additive plain WebSocket adapter); loopback CORS/auth/pairing; whether the web app needs only configuration or code changes; persistence/reconnect semantics; how to package/launch the existing web build for local testing without introducing a happy-cli dependency. Required acceptance design: launch the fork Codex TUI, open the existing Happy web UI locally, see one shared session, alternate user turns from CLI and browser, stream assistant/tool events to both, approve/deny and interrupt from browser, reconnect without duplicate sessions, and prove no happy-cli process is running. Produce a phased plan: P0 transport/browser spike, P1 Rust server + web compatibility, P2 real same-machine dual-control dogfood, then release/remote transports only after local acceptance. Verify feasibility; do not rubber-stamp the prior Rust direction.",
+          "plan": "Create a Phase-4 reviewed implementation plan from `.ralph/brainstorms/codex-native-happy-server-local-web-dual-control/brainstorm.md` and `.json` using GPT-5.6 Sol. This is non-UI architecture/protocol/runtime work; the existing Happy web app is only the acceptance surface. Preserve D-001: scoped Codex-owned Rust `codex-happy-server` compatibility plane using Axum + Socketioxide + SQLx/SQLite, existing Happy HTTP/Socket.IO browser contract, direct serialized `CodexControlAdapter`, stable Codex thread identity, explicit local plaintext codec, and fail-closed Ed25519 paired-device auth. Hard constraint: no `happy-cli` executable/daemon and no Node happy-server runtime; no fallback to legacy daemon paths. Operator decisions: pairing window is 2 minutes, closes after one successful enrollment, explicitly reopened; Phase-1 dogfood uses a fixed configured port and a fresh invite after process restart; do not add UI design work unless P0 proves the existing renderer cannot replace keyed in-progress snapshots—then file a separate Opus 4.8 UI task. Decompose by proof boundary: (P0) actual Chromium existing-web-build + socket.io-client 4.8.1 ↔ minimal Socketioxide server/Rust-client compatibility spike, including polling, headers, acks, ranges, reconnect and paired auth; (P1) Rust server foundation/routes/SQLite/auth; (P1b) Codex lifecycle/codec/identity/control adapter and removal of happy-cli fallback; (P1c) minimal happy-app/happy-wire local paired-mode + transient snapshot compatibility; (P1d) authoritative first-answer-wins approvals, prompt mirroring/dedup, turn steer/start and interrupt arbitration; (P2) real same-machine TUI + existing Happy web dual-control dogfood with process inventory proving no happy-cli/Node server. Include exact relative paths across codex wrapper/inner repo and codexu happy-app/wire/docs, repo/worktree boundaries, dependencies, security model, plaintext-at-rest limitation, acceptance evidence, cargo/typecheck/vitest/browser commands, Phase 5a/5b convergence, and explicit stop/go criteria after P0. Because implementation spans codex plus codexu packages, plan must split into coordinated jobs/phases rather than pretending one Ralph PRD can own two repos."
         }
       }
     }

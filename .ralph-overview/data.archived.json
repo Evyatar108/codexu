@@ -10667,6 +10667,43 @@
           }
         ]
       }
+    },
+    {
+      "id": "codex-native-happy-app-local-compat",
+      "scope": "happy-app|codexu",
+      "lifecycle": "merged",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-11T19:29:16.095Z",
+      "initialStage": "plan-ready",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Production Job J5 from the Node-free Happy plan, unblocked by P0 GO. Implement shared local pairing/proof/snapshot schemas plus Happy app explicit paired-device auth mode, local enrollment, polling socket proof, ephemeral transient snapshot state, and existing-renderer replacement semantics. No UI redesign; remove P0 dev probe after production coverage absorbs it."
+        }
+      ],
+      "command": {
+        "name": "codex-native-happy-app-local-compat",
+        "descriptionHtml": "Implement Happy wire/app local paired-device and transient snapshot compatibility for the native Rust session plane.",
+        "warnings": [
+          {
+            "className": "cmd-warn",
+            "html": "This is protocol/auth/state work despite touching app files; use GPT-5.6 Sol. The existing renderer is proven by P0. If implementation uncovers a new genuine UI/UX choice, file a separate Opus task instead of expanding scope."
+          }
+        ],
+        "prompts": {
+          "impl": "Implement Job J5 / US-016..019 from `.ralph/jobs/codex-native-happy-server-local-web-dual-control/plan.md` and stories outline in a codexu worktree `codex-native-happy-app-compat`, using GPT-5.6 Sol (`uiUxJudgment: not-required`). P0 is GO at Codex 3ff55692e / codexu 054d2b3f7; reuse exact invite/proof/codec/snapshot contract and fixtures. Add happy-wire localPairingInvite/localDeviceAuth/sessionOutputSnapshot modules, tests and cross-language vector fixture; export through index. Add happy-app explicit persisted `authMode = dev-tunnel | paired-device` migration (never infer local from URL), local enrollment with key possession and no secret persistence, fail-closed incomplete credentials, normal HTTP signed proof and polling-only Socket.IO options, explicit local plaintext codec compatibility, ephemeral monotonic latest-only snapshot map excluded from persistence, existing-renderer keyed replacement/clear/reconnect behavior, and existing server screen support for distinct strict local invite without a new navigation flow. Preserve public/Cloudflare and Dev-Tunnels auth behavior. Update all translations, translation parity tests, changelog + generated JSON. Remove J1 dev-only probe only after production tests absorb it; retain redacted P0 evidence. Do not redesign UI or add remote transport. Run wire typecheck/tests, targeted happy-app tests from plan, app typecheck, real browser regression, audit if markers change, Phase 5a/5b GPT-5.6 Sol reviews clean. Commit locally, do not push, report SHA/tests/contract and any interface assumptions J3/J4 must consume."
+        }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-07-11T19:29:16.095Z",
+        "summary": "Shipped the production Happy app/wire compatibility half of the Node-free local session plane. Happy Wire now owns the strict local invite, paired-device proof, and transient session-output snapshot contracts with cross-language vectors; Happy App has explicit paired-device auth mode, fail-closed enrollment and request/socket proof, local plaintext codec compatibility, and ephemeral latest-only snapshot replacement through the existing session renderer.\n\nThe public Cloudflare and Dev Tunnels paths remain unchanged. The temporary P0 app probe was removed only after its behavior moved into production modules and targeted tests. The committed acceptance bundle records the real browser renderer proof, local pairing proof, Rust fixture/client regression, typechecks, and review convergence; J3/J4 can consume these exact contracts without inventing a second app protocol.",
+        "commits": [
+          {
+            "sha": "e49e8237de59ac1de9b2a210472ef6cbbbadb0e7",
+            "oneLine": "feat: add native local Happy app compatibility"
+          }
+        ]
+      }
     }
   ]
 }
