@@ -12,7 +12,7 @@
     "route": "/dev/native-happy-p0",
     "affordance": "window.__nativeHappyP0Probe.seedRendererForVisualCheck()",
     "note": "Renderer fixture is seeded via the exact pure snapshot/dedup functions (revision 7 then 8, then the durable final that removes the transient item). No J0 Rust transport is involved, so this isolates the browser-visibility surface.",
-    "prerequisite": "The tracked entry point packages/happy-app/index.ts imports './sources/polyfills/screenOrientation', but that file is untracked on the J1 base AND on origin/main (a pre-existing, fork-wide gap: the polyfills/ dir is empty in git while the import persists at index.ts:1). The canonical polyfill (identical to commit 8e4118b0f) must be present on disk for the Expo web bundle to boot. It is intentionally left untracked and OUT of this task's scope (this task fixes only the renderer font-size bug); the J1 base already documents the same build-enabler in nativeHappyP0Probe compatibilityShims. J1/the fork should resolve the dangling entry-point import separately."
+    "prerequisite": "Resolved by J1 commit 94d17c2805419ef3475f6151d9d12c36888aa29b: the canonical entry-first screen.orientation polyfill was restored byte-for-byte from commit 8e4118b0fbd5bb36261a2ced0bd6329b407e0eb1, and focused tests prove it installs only when the browser API is absent and preserves a native implementation. The clean checkout now boots Expo web without an untracked placeholder."
   },
   "rootCause": {
     "summary": "Web-only production renderer bug in the fork's chat font-scale wrapper. react-native-unistyles resolves styles to opaque CSS-class markers on web ({ unistyles_<hash>: {} }), so RNStyleSheet.flatten(baseStyle).fontSize is undefined. AnimatedMarkdownText coerced that to 0 via `?? 0`, and useChatScaleAnimatedTextStyle then unconditionally emitted fontSize = 0 * scale = 0. Because the animated style is applied last in the style array, it overrode the correct 16px base with a text-hiding font-size: 0px.",
@@ -62,5 +62,13 @@
       { "id": "renderer-revision-replace", "status": "PASS" },
       { "id": "renderer-durable-final", "status": "PASS" }
     ]
+  },
+  "fullP0Rerun": {
+    "generatedAt": "2026-07-11T02:08:51.258Z",
+    "result": ".ralph/jobs/codex-native-happy-server-local-web-dual-control/p0/compatibility-result.json",
+    "screenshot": ".ralph/jobs/codex-native-happy-server-local-web-dual-control/p0/browser-proof.png",
+    "overallP0Verdict": "GO",
+    "rendererVerdict": "EXISTING_RENDERER_OK",
+    "measuredFontSizePx": 16
   }
 }

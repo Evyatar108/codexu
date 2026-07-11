@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-10T23:09:55.316Z",
+  "generatedAt": "2026-07-11T02:08:51.258Z",
   "target": {
     "serverUrl": "http://127.0.0.1:43127",
     "browserOrigin": "http://localhost:8081",
@@ -17,7 +17,7 @@
     "socketIoClient": "4.8.1",
     "rustc": "1.95.0 (59807616e 2026-04-14)",
     "cargo": "1.95.0 (f2d3ce0bd 2026-03-21)",
-    "rustFixture": "codex-happy-compat-spike 0.1.0 @ codex 65e87b23dd857c71199529bbb46120c7ca3b3e51"
+    "rustFixture": "codex-happy-compat-spike 0.1.0 @ codex 3ff55692e7045e85ce78ebe8337ab40b55494c9c"
   },
   "rustDependencies": {
     "axum": "0.8.8",
@@ -35,36 +35,36 @@
     },
     {
       "name": "rust_socketio acknowledgement-array normalization",
-      "version": "singleton-array unwrap @ J0 65e87b23dd857c71199529bbb46120c7ca3b3e51",
+      "version": "singleton-array unwrap @ J0 3ff55692e7045e85ce78ebe8337ab40b55494c9c",
       "reason": "rust_socketio 0.6.0 exposes acknowledgement arguments as one JSON array; the fixture unwraps exactly one argument before contract validation."
     },
     {
       "name": "rust_socketio logical-auth probe settling",
-      "version": "50ms + allowed session-alive ack @ J0 65e87b23dd857c71199529bbb46120c7ca3b3e51",
+      "version": "50ms + allowed session-alive ack @ J0 3ff55692e7045e85ce78ebe8337ab40b55494c9c",
       "reason": "Engine.IO may report transport success before namespace middleware rejection is observable, so the fixture waits 50ms and requires an allowed acknowledgement."
     },
     {
       "name": "Socketioxide polling-upgrade guard",
-      "version": "sid-bearing websocket deny @ J0 65e87b23dd857c71199529bbb46120c7ca3b3e51",
+      "version": "sid-bearing websocket deny @ J0 3ff55692e7045e85ce78ebe8337ab40b55494c9c",
       "reason": "Socketioxide advertises upgrades before the authenticated role is known; fixture middleware rejects websocket upgrades carrying a polling sid."
     },
     {
       "name": "fixture-only capability handoff",
-      "version": "Windows named pipe \\\\.\\pipe\\codex-happy-compat-43127 @ J0 65e87b23dd857c71199529bbb46120c7ca3b3e51",
+      "version": "Windows named pipe \\\\.\\pipe\\codex-happy-compat-43127 @ J0 3ff55692e7045e85ce78ebe8337ab40b55494c9c",
       "reason": "The random internal capability crosses processes without entering argv, environment variables, structured output, or the disposable journal."
     },
     {
-      "name": "packages/happy-app/sources/polyfills/screenOrientation.ts",
-      "version": "temporary-untracked-empty-module",
-      "reason": "The baseline index imports this missing module; an empty dev-only placeholder was used to launch Expo and removed before commit."
-    }
-  ],
-  "p0Limitations": [
+      "name": "fixture-only stopping transition control",
+      "version": "fixture-enter-stopping/fixture-exit-stopping @ J0 3ff55692e7045e85ce78ebe8337ab40b55494c9c",
+      "reason": "The compatibility fixture exposes a deterministic stopping boundary so Chromium can assert the exact server_stopping RPC wrapper without adding a production protocol event."
+    },
     {
-      "id": "rpc-server-stopping-not-exercised",
-      "reason": "The frozen J0 fixture exposes no browser-accessible shutdown transition; the explicit failed check remains a GO blocker until the parent Rust server proves the exact server_stopping wrapper."
+      "name": "packages/happy-app/sources/polyfills/screenOrientation.ts",
+      "version": "tracked canonical polyfill restored from 8e4118b0fbd5bb36261a2ced0bd6329b407e0eb1",
+      "reason": "The entry-first web polyfill preserves native screen.orientation and supplies the historical WebKit fallback; Chromium used its native implementation."
     }
   ],
+  "p0Limitations": [],
   "browserNetwork": {
     "preflightObserved": true,
     "actualOrigin": "http://localhost:8081",
@@ -298,22 +298,34 @@
       "detail": "killSession returned exact interrupted and the subsequent abort returned exact idle."
     },
     {
-      "id": "rpc-server-stopping-unavailable",
-      "label": "Server-stopping RPC acknowledgement is unavailable in frozen J0",
-      "status": "FAIL",
-      "detail": "Frozen J0 exposes no browser-accessible shutdown transition, so exact {ok:false,error:\"server_stopping\"} coverage remains an independent GO blocker for the parent Rust server."
-    },
-    {
       "id": "malformed-query-encoding",
       "label": "Malformed UTF-8 query encoding fails closed",
-      "status": "FAIL",
-      "detail": "Expected HTTP 401 for invalid UTF-8 percent bytes, received 200; the frozen J0 canonicalizer collided with the replacement-character target."
+      "status": "PASS",
+      "detail": "Invalid UTF-8 percent bytes were rejected rather than canonicalized lossily."
+    },
+    {
+      "id": "rpc-server-stopping",
+      "label": "Server-stopping RPC acknowledgement contract",
+      "status": "PASS",
+      "detail": "fixture-enter-stopping returned stopping, abort failed with exact server_stopping, and fixture-exit-stopping returned exiting."
+    },
+    {
+      "id": "renderer-visual-surface",
+      "label": "Existing MessageView visibly renders the durable replacement",
+      "status": "PASS",
+      "detail": "Chromium displayed one durable assistant item at 16px and no transient duplicate."
     },
     {
       "id": "socket-client-version",
       "label": "Exact browser Socket.IO client version",
       "status": "PASS",
       "detail": "Installed and executed socket.io-client 4.8.1."
+    },
+    {
+      "id": "rust-fixture-version",
+      "label": "Exact hardened Rust fixture revision",
+      "status": "PASS",
+      "detail": "Browser proof ran against Codex fixture 3ff55692e7045e85ce78ebe8337ab40b55494c9c."
     },
     {
       "id": "browser-cors-headers",
@@ -350,12 +362,6 @@
       "label": "Pinned rust_socketio internal client",
       "status": "PASS",
       "detail": "Websocket role, capability auth, state CAS, snapshot acks, role denial, and replay all passed."
-    },
-    {
-      "id": "renderer-visual-surface",
-      "label": "Existing MessageView visual surface requires a separate UI task",
-      "status": "FAIL",
-      "detail": "State replacement passed, but Chromium measured durable=1, transient=0, fontSize=0px."
     }
   ],
   "renderer": {
@@ -372,8 +378,8 @@
     "stableTransientMessageId": true,
     "finalDurableRemovedTransient": true,
     "finalRenderedItemCount": 1,
-    "browserTextVisible": false,
-    "browserComputedFontSizePx": 0,
+    "browserTextVisible": true,
+    "browserComputedFontSizePx": 16,
     "browserDurableTextCount": 1,
     "browserTransientTextCount": 0
   },
@@ -383,8 +389,8 @@
     "nonces": "[REDACTED]",
     "privateKey": "[REDACTED]"
   },
-  "transportVerdict": "NO_GO_SOCKET_PROTOCOL",
-  "rendererVerdict": "REQUIRES_SEPARATE_UI_TASK",
-  "overallP0Verdict": "NO_GO",
-  "stopCondition": "Malformed UTF-8 query encoding fails closed: Expected HTTP 401 for invalid UTF-8 percent bytes, received 200; the frozen J0 canonicalizer collided with the replacement-character target."
+  "transportVerdict": "GO",
+  "rendererVerdict": "EXISTING_RENDERER_OK",
+  "overallP0Verdict": "GO",
+  "stopCondition": null
 }

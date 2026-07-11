@@ -31,12 +31,16 @@ export const NATIVE_HAPPY_P0_SESSION_ID = 'compat-session';
 export const NATIVE_HAPPY_P0_THREAD_ID = 'compat-primary-thread';
 export const NATIVE_HAPPY_P0_BROWSER_CLIENT = 'web/native-happy-p0';
 export const NATIVE_HAPPY_P0_SOCKET_IO_CLIENT_VERSION = '4.8.1';
+export const NATIVE_HAPPY_P0_RUST_FIXTURE_COMMIT = '3ff55692e7045e85ce78ebe8337ab40b55494c9c';
+export const NATIVE_HAPPY_P0_EXPECTED_FONT_SIZE_PX = 16;
 export const NATIVE_HAPPY_P0_PROOF_HEADER = 'X-Happy-Local-Device-Proof';
 export const NATIVE_HAPPY_P0_CLIENT_HEADER = 'X-Happy-Client';
 export const NATIVE_HAPPY_P0_PAIRING_SECRET_HEADER = 'X-Happy-Pairing-Secret';
 export const NATIVE_HAPPY_P0_PAIRING_NONCE_HEADER = 'X-Happy-Pairing-Nonce';
 
 const LOCAL_PROOF_DOMAIN = 'happy-local-device-proof/v1';
+const FIXTURE_ENTER_STOPPING_EVENT = 'fixture-enter-stopping';
+const FIXTURE_EXIT_STOPPING_EVENT = 'fixture-exit-stopping';
 const SOCKET_ACK_TIMEOUT_MS = 5_000;
 const RUST_CLIENT_WAIT_MS = 120_000;
 const PAIRING_WINDOW_MS = 120_000;
@@ -98,6 +102,20 @@ export function isExpectedNativeHappySnapshotSequence(
     return relevant.length === 2
         && arraysEqual(relevant.map(snapshot => snapshot.revision), [7, 8])
         && arraysEqual(relevant.map(snapshot => snapshot.text), ['compat snapshot', 'compat snapshot resumed']);
+}
+
+export function isExpectedNativeHappyStoppingAcknowledgements(
+    entered: unknown,
+    rejectedRpc: unknown,
+    exited: unknown | null,
+    disconnectedAfterExit: boolean,
+): boolean {
+    return jsonValuesEqual(entered, { ok: true, result: { status: 'stopping' } })
+        && jsonValuesEqual(rejectedRpc, { ok: false, error: 'server_stopping' })
+        && (
+            jsonValuesEqual(exited, { ok: true, result: { status: 'exiting' } })
+            || (exited === null && disconnectedAfterExit)
+        );
 }
 
 export type NativeHappyP0Phase =
@@ -833,15 +851,10 @@ export class NativeHappyP0ProbeController {
             );
             this.activeSocket = lifecycleCapture.socket;
             await this.runRpcLifecycleAcknowledgementChecks(lifecycleCapture.socket);
+            await this.runMalformedUtf8QueryCheck(this.identity);
+            await this.runServerStoppingAcknowledgementChecks(lifecycleCapture.socket);
             lifecycleCapture.socket.disconnect();
             this.activeSocket = null;
-
-            this.recordFailure(
-                'rpc-server-stopping-unavailable',
-                'Server-stopping RPC acknowledgement is unavailable in frozen J0',
-                'Frozen J0 exposes no browser-accessible shutdown transition, so exact {ok:false,error:"server_stopping"} coverage remains an independent GO blocker for the parent Rust server.',
-            );
-            await this.runMalformedUtf8QueryCheck(this.identity);
 
             this.phase = 'complete';
             this.statusText = 'Protocol run passed. Capture and inject redacted browser/version evidence to finalize the P0 verdict.';
@@ -864,6 +877,19 @@ export class NativeHappyP0ProbeController {
                 `Expected ${NATIVE_HAPPY_P0_SOCKET_IO_CLIENT_VERSION}, received ${evidence.versions.socketIoClient}.`,
             );
             this.pass('socket-client-version', 'Exact browser Socket.IO client version', `Installed and executed socket.io-client ${evidence.versions.socketIoClient}.`);
+
+            this.assert(
+                evidence.versions.rustFixture
+                    === `codex-happy-compat-spike 0.1.0 @ codex ${NATIVE_HAPPY_P0_RUST_FIXTURE_COMMIT}`,
+                'rust-fixture-version',
+                'Exact hardened Rust fixture revision',
+                `Expected fixture ${NATIVE_HAPPY_P0_RUST_FIXTURE_COMMIT}, received ${evidence.versions.rustFixture}.`,
+            );
+            this.pass(
+                'rust-fixture-version',
+                'Exact hardened Rust fixture revision',
+                `Browser proof ran against Codex fixture ${NATIVE_HAPPY_P0_RUST_FIXTURE_COMMIT}.`,
+            );
 
             const headerNames = evidence.network.actualRequestHeaderNames.map(name => name.toLowerCase());
             const requiredHeaders = [
@@ -1254,6 +1280,30 @@ export class NativeHappyP0ProbeController {
         );
     }
 
+    private async runServerStoppingAcknowledgementChecks(socket: Socket): Promise<void> {
+        const entered = await emitAck(socket, FIXTURE_ENTER_STOPPING_EVENT, {});
+        const rejectedRpc = await emitAck(socket, 'rpc-call', {
+            method: `${NATIVE_HAPPY_P0_SESSION_ID}:abort`,
+            params: {},
+        });
+        const exited = await emitAck(socket, FIXTURE_EXIT_STOPPING_EVENT, {}).catch(() => null);
+        await waitFor(() => !socket.connected, SOCKET_ACK_TIMEOUT_MS, 'fixture socket shutdown');
+        await waitForNativeHappyServerShutdown(SOCKET_ACK_TIMEOUT_MS);
+        this.assert(
+            isExpectedNativeHappyStoppingAcknowledgements(entered, rejectedRpc, exited, !socket.connected),
+            'rpc-server-stopping',
+            'Server-stopping RPC acknowledgement contract',
+            'Expected fixture stopping entry, exact {ok:false,error:"server_stopping"} abort, and a clean fixture-exit shutdown.',
+        );
+        this.pass(
+            'rpc-server-stopping',
+            'Server-stopping RPC acknowledgement contract',
+            exited
+                ? 'fixture-enter-stopping returned stopping, abort failed with exact server_stopping, and fixture-exit-stopping returned exiting.'
+                : 'fixture-enter-stopping returned stopping, abort failed with exact server_stopping, and fixture-exit-stopping closed the Socket.IO connection before its JavaScript acknowledgement while the browser independently confirmed server shutdown.',
+        );
+    }
+
     private verifyRendererReplacement(ephemerals: NativeHappySnapshotPayload[]): void {
         const snapshots = ephemerals
             .filter(snapshot => snapshot.itemId === 'compat-item');
@@ -1433,14 +1483,14 @@ export class NativeHappyP0ProbeController {
         rendererEvidence.browserTransientTextCount = measurement.transientTextCount;
         if (
             measurement.visible
-            && measurement.computedFontSizePx > 0
+            && measurement.computedFontSizePx === NATIVE_HAPPY_P0_EXPECTED_FONT_SIZE_PX
             && measurement.durableTextCount === 1
             && measurement.transientTextCount === 0
         ) {
             this.pass(
                 'renderer-visual-surface',
                 'Existing MessageView visibly renders the durable replacement',
-                'Chromium displayed one durable assistant item and no transient duplicate.',
+                `Chromium displayed one durable assistant item at ${NATIVE_HAPPY_P0_EXPECTED_FONT_SIZE_PX}px and no transient duplicate.`,
             );
         } else {
             this.recordFailure(
@@ -1548,36 +1598,36 @@ export class NativeHappyP0ProbeController {
                 },
                 {
                     name: 'rust_socketio acknowledgement-array normalization',
-                    version: 'singleton-array unwrap @ J0 65e87b23dd857c71199529bbb46120c7ca3b3e51',
+                    version: `singleton-array unwrap @ J0 ${NATIVE_HAPPY_P0_RUST_FIXTURE_COMMIT}`,
                     reason: 'rust_socketio 0.6.0 exposes acknowledgement arguments as one JSON array; the fixture unwraps exactly one argument before contract validation.',
                 },
                 {
                     name: 'rust_socketio logical-auth probe settling',
-                    version: '50ms + allowed session-alive ack @ J0 65e87b23dd857c71199529bbb46120c7ca3b3e51',
+                    version: `50ms + allowed session-alive ack @ J0 ${NATIVE_HAPPY_P0_RUST_FIXTURE_COMMIT}`,
                     reason: 'Engine.IO may report transport success before namespace middleware rejection is observable, so the fixture waits 50ms and requires an allowed acknowledgement.',
                 },
                 {
                     name: 'Socketioxide polling-upgrade guard',
-                    version: 'sid-bearing websocket deny @ J0 65e87b23dd857c71199529bbb46120c7ca3b3e51',
+                    version: `sid-bearing websocket deny @ J0 ${NATIVE_HAPPY_P0_RUST_FIXTURE_COMMIT}`,
                     reason: 'Socketioxide advertises upgrades before the authenticated role is known; fixture middleware rejects websocket upgrades carrying a polling sid.',
                 },
                 {
                     name: 'fixture-only capability handoff',
-                    version: 'Windows named pipe \\\\.\\pipe\\codex-happy-compat-43127 @ J0 65e87b23dd857c71199529bbb46120c7ca3b3e51',
+                    version: `Windows named pipe \\\\.\\pipe\\codex-happy-compat-43127 @ J0 ${NATIVE_HAPPY_P0_RUST_FIXTURE_COMMIT}`,
                     reason: 'The random internal capability crosses processes without entering argv, environment variables, structured output, or the disposable journal.',
                 },
                 {
-                    name: 'packages/happy-app/sources/polyfills/screenOrientation.ts',
-                    version: 'temporary-untracked-empty-module',
-                    reason: 'The baseline index imports this missing module; an empty dev-only placeholder was used to launch Expo and removed before commit.',
+                    name: 'fixture-only stopping transition control',
+                    version: `fixture-enter-stopping/fixture-exit-stopping @ J0 ${NATIVE_HAPPY_P0_RUST_FIXTURE_COMMIT}`,
+                    reason: 'The compatibility fixture exposes a deterministic stopping boundary so Chromium can assert the exact server_stopping RPC wrapper without adding a production protocol event.',
                 },
-            ],
-            p0Limitations: [
                 {
-                    id: 'rpc-server-stopping-not-exercised',
-                    reason: 'The frozen J0 fixture exposes no browser-accessible shutdown transition; the explicit failed check remains a GO blocker until the parent Rust server proves the exact server_stopping wrapper.',
+                    name: 'packages/happy-app/sources/polyfills/screenOrientation.ts',
+                    version: 'tracked canonical polyfill restored from 8e4118b0fbd5bb36261a2ced0bd6329b407e0eb1',
+                    reason: 'The entry-first web polyfill preserves native screen.orientation and supplies the historical WebKit fallback; Chromium used its native implementation.',
                 },
             ],
+            p0Limitations: [],
             browserNetwork: externalEvidence.network,
             rustClient: externalEvidence.rustClient,
             checks: this.checks.map(check => ({ ...check })),
@@ -1773,6 +1823,22 @@ async function waitFor(predicate: () => boolean, timeoutMs: number, label: strin
         }
         await sleep(50);
     }
+}
+
+async function waitForNativeHappyServerShutdown(timeoutMs: number): Promise<void> {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeoutMs) {
+        try {
+            await fetch(`${NATIVE_HAPPY_P0_SERVER_URL}/health?shutdown-probe=${Date.now()}`, {
+                cache: 'no-store',
+                mode: 'no-cors',
+            });
+        } catch {
+            return;
+        }
+        await sleep(50);
+    }
+    throw new Error('Timed out waiting for the fixture listener to close');
 }
 
 async function sleep(ms: number): Promise<void> {

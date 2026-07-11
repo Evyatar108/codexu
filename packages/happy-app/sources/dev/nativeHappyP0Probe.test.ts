@@ -7,8 +7,10 @@ import {
     classifyNativeHappyP0Failures,
     decodeNativeHappyLocalInvite,
     encodeBase64Url,
+    isExpectedNativeHappyStoppingAcknowledgements,
     isExpectedNativeHappyPairResponse,
     isExpectedNativeHappySnapshotSequence,
+    NATIVE_HAPPY_P0_EXPECTED_FONT_SIZE_PX,
     NATIVE_HAPPY_P0_BROWSER_ORIGIN,
     NATIVE_HAPPY_P0_MACHINE_ID,
     NATIVE_HAPPY_P0_SERVER_URL,
@@ -174,6 +176,33 @@ describe('native Happy P0 probe', () => {
         expect(isExpectedNativeHappySnapshotSequence([revision7, revision8, { ...revision8, revision: 9 }])).toBe(false);
     });
 
+    it('accepts only the exact fixture stopping acknowledgement sequence', () => {
+        expect(isExpectedNativeHappyStoppingAcknowledgements(
+            { ok: true, result: { status: 'stopping' } },
+            { ok: false, error: 'server_stopping' },
+            { ok: true, result: { status: 'exiting' } },
+            true,
+        )).toBe(true);
+        expect(isExpectedNativeHappyStoppingAcknowledgements(
+            { ok: true, result: { status: 'stopping' } },
+            { ok: false, error: 'server_stopping' },
+            null,
+            true,
+        )).toBe(true);
+        expect(isExpectedNativeHappyStoppingAcknowledgements(
+            { ok: true, result: { status: 'stopping' } },
+            { ok: true, result: { status: 'idle' } },
+            { ok: true, result: { status: 'exiting' } },
+            true,
+        )).toBe(false);
+        expect(isExpectedNativeHappyStoppingAcknowledgements(
+            { ok: true, result: { status: 'stopping' } },
+            { ok: false, error: 'server_stopping' },
+            null,
+            false,
+        )).toBe(false);
+    });
+
     it('rejects runtime secrets in the redacted result', () => {
         const result = {
             redaction: {
@@ -247,11 +276,20 @@ describe('native Happy P0 probe', () => {
         // The fixed web behavior: durable text visible at a nonzero computed font size.
         const passed = controller.recordRendererVisualEvidence({
             visible: true,
-            computedFontSizePx: 16,
+            computedFontSizePx: NATIVE_HAPPY_P0_EXPECTED_FONT_SIZE_PX,
             durableTextCount: 1,
             transientTextCount: 0,
         });
         expect(passed?.status).toBe('PASS');
+
+        controller.seedRendererForVisualCheck();
+        const unexpectedPositiveSize = controller.recordRendererVisualEvidence({
+            visible: true,
+            computedFontSizePx: NATIVE_HAPPY_P0_EXPECTED_FONT_SIZE_PX - 1,
+            durableTextCount: 1,
+            transientTextCount: 0,
+        });
+        expect(unexpectedPositiveSize?.status).toBe('FAIL');
 
         // The pre-fix regression: a 0px computed font size must still fail the gate,
         // even though the state replacement semantics are identical.
