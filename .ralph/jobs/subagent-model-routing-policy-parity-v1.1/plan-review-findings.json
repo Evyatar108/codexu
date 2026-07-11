@@ -1,0 +1,35 @@
+[
+  {
+    "id": "F-001",
+    "severity": "Medium",
+    "category": "story-dependencies",
+    "description": "US-003 requires the test suite to assert all five 1.1.0 stamps and pass, but US-005 owns those version changes and depends on US-003, so US-003 is not independently satisfiable in declared dependency order.",
+    "evidence": "stories-outline.md:62-87 assigns the five-stamp assertion and passing test to US-003; stories-outline.md:119-145 assigns the actual manifest and marketplace bumps to US-005 while declaring dependencies on US-003 and US-004.",
+    "recommendedFix": "Reorder the metadata story before the exact-version gate, merge US-003 and US-005, or move the 1.1.0 assertions and final full-suite pass into US-005 so each story can pass in dependency order.",
+    "status": "resolved",
+    "resolution": "US-003 now checks five-stamp consistency at the current version; US-005 owns the final 1.1.0 expectation, all five bumps, and the post-bump full-suite pass.",
+    "source": "copilot-primary"
+  },
+  {
+    "id": "F-002",
+    "severity": "Medium",
+    "category": "test-portability",
+    "description": "The plan requires byte-for-byte comparisons against authored .txt fixtures but does not define an LF checkout contract for those files, allowing CRLF conversion to break otherwise correct snapshots.",
+    "evidence": "plan.md:150-154, 199-202, and 324-326 require .txt fixtures and raw byte-exact checks. At commit 964c36f, ai-developer-toolkit/.gitattributes has no rule covering plugins/subagent-model-routing/tests/fixtures/*.txt.",
+    "recommendedFix": "Add plugins/subagent-model-routing/tests/fixtures/*.txt text eol=lf to the root .gitattributes file list and acceptance criteria, or use an authored fixture format whose bytes are not checkout-converted; do not hide drift by normalizing during comparison.",
+    "status": "resolved",
+    "resolution": "The plan and US-003 now include plugins/subagent-model-routing/tests/fixtures/*.txt text eol=lf and explicitly forbid comparison-time line-ending normalization.",
+    "source": "copilot-primary"
+  },
+  {
+    "id": "F-003",
+    "severity": "Medium",
+    "category": "release-documentation",
+    "description": "The plan acknowledges that the generic release skill is incompatible with this two-manifest plugin but leaves the exact-reference root release instructions unchanged, so shipped documentation would still direct maintainers to a nonexistent Claude manifest and a four-file release path.",
+    "evidence": "plan.md:63-67, 183-192, and 500-502 exclude the global release guidance from modification. At commit 964c36f, ai-developer-toolkit/AGENTS.md:60 mandates a .claude-plugin/plugin.json bump and AGENTS.md:69 says to use the four-file release skill for plugin releases.",
+    "recommendedFix": "Without changing the generic skill implementation, add a narrow root AGENTS.md exception for subagent-model-routing that documents the manual five-stamp path, the absence of a Claude manifest, and that the incompatible release skill must not be used; include it in US-004/US-005.",
+    "status": "resolved",
+    "resolution": "The root AGENTS.md scope now includes a narrow manual five-stamp exception and explicitly forbids using the incompatible generic release skill for this plugin.",
+    "source": "copilot-primary"
+  }
+]
