@@ -10561,6 +10561,112 @@
           }
         ]
       }
+    },
+    {
+      "id": "codex-native-happy-p0-browser-proof",
+      "scope": "happy-app|codexu",
+      "lifecycle": "merged",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-11T02:20:00Z",
+      "initialStage": "plan-ready",
+      "blockedOn": [],
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "P0/J1 real-browser proof from parent plan. Uses the existing Expo web build and actual socket.io-client 4.8.1; no toy client and no UI redesign."
+        },
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Initial P0 NO-GO evidence @ 29df8f860</strong>. Most browser protocol checks passed; blockers were malformed UTF-8, missing stopping ack, and 0px renderer."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "<strong>Remediations integrated on retained branch</strong>: Sol protocol fixes shipped via Codex 3ff55692e / codexu 15caa318d; Opus renderer fix integrated as rebased commits 745dd995f + d1aa1b3f6. J1 is ready for full clean-checkout rerun."
+        }
+      ],
+      "command": {
+        "name": "codex-native-happy-p0-browser-proof",
+        "descriptionHtml": "P0 existing Happy web/Chromium proof against the J0 Rust compatibility server.",
+        "warnings": [
+          {
+            "className": "cmd-warn",
+            "html": "Full rerun required before merge. Also resolve the pre-existing tracked entry-point import of missing `sources/polyfills/screenOrientation.ts` so a clean checkout boots without an untracked build enabler; source-verify canonical behavior."
+          }
+        ],
+        "prompts": {
+          "impl": "Resume the retained J1 worktree/branch after integrated remediations. Use GPT-5.6 Sol. Rerun Job J1 / US-004..006 from `.ralph/jobs/codex-native-happy-server-local-web-dual-control/plan.md` against Codex fixture 3ff55692e. First source-verify and resolve the pre-existing clean-checkout build blocker: `packages/happy-app/index.ts` imports missing tracked `sources/polyfills/screenOrientation.ts`; restore the canonical polyfill behavior from repository history or current architecture and commit it if correct, with focused test/typecheck. Then run real Expo web + Chromium/agent-browser using socket.io-client 4.8.1. Required rerun deltas: malformed `%FF` returns 401; `fixture-enter-stopping` -> `rpc-call compat-session:abort` returns exact server_stopping -> `fixture-exit-stopping`; renderer text is visible at nonzero size with stable revisions/durable replacement. Reprove all previous pairing/polling/Origin/CORS/tamper/replay/acks/ranges/CAS/isolation/reconnect/restart/Rust-client checks. Replace compatibility-result.json/browser-proof.png with redacted final evidence and explicit overall GO/NO-GO. No happy-cli/Node happy-server/tunnel/toy client/UI redesign. Phase 5a/5b GPT-5.6 Sol reviews; commit locally, do not push."
+        }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-07-11T02:20:00Z",
+        "summary": "P0/J1 real existing-web Chromium proof shipped with overall GO. The Happy Expo web build ran through actual socket.io-client 4.8.1 against Codex fixture 3ff55692e on loopback. Final redacted evidence records 44/44 PASS and zero limitations: Ed25519 one-use pairing; mandatory signed HTTP/socket proof; exact Origin/CORS; query/body tamper and nonce replay rejection; Engine.IO v4 polling; room isolation; RPC/range/CAS/update acks; sender-echo suppression; reconnect/cursor/replay/overflow; fixed-port restart/fresh invite; malformed UTF-8 -> 401; deterministic exact server_stopping ack; Rust client smoke; and existing MessageView transient revision 7→8/durable replacement visibly rendered at 16px.\n\nThe work also restored the canonical tracked screenOrientation polyfill required by the entry-first web bundle and fixed a latent web-only font-size bug in the fork chat-scale wrapper while preserving native/e-ink scaling behavior. Validation: Rust 27/27; app 63/63; happy-app typecheck; Phase 5a and 5b each clean in one GPT-5.6 Sol round. No happy-cli or Node happy-server runtime, tunnel, toy client, or UI redesign was used.",
+        "commits": [
+          {
+            "sha": "8a16a5f31a96424e10b4f84346c38fa1ff73d355",
+            "oneLine": "feat(happy-app): add native Happy P0 browser proof"
+          },
+          {
+            "sha": "5b905f3584e56af13bc368b1fef6af40fbf02e2a",
+            "oneLine": "fix(happy-app): render chat markdown text with nonzero font-size on web"
+          },
+          {
+            "sha": "71751a4d0f3f60adba7311f4fd0d3e2026a2fba4",
+            "oneLine": "chore(happy-app): normalize P0 renderer evidence"
+          },
+          {
+            "sha": "1e4e438488a62e42b7be11dc7f12a5d6f710a81f",
+            "oneLine": "fix(happy-app): restore screen orientation polyfill"
+          },
+          {
+            "sha": "054d2b3f7403d81d53ff369a102157640f3499bd",
+            "oneLine": "test(happy-app): rerun native Happy P0 browser proof"
+          }
+        ]
+      }
+    },
+    {
+      "id": "codex-native-happy-p0-renderer-visible",
+      "scope": "happy-app",
+      "lifecycle": "merged",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-11T02:20:00Z",
+      "initialStage": "plan-ready",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "UI-only remediation from real P0 Chromium evidence: keyed transient replacement is correct, but the existing MessageView proof renders durable/transient text at computed <code>font-size: 0px</code>. Diagnose and make the dev proof visibly render without redesigning chat UI or changing transport/state semantics."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "<strong>Renderer fix ready @ eab9a56eb</strong> (Opus 4.8; integrated into retained J1 branch, not yet merged to main). Root cause: web Unistyles flatten returns opaque class markers, so <code>AnimatedMarkdownText</code> coerced undefined font size to 0 and overrode the valid 16px CSS base. Fix omits unresolved/nonpositive animated fontSize; native/e-ink positive numeric scaling remains unchanged. Real Chromium evidence: 16px, visible, durable=1/transient=0; focused 18/18, typecheck green; Phase 5a/5b clean."
+        }
+      ],
+      "command": {
+        "name": "codex-native-happy-p0-renderer-visible",
+        "descriptionHtml": "Fix the existing Happy web renderer/probe visibility for P0 keyed transient snapshots.",
+        "warnings": [],
+        "prompts": {
+          "impl": "Use Claude Opus 4.8 because this task requires actual browser UI/UX rendering judgment. Work from the retained J1 commit/branch `ralph/codex-native-happy-p0-browser` (commit 29df8f860) in a separate codexu worktree/branch. Diagnose why the existing MessageView-based P0 proof has correct state replacement (revisions 7→8; final durable replacement; one stable key) but Chromium computes text font-size 0px and shows no visible text. Determine whether the cause is missing runtime/theme/font-scale context in the dev probe, a layout/style propagation bug, or an existing web renderer defect. Apply the smallest e-ink-safe, production-pattern-compatible fix: prefer correct provider/context composition or state plumbing; do not invent a new chat design, animation, smooth streaming, or P0-only fake renderer. Add focused tests and real agent-browser screenshot proving visible text with nonzero computed size while replacement/dedup remains correct. Phase 5a/5b reviews; commit locally, do not push. Report whether the fix belongs only in dev probe wiring or production renderer code, with exact visual evidence."
+        }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-07-11T02:20:00Z",
+        "summary": "Shipped the Opus 4.8 renderer remediation discovered by P0. Root cause was a latent web-only production bug: react-native-unistyles exposes opaque CSS class markers to `StyleSheet.flatten`, so `AnimatedMarkdownText` saw undefined font size, coerced it to 0, and its last-applied animated style hid otherwise-correct 16px text. The fix passes unresolved values through and makes `useChatScaleAnimatedTextStyle` emit fontSize only for positive numeric bases. Native/e-ink scaling remains byte-for-byte equivalent for real positive values.\n\nReal Expo web + Chromium evidence shows 16px visible text, one durable item, zero transient duplicate, with keyed revisions 7→8 and final durable replacement preserved. Focused renderer tests and typecheck passed; Phase 5a UI and Phase 5b visual/evidence reviews converged clean. The final J1 rerun incorporated this fix and reported existing renderer OK.",
+        "commits": [
+          {
+            "sha": "5b905f3584e56af13bc368b1fef6af40fbf02e2a",
+            "oneLine": "fix(happy-app): render chat markdown text with nonzero font-size on web"
+          },
+          {
+            "sha": "71751a4d0f3f60adba7311f4fd0d3e2026a2fba4",
+            "oneLine": "chore(happy-app): normalize P0 renderer evidence"
+          },
+          {
+            "sha": "054d2b3f7403d81d53ff369a102157640f3499bd",
+            "oneLine": "test(happy-app): rerun native Happy P0 browser proof"
+          }
+        ]
+      }
     }
   ]
 }

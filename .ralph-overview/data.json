@@ -1790,6 +1790,10 @@
         {
           "className": "cmd-ok",
           "html": "<strong>Plan shipped @ dae9621b6</strong> (GPT-5.6 Sol). Eight repo-owned jobs / 24 stories; 12 plan-review findings resolved. Cross-repo implementation is explicitly split—never one PRD. P0 is J0 Rust compatibility fixture followed by J1 real existing-web Chromium proof. Hard NO-GO: stop if Socketioxide needs a fork/custom packet framing/substantial ack-reconnect reimplementation or a browser-client patch. Later jobs remain blocked until P0 GO."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "<strong>P0 GO @ Codex 3ff55692e + codexu 054d2b3f7</strong>. Real existing Expo web/Chromium proof passed 44/44 with zero limitations using socket.io-client 4.8.1, Socketioxide 0.18.2, Axum 0.8.8 and rust_socketio 0.6.0. Proven: signed one-use Ed25519 pairing, exact Origin/CORS, malformed UTF-8 fail-closed, query/body tamper + nonce replay, Engine.IO v4 polling, acks/CAS/ranges/room isolation, reconnect/replay/overflow, fixed-port restart/fresh invite, exact server_stopping ack, Rust client smoke, and visible existing-renderer revision 7→8/durable replacement at 16px. No happy-cli/Node happy-server runtime. P0 gate is cleared; production jobs J2–J5 may begin per plan dependency graph."
         }
       ],
       "command": {
@@ -1831,68 +1835,6 @@
           "brainstorm": "Design and source-verify the Ralph plugin implementation for the operator's model-routing policy: UI-related sub-agent work -> `claude-opus-4.8`; all non-UI sub-agent work -> `gpt-5.6-sol`; never GPT-5.5 and never an implicit/default model. Scope the actual ai-developer-toolkit/plugins/ralph surfaces, not just documentation. Inventory hard-coded model IDs and model defaults across src/codex-exec.mjs, src/copilot-exec.mjs, src/ralph.mjs, src/review-loop.mjs, scripts/generate-copilot-artifacts.mjs, source skills, generated .copilot-plugin skills/internal workflows, and agent YAML files (current scan: 26 files reference GPT-5.5/GPT-5.4/Opus 4.7). Resolve how UI-vs-non-UI is classified at each callsite: explicit callsite metadata is preferred over guessing from prompt text; mixed UI/non-UI jobs should split agents where practical, otherwise route to Opus 4.8. Preserve multi-model diversity only when it does not violate the policy. Identify which generated files are source-of-truth vs generated outputs; update generators first and regenerate artifacts. Include tests that assert exact model IDs for representative UI and non-UI dispatches, reject GPT-5.5 regressions, and cover defaults. Ship as a Ralph plugin version bump with all six version stamps, CHANGELOG/AGENTS updates, marketplace index updates, and installed-plugin dogfood through the real Copilot CLI path. Note that codexu's direct Task-tool policy is already documented; this task is specifically the plugin implementation/release needed for runtime compliance.",
           "plan": "Create a Phase-4 reviewed implementation plan from `.ralph/brainstorms/ralph-model-routing-ui-opus48-nonui-gpt56sol/brainstorm.md` and `.json` using GPT-5.6 Sol (this is non-UI plugin/runtime work). Preserve D-001: one fail-closed `model-routing.mjs` plus durable `uiUxJudgment` metadata (`required|not-required|mixed`, with mixed container-only and per-story classification). The work itself—not touched UI files or an existing UI acceptance harness—determines the model: required -> `claude-opus-4.8`; not-required -> `gpt-5.6-sol`. Plan the six brainstorm stories: (1) policy module/schema/durable classification; (2) wrapper/core runtime routing; (3) planning/review/mixed-story routing and historical `copilot-opus` compatibility; (4) generators/agent metadata/generated-artifact regeneration; (5) regression tests and literal ban; (6) Ralph 5.63.0 ship ceremony + codexu pointer/version table + installed Copilot CLI dogfood. Begin with the required empirical probe that Task `model=` overrides custom agent YAML; branch the plan if it does not. Include exact source/generated file boundaries, all six version stamps, commands/tests, backward-compat migration for old PRDs lacking `uiUxJudgment`, fail-closed model availability behavior, and no GPT-5.5 fallback. Target implementation repo is the `ai-developer-toolkit` submodule; plan must specify the submodule worktree and the parent codexu pointer-bump worktree/ceremony.",
           "impl": "Implement the Phase-4-reviewed plan at `.ralph/jobs/ralph-model-routing-ui-opus48-nonui-gpt56sol/plan.md` in the `ai-developer-toolkit` submodule using GPT-5.6 Sol (`uiUxJudgment: not-required`). Work only in a dedicated submodule worktree under `ai-developer-toolkit/.worktrees/ralph-model-routing-ui-opus48-nonui-gpt56sol` on a topic branch off current toolkit main. Implement all six stories serially: central fail-closed routing/schema/metadata; wrappers/runtime; planning/review/nested workflows; generators/agent metadata/regenerated artifacts; regression/literal-ban/docs migration; Ralph 5.63.0 six-stamp release metadata and dogfood preparation. Exact policy: work itself requires UI/UX judgment -> `claude-opus-4.8`; otherwise -> `gpt-5.6-sol`; existing UI/TUI acceptance surfaces remain Sol; unresolved mixed rejects. Explicit Task `model=` precedence over agent YAML is proven; keep one YAML per role and add regression coverage. No GPT-5.5 fallback. Drive targeted tests, generator/parity checks, marketplace policy, full Ralph suite, Phase 5a code review-fix convergence and Phase 5b docs review-fix convergence to clean. Do not push or update codexu pointer; lead owns toolkit multi-remote push, codexu gitlink + active-version table, `copilot plugin update`, and installed-path dogfood. Report local toolkit commit SHA, branch, tests, version stamps, and review convergence."
-        }
-      }
-    },
-    {
-      "id": "codex-native-happy-p0-browser-proof",
-      "scope": "happy-app|codexu",
-      "lifecycle": "tracked",
-      "status": "todo",
-      "lastTouchedAt": "2026-07-11T00:30:00Z",
-      "initialStage": "plan-ready",
-      "blockedOn": [],
-      "kanbanCards": [
-        {
-          "className": "cmd-warn",
-          "html": "P0/J1 real-browser proof from parent plan. Uses the existing Expo web build and actual socket.io-client 4.8.1; no toy client and no UI redesign."
-        },
-        {
-          "className": "cmd-warn",
-          "html": "<strong>Initial P0 NO-GO evidence @ 29df8f860</strong>. Most browser protocol checks passed; blockers were malformed UTF-8, missing stopping ack, and 0px renderer."
-        },
-        {
-          "className": "cmd-ok",
-          "html": "<strong>Remediations integrated on retained branch</strong>: Sol protocol fixes shipped via Codex 3ff55692e / codexu 15caa318d; Opus renderer fix integrated as rebased commits 745dd995f + d1aa1b3f6. J1 is ready for full clean-checkout rerun."
-        }
-      ],
-      "command": {
-        "name": "codex-native-happy-p0-browser-proof",
-        "descriptionHtml": "P0 existing Happy web/Chromium proof against the J0 Rust compatibility server.",
-        "warnings": [
-          {
-            "className": "cmd-warn",
-            "html": "Full rerun required before merge. Also resolve the pre-existing tracked entry-point import of missing `sources/polyfills/screenOrientation.ts` so a clean checkout boots without an untracked build enabler; source-verify canonical behavior."
-          }
-        ],
-        "prompts": {
-          "impl": "Resume the retained J1 worktree/branch after integrated remediations. Use GPT-5.6 Sol. Rerun Job J1 / US-004..006 from `.ralph/jobs/codex-native-happy-server-local-web-dual-control/plan.md` against Codex fixture 3ff55692e. First source-verify and resolve the pre-existing clean-checkout build blocker: `packages/happy-app/index.ts` imports missing tracked `sources/polyfills/screenOrientation.ts`; restore the canonical polyfill behavior from repository history or current architecture and commit it if correct, with focused test/typecheck. Then run real Expo web + Chromium/agent-browser using socket.io-client 4.8.1. Required rerun deltas: malformed `%FF` returns 401; `fixture-enter-stopping` -> `rpc-call compat-session:abort` returns exact server_stopping -> `fixture-exit-stopping`; renderer text is visible at nonzero size with stable revisions/durable replacement. Reprove all previous pairing/polling/Origin/CORS/tamper/replay/acks/ranges/CAS/isolation/reconnect/restart/Rust-client checks. Replace compatibility-result.json/browser-proof.png with redacted final evidence and explicit overall GO/NO-GO. No happy-cli/Node happy-server/tunnel/toy client/UI redesign. Phase 5a/5b GPT-5.6 Sol reviews; commit locally, do not push."
-        }
-      }
-    },
-    {
-      "id": "codex-native-happy-p0-renderer-visible",
-      "scope": "happy-app",
-      "lifecycle": "tracked",
-      "status": "todo",
-      "lastTouchedAt": "2026-07-10T23:30:00Z",
-      "initialStage": "plan-ready",
-      "kanbanCards": [
-        {
-          "className": "cmd-warn",
-          "html": "UI-only remediation from real P0 Chromium evidence: keyed transient replacement is correct, but the existing MessageView proof renders durable/transient text at computed <code>font-size: 0px</code>. Diagnose and make the dev proof visibly render without redesigning chat UI or changing transport/state semantics."
-        },
-        {
-          "className": "cmd-ok",
-          "html": "<strong>Renderer fix ready @ eab9a56eb</strong> (Opus 4.8; integrated into retained J1 branch, not yet merged to main). Root cause: web Unistyles flatten returns opaque class markers, so <code>AnimatedMarkdownText</code> coerced undefined font size to 0 and overrode the valid 16px CSS base. Fix omits unresolved/nonpositive animated fontSize; native/e-ink positive numeric scaling remains unchanged. Real Chromium evidence: 16px, visible, durable=1/transient=0; focused 18/18, typecheck green; Phase 5a/5b clean."
-        }
-      ],
-      "command": {
-        "name": "codex-native-happy-p0-renderer-visible",
-        "descriptionHtml": "Fix the existing Happy web renderer/probe visibility for P0 keyed transient snapshots.",
-        "warnings": [],
-        "prompts": {
-          "impl": "Use Claude Opus 4.8 because this task requires actual browser UI/UX rendering judgment. Work from the retained J1 commit/branch `ralph/codex-native-happy-p0-browser` (commit 29df8f860) in a separate codexu worktree/branch. Diagnose why the existing MessageView-based P0 proof has correct state replacement (revisions 7→8; final durable replacement; one stable key) but Chromium computes text font-size 0px and shows no visible text. Determine whether the cause is missing runtime/theme/font-scale context in the dev probe, a layout/style propagation bug, or an existing web renderer defect. Apply the smallest e-ink-safe, production-pattern-compatible fix: prefer correct provider/context composition or state plumbing; do not invent a new chat design, animation, smooth streaming, or P0-only fake renderer. Add focused tests and real agent-browser screenshot proving visible text with nonzero computed size while replacement/dedup remains correct. Phase 5a/5b reviews; commit locally, do not push. Report whether the fix belongs only in dev probe wiring or production renderer code, with exact visual evidence."
         }
       }
     },
