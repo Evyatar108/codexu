@@ -1895,6 +1895,28 @@
           "impl": "Use Claude Opus 4.8 because this task requires actual browser UI/UX rendering judgment. Work from the retained J1 commit/branch `ralph/codex-native-happy-p0-browser` (commit 29df8f860) in a separate codexu worktree/branch. Diagnose why the existing MessageView-based P0 proof has correct state replacement (revisions 7→8; final durable replacement; one stable key) but Chromium computes text font-size 0px and shows no visible text. Determine whether the cause is missing runtime/theme/font-scale context in the dev probe, a layout/style propagation bug, or an existing web renderer defect. Apply the smallest e-ink-safe, production-pattern-compatible fix: prefer correct provider/context composition or state plumbing; do not invent a new chat design, animation, smooth streaming, or P0-only fake renderer. Add focused tests and real agent-browser screenshot proving visible text with nonzero computed size while replacement/dedup remains correct. Phase 5a/5b reviews; commit locally, do not push. Report whether the fix belongs only in dev probe wiring or production renderer code, with exact visual evidence."
         }
       }
+    },
+    {
+      "id": "codex-rs-core-change-incremental-build-over-30m",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-11T02:03:09Z",
+      "initialStage": "brainstorming",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Current Codex iteration loop is too slow: after changes in core Codex Rust code, a local verification build takes more than 30 minutes. Prior work improved cold-cache methodology, sccache startup, and job count, but did not solve core-edit incremental rebuild latency; feature pruning measured no win and was reverted. Diagnose the current critical path and reduce a representative warm core-code change build to ≤10 minutes (stretch: ≤5 minutes) without weakening verification or adding high-conflict fork changes."
+        }
+      ],
+      "command": {
+        "name": "codex-rs-core-change-incremental-build-over-30m",
+        "descriptionHtml": "Reduce Codex core-code incremental verification builds from 30+ minutes to ≤10 minutes.",
+        "warnings": [],
+        "prompts": {
+          "brainstorm": "Source-verify and benchmark why a representative change under `codex/external/repos/codex-patched/codex-rs/core/` currently causes a 30+ minute local verification build on the Windows dev box, then recommend the lowest-conflict path to ≤10 minutes (stretch ≤5). This is non-UI work: use GPT-5.6 Sol. Read first: `codex/docs/implementation/build-perf.md`, existing build-perf artifacts, `codex/scripts/iteration-env.sh`, `codex/scripts/measure-build.ps1`, `codex/.claude/commands/publish-sandbox-patch.md`, `codex/CLAUDE.md`, and shipped/archived tasks `codex-rs-build-time-and-cache-resilience`, `codex-rs-build-perf-baseline-measurement`, `codex-rs-build-perf-jobs-sweep-with-defender`, `codex-rs-iteration-env-sccache-race-and-jobs-default`, `codex-rs-feature-pruning-for-sub-45m-cold`, plus pending `build-env-sccache-cache-wipe-and-rewarm`. Mandatory empirical matrix: clean baseline; no-op rebuild; touch/edit one representative `codex-core` leaf; edit a high-fanout core type; `cargo check --workspace`; targeted `cargo check -p codex-core`; dev/iteration build; release build only where necessary. Capture cargo timings, rustc/link wall time, crate invalidation set, sccache hit/miss/non-cacheable/error stats, linker choice, LTO/codegen-units/incremental settings, target-dir reuse, environment drift, antivirus/filesystem impact, and whether the sccache cache is still corrupt/cold. Distinguish compile time from late link time and dependency rebuild from toolchain/env fingerprint invalidation. Evaluate: a dedicated fast verification profile; targeted package checks/tests instead of workspace/release for Phase 5a; split or stabilize high-fanout crates/features only when measured; linker/incremental/codegen configuration; stable env fingerprint; sccache remediation/remote cache; cargo-nextest/check-only gates; and maintaining a slower release-equivalent gate separately. Do not repeat feature pruning without new evidence. Minimize upstream conflict: prefer scripts/config/overlay tooling before upstream-canonical source changes. Deliver reproducible before/after measurements, recommended verification tiers, exact implementation files, acceptance thresholds, and a plan seed."
+        }
+      }
     }
   ],
   "phaseTree": [
