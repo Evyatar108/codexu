@@ -10528,6 +10528,39 @@
           }
         ]
       }
+    },
+    {
+      "id": "codex-native-happy-p0-rust-hardening",
+      "scope": "codex",
+      "lifecycle": "merged",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-11T00:05:00Z",
+      "initialStage": "plan-ready",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "P0 remediation after real Chromium NO-GO. Fix the shipped J0 Rust fixture so malformed UTF-8 percent-encoded query bytes fail closed (401, not replacement-character collision/200) and expose a deterministic browser-accessible shutdown transition proving exact <code>{ok:false,error:\"server_stopping\"}</code> RPC acknowledgement. No architecture expansion."
+        }
+      ],
+      "command": {
+        "name": "codex-native-happy-p0-rust-hardening",
+        "descriptionHtml": "Harden the J0 Rust fixture for malformed-query fail-closed behavior and server-stopping ack evidence.",
+        "warnings": [],
+        "prompts": {
+          "impl": "In a Codex wrapper worktree off current main, use GPT-5.6 Sol to implement the two P0/J1 transport remediation items from `.ralph/jobs/codex-native-happy-server-local-web-dual-control/p0/compatibility-result.json` (read it from the retained J1 branch/worktree if not on main). Scope only `codex-rs-overlay/codex-happy-compat-spike/`. (1) Canonicalization must reject malformed UTF-8 percent bytes before lossy replacement; the exact browser proof that previously returned 200 must return 401, with query/path/body binding and valid canonical queries preserved. (2) Add a deterministic browser-accessible fixture-only shutdown transition that puts RPC handling into stopping state and returns exact `{ok:false,error:\"server_stopping\"}` without terminating before the ack is observed. Add focused regression tests plus full 20-test baseline. Preserve pins, loopback bind, no custom packet framing/browser patch/production store/happy-cli. Phase 5a/5b reviews on GPT-5.6 Sol, commit locally, do not push, report exact J1 rerun interface."
+        }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-07-11T00:05:00Z",
+        "summary": "Shipped the P0 Rust fixture remediation required by the real Chromium NO-GO. Query canonicalization now rejects malformed percent escapes and invalid UTF-8 octets before lossy decoding, so the prior `/proof-check?value=%FF` case returns fail-closed HTTP 401 while valid query ordering, duplicate keys and literal U+FFFD remain covered. The fixture also exposes deterministic `fixture-enter-stopping` / `fixture-exit-stopping` test events: after entering stopping, a browser `rpc-call` receives exact `{ok:false,error:\"server_stopping\"}` before clean exit.\n\nOffline check passed; 15 unit + 12 integration tests passed; server/Rust-client smoke passed. Phase 5a and 5b reviews converged clean. J1 rerun sequence is frozen: enter stopping, call `compat-session:abort`, assert exact stopping ack, then exit stopping.",
+        "commits": [
+          {
+            "sha": "3ff55692e7045e85ce78ebe8337ab40b55494c9c",
+            "oneLine": "fix(happy): harden P0 fixture protocol guards",
+            "repo": "gim-home/codex"
+          }
+        ]
+      }
     }
   ]
 }
