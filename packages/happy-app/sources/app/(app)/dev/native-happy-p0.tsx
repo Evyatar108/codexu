@@ -7,8 +7,10 @@ import { layout } from '@/components/layout';
 import {
     NATIVE_HAPPY_P0_BROWSER_ORIGIN,
     NativeHappyP0ProbeController,
+    type NativeHappyP0Check,
     type NativeHappyP0ExternalEvidence,
     type NativeHappyP0ViewState,
+    type NativeHappyRendererVisualMeasurement,
 } from '@/dev/nativeHappyP0Probe';
 
 const INITIAL_STATE: NativeHappyP0ViewState = {
@@ -25,6 +27,8 @@ declare global {
             confirmRustClientComplete(): void;
             setExternalEvidence(evidence: NativeHappyP0ExternalEvidence): void;
             getCompatibilityResult(): NativeHappyP0ViewState['result'];
+            seedRendererForVisualCheck(): NativeHappyP0ViewState;
+            recordRendererVisualEvidence(measurement: NativeHappyRendererVisualMeasurement): NativeHappyP0Check | null;
         };
     }
 }
@@ -44,6 +48,8 @@ export default function NativeHappyP0Screen() {
                 confirmRustClientComplete: () => controller.confirmRustClientComplete(),
                 setExternalEvidence: evidence => controller.setExternalEvidence(evidence),
                 getCompatibilityResult: () => controller.getCompatibilityResult(),
+                seedRendererForVisualCheck: () => controller.seedRendererForVisualCheck(),
+                recordRendererVisualEvidence: measurement => controller.recordRendererVisualEvidence(measurement),
             };
         }
         return () => {
@@ -112,6 +118,12 @@ export default function NativeHappyP0Screen() {
                     label="Download redacted result"
                     onPress={() => state.result && downloadResult(state.result)}
                     testID="native-happy-p0-download"
+                />
+                <ProbeButton
+                    disabled={running}
+                    label="Seed renderer visual check"
+                    onPress={() => controller.seedRendererForVisualCheck()}
+                    testID="native-happy-p0-seed-renderer"
                 />
             </View>
 

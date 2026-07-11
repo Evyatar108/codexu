@@ -18,8 +18,10 @@ import {
 import {
     applyNativeHappyDurableFinal,
     applyNativeHappySnapshot,
+    buildNativeHappyRendererFixtureState,
     createNativeHappySnapshotProbeState,
     getNativeHappyTransientMessageId,
+    NATIVE_HAPPY_P0_RENDERER_FIXTURE,
     selectNativeHappySnapshotMessages,
 } from './nativeHappySnapshotProbe';
 
@@ -221,5 +223,45 @@ describe('native Happy P0 probe', () => {
         expect(result?.renderer).toMatchObject({ source: 'NOT_RUN', completed: false });
         expect(result?.versions.socketIoClient).toBe('NOT_CAPTURED');
         expect(() => result && assertNativeHappyP0ResultRedacted(result, ['not-an-invite'])).not.toThrow();
+    });
+
+    it('builds the renderer fixture as one durable final with no transient duplicate', () => {
+        const state = buildNativeHappyRendererFixtureState('compat-session');
+        const messages = selectNativeHappySnapshotMessages(state) as Extract<Message, { kind: 'agent-text' }>[];
+
+        expect(messages).toHaveLength(1);
+        expect(messages[0]?.id).toBe(NATIVE_HAPPY_P0_RENDERER_FIXTURE.finalMessageId);
+        expect(messages[0]?.text).toBe(NATIVE_HAPPY_P0_RENDERER_FIXTURE.finalText);
+        // The transient snapshot text must not survive the durable final replacement.
+        expect(messages.some(message => message.text === 'compat snapshot resumed')).toBe(false);
+    });
+
+    it('seeds the renderer visual check and passes the gate only on a nonzero visible font size', () => {
+        const controller = new NativeHappyP0ProbeController(() => {});
+
+        const view = controller.seedRendererForVisualCheck();
+        const rendererMessages = view.rendererMessages as Extract<Message, { kind: 'agent-text' }>[];
+        expect(rendererMessages).toHaveLength(1);
+        expect(rendererMessages[0]?.text).toBe(NATIVE_HAPPY_P0_RENDERER_FIXTURE.finalText);
+
+        // The fixed web behavior: durable text visible at a nonzero computed font size.
+        const passed = controller.recordRendererVisualEvidence({
+            visible: true,
+            computedFontSizePx: 16,
+            durableTextCount: 1,
+            transientTextCount: 0,
+        });
+        expect(passed?.status).toBe('PASS');
+
+        // The pre-fix regression: a 0px computed font size must still fail the gate,
+        // even though the state replacement semantics are identical.
+        controller.seedRendererForVisualCheck();
+        const failed = controller.recordRendererVisualEvidence({
+            visible: false,
+            computedFontSizePx: 0,
+            durableTextCount: 1,
+            transientTextCount: 0,
+        });
+        expect(failed?.status).toBe('FAIL');
     });
 });

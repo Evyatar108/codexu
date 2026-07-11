@@ -93,6 +93,30 @@ describe('useChatFontScale', () => {
         expect(style.lineHeight).toBeCloseTo(36, 9);
     });
 
+    it('omits fontSize when the base is unresolved (web unistyles) instead of hiding text with 0', () => {
+        // On web, react-native-unistyles resolves styles to opaque CSS-class markers,
+        // so StyleSheet.flatten(baseStyle).fontSize is undefined; callers may coerce
+        // that to 0 via `?? 0`. The hook must never emit a text-hiding `fontSize: 0` —
+        // it should leave the property off so the base class font-size survives.
+        setup(1.2, 1.0);
+
+        const undefinedBase = useChatScaleAnimatedTextStyle(undefined, undefined);
+        expect(undefinedBase.fontSize).toBeUndefined();
+        expect(undefinedBase.lineHeight).toBeUndefined();
+
+        const zeroBase = useChatScaleAnimatedTextStyle(0, 24);
+        expect(zeroBase.fontSize).toBeUndefined();
+        // A resolvable lineHeight is still scaled so the base line box is preserved.
+        expect(zeroBase.lineHeight).toBeCloseTo(28.8, 9);
+    });
+
+    it('still scales a positive base fontSize so the native path is unchanged', () => {
+        setup(1.2, 1.0);
+        const style = useChatScaleAnimatedTextStyle(16, 24);
+        expect(style.fontSize).toBeCloseTo(19.2, 9);
+        expect(style.lineHeight).toBeCloseTo(28.8, 9);
+    });
+
     it('captures persistedScale in the deps array while keeping the live shared value stable', () => {
         setup(1.2, 1.0);
         useChatScaleAnimatedTextStyle(10, 20);

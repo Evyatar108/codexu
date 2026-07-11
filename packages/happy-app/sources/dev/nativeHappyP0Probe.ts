@@ -13,6 +13,7 @@ import type { Message } from '@/sync/typesMessage';
 import {
     applyNativeHappyDurableFinal,
     applyNativeHappySnapshot,
+    buildNativeHappyRendererFixtureState,
     createNativeHappySnapshotProbeState,
     getNativeHappyTransientMessageId,
     selectNativeHappySnapshotMessages,
@@ -109,7 +110,7 @@ export type NativeHappyP0Phase =
     | 'failed';
 
 export interface NativeHappyRendererEvidence {
-    source: 'J0 session-output-snapshot' | 'NOT_RUN';
+    source: 'J0 session-output-snapshot' | 'seed-visual-check' | 'NOT_RUN';
     completed: boolean;
     revisions: number[];
     countsByRevision: number[];
@@ -168,17 +169,19 @@ export interface NativeHappyRustClientEvidence {
     replayedUpdates: number;
 }
 
+export interface NativeHappyRendererVisualMeasurement {
+    visible: boolean;
+    computedFontSizePx: number;
+    durableTextCount: number;
+    transientTextCount: number;
+}
+
 export interface NativeHappyP0ExternalEvidence {
     versions: NativeHappyVersionEvidence;
     rustDependencies: Record<string, string>;
     rustClient: NativeHappyRustClientEvidence;
     network: NativeHappyBrowserNetworkEvidence;
-    renderer: {
-        visible: boolean;
-        computedFontSizePx: number;
-        durableTextCount: number;
-        transientTextCount: number;
-    };
+    renderer: NativeHappyRendererVisualMeasurement;
 }
 
 export interface NativeHappyP0CompatibilityResult {
@@ -478,6 +481,50 @@ export class NativeHappyP0ProbeController {
 
     getCompatibilityResult(): NativeHappyP0CompatibilityResult | null {
         return this.buildCompatibilityResult();
+    }
+
+    /**
+     * Dev-only: seed the "Existing renderer proof" panel with the canonical P0
+     * renderer fixture (revision 7 then 8, then the durable final that removes the
+     * transient item) WITHOUT running the J0 transport. This lets agent-browser
+     * reproduce and verify the renderer-visual-surface check in isolation. It reuses
+     * the exact pure snapshot/dedup functions, so state semantics are unchanged.
+     */
+    seedRendererForVisualCheck(): NativeHappyP0ViewState {
+        this.resetRuntime();
+        this.rendererState = buildNativeHappyRendererFixtureState(NATIVE_HAPPY_P0_SESSION_ID);
+        this.rendererEvidence = {
+            source: 'seed-visual-check',
+            completed: true,
+            revisions: [7, 8],
+            countsByRevision: [1, 1],
+            stableTransientMessageId: true,
+            finalDurableRemovedTransient: true,
+            finalRenderedItemCount: selectNativeHappySnapshotMessages(this.rendererState).length,
+            browserTextVisible: null,
+            browserComputedFontSizePx: null,
+            browserDurableTextCount: null,
+            browserTransientTextCount: null,
+        };
+        this.pass('renderer-revision-replace', 'Increasing snapshot revision replaces one keyed item', 'Revisions 7 and 8 rendered under one stable MessageView key.');
+        this.pass('renderer-durable-final', 'Durable final removes the transient item', 'MessageView state contained one durable final item with no transient duplicate.');
+        this.statusText = 'Renderer seeded for visual check. Measure the durable text computed font size.';
+        this.publish();
+        return this.getViewState();
+    }
+
+    /**
+     * Dev-only: attach a Chromium-measured renderer visual observation to the seeded
+     * fixture and evaluate the renderer-visual-surface gate. Returns the resulting
+     * check so agent-browser can assert on it without the full transport evidence.
+     */
+    recordRendererVisualEvidence(measurement: NativeHappyRendererVisualMeasurement): NativeHappyP0Check | null {
+        if (!this.rendererEvidence) {
+            throw new Error('seed the renderer before recording visual evidence');
+        }
+        this.applyRendererVisualGate(this.rendererEvidence, measurement);
+        this.publish();
+        return this.checks.find(check => check.id === 'renderer-visual-surface') ?? null;
     }
 
     confirmRustClientComplete(): void {
@@ -905,28 +952,7 @@ export class NativeHappyP0ProbeController {
                 throw new Error('renderer state proof did not complete');
             }
             if (rendererEvidence) {
-                rendererEvidence.browserTextVisible = evidence.renderer.visible;
-                rendererEvidence.browserComputedFontSizePx = evidence.renderer.computedFontSizePx;
-                rendererEvidence.browserDurableTextCount = evidence.renderer.durableTextCount;
-                rendererEvidence.browserTransientTextCount = evidence.renderer.transientTextCount;
-                if (
-                    evidence.renderer.visible
-                    && evidence.renderer.computedFontSizePx > 0
-                    && evidence.renderer.durableTextCount === 1
-                    && evidence.renderer.transientTextCount === 0
-                ) {
-                    this.pass(
-                        'renderer-visual-surface',
-                        'Existing MessageView visibly renders the durable replacement',
-                        'Chromium displayed one durable assistant item and no transient duplicate.',
-                    );
-                } else {
-                    this.recordFailure(
-                        'renderer-visual-surface',
-                        'Existing MessageView visual surface requires a separate UI task',
-                        `State replacement passed, but Chromium measured durable=${evidence.renderer.durableTextCount}, transient=${evidence.renderer.transientTextCount}, fontSize=${evidence.renderer.computedFontSizePx}px.`,
-                    );
-                }
+                this.applyRendererVisualGate(rendererEvidence, evidence.renderer);
             }
 
             const result = this.buildCompatibilityResult();
@@ -1395,6 +1421,34 @@ export class NativeHappyP0ProbeController {
             this.publish();
         });
         return { socket, updates, overflows, ephemerals };
+    }
+
+    private applyRendererVisualGate(
+        rendererEvidence: NativeHappyRendererEvidence,
+        measurement: NativeHappyRendererVisualMeasurement,
+    ): void {
+        rendererEvidence.browserTextVisible = measurement.visible;
+        rendererEvidence.browserComputedFontSizePx = measurement.computedFontSizePx;
+        rendererEvidence.browserDurableTextCount = measurement.durableTextCount;
+        rendererEvidence.browserTransientTextCount = measurement.transientTextCount;
+        if (
+            measurement.visible
+            && measurement.computedFontSizePx > 0
+            && measurement.durableTextCount === 1
+            && measurement.transientTextCount === 0
+        ) {
+            this.pass(
+                'renderer-visual-surface',
+                'Existing MessageView visibly renders the durable replacement',
+                'Chromium displayed one durable assistant item and no transient duplicate.',
+            );
+        } else {
+            this.recordFailure(
+                'renderer-visual-surface',
+                'Existing MessageView visual surface requires a separate UI task',
+                `State replacement passed, but Chromium measured durable=${measurement.durableTextCount}, transient=${measurement.transientTextCount}, fontSize=${measurement.computedFontSizePx}px.`,
+            );
+        }
     }
 
     private pass(id: string, label: string, detail: string): void {

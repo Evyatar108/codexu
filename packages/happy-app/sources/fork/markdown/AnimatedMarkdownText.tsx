@@ -13,10 +13,19 @@ import { useChatScaleAnimatedTextStyle } from '@/hooks/useChatFontScale';
  *
  * Behavior-preserving relocation of the inline `AnimatedMarkdownText` that used
  * to live in components/markdown/MarkdownView.tsx. See docs/happy-patch-surface.md (HA-8).
+ *
+ * On web, react-native-unistyles resolves styles to opaque CSS-class markers
+ * (`{ unistyles_<hash>: {} }`), so `RNStyleSheet.flatten(baseStyle).fontSize`
+ * is `undefined` (the numeric value lives only in the emitted CSS class, not on
+ * the JS object). We therefore pass the possibly-undefined base fontSize through
+ * unchanged; `useChatScaleAnimatedTextStyle` skips emitting a `fontSize` when the
+ * base is not a positive number, so the base class's font-size survives instead
+ * of being overridden with a text-hiding `0`. On native, flatten yields the real
+ * numeric fontSize, so the animated scale applies exactly as before.
  */
 export function AnimatedMarkdownText(props: React.ComponentProps<typeof AnimatedText> & { baseStyle?: StyleProp<TextStyle> }) {
     const flattenedBaseStyle = RNStyleSheet.flatten(props.baseStyle) ?? {};
-    const animatedTextStyle = useChatScaleAnimatedTextStyle(flattenedBaseStyle.fontSize ?? 0, flattenedBaseStyle.lineHeight);
+    const animatedTextStyle = useChatScaleAnimatedTextStyle(flattenedBaseStyle.fontSize, flattenedBaseStyle.lineHeight);
 
     return <AnimatedText {...props} style={[props.baseStyle, props.style, animatedTextStyle]} />;
 }

@@ -56,7 +56,7 @@ export function useChatFontScaleOverride(baseFontSize: number, baseLineHeight?: 
     }, [baseFontSize, baseLineHeight, scale]);
 }
 
-export function useChatScaleAnimatedTextStyle(baseFontSize: number, baseLineHeight?: number) {
+export function useChatScaleAnimatedTextStyle(baseFontSize: number | undefined, baseLineHeight?: number) {
     const persistedScale = useChatFontScale();
     const liveScale = React.useContext(ChatScaleLiveContext);
     const liveMultiplier = liveScale?.liveMultiplier;
@@ -64,8 +64,18 @@ export function useChatScaleAnimatedTextStyle(baseFontSize: number, baseLineHeig
     return useAnimatedStyle(() => {
         const scale = persistedScale * (liveMultiplier?.value ?? 1);
 
+        // Only emit a scaled `fontSize` when the resolved base is a positive
+        // number. On web, react-native-unistyles resolves styles to opaque CSS
+        // class markers, so `StyleSheet.flatten(...).fontSize` is `undefined`;
+        // callers that coerce that to `0` (`?? 0`) would otherwise make this hook
+        // emit `fontSize: 0`, a valid CSS value that hides the text. Skipping the
+        // property lets the base unistyles class's font-size survive. On native the
+        // base resolves to a real number, so scaling behaves exactly as before.
+        // Extends the `typeof style.fontSize === 'number'` guard in scaleMonoFonts
+        // with an added `> 0` clause, since `?? 0` callers inject a literal 0 that a
+        // bare typeof check would wrongly treat as a valid (text-hiding) size.
         return {
-            fontSize: baseFontSize * scale,
+            ...(typeof baseFontSize === 'number' && baseFontSize > 0 ? { fontSize: baseFontSize * scale } : {}),
             ...(typeof baseLineHeight === 'number' ? { lineHeight: baseLineHeight * scale } : {}),
         };
     }, [baseFontSize, baseLineHeight, persistedScale, liveMultiplier]);

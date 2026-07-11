@@ -88,3 +88,44 @@ export function selectNativeHappySnapshotMessages(state: NativeHappySnapshotProb
 
     return [...state.durableMessages, ...transientMessages];
 }
+
+/**
+ * Canonical P0 renderer fixture: the ordered full-text snapshot sequence
+ * (revision 7 then revision 8) followed by the durable assistant final that
+ * removes the transient item. These are the same values `verifyRendererReplacement`
+ * asserts against; centralizing them lets the dev-only visual-check seed and the
+ * focused tests exercise the exact production render path without the J0 transport.
+ */
+export const NATIVE_HAPPY_P0_RENDERER_FIXTURE = {
+    itemId: 'compat-item',
+    snapshots: [
+        { revision: 7, text: 'compat snapshot' },
+        { revision: 8, text: 'compat snapshot resumed' },
+    ],
+    finalMessageId: 'compat-durable-final',
+    finalText: 'compat durable final replaces transient snapshot',
+} as const;
+
+export function buildNativeHappyRendererFixtureState(sessionId: string): NativeHappySnapshotProbeState {
+    const emittedBase = 1_700_000_000_000;
+    let state = createNativeHappySnapshotProbeState();
+    NATIVE_HAPPY_P0_RENDERER_FIXTURE.snapshots.forEach((snapshot, index) => {
+        state = applyNativeHappySnapshot(state, {
+            sessionId,
+            itemId: NATIVE_HAPPY_P0_RENDERER_FIXTURE.itemId,
+            revision: snapshot.revision,
+            text: snapshot.text,
+            emittedAt: emittedBase + index,
+        });
+    });
+
+    const finalMessage: Extract<Message, { kind: 'agent-text' }> = {
+        kind: 'agent-text',
+        id: NATIVE_HAPPY_P0_RENDERER_FIXTURE.finalMessageId,
+        localId: `codex-origin:assistant:${NATIVE_HAPPY_P0_RENDERER_FIXTURE.itemId}`,
+        createdAt: emittedBase + 100,
+        seq: 1,
+        text: NATIVE_HAPPY_P0_RENDERER_FIXTURE.finalText,
+    };
+    return applyNativeHappyDurableFinal(state, sessionId, finalMessage);
+}

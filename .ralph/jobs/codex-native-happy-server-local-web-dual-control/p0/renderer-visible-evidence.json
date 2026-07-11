@@ -1,0 +1,66 @@
+{
+  "task": "codex-native-happy-p0-renderer-visible",
+  "scope": "renderer-visual-surface only (transport/dedup/state semantics unchanged)",
+  "generatedFrom": "real Expo web bundle (expo start --web) + agent-browser Chromium, dev route /dev/native-happy-p0",
+  "redaction": {
+    "invite": "[REDACTED]",
+    "proofHeaders": "[REDACTED]",
+    "nonces": "[REDACTED]",
+    "privateKey": "[REDACTED]"
+  },
+  "reproduction": {
+    "route": "/dev/native-happy-p0",
+    "affordance": "window.__nativeHappyP0Probe.seedRendererForVisualCheck()",
+    "note": "Renderer fixture is seeded via the exact pure snapshot/dedup functions (revision 7 then 8, then the durable final that removes the transient item). No J0 Rust transport is involved, so this isolates the browser-visibility surface.",
+    "prerequisite": "The tracked entry point packages/happy-app/index.ts imports './sources/polyfills/screenOrientation', but that file is untracked on the J1 base AND on origin/main (a pre-existing, fork-wide gap: the polyfills/ dir is empty in git while the import persists at index.ts:1). The canonical polyfill (identical to commit 8e4118b0f) must be present on disk for the Expo web bundle to boot. It is intentionally left untracked and OUT of this task's scope (this task fixes only the renderer font-size bug); the J1 base already documents the same build-enabler in nativeHappyP0Probe compatibilityShims. J1/the fork should resolve the dangling entry-point import separately."
+  },
+  "rootCause": {
+    "summary": "Web-only production renderer bug in the fork's chat font-scale wrapper. react-native-unistyles resolves styles to opaque CSS-class markers on web ({ unistyles_<hash>: {} }), so RNStyleSheet.flatten(baseStyle).fontSize is undefined. AnimatedMarkdownText coerced that to 0 via `?? 0`, and useChatScaleAnimatedTextStyle then unconditionally emitted fontSize = 0 * scale = 0. Because the animated style is applied last in the style array, it overrode the correct 16px base with a text-hiding font-size: 0px.",
+    "evidenceDomBeforeFix": {
+      "generatedCssClass": ".unistyles_fzz3g0uonw { font-family: IBMPlexSans-Regular; font-size: 0px; line-height: 24px; margin-top: 8px; margin-bottom: 8px; color: var(--colors-text); font-weight: 400; }",
+      "durableLeafComputedFontSizePx": 0,
+      "durableLeafBoundingBox": { "width": 0, "height": 0 },
+      "visible": false
+    },
+    "flattenProbe": {
+      "RNStyleSheetFlatten": { "unistyles_gksyj": {}, "unistyles_4etx": {}, "unistyles_qeoyt": {}, "fontSize": "undefined", "lineHeight": "undefined" },
+      "unistylesStyleSheetFlatten": { "unistyles_gksyj": {}, "unistyles_4etx": {}, "unistyles_qeoyt": {}, "fontSize": "undefined" },
+      "conclusion": "Neither react-native nor react-native-unistyles flatten surfaces numeric fontSize/lineHeight on web; the values live only in the emitted CSS class."
+    },
+    "nativeContrast": "On native, flatten resolves the real numeric fontSize (16), so scaling works and the bug never manifested — hence web-only and latent (the e-ink tablet target is native)."
+  },
+  "fix": {
+    "kind": "production renderer (web-safe, native-behavior-preserving)",
+    "files": [
+      "packages/happy-app/sources/hooks/useChatFontScale.ts",
+      "packages/happy-app/sources/fork/markdown/AnimatedMarkdownText.tsx"
+    ],
+    "change": "useChatScaleAnimatedTextStyle now only emits `fontSize` when the resolved base is a positive number. This extends the existing `typeof style.fontSize === 'number'` guard in scaleMonoFonts with an added `> 0` clause, needed because `?? 0` callers inject a literal 0 that a bare typeof check would wrongly treat as a valid size. AnimatedMarkdownText passes the possibly-undefined flattened fontSize through instead of coercing to 0. When the base cannot be resolved (web/unistyles), no fontSize override is emitted and the base unistyles class's font-size survives. On native, the base resolves to a real number, so the animated scale applies exactly as before.",
+    "einkSafety": "Native path is byte-for-byte unchanged (base fontSize is a real number > 0, so fontSize is emitted and scaled identically). No animation, smooth-streaming, or normal production behavior added or altered."
+  },
+  "evidenceAfterFix": {
+    "measuredFromDom": {
+      "computedFontSizePx": 16,
+      "visible": true,
+      "durableTextCount": 1,
+      "transientTextCount": 0,
+      "boundingWidth": 351,
+      "boundingHeight": 20
+    },
+    "generatedCssClassAfterFix": ".unistyles_1kvqv1lqp4w { ... font-size: 16px; line-height: 24px; ... }",
+    "rendererVisualSurfaceCheck": {
+      "id": "renderer-visual-surface",
+      "label": "Existing MessageView visibly renders the durable replacement",
+      "status": "PASS",
+      "detail": "Chromium displayed one durable assistant item and no transient duplicate."
+    },
+    "screenshot": ".ralph/jobs/codex-native-happy-server-local-web-dual-control/p0/browser-proof-renderer-visible.png"
+  },
+  "preservedStateSemantics": {
+    "note": "Transport/dedup/state semantics were NOT changed. Snapshot revisions 7->8 replace one stable key; the durable final removes the transient duplicate. durableTextCount=1, transientTextCount=0 after the final, exactly as before the fix.",
+    "checks": [
+      { "id": "renderer-revision-replace", "status": "PASS" },
+      { "id": "renderer-durable-final", "status": "PASS" }
+    ]
+  }
+}
