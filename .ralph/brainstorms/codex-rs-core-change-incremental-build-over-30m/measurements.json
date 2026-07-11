@@ -1,0 +1,955 @@
+{
+  "schemaVersion": 1,
+  "taskId": "codex-rs-core-change-incremental-build-over-30m",
+  "wrapperWorktree": "D:\\harness-efforts\\codexu\\codex\\.worktrees\\codex-core-build-perf-brainstorm",
+  "wrapperCommit": "3ff55692e7045e85ce78ebe8337ab40b55494c9c",
+  "patchedCommit": "587a6a8ab8948ff912b1f24a62833b277934302d",
+  "generatedAt": "2026-07-11T06:35:37.418Z",
+  "host": {
+    "os": "Windows 11",
+    "memoryGiB": 64,
+    "note": "Shared host; ambient load varied during the sequential matrix."
+  },
+  "initialCacheDisk": {
+    "path": "D:\\codex-sccache",
+    "sizeGiB": 10.52,
+    "fileCount": 11852
+  },
+  "probes": {
+    "lowFanout": {
+      "file": "external/repos/codex-patched/codex-rs/core/src/session_prefix.rs",
+      "rationale": "Private formatter with one import and one call, both inside codex-core.",
+      "originalSha256": "f8e9500c865c4ae6a6e1b71742f9c3eaf24597062aead78e390e27313359d66c",
+      "editedSha256": "22b6b7cd519ba754e69b017d6e09c4b7e1d5a05836e3f60bca81d59ab2fef054",
+      "edit": "None => format!(\"- {agent_reference}\") to None => [\"- \", agent_reference].concat()"
+    },
+    "highFanout": {
+      "file": "external/repos/codex-patched/codex-rs/core/src/config/mod.rs",
+      "rationale": "Public Config surface: 185 import matches across 117 Rust files and 25 direct package dependencies.",
+      "originalSha256": "eb5bfc443624e876f5948a463f7e30f3c7133b3277d73aeb772126905a0e4a59",
+      "editedSha256": "afaad467929b48614fd9b640f065db431e161214b9bf975aad38f6ede6ba021b",
+      "edit": "Add #[inline] to Config::legacy_sandbox_policy."
+    }
+  },
+  "environment": {
+    "rustcWrapper": "sccache",
+    "sccacheDir": "D:\\codex-sccache",
+    "sccacheCacheSize": "50G",
+    "cargoBuildJobs": "8",
+    "cargoIncremental": "0",
+    "releaseLto": "off",
+    "releaseCodegenUnits": "16",
+    "cargoTargetDir": null,
+    "rustflags": null,
+    "linker": "lld-link",
+    "linkerPath": "C:\\Program Files\\LLVM\\bin\\lld-link.exe",
+    "cc": "clang-cl",
+    "ccPath": "C:\\Program Files\\LLVM\\bin\\clang-cl.exe",
+    "rustupToolchain": "stable-x86_64-pc-windows-msvc",
+    "cargoVersion": "cargo 1.95.0 (f2d3ce0bd 2026-03-21)",
+    "rustcVersion": "rustc 1.95.0 (59807616e 2026-04-14)\r\nbinary: rustc\r\ncommit-hash: 59807616e1fa2540724bfbac14d7976d7e4a3860\r\ncommit-date: 2026-04-14\r\nhost: x86_64-pc-windows-msvc\r\nrelease: 1.95.0\r\nLLVM version: 22.1.2",
+    "sccacheVersion": "sccache 0.15.0",
+    "wrapperCommit": "3ff55692e7045e85ce78ebe8337ab40b55494c9c",
+    "patchedCommit": "587a6a8ab8948ff912b1f24a62833b277934302d",
+    "fileHashes": {
+      "Cargo.toml": "4a696c97f6f8a25be0eb63f6e02ee4d273da60c5ede14e5a1d20769439fd2d14",
+      "Cargo.lock": "e24829b9b59b3e61072bcce2592e324619019e36759fbbd9fdca979fd881db0f",
+      ".cargo\\config.toml": "adc1b9fa038d4bca7d7cbae2139f8e22d7a8e9956ec4f723956055350ed07e2b",
+      "scripts\\iteration-env.sh": "20856d01794547965bd57827f445add26fc603ecde4d475b88ebce10e089b3c3"
+    }
+  },
+  "runs": [
+    {
+      "runId": "20260711T041402Z-check-core-initial",
+      "scenario": "check-core-initial",
+      "command": "cargo check -p codex-core --timings --message-format=json-render-diagnostics",
+      "startedAt": "2026-07-11T04:14:02.8425539Z",
+      "wallSeconds": 301.783,
+      "exitCode": 0,
+      "peakTrackedWorkingSetMB": 1986.3,
+      "compilerArtifactEvents": 1108,
+      "buildScriptEvents": 93,
+      "freshPackageCount": 0,
+      "rebuiltPackageCount": 853,
+      "rebuiltPackages": [],
+      "sccache": {
+        "compileRequests": 1560,
+        "requestsExecuted": 1374,
+        "cacheHits": 1005,
+        "cacheMisses": 362,
+        "cacheWrites": 362,
+        "requestsNotCacheable": 180,
+        "nonCacheableCompilations": 0,
+        "compileFails": 7,
+        "cacheErrors": 0,
+        "cacheReadErrors": 0,
+        "cacheWriteErrors": 0,
+        "cacheTimeouts": 0
+      },
+      "cargoTiming": {
+        "durationSeconds": 302,
+        "unitCount": 1201,
+        "topUnits": [
+          {
+            "name": "aws-lc-sys",
+            "target": " build-script (run)",
+            "mode": "run-custom-build",
+            "startSeconds": 21.38,
+            "durationSeconds": 131.86,
+            "frontendSeconds": null,
+            "codegenSeconds": null
+          },
+          {
+            "name": "codex-app-server-protocol",
+            "target": " (check)",
+            "mode": "todo",
+            "startSeconds": 189.69,
+            "durationSeconds": 43.86,
+            "frontendSeconds": 43.84,
+            "codegenSeconds": 0.01999999999999602
+          },
+          {
+            "name": "codex-core",
+            "target": " (check)",
+            "mode": "todo",
+            "startSeconds": 269.66,
+            "durationSeconds": 30.82,
+            "frontendSeconds": 30.77,
+            "codegenSeconds": 0.05000000000000071
+          },
+          {
+            "name": "starlark",
+            "target": " (check)",
+            "mode": "todo",
+            "startSeconds": 82.15,
+            "durationSeconds": 25.42,
+            "frontendSeconds": 25.34,
+            "codegenSeconds": 0.08000000000000185
+          },
+          {
+            "name": "zstd-sys",
+            "target": " build-script (run)",
+            "mode": "run-custom-build",
+            "startSeconds": 77.79,
+            "durationSeconds": 23.11,
+            "frontendSeconds": null,
+            "codegenSeconds": null
+          },
+          {
+            "name": "lzma-sys",
+            "target": " build-script (run)",
+            "mode": "run-custom-build",
+            "startSeconds": 130.33,
+            "durationSeconds": 23.02,
+            "frontendSeconds": null,
+            "codegenSeconds": null
+          },
+          {
+            "name": "codex-protocol",
+            "target": " (check)",
+            "mode": "todo",
+            "startSeconds": 165.29,
+            "durationSeconds": 22.37,
+            "frontendSeconds": 22.36,
+            "codegenSeconds": 0.010000000000001563
+          },
+          {
+            "name": "lsp-types",
+            "target": " (check)",
+            "mode": "todo",
+            "startSeconds": 58.22,
+            "durationSeconds": 20.58,
+            "frontendSeconds": 20.56,
+            "codegenSeconds": 0.019999999999999574
+          },
+          {
+            "name": "rmcp",
+            "target": " (check)",
+            "mode": "todo",
+            "startSeconds": 161.77,
+            "durationSeconds": 17.31,
+            "frontendSeconds": 17.3,
+            "codegenSeconds": 0.00999999999999801
+          },
+          {
+            "name": "rama-http",
+            "target": " (check)",
+            "mode": "todo",
+            "startSeconds": 57.71,
+            "durationSeconds": 15.91,
+            "frontendSeconds": 15.86,
+            "codegenSeconds": 0.05000000000000071
+          },
+          {
+            "name": "rama-http-core",
+            "target": " (check)",
+            "mode": "todo",
+            "startSeconds": 73.62,
+            "durationSeconds": 12.87,
+            "frontendSeconds": 12.84,
+            "codegenSeconds": 0.02999999999999936
+          },
+          {
+            "name": "debugserver-types",
+            "target": " (check)",
+            "mode": "todo",
+            "startSeconds": 64.58,
+            "durationSeconds": 10.24,
+            "frontendSeconds": 10.23,
+            "codegenSeconds": 0.009999999999999787
+          }
+        ]
+      }
+    },
+    {
+      "runId": "20260711T042320Z-check-core-noop",
+      "scenario": "check-core-noop",
+      "command": "cargo check -p codex-core --timings --message-format=json-render-diagnostics",
+      "startedAt": "2026-07-11T04:23:20.9028827Z",
+      "wallSeconds": 6.254,
+      "exitCode": 0,
+      "peakTrackedWorkingSetMB": 237.5,
+      "compilerArtifactEvents": 1108,
+      "buildScriptEvents": 93,
+      "freshPackageCount": 853,
+      "rebuiltPackageCount": 0,
+      "rebuiltPackages": [],
+      "sccache": {
+        "compileRequests": 0,
+        "requestsExecuted": 0,
+        "cacheHits": 0,
+        "cacheMisses": 0,
+        "cacheWrites": 0,
+        "requestsNotCacheable": 0,
+        "nonCacheableCompilations": 0,
+        "compileFails": 0,
+        "cacheErrors": 0,
+        "cacheReadErrors": 0,
+        "cacheWriteErrors": 0,
+        "cacheTimeouts": 0
+      },
+      "cargoTiming": {
+        "durationSeconds": 0,
+        "unitCount": 1201,
+        "topUnits": []
+      }
+    },
+    {
+      "runId": "20260711T042513Z-check-core-low-edit",
+      "scenario": "check-core-low-edit",
+      "command": "cargo check -p codex-core --timings --message-format=json-render-diagnostics",
+      "startedAt": "2026-07-11T04:25:13.1218760Z",
+      "wallSeconds": 37.45,
+      "exitCode": 0,
+      "peakTrackedWorkingSetMB": 1457.7,
+      "compilerArtifactEvents": 1108,
+      "buildScriptEvents": 93,
+      "freshPackageCount": 852,
+      "rebuiltPackageCount": 1,
+      "rebuiltPackages": [
+        "codex-core@0.141.0-copilot-api.3"
+      ],
+      "sccache": {
+        "compileRequests": 2,
+        "requestsExecuted": 1,
+        "cacheHits": 0,
+        "cacheMisses": 1,
+        "cacheWrites": 1,
+        "requestsNotCacheable": 1,
+        "nonCacheableCompilations": 0,
+        "compileFails": 0,
+        "cacheErrors": 0,
+        "cacheReadErrors": 0,
+        "cacheWriteErrors": 0,
+        "cacheTimeouts": 0
+      },
+      "cargoTiming": {
+        "durationSeconds": 37,
+        "unitCount": 1201,
+        "topUnits": [
+          {
+            "name": "codex-core",
+            "target": " (check)",
+            "mode": "todo",
+            "startSeconds": 5.4,
+            "durationSeconds": 30.71,
+            "frontendSeconds": 30.65,
+            "codegenSeconds": 0.060000000000002274
+          },
+          {
+            "name": "codex-core",
+            "target": " codex-write-config-schema \"bin\" (check)",
+            "mode": "todo",
+            "startSeconds": 36.12,
+            "durationSeconds": 0.88,
+            "frontendSeconds": 0.78,
+            "codegenSeconds": 0.09999999999999998
+          }
+        ]
+      }
+    },
+    {
+      "runId": "20260711T042622Z-build-iteration-low-edit",
+      "scenario": "build-iteration-low-edit",
+      "command": "cargo build --release -p codex-cli --bin codex-core -p codex-copilot-launcher --bin codex --timings --message-format=json-render-diagnostics",
+      "startedAt": "2026-07-11T04:26:22.5761394Z",
+      "wallSeconds": 3050.418,
+      "exitCode": 0,
+      "peakTrackedWorkingSetMB": 12050.7,
+      "compilerArtifactEvents": 1244,
+      "buildScriptEvents": 111,
+      "freshPackageCount": 0,
+      "rebuiltPackageCount": 974,
+      "rebuiltPackages": [],
+      "sccache": {
+        "compileRequests": 1747,
+        "requestsExecuted": 1544,
+        "cacheHits": 21,
+        "cacheMisses": 1514,
+        "cacheWrites": 1514,
+        "requestsNotCacheable": 196,
+        "nonCacheableCompilations": 0,
+        "compileFails": 9,
+        "cacheErrors": 0,
+        "cacheReadErrors": 0,
+        "cacheWriteErrors": 0,
+        "cacheTimeouts": 0
+      },
+      "cargoTiming": {
+        "durationSeconds": 3050,
+        "unitCount": 1355,
+        "topUnits": [
+          {
+            "name": "aws-lc-sys",
+            "target": " build-script (run)",
+            "mode": "run-custom-build",
+            "startSeconds": 42.99,
+            "durationSeconds": 466.03,
+            "frontendSeconds": null,
+            "codegenSeconds": null
+          },
+          {
+            "name": "codex-tui",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 2145.75,
+            "durationSeconds": 418.37,
+            "frontendSeconds": 418.25,
+            "codegenSeconds": 0.12000000000000455
+          },
+          {
+            "name": "codex-cli",
+            "target": " codex-core \"bin\"",
+            "mode": "todo",
+            "startSeconds": 2683.55,
+            "durationSeconds": 366.34,
+            "frontendSeconds": null,
+            "codegenSeconds": null
+          },
+          {
+            "name": "codex-exec",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 2119.88,
+            "durationSeconds": 344.12,
+            "frontendSeconds": 344.11,
+            "codegenSeconds": 0.009999999999990905
+          },
+          {
+            "name": "codex-app-server",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 1781.8,
+            "durationSeconds": 327.53,
+            "frontendSeconds": 327.51,
+            "codegenSeconds": 0.01999999999998181
+          },
+          {
+            "name": "codex-mcp-server",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 1526.73,
+            "durationSeconds": 299.67,
+            "frontendSeconds": 299.66,
+            "codegenSeconds": 0.009999999999990905
+          },
+          {
+            "name": "codex-core",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 1207.5,
+            "durationSeconds": 296.01,
+            "frontendSeconds": 295.94,
+            "codegenSeconds": 0.06999999999999318
+          },
+          {
+            "name": "codex-memories-write",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 1503.46,
+            "durationSeconds": 278.36,
+            "frontendSeconds": 278.34,
+            "codegenSeconds": 0.020000000000038654
+          },
+          {
+            "name": "codex-app-server-protocol",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 686.63,
+            "durationSeconds": 234.03,
+            "frontendSeconds": 234.01,
+            "codegenSeconds": 0.020000000000010232
+          },
+          {
+            "name": "codex-app-server-test-client",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 1536.18,
+            "durationSeconds": 167.95,
+            "frontendSeconds": 167.93,
+            "codegenSeconds": 0.01999999999998181
+          },
+          {
+            "name": "zstd-sys",
+            "target": " build-script (run)",
+            "mode": "run-custom-build",
+            "startSeconds": 202.37,
+            "durationSeconds": 119.2,
+            "frontendSeconds": null,
+            "codegenSeconds": null
+          },
+          {
+            "name": "codex-chatgpt",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 1503.51,
+            "durationSeconds": 110.1,
+            "frontendSeconds": 110.1,
+            "codegenSeconds": 0
+          }
+        ]
+      }
+    },
+    {
+      "runId": "20260711T052007Z-check-workspace-high-edit",
+      "scenario": "check-workspace-high-edit",
+      "command": "cargo check --workspace --timings --message-format=json-render-diagnostics",
+      "startedAt": "2026-07-11T05:20:07.2518373Z",
+      "wallSeconds": 338.829,
+      "exitCode": 0,
+      "peakTrackedWorkingSetMB": 2607.6,
+      "compilerArtifactEvents": 1307,
+      "buildScriptEvents": 105,
+      "freshPackageCount": 658,
+      "rebuiltPackageCount": 383,
+      "rebuiltPackages": [],
+      "sccache": {
+        "compileRequests": 491,
+        "requestsExecuted": 431,
+        "cacheHits": 157,
+        "cacheMisses": 274,
+        "cacheWrites": 274,
+        "requestsNotCacheable": 59,
+        "nonCacheableCompilations": 0,
+        "compileFails": 0,
+        "cacheErrors": 0,
+        "cacheReadErrors": 0,
+        "cacheWriteErrors": 0,
+        "cacheTimeouts": 0
+      },
+      "cargoTiming": {
+        "durationSeconds": 336,
+        "unitCount": 1412,
+        "topUnits": [
+          {
+            "name": "codex-app-server-protocol",
+            "target": " (check)",
+            "mode": "todo",
+            "startSeconds": 121.73,
+            "durationSeconds": 52.29,
+            "frontendSeconds": 52.28,
+            "codegenSeconds": 0.00999999999999801
+          },
+          {
+            "name": "codex-core",
+            "target": " (check)",
+            "mode": "todo",
+            "startSeconds": 221.28,
+            "durationSeconds": 36.2,
+            "frontendSeconds": 36.14,
+            "codegenSeconds": 0.060000000000002274
+          },
+          {
+            "name": "starlark",
+            "target": " (check)",
+            "mode": "todo",
+            "startSeconds": 42.79,
+            "durationSeconds": 31.5,
+            "frontendSeconds": 31.38,
+            "codegenSeconds": 0.120000000000001
+          },
+          {
+            "name": "rmcp",
+            "target": " (check)",
+            "mode": "todo",
+            "startSeconds": 50.33,
+            "durationSeconds": 26.74,
+            "frontendSeconds": 26.71,
+            "codegenSeconds": 0.029999999999997584
+          },
+          {
+            "name": "codex-tui",
+            "target": " (check)",
+            "mode": "todo",
+            "startSeconds": 295.22,
+            "durationSeconds": 26.26,
+            "frontendSeconds": 26.13,
+            "codegenSeconds": 0.13000000000000256
+          },
+          {
+            "name": "codex-protocol",
+            "target": " (check)",
+            "mode": "todo",
+            "startSeconds": 95.4,
+            "durationSeconds": 23.79,
+            "frontendSeconds": 23.78,
+            "codegenSeconds": 0.00999999999999801
+          },
+          {
+            "name": "lsp-types",
+            "target": " (check)",
+            "mode": "todo",
+            "startSeconds": 15.39,
+            "durationSeconds": 23.12,
+            "frontendSeconds": 23.1,
+            "codegenSeconds": 0.019999999999999574
+          },
+          {
+            "name": "codex-app-server",
+            "target": " (check)",
+            "mode": "todo",
+            "startSeconds": 269.06,
+            "durationSeconds": 18.05,
+            "frontendSeconds": 18.02,
+            "codegenSeconds": 0.030000000000001137
+          },
+          {
+            "name": "rama-http",
+            "target": " (check)",
+            "mode": "todo",
+            "startSeconds": 54.12,
+            "durationSeconds": 17.74,
+            "frontendSeconds": 17.69,
+            "codegenSeconds": 0.04999999999999716
+          },
+          {
+            "name": "onig_sys",
+            "target": " build-script (run)",
+            "mode": "run-custom-build",
+            "startSeconds": 70.41,
+            "durationSeconds": 16.93,
+            "frontendSeconds": null,
+            "codegenSeconds": null
+          },
+          {
+            "name": "rama-http-core",
+            "target": " (check)",
+            "mode": "todo",
+            "startSeconds": 71.86,
+            "durationSeconds": 15.72,
+            "frontendSeconds": 15.7,
+            "codegenSeconds": 0.02000000000000135
+          },
+          {
+            "name": "codex-config",
+            "target": " (check)",
+            "mode": "todo",
+            "startSeconds": 181.7,
+            "durationSeconds": 12.32,
+            "frontendSeconds": 12.3,
+            "codegenSeconds": 0.019999999999999574
+          }
+        ]
+      }
+    },
+    {
+      "runId": "20260711T052650Z-build-iteration-low-restore-warm",
+      "scenario": "build-iteration-low-restore-warm",
+      "command": "cargo build --release -p codex-cli --bin codex-core -p codex-copilot-launcher --bin codex --timings --message-format=json-render-diagnostics",
+      "startedAt": "2026-07-11T05:26:50.3496573Z",
+      "wallSeconds": 1845.745,
+      "exitCode": 0,
+      "peakTrackedWorkingSetMB": 12125.8,
+      "compilerArtifactEvents": 1244,
+      "buildScriptEvents": 111,
+      "freshPackageCount": 951,
+      "rebuiltPackageCount": 25,
+      "rebuiltPackages": [
+        "0.141.0-copilot-api.3",
+        "codex-app-server-client@0.141.0-copilot-api.3",
+        "codex-app-server-daemon@0.141.0-copilot-api.3",
+        "codex-app-server-test-client@0.141.0-copilot-api.3",
+        "codex-app-server-transport@0.141.0-copilot-api.3",
+        "codex-app-server@0.141.0-copilot-api.3",
+        "codex-chatgpt@0.141.0-copilot-api.3",
+        "codex-cli@0.141.0-copilot-api.3",
+        "codex-cloud-config@0.141.0-copilot-api.3",
+        "codex-cloud-tasks@0.141.0-copilot-api.3",
+        "codex-core@0.141.0-copilot-api.3",
+        "codex-exec@0.141.0-copilot-api.3",
+        "codex-goal-extension@0.141.0-copilot-api.3",
+        "codex-guardian@0.141.0-copilot-api.3",
+        "codex-image-generation-extension@0.141.0-copilot-api.3",
+        "codex-lmstudio@0.141.0-copilot-api.3",
+        "codex-mcp-extension@0.141.0-copilot-api.3",
+        "codex-mcp-server@0.141.0-copilot-api.3",
+        "codex-memories-extension@0.141.0-copilot-api.3",
+        "codex-memories-write@0.141.0-copilot-api.3",
+        "codex-ollama@0.141.0-copilot-api.3",
+        "codex-tui@0.141.0-copilot-api.3",
+        "codex-utils-oss@0.141.0-copilot-api.3",
+        "codex-utils-sandbox-summary@0.141.0-copilot-api.3",
+        "codex-web-search-extension@0.141.0-copilot-api.3"
+      ],
+      "sccache": {
+        "compileRequests": 26,
+        "requestsExecuted": 25,
+        "cacheHits": 0,
+        "cacheMisses": 25,
+        "cacheWrites": 25,
+        "requestsNotCacheable": 1,
+        "nonCacheableCompilations": 0,
+        "compileFails": 0,
+        "cacheErrors": 0,
+        "cacheReadErrors": 0,
+        "cacheWriteErrors": 0,
+        "cacheTimeouts": 0
+      },
+      "cargoTiming": {
+        "durationSeconds": 1846,
+        "unitCount": 1355,
+        "topUnits": [
+          {
+            "name": "codex-tui",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 850.86,
+            "durationSeconds": 437.39,
+            "frontendSeconds": 437.25,
+            "codegenSeconds": 0.13999999999998636
+          },
+          {
+            "name": "codex-cli",
+            "target": " codex-core \"bin\"",
+            "mode": "todo",
+            "startSeconds": 1415.29,
+            "durationSeconds": 429.87,
+            "frontendSeconds": null,
+            "codegenSeconds": null
+          },
+          {
+            "name": "codex-exec",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 823.77,
+            "durationSeconds": 358.98,
+            "frontendSeconds": 358.97,
+            "codegenSeconds": 0.009999999999990905
+          },
+          {
+            "name": "codex-app-server",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 502.36,
+            "durationSeconds": 311.29,
+            "frontendSeconds": 311.27,
+            "codegenSeconds": 0.020000000000038654
+          },
+          {
+            "name": "codex-mcp-server",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 272.09,
+            "durationSeconds": 271.85,
+            "frontendSeconds": 271.84,
+            "codegenSeconds": 0.010000000000047748
+          },
+          {
+            "name": "codex-core",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 7.52,
+            "durationSeconds": 248.23,
+            "frontendSeconds": 248.16,
+            "codegenSeconds": 0.06999999999999318
+          },
+          {
+            "name": "codex-memories-write",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 255.78,
+            "durationSeconds": 246.47,
+            "frontendSeconds": 246.46,
+            "codegenSeconds": 0.009999999999990905
+          },
+          {
+            "name": "codex-chatgpt",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 259.48,
+            "durationSeconds": 138.75,
+            "frontendSeconds": 138.7,
+            "codegenSeconds": 0.05000000000001137
+          },
+          {
+            "name": "codex-app-server-test-client",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 275.05,
+            "durationSeconds": 110.87,
+            "frontendSeconds": 110.87,
+            "codegenSeconds": 0
+          },
+          {
+            "name": "codex-app-server-daemon",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 307.48,
+            "durationSeconds": 97.31,
+            "frontendSeconds": 97.31,
+            "codegenSeconds": 0
+          },
+          {
+            "name": "codex-cli",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 1345.31,
+            "durationSeconds": 69.98,
+            "frontendSeconds": 69.96,
+            "codegenSeconds": 0.020000000000010232
+          },
+          {
+            "name": "codex-cloud-tasks",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 1288.12,
+            "durationSeconds": 57.18,
+            "frontendSeconds": 57.17,
+            "codegenSeconds": 0.00999999999999801
+          }
+        ]
+      }
+    },
+    {
+      "runId": "20260711T055920Z-build-iteration-high-edit-warm",
+      "scenario": "build-iteration-high-edit-warm",
+      "command": "cargo build --release -p codex-cli --bin codex-core -p codex-copilot-launcher --bin codex --timings --message-format=json-render-diagnostics",
+      "startedAt": "2026-07-11T05:59:20.1466493Z",
+      "wallSeconds": 1850.607,
+      "exitCode": 0,
+      "peakTrackedWorkingSetMB": 12069.7,
+      "compilerArtifactEvents": 1244,
+      "buildScriptEvents": 111,
+      "freshPackageCount": 951,
+      "rebuiltPackageCount": 25,
+      "rebuiltPackages": [
+        "0.141.0-copilot-api.3",
+        "codex-app-server-client@0.141.0-copilot-api.3",
+        "codex-app-server-daemon@0.141.0-copilot-api.3",
+        "codex-app-server-test-client@0.141.0-copilot-api.3",
+        "codex-app-server-transport@0.141.0-copilot-api.3",
+        "codex-app-server@0.141.0-copilot-api.3",
+        "codex-chatgpt@0.141.0-copilot-api.3",
+        "codex-cli@0.141.0-copilot-api.3",
+        "codex-cloud-config@0.141.0-copilot-api.3",
+        "codex-cloud-tasks@0.141.0-copilot-api.3",
+        "codex-core@0.141.0-copilot-api.3",
+        "codex-exec@0.141.0-copilot-api.3",
+        "codex-goal-extension@0.141.0-copilot-api.3",
+        "codex-guardian@0.141.0-copilot-api.3",
+        "codex-image-generation-extension@0.141.0-copilot-api.3",
+        "codex-lmstudio@0.141.0-copilot-api.3",
+        "codex-mcp-extension@0.141.0-copilot-api.3",
+        "codex-mcp-server@0.141.0-copilot-api.3",
+        "codex-memories-extension@0.141.0-copilot-api.3",
+        "codex-memories-write@0.141.0-copilot-api.3",
+        "codex-ollama@0.141.0-copilot-api.3",
+        "codex-tui@0.141.0-copilot-api.3",
+        "codex-utils-oss@0.141.0-copilot-api.3",
+        "codex-utils-sandbox-summary@0.141.0-copilot-api.3",
+        "codex-web-search-extension@0.141.0-copilot-api.3"
+      ],
+      "sccache": {
+        "compileRequests": 26,
+        "requestsExecuted": 25,
+        "cacheHits": 0,
+        "cacheMisses": 25,
+        "cacheWrites": 25,
+        "requestsNotCacheable": 1,
+        "nonCacheableCompilations": 0,
+        "compileFails": 0,
+        "cacheErrors": 0,
+        "cacheReadErrors": 0,
+        "cacheWriteErrors": 0,
+        "cacheTimeouts": 0
+      },
+      "cargoTiming": {
+        "durationSeconds": 1851,
+        "unitCount": 1355,
+        "topUnits": [
+          {
+            "name": "codex-cli",
+            "target": " codex-core \"bin\"",
+            "mode": "todo",
+            "startSeconds": 1428.48,
+            "durationSeconds": 421.6,
+            "frontendSeconds": null,
+            "codegenSeconds": null
+          },
+          {
+            "name": "codex-tui",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 902.13,
+            "durationSeconds": 416.32,
+            "frontendSeconds": 416.2,
+            "codegenSeconds": 0.12000000000000455
+          },
+          {
+            "name": "codex-app-server",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 496.44,
+            "durationSeconds": 367.05,
+            "frontendSeconds": 367.03,
+            "codegenSeconds": 0.020000000000038654
+          },
+          {
+            "name": "codex-exec",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 873.12,
+            "durationSeconds": 343.08,
+            "frontendSeconds": 343.07,
+            "codegenSeconds": 0.009999999999990905
+          },
+          {
+            "name": "codex-core",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 8.41,
+            "durationSeconds": 269.72,
+            "frontendSeconds": 269.66,
+            "codegenSeconds": 0.060000000000002274
+          },
+          {
+            "name": "codex-mcp-server",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 297.05,
+            "durationSeconds": 266.74,
+            "frontendSeconds": 266.72,
+            "codegenSeconds": 0.01999999999998181
+          },
+          {
+            "name": "codex-memories-write",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 278.11,
+            "durationSeconds": 217.91,
+            "frontendSeconds": 217.91,
+            "codegenSeconds": 0
+          },
+          {
+            "name": "codex-app-server-test-client",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 293.31,
+            "durationSeconds": 115.8,
+            "frontendSeconds": 115.77,
+            "codegenSeconds": 0.030000000000001137
+          },
+          {
+            "name": "codex-chatgpt",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 278.15,
+            "durationSeconds": 102.24,
+            "frontendSeconds": 102.22,
+            "codegenSeconds": 0.01999999999999602
+          },
+          {
+            "name": "codex-app-server-transport",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 278.08,
+            "durationSeconds": 84.15,
+            "frontendSeconds": 84.15,
+            "codegenSeconds": 0
+          },
+          {
+            "name": "codex-utils-oss",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 297.44,
+            "durationSeconds": 59.41,
+            "frontendSeconds": 59.17,
+            "codegenSeconds": 0.23999999999999488
+          },
+          {
+            "name": "codex-cli",
+            "target": "",
+            "mode": "todo",
+            "startSeconds": 1370.59,
+            "durationSeconds": 57.88,
+            "frontendSeconds": 57.87,
+            "codegenSeconds": 0.010000000000005116
+          }
+        ]
+      }
+    }
+  ],
+  "historicalControls": [
+    {
+      "scenario": "cold iteration build, jobs=4",
+      "wallSeconds": 3181,
+      "source": ".ralph/jobs/codex-rs-build-perf-baseline-measurement/benchmark-results.md"
+    },
+    {
+      "scenario": "best valid cold jobs sweep, jobs=8",
+      "wallSeconds": 3011.6,
+      "source": ".ralph/jobs/codex-rs-build-perf-jobs-sweep-with-defender/results.md"
+    },
+    {
+      "scenario": "link-only floor",
+      "wallSecondsRange": [
+        45,
+        68
+      ],
+      "source": "same historical benchmark artifacts"
+    },
+    {
+      "scenario": "thin-LTO build",
+      "wallSeconds": 3480,
+      "sccacheCompileRequests": 0,
+      "source": ".ralph/jobs/codex-rs-build-perf-baseline-measurement/benchmark-results.md"
+    },
+    {
+      "scenario": "feature pruning baseline/no-GIF/no-voice",
+      "wallSeconds": [
+        2682.9,
+        2893.7,
+        2839.5
+      ],
+      "disposition": "No win; reverted.",
+      "source": ".ralph-overview/data.archived.json"
+    }
+  ],
+  "methodologyNotes": [
+    "All current scenarios sourced scripts/iteration-env.sh and used the worktree-local target.",
+    "sccache 0.15 duplicates totals in counts and adv_counts; committed values use counts only.",
+    "Process polling was used only for peak aggregate RSS. Per-process duration samples are omitted because Windows PID reuse can merge observations.",
+    "The warm low release scenario is the reverse of the same one-line edit; the original bytes were restored and mtime advanced so Cargo observed the change.",
+    "Large stdout/stderr logs and full timing HTML are intentionally not committed."
+  ]
+}

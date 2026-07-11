@@ -1,0 +1,206 @@
+{
+  "schemaVersion": 1,
+  "brainstormName": "codex-rs-core-change-incremental-build-over-30m",
+  "overviewTaskId": "codex-rs-core-change-incremental-build-over-30m",
+  "artifactType": "measurement-led-brainstorm",
+  "measuredAt": "2026-07-11",
+  "repositoryState": {
+    "wrapperCommit": "3ff55692e7045e85ce78ebe8337ab40b55494c9c",
+    "patchedCommit": "587a6a8ab8948ff912b1f24a62833b277934302d",
+    "codexVersion": "0.141.0-copilot-api.3"
+  },
+  "goal": "Reduce representative warm codex-core verification from more than 30 minutes to at most 10 minutes, with a stretch target of 5 minutes, while retaining a slower release-equivalent gate.",
+  "measurementSummary": {
+    "phase5aIsTheThirtyMinuteSymptom": false,
+    "thirtyMinuteSymptomCommandClass": "optimized executable build",
+    "targetedCheckInitialSeconds": 301.783,
+    "targetedCheckNoopSeconds": 6.254,
+    "targetedCheckLowEditSeconds": 37.45,
+    "workspaceCheckHighEditSeconds": 338.829,
+    "coldIterationBuildLowEditSeconds": 3050.418,
+    "warmIterationBuildLowEditSeconds": 1845.745,
+    "warmIterationBuildHighEditSeconds": 1850.607,
+    "warmLowEditReleaseInvalidation": {
+      "rebuiltPackageCount": 25,
+      "sccacheHits": 0,
+      "sccacheMisses": 25,
+      "sccacheNonCacheable": 1,
+      "cacheErrors": 0
+    },
+    "warmHighEditReleaseInvalidation": {
+      "rebuiltPackageCount": 25,
+      "sccacheHits": 0,
+      "sccacheMisses": 25,
+      "sccacheNonCacheable": 1,
+      "cacheErrors": 0
+    },
+    "lowVsHighReleaseDifference": {
+      "seconds": 4.862,
+      "percent": 0.263,
+      "interpretation": "Equivalent within run noise; crate-level codex-core invalidation, not symbol-level fanout, controls the release rebuild."
+    },
+    "feasibility": {
+      "verificationAtMost10Minutes": true,
+      "verificationAtMost5Minutes": true,
+      "releaseExecutableAtMost10Minutes": false,
+      "basis": "Targeted changed-core check took 37.45s and broad workspace check took 338.829s; warm optimized executable build took 1845.745s."
+    }
+  },
+  "rootCauseRanking": [
+    {
+      "rank": 1,
+      "cause": "Crate-granular optimized rebuild through codex-core's 25-package consumer surface.",
+      "confidence": "high",
+      "evidence": "A private one-line edit rebuilt 25 package IDs with 0 hits, 25 misses, and 30:45.745 wall time."
+    },
+    {
+      "rank": 2,
+      "cause": "A release executable build is used as a generic per-edit verification gate.",
+      "confidence": "high",
+      "evidence": "The same edit passed targeted check in 37.45s; a high-fanout workspace check passed in 5:38.829."
+    },
+    {
+      "rank": 3,
+      "cause": "Fresh worktree-local release targets and cold exact fingerprints add the native and full dependency graph.",
+      "confidence": "high",
+      "evidence": "Cold/current-fingerprint iteration build took 50:50.418; aws-lc-sys build script alone took 466.03s."
+    },
+    {
+      "rank": 4,
+      "cause": "sccache cannot reuse changed codex-core or unchanged consumers compiled against a different core artifact.",
+      "confidence": "high",
+      "evidence": "Warm private edit had zero hits and 25 misses while all cache error counters remained zero."
+    },
+    {
+      "rank": 5,
+      "cause": "Thin-LTO publish mode bypasses sccache.",
+      "confidence": "high",
+      "evidence": "Historical direct measurement: 58:05, 939 crates, zero sccache requests."
+    }
+  ],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Canonical measured tiered verifier",
+      "summary": "Make targeted check the default edit loop, workspace check the hard integration gate, and executable/publish builds explicit slower tiers.",
+      "status": "recommended",
+      "why": [
+        "Directly meets both verification thresholds on current code and toolchain.",
+        "Preserves stronger workspace, scoped-test, executable, and release gates.",
+        "Uses wrapper scripts and documentation rather than upstream-canonical Rust changes.",
+        "Adds timing and cache observability so later regressions are measurable."
+      ]
+    },
+    {
+      "id": "D-002",
+      "name": "Separate incremental fast-runnable lane",
+      "summary": "If a runnable binary itself must be at most 10 minutes, A/B the existing dev-small profile with incremental enabled, no sccache, and a separate target directory.",
+      "status": "conditional",
+      "whyNotFirst": [
+        "Requires an expensive cold warm-up and another large target directory.",
+        "Trades away reusable sccache objects.",
+        "Not needed to meet the stated verification target."
+      ]
+    },
+    {
+      "id": "D-003",
+      "name": "Stabilize or split codex-core consumer boundaries",
+      "summary": "Reduce release invalidation only if a runnable binary must meet the target and the lower-conflict incremental experiment fails.",
+      "status": "deferred",
+      "whyNotFirst": [
+        "A useful split must narrow consumer dependencies; merely extracting a leaf wrapped by codex-core will not help.",
+        "Highest upstream rebase and conflict surface.",
+        "Check-based verification already meets the target."
+      ]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "tieredVerificationContract": [
+    {
+      "tier": "T1",
+      "name": "edit loop",
+      "command": "cargo check -p codex-core --timings",
+      "thresholdSeconds": 300,
+      "hardCeilingSeconds": 600
+    },
+    {
+      "tier": "T2",
+      "name": "integration / Phase 5a",
+      "command": "cargo check --workspace --timings plus scoped tests for touched crates",
+      "thresholdSeconds": 600
+    },
+    {
+      "tier": "T3",
+      "name": "runnable behavior",
+      "command": "frozen LTO-off cargo build --release -p codex-cli --bin codex-core",
+      "thresholdSeconds": null,
+      "rule": "Explicit only; never an implicit consequence of T1 or T2."
+    },
+    {
+      "tier": "T4",
+      "name": "release equivalent",
+      "command": "existing thin-LTO, no-sccache publish command and runtime smoke",
+      "thresholdSeconds": null,
+      "rule": "Retained unchanged and allowed to be slow."
+    }
+  ],
+  "implementationFiles": {
+    "change": [
+      "scripts/verify-core-change.sh",
+      "scripts/measure-build.ps1",
+      "scripts/iteration-env.sh",
+      ".claude/commands/rebase-upstream.md",
+      ".claude/commands/publish-sandbox-patch.md",
+      "CLAUDE.md",
+      "AGENTS.override.md",
+      "docs/implementation/build-perf.md"
+    ],
+    "referenceOnly": [
+      "external/repos/codex-patched/codex-rs/core/src/session_prefix.rs",
+      "external/repos/codex-patched/codex-rs/core/src/config/mod.rs",
+      "external/repos/codex-patched/codex-rs/Cargo.toml",
+      "external/repos/codex-patched/codex-rs/justfile",
+      ".ralph/jobs/codex-rs-build-perf-baseline-measurement/benchmark-results.md",
+      ".ralph/jobs/codex-rs-build-perf-jobs-sweep-with-defender/results.md"
+    ]
+  },
+  "conflictSurface": [
+    "Serialize changes to scripts/iteration-env.sh and scripts/measure-build.ps1 with other build-perf work.",
+    "Update CLAUDE.md and AGENTS.override.md together because they duplicate the verification hierarchy.",
+    "Do not change codex-rs source, Cargo features, release profile, or crate boundaries in the first implementation.",
+    "Do not default to one globally shared Cargo target while concurrent worktrees are normal."
+  ],
+  "acceptanceThresholds": [
+    "Warm private codex-core edit passes T1 in at most 5 minutes, with a hard ceiling of 10 minutes.",
+    "High-fanout public codex-core edit passes T2 in at most 10 minutes.",
+    "T1 no-op completes in at most 30 seconds and invokes no rustc.",
+    "T1 and T2 record command, SHA, target, toolchain, profile, linker, and sccache health.",
+    "T3 is explicit and T4 remains the existing release-equivalent gate.",
+    "Repeated iteration-env sourcing does not restart sccache solely because its displayed Windows path is escaped.",
+    "A cache wipe requires a reproducible cache error, not a cold fingerprint.",
+    "The first implementation changes no upstream-canonical Rust source."
+  ],
+  "planSeed": {
+    "goal": "Operationalize sub-10-minute codex-core verification without weakening final gates.",
+    "suggestedWorktree": {
+      "path": "D:\\harness-efforts\\codexu\\codex\\.worktrees\\codex-core-verification-tiers",
+      "branch": "ralph/codex-core-verification-tiers",
+      "repository": "codex wrapper"
+    },
+    "stories": [
+      "Generalize scripts/measure-build.ps1 for core check, workspace check, and iteration build.",
+      "Add scripts/verify-core-change.sh with explicit T1/T2/T3 dispatch and non-escalating defaults.",
+      "Normalize sccache Windows paths in scripts/iteration-env.sh and dogfood repeated sourcing.",
+      "Update rebase, publish, CLAUDE/AGENTS, and build-perf documentation in one synchronized change.",
+      "Re-run the low/high probes through the final command and retain compact evidence.",
+      "Rewrite or archive the stale unconditional build-env-sccache-cache-wipe-and-rewarm task.",
+      "File a separate fast-runnable profile experiment only if runnable output must meet 10 minutes."
+    ]
+  },
+  "remainingMeasurements": [
+    "Current exact thin-LTO/no-sccache publish build in a separate target; historical 58:05 evidence already establishes that it is a slow release-only gate.",
+    "Separate-target dev-small/incremental warm low/high A/B if a runnable binary must meet 10 minutes.",
+    "Remote sccache seeding only if cross-machine cold exact-fingerprint builds recur often enough to justify it."
+  ],
+  "evidenceFile": "measurements.json"
+}
