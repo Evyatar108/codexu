@@ -1859,6 +1859,33 @@
           "brainstorm": "Source-verify and benchmark why a representative change under `codex/external/repos/codex-patched/codex-rs/core/` currently causes a 30+ minute local verification build on the Windows dev box, then recommend the lowest-conflict path to ≤10 minutes (stretch ≤5). This is non-UI work: use GPT-5.6 Sol. Read first: `codex/docs/implementation/build-perf.md`, existing build-perf artifacts, `codex/scripts/iteration-env.sh`, `codex/scripts/measure-build.ps1`, `codex/.claude/commands/publish-sandbox-patch.md`, `codex/CLAUDE.md`, and shipped/archived tasks `codex-rs-build-time-and-cache-resilience`, `codex-rs-build-perf-baseline-measurement`, `codex-rs-build-perf-jobs-sweep-with-defender`, `codex-rs-iteration-env-sccache-race-and-jobs-default`, `codex-rs-feature-pruning-for-sub-45m-cold`, plus pending `build-env-sccache-cache-wipe-and-rewarm`. Mandatory empirical matrix: clean baseline; no-op rebuild; touch/edit one representative `codex-core` leaf; edit a high-fanout core type; `cargo check --workspace`; targeted `cargo check -p codex-core`; dev/iteration build; release build only where necessary. Capture cargo timings, rustc/link wall time, crate invalidation set, sccache hit/miss/non-cacheable/error stats, linker choice, LTO/codegen-units/incremental settings, target-dir reuse, environment drift, antivirus/filesystem impact, and whether the sccache cache is still corrupt/cold. Distinguish compile time from late link time and dependency rebuild from toolchain/env fingerprint invalidation. Evaluate: a dedicated fast verification profile; targeted package checks/tests instead of workspace/release for Phase 5a; split or stabilize high-fanout crates/features only when measured; linker/incremental/codegen configuration; stable env fingerprint; sccache remediation/remote cache; cargo-nextest/check-only gates; and maintaining a slower release-equivalent gate separately. Do not repeat feature pruning without new evidence. Minimize upstream conflict: prefer scripts/config/overlay tooling before upstream-canonical source changes. Deliver reproducible before/after measurements, recommended verification tiers, exact implementation files, acceptance thresholds, and a plan seed."
         }
       }
+    },
+    {
+      "id": "codex-native-happy-app-local-compat",
+      "scope": "happy-app|codexu",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-11T02:25:00Z",
+      "initialStage": "plan-ready",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Production Job J5 from the Node-free Happy plan, unblocked by P0 GO. Implement shared local pairing/proof/snapshot schemas plus Happy app explicit paired-device auth mode, local enrollment, polling socket proof, ephemeral transient snapshot state, and existing-renderer replacement semantics. No UI redesign; remove P0 dev probe after production coverage absorbs it."
+        }
+      ],
+      "command": {
+        "name": "codex-native-happy-app-local-compat",
+        "descriptionHtml": "Implement Happy wire/app local paired-device and transient snapshot compatibility for the native Rust session plane.",
+        "warnings": [
+          {
+            "className": "cmd-warn",
+            "html": "This is protocol/auth/state work despite touching app files; use GPT-5.6 Sol. The existing renderer is proven by P0. If implementation uncovers a new genuine UI/UX choice, file a separate Opus task instead of expanding scope."
+          }
+        ],
+        "prompts": {
+          "impl": "Implement Job J5 / US-016..019 from `.ralph/jobs/codex-native-happy-server-local-web-dual-control/plan.md` and stories outline in a codexu worktree `codex-native-happy-app-compat`, using GPT-5.6 Sol (`uiUxJudgment: not-required`). P0 is GO at Codex 3ff55692e / codexu 054d2b3f7; reuse exact invite/proof/codec/snapshot contract and fixtures. Add happy-wire localPairingInvite/localDeviceAuth/sessionOutputSnapshot modules, tests and cross-language vector fixture; export through index. Add happy-app explicit persisted `authMode = dev-tunnel | paired-device` migration (never infer local from URL), local enrollment with key possession and no secret persistence, fail-closed incomplete credentials, normal HTTP signed proof and polling-only Socket.IO options, explicit local plaintext codec compatibility, ephemeral monotonic latest-only snapshot map excluded from persistence, existing-renderer keyed replacement/clear/reconnect behavior, and existing server screen support for distinct strict local invite without a new navigation flow. Preserve public/Cloudflare and Dev-Tunnels auth behavior. Update all translations, translation parity tests, changelog + generated JSON. Remove J1 dev-only probe only after production tests absorb it; retain redacted P0 evidence. Do not redesign UI or add remote transport. Run wire typecheck/tests, targeted happy-app tests from plan, app typecheck, real browser regression, audit if markers change, Phase 5a/5b GPT-5.6 Sol reviews clean. Commit locally, do not push, report SHA/tests/contract and any interface assumptions J3/J4 must consume."
+        }
+      }
     }
   ],
   "phaseTree": [
