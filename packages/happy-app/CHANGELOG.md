@@ -1,5 +1,13 @@
 # Changelog
 
+## Version 33 - 2026-07-10
+
+The app can now pair directly with a local native Happy session as well as a public server. Local connections use device-bound request proofs, reconnect over browser-compatible polling, and show the latest full session output through the existing static chat renderer without smooth-streaming effects.
+
+- Added strict local pairing invites alongside the existing public pairing flow, with separate validation and no URL-based mode guessing.
+- Added local paired-device request and reconnect authentication without requiring Cloudflare credentials.
+- Added latest-only transient session output that is replaced by the durable final message and discarded across reconnects until the live server sends it again.
+
 ## Version 32 - 2026-05-31
 
 New messages from sessions your device hasn't seen yet now appear instantly instead of waiting on a background session refresh. We swapped the old blocking re-fetch for an optimistic placeholder that fills in real session details a moment later — on slower e-ink tablets this can shave several seconds off perceived chat latency.

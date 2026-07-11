@@ -1,0 +1,42 @@
+{
+  "task": "codex-native-happy-app-local-compat",
+  "result": "PASS",
+  "runtime": {
+    "app": "current real Expo web bundle",
+    "browser": "agent-browser Chromium",
+    "server": "pinned Rust codex-happy-compat-spike fixture at Codex 3ff55692e7045e85ce78ebe8337ab40b55494c9c plus the default-off acceptance adapter",
+    "nodeHappyServer": false
+  },
+  "routeSequence": [
+    "http://localhost:8081/server",
+    "http://localhost:8081/session/compat-machine:compat-session"
+  ],
+  "assertions": {
+    "productionServerScreenAcceptedLocalInvite": true,
+    "productionSessionListOpenedSingleSession": true,
+    "productionSessionRendererOpened": true,
+    "snapshotRevision7RenderedOnce": true,
+    "snapshotRevision8ReplacedRevision7": true,
+    "snapshotRevision8ReusedSameDomNode": true,
+    "durableFinalRenderedOnce": true,
+    "durableFinalRemovedTransientNode": true,
+    "snapshotRevision7Remaining": 0,
+    "snapshotRevision8Remaining": 0,
+    "machineIdentityVisible": "compat-machine",
+    "machineFetchErrorVisible": false,
+    "unknownMachineLabelVisible": false,
+    "existingMessageViewVisible": true,
+    "computedFontSize": "16px",
+    "computedLineHeight": "24px"
+  },
+  "acceptanceHarness": {
+    "source": "a disposable copy of pinned fixture tree dc1e9448f3b616882abad5553b04b922754693da",
+    "adapter": "app-compat-harness.patch adds production-list GET routes and a deterministic durable-final trigger behind --app-acceptance because J0 predates J5 and exposes pairing/proof/socket contracts but not the app list endpoints",
+    "adapterSha256": "6217F59089C8A9227EC11EB6EB1651AE5EDDE6681F377A93143A960D9ABF7638",
+    "reproduction": "app-compat-reproduction.md",
+    "auth": "all added GET routes used the fixture's paired-device proof verifier; snapshots and the durable update were emitted by the fixture's authenticated internal Rust client",
+    "verification": "the patch-applied fixture retained 15 passing unit and 12 passing compatibility tests before browser capture",
+    "cleanup": "the disposable source, target, database, logs, and server processes were removed after capture; the reviewable patch and reproduction commands remain"
+  },
+  "redaction": "Invite, pair secret, pairing nonce, device private key, proof envelopes, capability, and plaintext settings are omitted."
+}

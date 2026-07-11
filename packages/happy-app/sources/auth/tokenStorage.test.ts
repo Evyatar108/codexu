@@ -16,6 +16,7 @@ import { AuthCredentials, isOldShape, TokenStorage } from './tokenStorage';
 
 describe('TokenStorage', () => {
     const credentials: AuthCredentials = {
+        authMode: 'dev-tunnel',
         machineId: 'machine-1',
         tunnelUrl: 'https://machine.example.test',
         firstSeenAt: 123,
@@ -250,6 +251,7 @@ describe('TokenStorage', () => {
     // --- Public-server (example.com) credential migration (US-007) ---
 
     const publicCredentials: AuthCredentials = {
+        authMode: 'paired-device',
         machineId: 'machine-public',
         tunnelUrl: 'https://happy.example.com',
         firstSeenAt: 789,
@@ -327,5 +329,121 @@ describe('TokenStorage', () => {
         }));
 
         await expect(TokenStorage.getCredentialsList()).resolves.toEqual([publicCredentials]);
+    });
+
+    it('migrates missing authMode from credential fields only, never from the endpoint URL', async () => {
+        const withoutMode = [
+            {
+                machineId: 'local-without-keys',
+                tunnelUrl: 'http://127.0.0.1:43127',
+                firstSeenAt: 1,
+            },
+            {
+                machineId: 'https-without-keys',
+                tunnelUrl: 'https://machine.example.test',
+                firstSeenAt: 2,
+            },
+            {
+                machineId: 'local-with-device-key',
+                tunnelUrl: 'http://localhost:43127',
+                firstSeenAt: 3,
+                deviceKeyId: 'key-id',
+            },
+            {
+                machineId: 'https-with-cloudflare',
+                tunnelUrl: 'https://happy.example.test',
+                firstSeenAt: 4,
+                cloudflareAccessClientId: 'cf-id',
+            },
+        ];
+        secureStore.getItemAsync.mockResolvedValue(JSON.stringify({
+            primaryMachineId: 'local-without-keys',
+            machines: withoutMode,
+            devTunnelsAccess: null,
+        }));
+
+        const migrated = await TokenStorage.getCredentialsList();
+        expect(migrated.map(item => [item.machineId, item.authMode])).toEqual([
+            ['local-without-keys', 'dev-tunnel'],
+            ['https-without-keys', 'dev-tunnel'],
+            ['local-with-device-key', 'paired-device'],
+            ['https-with-cloudflare', 'paired-device'],
+        ]);
+        expect(secureStore.setItemAsync).not.toHaveBeenCalled();
+    });
+
+    it('persists migrated authMode values on the next successful credential write', async () => {
+        const legacy = {
+            machineId: 'legacy-local-url',
+            tunnelUrl: 'http://127.0.0.1:43127',
+            firstSeenAt: 1,
+        };
+        secureStore.getItemAsync.mockResolvedValue(JSON.stringify({
+            primaryMachineId: legacy.machineId,
+            machines: [legacy],
+            devTunnelsAccess: null,
+        }));
+
+        await expect(TokenStorage.updateMachineCredentials(legacy.machineId, {
+            connectToken: 'updated-token',
+        })).resolves.toBe(true);
+
+        expect(secureStore.setItemAsync).toHaveBeenCalledWith(
+            'machine_credentials',
+            JSON.stringify({
+                primaryMachineId: legacy.machineId,
+                machines: [{
+                    ...legacy,
+                    authMode: 'dev-tunnel',
+                    connectToken: 'updated-token',
+                }],
+                devTunnelsAccess: null,
+            }),
+        );
+    });
+
+    it('returns no startup credentials when the only paired-device entry is incomplete', async () => {
+        const partial = {
+            ...publicCredentials,
+            deviceSecretKey: undefined,
+        };
+        secureStore.getItemAsync.mockResolvedValue(JSON.stringify({
+            primaryMachineId: partial.machineId,
+            machines: [partial],
+            devTunnelsAccess: null,
+        }));
+
+        await expect(TokenStorage.getUsableCredentials()).resolves.toBeNull();
+        await expect(TokenStorage.getUsableCredentialsList()).resolves.toEqual([]);
+    });
+
+    it('skips an invalid primary at startup and orders the usable primary first', async () => {
+        const partial = {
+            ...publicCredentials,
+            machineId: 'partial-primary',
+            cloudflareAccessClientSecret: undefined,
+        };
+        const secondary = {
+            ...credentials,
+            machineId: 'secondary-valid',
+        };
+        secureStore.getItemAsync.mockResolvedValue(JSON.stringify({
+            primaryMachineId: partial.machineId,
+            machines: [partial, secondary],
+            devTunnelsAccess: null,
+        }));
+
+        await expect(TokenStorage.getUsableCredentials()).resolves.toEqual(secondary);
+        await expect(TokenStorage.getUsableCredentialsList()).resolves.toEqual([secondary]);
+
+        secureStore.getItemAsync.mockResolvedValue(JSON.stringify({
+            primaryMachineId: publicCredentials.machineId,
+            machines: [secondary, publicCredentials],
+            devTunnelsAccess: null,
+        }));
+        await expect(TokenStorage.getUsableCredentialsList()).resolves.toEqual([
+            publicCredentials,
+            secondary,
+        ]);
     });
 });

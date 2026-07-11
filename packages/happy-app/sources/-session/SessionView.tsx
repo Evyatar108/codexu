@@ -20,7 +20,7 @@ import { getActiveSessionPathSurfaces } from './SessionViewPathSurfaces';
 import { Modal } from '@/modal';
 import { gitStatusSync } from '@/sync/gitStatusSync';
 import { cancelPendingSwitch, requestSwitch, sessionAbort, sessionEmitAgentConfiguration } from '@/sync/ops';
-import { storage, useIsDataReady, useLatestBoundary, useLocalSetting, useSessionMessages, useSessionUsage, useSetting } from '@/sync/storage';
+import { storage, useIsDataReady, useLatestBoundary, useLocalSetting, useSessionMessages, useSessionOutputSnapshots, useSessionUsage, useSetting } from '@/sync/storage';
 import { useSession } from '@/sync/storage';
 import { Session } from '@/sync/storageTypes';
 import { sync } from '@/sync/sync';
@@ -44,6 +44,7 @@ import { ActivityIndicator, Platform, Pressable, Text, View, useWindowDimensions
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import type { ModelMode, PermissionMode } from '@/components/PermissionModeSelector';
+import { composeSessionMessagesWithSnapshots } from '@/sync/sessionOutputSnapshot';
 
 // FORK PATCH: [RESTORE-R8a] getCanSendWhenIdle relocated to sources/fork/session/useForkComposer (invariant HA-4)
 // Re-exported so existing `@/-session/SessionView` importers keep resolving the symbol.
@@ -168,6 +169,11 @@ function SessionViewLoaded({ sessionId, session, projectPathHeader }: { sessionI
     const composer = useForkComposer(sessionId, session);
 
     const { messages, isLoaded } = useSessionMessages(sessionId);
+    const snapshots = useSessionOutputSnapshots(sessionId);
+    const renderedMessages = React.useMemo(
+        () => composeSessionMessagesWithSnapshots(messages, snapshots, sessionId),
+        [messages, snapshots, sessionId],
+    );
     const latestBoundary = useLatestBoundary(sessionId);
     const acknowledgedCliVersions = useLocalSetting('acknowledgedCliVersions');
     const sessionInputHorizontalPadding = Platform.OS === 'web' || isRunningOnMac() || isTablet ? 12 : 8;
@@ -366,13 +372,13 @@ function SessionViewLoaded({ sessionId, session, projectPathHeader }: { sessionI
     let content = (
         <>
             <Deferred>
-                {messages.length > 0 && (
-                    <ChatList session={session} />
+                {renderedMessages.length > 0 && (
+                    <ChatList session={session} messages={renderedMessages} />
                 )}
             </Deferred>
         </>
     );
-    const placeholder = messages.length === 0 ? (
+    const placeholder = renderedMessages.length === 0 ? (
         <>
             {isLoaded ? (
                 <EmptyMessages session={session} />

@@ -40,11 +40,16 @@ import { resolveMessageModeMeta } from './messageMeta';
 import { computeInitialAfterSeq, computeOlderPageAfterSeq } from './paginationMath';
 import { PrefetchManager, type PrefetchManagerMessageAdapter, type PrefetchManagerTransport, type RunInSessionLock } from './prefetchManager';
 import { computeRenderWindow, computePrefetchOlderRange, shouldPrefetchOlder } from './messageWindow';
-import type { DecryptedMessage } from './storageTypes';
 import { getSessionMode } from '@/utils/sessionUtils';
 import { Modal } from '@/modal';
 import { t } from '@/text';
 import { compositeSessionId, parseCompositeSessionId } from './machineSessionId';
+import { localizeSessionOutputSnapshot } from './sessionOutputSnapshot';
+import {
+    decodeLegacyPlainJsonApiMessage,
+    decodeLegacyPlainJsonApiMessages,
+    parseLegacyPlainJson,
+} from './legacyPlainJsonCodec';
 
 const SETTINGS_PAYLOAD_LIMIT = 1024 * 1024;
 
@@ -100,16 +105,7 @@ type OutboxMessage = {
     content: string;
 };
 
-function parsePlainJson<T>(value: unknown, fallback: T): T {
-    if (typeof value !== 'string') {
-        return (value ?? fallback) as T;
-    }
-    try {
-        return JSON.parse(value) as T;
-    } catch {
-        return fallback;
-    }
-}
+const parsePlainJson = parseLegacyPlainJson;
 
 function toCompositeRef(ref: string, machineId: string | null): string {
     if (!machineId || ref.includes(':')) {
@@ -146,23 +142,7 @@ function normalizeMetadataParentChildRefs(raw: unknown, machineId: string | null
     return normalized ?? raw;
 }
 
-function decodeApiMessage(message: ApiMessage): DecryptedMessage | null {
-    const content = parsePlainJson<RawRecord | null>(message.content.c, null);
-    if (!content) {
-        return null;
-    }
-    return {
-        id: message.id,
-        localId: message.localId ?? null,
-        createdAt: message.createdAt,
-        seq: message.seq,
-        content,
-    };
-}
-
-function decodeApiMessages(messages: ApiMessage[]): (DecryptedMessage | null)[] {
-    return messages.map(decodeApiMessage);
-}
+const decodeApiMessages = decodeLegacyPlainJsonApiMessages;
 
 function encodeApiRecord(content: RawRecord): string {
     return JSON.stringify(content);
@@ -349,6 +329,20 @@ class Sync {
         }
         this.anonID = this.credentials.machineId;
         this.serverID = this.credentials.machineId;
+    }
+
+    upsertMachineCredentials(credentials: AuthCredentials) {
+        const existingIndex = this.credentialsList.findIndex(item => item.machineId === credentials.machineId);
+        this.credentialsList = existingIndex === -1
+            ? [credentials, ...this.credentialsList]
+            : [
+                credentials,
+                ...this.credentialsList.filter(item => item.machineId !== credentials.machineId),
+            ];
+        this.credentialsByMachineId.set(credentials.machineId, credentials);
+        this.credentials = credentials;
+        this.anonID = credentials.machineId;
+        this.serverID = credentials.machineId;
     }
 
     private getCredentialsForMachine(machineId: string): AuthCredentials | null {
@@ -1381,11 +1375,6 @@ class Sync {
         // Parse response
         let parsedSettings = settingsParse(data);
 
-        // Log
-        console.log('settings', JSON.stringify({
-            settings: parsedSettings,
-        }));
-
         // Apply settings to storage, re-layering any pending local changes on top
         this.applyServerSettings(parsedSettings);
 
@@ -1729,17 +1718,20 @@ class Sync {
         });
         apiSocket.onMessage('ephemeral', (update, machineId) => this.handleEphemeralUpdate(update, machineId));
         apiSocket.onMachineDisconnected((machineId, lastSeenAt) => {
+            storage.getState().clearSessionOutputSnapshotsForMachine(machineId);
             storage.getState().markMachineDisconnected(machineId, lastSeenAt);
         });
 
         // Subscribe to connection state changes
-        apiSocket.onReconnected((machineId) => {
+        apiSocket.onReconnected((machineId, initialRetry) => {
             log.log('🔌 Socket reconnected');
             this.machinesSync.invalidate();
             const lastSeenSeq = storage.getState().lastSeenUpdateSeqByMachineId[machineId];
             // WS3: first-connect has no replay cursor, so it still needs the HTTP refresh.
-            // Resume reconnects rely on server replay and avoid re-fetching sessions here.
-            if (lastSeenSeq === undefined || !Number.isFinite(lastSeenSeq)) {
+            // A first connection reached only after retries also refreshes because
+            // the enrollment-time HTTP fetch may have failed while the server was
+            // still starting. Established resume reconnects rely on server replay.
+            if (initialRetry || lastSeenSeq === undefined || !Number.isFinite(lastSeenSeq)) {
                 this.sessionsSync.invalidate();
             }
             // Messages are fetched lazily per-session via onSessionVisible. On resume,
@@ -1853,7 +1845,7 @@ class Sync {
 
             let lastMessage: NormalizedMessage | null = null;
             if (updateData.body.message) {
-                const decrypted = decodeApiMessage(updateData.body.message);
+                const decrypted = decodeLegacyPlainJsonApiMessage(updateData.body.message);
                 if (decrypted) {
                     lastMessage = normalizeRawMessage(decrypted.id, decrypted.localId, decrypted.createdAt, decrypted.seq, decrypted.content);
 
@@ -2167,6 +2159,13 @@ class Sync {
                 };
                 storage.getState().applyMachines([updatedMachine]);
             }
+
+        }
+
+        if (updateData.type === 'session-output-snapshot') {
+            storage.getState().applySessionOutputSnapshot(
+                localizeSessionOutputSnapshot(updateData, sourceMachineId),
+            );
         }
 
         // daemon-status ephemeral updates are deprecated, machine status is handled via machine-activity
@@ -2205,7 +2204,12 @@ export async function syncCreate(credentials: AuthCredentials) {
         return;
     }
     isInitialized = true;
-    await syncInit(credentials, false);
+    try {
+        await syncInit(credentials, false);
+    } catch (error) {
+        isInitialized = false;
+        throw error;
+    }
 }
 
 export async function syncRestore(credentials: AuthCredentials) {
@@ -2214,7 +2218,12 @@ export async function syncRestore(credentials: AuthCredentials) {
         return;
     }
     isInitialized = true;
-    await syncInit(credentials, true);
+    try {
+        await syncInit(credentials, true);
+    } catch (error) {
+        isInitialized = false;
+        throw error;
+    }
 }
 
 export function isSyncInitialized(): boolean {
@@ -2230,7 +2239,10 @@ export async function syncAppendMachine(credentials: AuthCredentials): Promise<v
     if (!saved) {
         throw new Error('Failed to save machine credentials');
     }
-    await apiSocket.appendMachine({ endpoint: credentials.tunnelUrl, credentials });
+    sync.upsertMachineCredentials(credentials);
+    void apiSocket.appendMachine({ endpoint: credentials.tunnelUrl, credentials }).catch(error => {
+        console.error(`Machine ${credentials.machineId} was saved but its socket is still reconnecting:`, error);
+    });
     storage.getState().applyMachines([{
         id: credentials.machineId,
         seq: Date.now(),
@@ -2248,10 +2260,16 @@ export async function syncAppendMachine(credentials: AuthCredentials): Promise<v
             tunnelUrl: credentials.tunnelUrl,
         },
     }]);
+    void sync.refreshMachines().catch(error => {
+        console.error(`Failed to refresh machine ${credentials.machineId} after credential upsert:`, error);
+    });
+    void sync.refreshSessions().catch(error => {
+        console.error(`Failed to refresh sessions after credential upsert for ${credentials.machineId}:`, error);
+    });
 }
 
 async function syncInit(credentials: AuthCredentials, restore: boolean) {
-    const storedCredentials = await TokenStorage.getCredentialsList();
+    const storedCredentials = await TokenStorage.getUsableCredentialsList();
     const rawList = storedCredentials.length > 0 ? storedCredentials : [credentials];
 
     const credentialsList = rawList;

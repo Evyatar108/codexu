@@ -57,6 +57,7 @@ import type { AuthCredentials } from '@/auth/tokenStorage';
 
 function credentials(machineId: string): AuthCredentials {
     return {
+        authMode: 'dev-tunnel',
         machineId,
         tunnelUrl: `https://${machineId}.example.test`,
         firstSeenAt: 1,

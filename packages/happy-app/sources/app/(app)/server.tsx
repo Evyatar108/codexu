@@ -12,6 +12,8 @@ import { t } from '@/text';
 import { getServerUrl, setServerUrl, validateServerUrl, getServerInfo } from '@/sync/serverConfig';
 import { useAuth } from '@/auth/AuthContext';
 import { enrollPublicServer, PublicEnrollmentError } from '@/auth/publicEnrollment';
+import { enrollLocalServer, LocalEnrollmentError } from '@/auth/localEnrollment';
+import { selectPairingEnrollment } from '@/auth/pairingInviteDispatch';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 const stylesheet = StyleSheet.create((theme) => ({
@@ -169,7 +171,9 @@ export default function ServerConfigScreen() {
             return;
         }
         try {
-            const result = await enrollPublicServer(token);
+            const result = selectPairingEnrollment(token) === 'local'
+                ? await enrollLocalServer(token)
+                : await enrollPublicServer(token);
             await auth.login(result.credentials);
             setInviteToken('');
             if (router.canGoBack()) {
@@ -178,8 +182,10 @@ export default function ServerConfigScreen() {
                 router.replace('/');
             }
         } catch (err) {
-            const isInviteProblem = err instanceof PublicEnrollmentError
-                && (err.code === 'invalid_invite' || err.code === 'invite_expired');
+            const isInviteProblem = (
+                err instanceof PublicEnrollmentError
+                || err instanceof LocalEnrollmentError
+            ) && (err.code === 'invalid_invite' || err.code === 'invite_expired');
             Modal.alert(
                 t('common.error'),
                 isInviteProblem

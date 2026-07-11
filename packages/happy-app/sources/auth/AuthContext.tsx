@@ -42,7 +42,7 @@ export function AuthProvider({ children, initialCredentials }: { children: React
     };
 
     const refreshCredentials = async () => {
-        const updated = await TokenStorage.getCredentials();
+        const updated = await TokenStorage.getUsableCredentials();
         setCredentials(updated);
         setIsAuthenticated(!!updated);
     };

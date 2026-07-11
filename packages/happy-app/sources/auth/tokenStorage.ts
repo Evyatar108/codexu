@@ -8,7 +8,10 @@ import { Platform } from 'react-native';
 // "Web platform threat model (TokenStorage persistence)".
 const AUTH_KEY = 'machine_credentials';
 
+export type AuthMode = 'dev-tunnel' | 'paired-device';
+
 export interface AuthCredentials {
+    authMode: AuthMode;
     machineId: string;
     tunnelUrl: string;
     firstSeenAt: number;
@@ -19,16 +22,32 @@ export interface AuthCredentials {
     connectToken?: string;
     connectTokenExpiry?: number;
     tunnelId?: string;
-    // Public-server (single-user example.com) mode. Present only when the device
-    // was enrolled via a public pairing invite; absent for the default Dev
-    // Tunnels path. Their presence is what switches request auth into public
-    // mode (CF-Access headers + Ed25519 device proof) — see machineAuth.ts.
+    // Optional Cloudflare Access edge layer for paired-device mode. When both
+    // fields are absent, paired-device requests use local loopback proof only.
     cloudflareAccessClientId?: string;
     cloudflareAccessClientSecret?: string;
     deviceKeyId?: string;
     devicePublicKey?: string;
     /** Base64 Ed25519 seed (32 bytes). Sensitive; persisted via SecureStore/localStorage. */
     deviceSecretKey?: string;
+}
+
+export type AuthCredentialsIssue = 'missing-device-key' | 'incomplete-cloudflare';
+
+export function getAuthCredentialsIssue(credentials: AuthCredentials): AuthCredentialsIssue | null {
+    if (credentials.authMode === 'dev-tunnel') {
+        return null;
+    }
+    if (!credentials.deviceKeyId || !credentials.devicePublicKey || !credentials.deviceSecretKey) {
+        return 'missing-device-key';
+    }
+    const hasCloudflareId = Boolean(credentials.cloudflareAccessClientId);
+    const hasCloudflareSecret = Boolean(credentials.cloudflareAccessClientSecret);
+    return hasCloudflareId === hasCloudflareSecret ? null : 'incomplete-cloudflare';
+}
+
+export function isUsableAuthCredentials(credentials: AuthCredentials): boolean {
+    return getAuthCredentialsIssue(credentials) === null;
 }
 
 interface StoredMachineCredentials {
@@ -48,7 +67,7 @@ function isStoredMachineCredentials(value: unknown): value is StoredMachineCrede
 }
 
 const AUTH_CREDENTIALS_KEYS = new Set<string>([
-    'machineId', 'tunnelUrl', 'firstSeenAt',
+    'authMode', 'machineId', 'tunnelUrl', 'firstSeenAt',
     'login', 'avatarUrl', 'deviceCode', 'deviceCodeExpiresAt',
     'connectToken', 'connectTokenExpiry', 'tunnelId',
     'cloudflareAccessClientId', 'cloudflareAccessClientSecret',
@@ -68,7 +87,13 @@ function normalizeAuthCredentials(value: unknown): AuthCredentials | null {
     if (isOldShape(candidate)) {
         return null;
     }
-    if ((candidate.login !== undefined && typeof candidate.login !== 'string')
+    const authMode = candidate.authMode === 'dev-tunnel' || candidate.authMode === 'paired-device'
+        ? candidate.authMode
+        : hasAnyPairedDeviceField(candidate)
+            ? 'paired-device'
+            : 'dev-tunnel';
+    if ((candidate.authMode !== undefined && candidate.authMode !== 'dev-tunnel' && candidate.authMode !== 'paired-device')
+        || (candidate.login !== undefined && typeof candidate.login !== 'string')
         || (candidate.avatarUrl !== undefined && typeof candidate.avatarUrl !== 'string')
         || (candidate.deviceCode !== undefined && typeof candidate.deviceCode !== 'string')
         || (candidate.deviceCodeExpiresAt !== undefined && typeof candidate.deviceCodeExpiresAt !== 'number')
@@ -88,7 +113,16 @@ function normalizeAuthCredentials(value: unknown): AuthCredentials | null {
             normalized[key] = candidate[key];
         }
     }
+    normalized.authMode = authMode;
     return normalized as unknown as AuthCredentials;
+}
+
+function hasAnyPairedDeviceField(candidate: Partial<AuthCredentials>): boolean {
+    return candidate.cloudflareAccessClientId !== undefined
+        || candidate.cloudflareAccessClientSecret !== undefined
+        || candidate.deviceKeyId !== undefined
+        || candidate.devicePublicKey !== undefined
+        || candidate.deviceSecretKey !== undefined;
 }
 
 export function isOldShape(credentials: Partial<AuthCredentials> | (Partial<AuthCredentials> & Record<string, unknown>)): boolean {
@@ -148,6 +182,35 @@ export const TokenStorage = {
     async getCredentialsList(): Promise<AuthCredentials[]> {
         const stored = await this.getStoredCredentials();
         return stored?.machines ?? [];
+    },
+
+    async getUsableCredentials(): Promise<AuthCredentials | null> {
+        const stored = await this.getStoredCredentials();
+        if (!stored) {
+            return null;
+        }
+        const primary = stored.machines.find(machine => machine.machineId === stored.primaryMachineId);
+        if (primary && isUsableAuthCredentials(primary)) {
+            return primary;
+        }
+        return stored.machines.find(isUsableAuthCredentials) ?? null;
+    },
+
+    async getUsableCredentialsList(): Promise<AuthCredentials[]> {
+        const stored = await this.getStoredCredentials();
+        if (!stored) {
+            return [];
+        }
+        const usable = stored.machines.filter(isUsableAuthCredentials);
+        const primaryIndex = usable.findIndex(machine => machine.machineId === stored.primaryMachineId);
+        if (primaryIndex <= 0) {
+            return usable;
+        }
+        return [
+            usable[primaryIndex]!,
+            ...usable.slice(0, primaryIndex),
+            ...usable.slice(primaryIndex + 1),
+        ];
     },
 
     async getStoredCredentials(): Promise<StoredMachineCredentials | null> {

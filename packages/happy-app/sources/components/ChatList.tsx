@@ -18,7 +18,7 @@ import { ForkFlatChatList } from '@/fork/chat/ForkFlatChatList';
 
 const SCROLL_THRESHOLD = 300;
 
-export const ChatList = React.memo((props: { session: Session }) => {
+export const ChatList = React.memo((props: { session: Session, messages?: Message[] }) => {
     // FORK PATCH: [RESTORE-R8b] ChatList tool-grouping render path (invariant HA-5).
     // ChatList regains upstream's tool-grouping path; the fork's flat e-ink
     // rendering is quarantined in the fork overlay (sources/fork/chat/*) and
@@ -26,13 +26,14 @@ export const ChatList = React.memo((props: { session: Session }) => {
     // selects the restored path below; see docs/happy-patch-surface.md HA-5.
     const chatToolGrouping = useLocalSetting('chatToolGrouping');
     if (chatToolGrouping === 'grouped') {
-        return <ChatListGrouped session={props.session} />;
+        return <ChatListGrouped session={props.session} messages={props.messages} />;
     }
-    return <ForkFlatChatList session={props.session} />;
+    return <ForkFlatChatList session={props.session} messages={props.messages} />;
 });
 
-const ChatListGrouped = React.memo((props: { session: Session }) => {
-    const { messages } = useSessionMessages(props.session.id);
+const ChatListGrouped = React.memo((props: { session: Session, messages?: Message[] }) => {
+    const stored = useSessionMessages(props.session.id);
+    const messages = props.messages ?? stored.messages;
     return (
         <ChatListInternal
             metadata={props.session.metadata}

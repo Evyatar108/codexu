@@ -1,0 +1,535 @@
+===================================================================
+--- a/src/contract.rs
++++ b/src/contract.rs
+@@ -259,6 +259,11 @@
+ #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+ #[serde(tag = "t")]
+ pub enum ApiUpdateBody {
++    #[serde(rename = "new-message")]
++    NewMessage {
++        sid: String,
++        message: SessionMessage,
++    },
+     #[serde(rename = "update-session")]
+     UpdateSession {
+         id: String,
+===================================================================
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -27,10 +27,14 @@
+         journal: Option<PathBuf>,
+         #[arg(long, default_value_t = 0, hide = true)]
+         preseed_updates: u64,
++        #[arg(long, default_value_t = false)]
++        app_acceptance: bool,
+     },
+     RustClient {
+         #[arg(long, default_value = "http://127.0.0.1:43127")]
+         url: String,
++        #[arg(long, default_value_t = false)]
++        app_acceptance: bool,
+     },
+ }
+
+@@ -42,17 +46,22 @@
+             origin,
+             journal,
+             preseed_updates,
++            app_acceptance,
+         } => {
+             server::run(server::ServerOptions {
+                 bind,
+                 origin,
+                 journal_path: journal.unwrap_or_else(server::default_journal_path),
+                 preseed_updates,
++                app_acceptance,
+             })
+             .await
+         }
+-        Command::RustClient { url } => {
+-            let result = rust_client::run_smoke(&url).await?;
++        Command::RustClient {
++            url,
++            app_acceptance,
++        } => {
++            let result = rust_client::run_smoke(&url, app_acceptance).await?;
+             println!("{}", serde_json::to_string(&result)?);
+             Ok(())
+         }
+===================================================================
+--- a/src/rust_client.rs
++++ b/src/rust_client.rs
+@@ -15,7 +15,7 @@
+ const HAPPY_CLIENT: &str = "codex-native/compat-spike";
+ const ACK_TIMEOUT: Duration = Duration::from_secs(3);
+
+-pub async fn run_smoke(url: &str) -> Result<Value, Box<dyn Error>> {
++pub async fn run_smoke(url: &str, app_acceptance: bool) -> Result<Value, Box<dyn Error>> {
+     let capability = fetch_capability().await?;
+     let (update_tx, mut update_rx) = mpsc::unbounded_channel();
+     let client = connect_internal(url, &capability, SESSION_ID, 0, update_tx).await?;
+@@ -64,12 +64,17 @@
+     .await?;
+     ensure_field(&state_after_rejection_ack, "result", "success")?;
+
++    let metadata = if app_acceptance {
++        "{\"path\":\"C:\\\\fixture\",\"host\":\"compat-machine\",\"machineId\":\"compat-machine\",\"flavor\":\"codex\"}"
++    } else {
++        "{\"source\":\"rust-client\"}"
++    };
+     let metadata_ack = emit_with_ack(
+         &client,
+         "update-metadata",
+         json!({
+             "sid": SESSION_ID,
+-            "metadata": "{\"source\":\"rust-client\"}",
++            "metadata": metadata,
+             "expectedVersion": 1
+         }),
+     )
+===================================================================
+--- a/src/server.rs
++++ b/src/server.rs
+@@ -12,7 +12,7 @@
+     VersionedString, browser_room, now_ms, session_room,
+ };
+ use axum::body::{Bytes, to_bytes};
+-use axum::extract::{Request, State};
++use axum::extract::{Path as AxumPath, Request, State};
+ use axum::http::header::{CONTENT_TYPE, HOST, ORIGIN};
+ use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode, Uri};
+ use axum::middleware::{Next, from_fn};
+@@ -28,6 +28,7 @@
+ use std::net::SocketAddr;
+ use std::path::{Path, PathBuf};
+ use std::sync::{Arc, Mutex};
++use std::time::Duration;
+ use tower_http::cors::CorsLayer;
+ use url::form_urlencoded;
+
+@@ -38,6 +39,7 @@
+     pub origin: String,
+     pub journal_path: PathBuf,
+     pub preseed_updates: u64,
++    pub app_acceptance: bool,
+ }
+
+ #[derive(Clone)]
+@@ -48,6 +50,7 @@
+     delivery: Arc<tokio::sync::Mutex<()>>,
+     io: SocketIo,
+     shutdown: Arc<tokio::sync::Notify>,
++    app_acceptance: bool,
+ }
+
+ #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+@@ -63,6 +66,7 @@
+     agent_state: Option<String>,
+     agent_state_version: u64,
+     snapshots: HashMap<String, SnapshotPayload>,
++    snapshot_revisions: HashMap<String, u64>,
+     active: bool,
+     current_seq: u64,
+     replay: VecDeque<ApiUpdateContainer>,
+@@ -73,43 +77,58 @@
+ }
+
+ impl CompatData {
+-    fn new(preseed_updates: u64) -> Self {
++    fn new(preseed_updates: u64, app_acceptance: bool) -> Self {
+         let now = now_ms();
+         let mut data = Self {
+-            metadata: "{}".into(),
++            metadata: if app_acceptance {
++                compat_metadata()
++            } else {
++                "{}".into()
++            },
+             metadata_version: 1,
+-            agent_state: None,
++            agent_state: app_acceptance.then(|| "{\"turnActive\":false}".into()),
+             agent_state_version: 1,
+             snapshots: HashMap::new(),
++            snapshot_revisions: HashMap::new(),
+             active: true,
+             current_seq: 0,
+             replay: VecDeque::with_capacity(REPLAY_CAPACITY),
+             known_approvals: HashSet::from(["approval-1".into()]),
+             resolved_approvals: HashSet::new(),
+-            messages: vec![
+-                SessionMessage {
+-                    id: "compat-message-1".into(),
+-                    seq: 1,
+-                    local_id: Some("local-1".into()),
+-                    content: EncryptedLookingContent {
+-                        t: "encrypted".into(),
+-                        c: "compat-one".into(),
++            messages: if app_acceptance {
++                vec![plain_session_message(
++                    "compat-message-initial",
++                    1,
++                    "compat-initial-item",
++                    "compat initial durable message",
++                    now,
++                )]
++            } else {
++                vec![
++                    SessionMessage {
++                        id: "compat-message-1".into(),
++                        seq: 1,
++                        local_id: Some("local-1".into()),
++                        content: EncryptedLookingContent {
++                            t: "encrypted".into(),
++                            c: "compat-one".into(),
++                        },
++                        created_at: now,
++                        updated_at: now,
+                     },
+-                    created_at: now,
+-                    updated_at: now,
+-                },
+-                SessionMessage {
+-                    id: "compat-message-2".into(),
+-                    seq: 2,
+-                    local_id: Some("local-2".into()),
+-                    content: EncryptedLookingContent {
+-                        t: "encrypted".into(),
+-                        c: "compat-two".into(),
++                    SessionMessage {
++                        id: "compat-message-2".into(),
++                        seq: 2,
++                        local_id: Some("local-2".into()),
++                        content: EncryptedLookingContent {
++                            t: "encrypted".into(),
++                            c: "compat-two".into(),
++                        },
++                        created_at: now,
++                        updated_at: now,
+                     },
+-                    created_at: now,
+-                    updated_at: now,
+-                },
+-            ],
++                ]
++            },
+             lifecycle: FixtureLifecycle::Running,
+         };
+         for _ in 0..preseed_updates {
+@@ -213,10 +232,14 @@
+     let state = Arc::new(AppState {
+         auth,
+         capability: capability.clone(),
+-        data: Arc::new(Mutex::new(CompatData::new(options.preseed_updates))),
++        data: Arc::new(Mutex::new(CompatData::new(
++            options.preseed_updates,
++            options.app_acceptance,
++        ))),
+         delivery: Arc::new(tokio::sync::Mutex::new(())),
+         io: io.clone(),
+         shutdown: Arc::clone(&shutdown),
++        app_acceptance: options.app_acceptance,
+     });
+     let encoded_invite = state.auth.encoded_invite()?;
+     register_socket_namespace(&io, Arc::clone(&state));
+@@ -236,6 +259,12 @@
+         .route("/health", get(health))
+         .route("/pair/complete", post(pair_complete))
+         .route("/proof-check", post(proof_check))
++        .route("/v2/me/machine", get(get_machine))
++        .route("/v1/sessions", get(get_sessions))
++        .route(
++            "/v3/sessions/{session_id}/messages",
++            get(get_session_messages),
++        )
+         .with_state(Arc::clone(&state))
+         .layer(socket_layer)
+         .layer(cors)
+@@ -448,7 +477,7 @@
+                     return;
+                 }
+                 let _delivery = state.delivery.lock().await;
+-                let (response, ephemeral) = apply_snapshot(&state, request);
++                let (response, ephemeral, durable) = apply_snapshot(&state, request);
+                 let _ = ack.send(&response);
+                 if let Some(ephemeral) = ephemeral {
+                     let _ = socket
+@@ -456,6 +485,10 @@
+                         .emit("ephemeral", &ephemeral)
+                         .await;
+                 }
++                if let Some(durable) = durable {
++                    tokio::time::sleep(Duration::from_millis(150)).await;
++                    broadcast_durable(&socket, &durable).await;
++                }
+             }
+         },
+     );
+@@ -653,9 +686,13 @@
+ fn apply_snapshot(
+     state: &AppState,
+     request: Result<SnapshotRequest, socketioxide::ParserError>,
+-) -> (SnapshotAck, Option<SnapshotPayload>) {
++) -> (
++    SnapshotAck,
++    Option<SnapshotPayload>,
++    Option<ApiUpdateContainer>,
++) {
+     let Ok(request) = request else {
+-        return (SnapshotAck::Error, None);
++        return (SnapshotAck::Error, None, None);
+     };
+     let mut data = state.data.lock().expect("compat data mutex poisoned");
+     if request.session_id != SESSION_ID
+@@ -664,12 +701,12 @@
+         || request.item_id.is_empty()
+         || request.text.len() > MAX_VALUE_BYTES
+     {
+-        return (SnapshotAck::Error, None);
++        return (SnapshotAck::Error, None, None);
+     }
+     let current_revision = data
+-        .snapshots
++        .snapshot_revisions
+         .get(&request.item_id)
+-        .map(|snapshot| snapshot.revision)
++        .copied()
+         .unwrap_or_default();
+     if request.revision <= current_revision {
+         return (
+@@ -677,11 +714,14 @@
+                 revision: current_revision,
+             },
+             None,
++            None,
+         );
+     }
+     if current_revision == 0 && data.snapshots.len() >= 16 {
+-        return (SnapshotAck::Error, None);
++        return (SnapshotAck::Error, None, None);
+     }
++    data.snapshot_revisions
++        .insert(request.item_id.clone(), request.revision);
+     let payload = SnapshotPayload {
+         update_type: "session-output-snapshot",
+         id: SESSION_ID.into(),
+@@ -693,12 +733,37 @@
+         text: request.text,
+         emitted_at: request.emitted_at,
+     };
+-    data.snapshots.insert(request.item_id, payload.clone());
++    data.snapshots
++        .insert(request.item_id.clone(), payload.clone());
++    let durable = if state.app_acceptance && request.revision == 8 {
++        let message = plain_session_message(
++            "compat-message-final",
++            2,
++            &request.item_id,
++            "compat durable final replaces transient snapshot",
++            now_ms(),
++        );
++        if !data
++            .messages
++            .iter()
++            .any(|existing| existing.id == message.id)
++        {
++            data.messages.push(message.clone());
++        }
++        data.snapshots.remove(&request.item_id);
++        Some(data.push_update(ApiUpdateBody::NewMessage {
++            sid: SESSION_ID.into(),
++            message,
++        }))
++    } else {
++        None
++    };
+     (
+         SnapshotAck::Success {
+             revision: request.revision,
+         },
+         Some(payload),
++        durable,
+     )
+ }
+
+@@ -985,6 +1050,147 @@
+     }
+ }
+
++async fn get_machine(State(state): State<Arc<AppState>>, headers: HeaderMap, uri: Uri) -> Response {
++    if !state.app_acceptance {
++        return StatusCode::NOT_FOUND.into_response();
++    }
++    if let Err(response) = verify_get(&state, &headers, &uri) {
++        return response;
++    }
++    let now = now_ms();
++    Json(json!({
++        "machineId": MACHINE_ID,
++        "hostname": MACHINE_ID,
++        "tunnelUrl": format!("http://{BIND_ADDR}"),
++        "lastSeenAt": now
++    }))
++    .into_response()
++}
++
++async fn get_sessions(
++    State(state): State<Arc<AppState>>,
++    headers: HeaderMap,
++    uri: Uri,
++) -> Response {
++    if !state.app_acceptance {
++        return StatusCode::NOT_FOUND.into_response();
++    }
++    if let Err(response) = verify_get(&state, &headers, &uri) {
++        return response;
++    }
++    let data = state.data.lock().expect("compat data mutex poisoned");
++    let now = now_ms();
++    let seq = data
++        .messages
++        .last()
++        .map(|message| message.seq)
++        .unwrap_or_default();
++    Json(json!({
++        "sessions": [{
++            "id": SESSION_ID,
++            "tag": "compat",
++            "seq": seq,
++            "metadata": data.metadata,
++            "metadataVersion": data.metadata_version,
++            "agentState": data.agent_state,
++            "agentStateVersion": data.agent_state_version,
++            "active": data.active,
++            "activeAt": now,
++            "createdAt": now,
++            "updatedAt": now,
++            "lastMessage": data.messages.last()
++        }]
++    }))
++    .into_response()
++}
++
++async fn get_session_messages(
++    State(state): State<Arc<AppState>>,
++    AxumPath(session_id): AxumPath<String>,
++    headers: HeaderMap,
++    uri: Uri,
++) -> Response {
++    if !state.app_acceptance {
++        return StatusCode::NOT_FOUND.into_response();
++    }
++    if let Err(response) = verify_get(&state, &headers, &uri) {
++        return response;
++    }
++    if session_id != SESSION_ID {
++        return StatusCode::NOT_FOUND.into_response();
++    }
++    let after_seq = form_urlencoded::parse(uri.query().unwrap_or_default().as_bytes())
++        .find_map(|(key, value)| {
++            (key == "after_seq")
++                .then(|| value.parse::<u64>().ok())
++                .flatten()
++        })
++        .unwrap_or_default();
++    let data = state.data.lock().expect("compat data mutex poisoned");
++    let messages = data
++        .messages
++        .iter()
++        .filter(|message| message.seq > after_seq)
++        .cloned()
++        .collect::<Vec<_>>();
++    Json(json!({"messages": messages, "hasMore": false})).into_response()
++}
++
++fn verify_get(state: &AppState, headers: &HeaderMap, uri: &Uri) -> Result<(), Response> {
++    let target = uri
++        .path_and_query()
++        .map(|value| value.as_str())
++        .unwrap_or(uri.path());
++    state
++        .auth
++        .verify_paired_proof(header_value(headers, PROOF_HEADER), "GET", target, b"")
++        .map(|_| ())
++        .map_err(|error| auth_error(StatusCode::UNAUTHORIZED, error))
++}
++
++fn compat_metadata() -> String {
++    serde_json::to_string(&json!({
++        "path": "C:\\fixture",
++        "host": MACHINE_ID,
++        "machineId": MACHINE_ID,
++        "flavor": "codex"
++    }))
++    .expect("compat metadata must serialize")
++}
++
++fn plain_session_message(
++    id: &str,
++    seq: u64,
++    item_id: &str,
++    text: &str,
++    timestamp: i64,
++) -> SessionMessage {
++    let raw_record = json!({
++        "role": "session",
++        "content": {
++            "id": format!("{id}-envelope"),
++            "time": timestamp,
++            "role": "agent",
++            "turn": "compat-turn",
++            "ev": {
++                "t": "text",
++                "text": text
++            }
++        }
++    });
++    SessionMessage {
++        id: id.into(),
++        seq,
++        local_id: Some(format!("codex-origin:assistant:{item_id}")),
++        content: EncryptedLookingContent {
++            t: "encrypted".into(),
++            c: serde_json::to_string(&raw_record).expect("compat message must serialize"),
++        },
++        created_at: timestamp,
++        updated_at: timestamp,
++    }
++}
++
+ fn auth_error(status: StatusCode, error: AuthFailure) -> Response {
+     (
+         status,
+@@ -1048,7 +1254,7 @@
+
+     #[test]
+     fn replay_overflow_uses_exact_1024_update_window() {
+-        let data = CompatData::new((REPLAY_CAPACITY + 1) as u64);
++        let data = CompatData::new((REPLAY_CAPACITY + 1) as u64, false);
+         assert_eq!(
+             data.replay_since(0),
+             Err(ReplayOverflow {
+@@ -1075,6 +1281,7 @@
+                 origin: ALLOWED_ORIGIN.into(),
+                 journal_path: journal_path.clone(),
+                 preseed_updates: 0,
++                app_acceptance: false,
+             };
+             assert!(validate_server_options(&options).is_err());
+         }
+@@ -1083,6 +1290,7 @@
+             origin: "*".into(),
+             journal_path,
+             preseed_updates: 0,
++            app_acceptance: false,
+         };
+         assert!(validate_server_options(&options).is_err());
+     }
+@@ -1106,7 +1314,7 @@
+
+     #[test]
+     fn fixture_stopping_requires_a_rejected_rpc_before_exit() {
+-        let mut data = CompatData::new(0);
++        let mut data = CompatData::new(0, false);
+         assert!(data.enter_fixture_stopping());
+         assert!(!data.request_fixture_exit());
+         assert!(data.reject_rpc_if_stopping());

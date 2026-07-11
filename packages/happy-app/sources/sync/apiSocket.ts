@@ -43,9 +43,14 @@ interface MachineConnection {
     intentionalDisconnect: boolean;
     hasConnected: boolean;
     firstConnectWaiters: Array<() => void>;
+    reconnectAttempt: number;
+    reconnectTimer: ReturnType<typeof setTimeout> | null;
 }
 
 type MessageHandler = (data: any, machineId: string) => void;
+
+const RECONNECT_BASE_DELAY_MS = 500;
+const RECONNECT_MAX_DELAY_MS = 15_000;
 
 /**
  * Routing scope for socket / HTTP operations scoped to a specific session.
@@ -136,7 +141,7 @@ class ApiSocket {
     private connections: Map<string, MachineConnection> = new Map();
     private primaryMachineId: string | null = null;
     private messageHandlers: Map<string, MessageHandler> = new Map();
-    private reconnectedListeners: Set<(machineId: string) => void> = new Set();
+    private reconnectedListeners: Set<(machineId: string, initialRetry: boolean) => void> = new Set();
     private statusListeners: Set<(status: SyncSocketStatus) => void> = new Set();
     private machineDisconnectListeners: Set<(machineId: string, lastSeenAt: number) => void> = new Set();
     private currentStatus: SyncSocketStatus = 'disconnected';
@@ -160,6 +165,8 @@ class ApiSocket {
                 intentionalDisconnect: false,
                 hasConnected: false,
                 firstConnectWaiters: [],
+                reconnectAttempt: 0,
+                reconnectTimer: null,
             });
             if (!this.primaryMachineId) {
                 this.primaryMachineId = machineId;
@@ -172,6 +179,8 @@ class ApiSocket {
         const machineId = config.credentials.machineId;
         const existing = this.connections.get(machineId);
         if (existing) {
+            this.cancelReconnect(existing);
+            this.disposeSocket(existing, true);
             existing.config = config;
         } else {
             this.connections.set(machineId, {
@@ -181,21 +190,33 @@ class ApiSocket {
                 intentionalDisconnect: false,
                 hasConnected: false,
                 firstConnectWaiters: [],
+                reconnectAttempt: 0,
+                reconnectTimer: null,
             });
         }
-        if (!this.primaryMachineId) {
-            this.primaryMachineId = machineId;
-        }
+        this.primaryMachineId = machineId;
 
         const connection = this.connections.get(machineId)!;
+        let timeout: ReturnType<typeof setTimeout>;
+        let waiter: () => void;
         const connected = new Promise<void>((resolve, reject) => {
-            const timeout = setTimeout(() => reject(new Error(`Socket connect timed out for machine ${machineId}`)), timeoutMs);
-            connection.firstConnectWaiters.push(() => {
+            waiter = () => {
                 clearTimeout(timeout);
                 resolve();
-            });
+            };
+            timeout = setTimeout(() => {
+                connection.firstConnectWaiters = connection.firstConnectWaiters.filter(item => item !== waiter);
+                reject(new Error(`Socket connect timed out for machine ${machineId}`));
+            }, timeoutMs);
+            connection.firstConnectWaiters.push(waiter);
         });
-        await this.connect(machineId);
+        try {
+            await this.connect(machineId);
+        } catch (error) {
+            clearTimeout(timeout!);
+            connection.firstConnectWaiters = connection.firstConnectWaiters.filter(item => item !== waiter!);
+            throw error;
+        }
         await connected;
     }
 
@@ -209,13 +230,22 @@ class ApiSocket {
                 continue;
             }
             const mid = connection.config.credentials.machineId;
+            this.cancelReconnect(connection);
             this.updateMachineStatus(mid, 'connecting');
             connection.intentionalDisconnect = false;
-            let socketOptions;
-            const lastSeenSeq = storage.getState().lastSeenUpdateSeqByMachineId[mid];
-            socketOptions = await buildTunnelSocketOptions(connection.config.credentials, mid, lastSeenSeq);
-            connection.socket = io(connection.config.endpoint, socketOptions);
-            this.setupEventHandlers(connection);
+            try {
+                const lastSeenSeq = storage.getState().lastSeenUpdateSeqByMachineId[mid];
+                const socketOptions = await buildTunnelSocketOptions(connection.config.credentials, mid, lastSeenSeq);
+                connection.socket = io(connection.config.endpoint, socketOptions);
+                this.setupEventHandlers(connection);
+            } catch (error) {
+                this.updateMachineStatus(mid, 'error');
+                this.scheduleReconnect(connection);
+                if (machineId) {
+                    throw error;
+                }
+                console.error(`Failed to create socket for machine ${mid}:`, error);
+            }
         }
     }
 
@@ -228,11 +258,9 @@ class ApiSocket {
             if (!connection) {
                 continue;
             }
+            this.cancelReconnect(connection);
             connection.intentionalDisconnect = true;
-            if (connection.socket) {
-                connection.socket.disconnect();
-                connection.socket = null;
-            }
+            this.disposeSocket(connection, true);
             this.updateMachineStatus(connection.config.credentials.machineId, 'disconnected');
         }
     }
@@ -242,11 +270,9 @@ class ApiSocket {
         if (!connection) {
             return;
         }
+        this.cancelReconnect(connection);
         connection.intentionalDisconnect = true;
-        if (connection.socket) {
-            connection.socket.disconnect();
-            connection.socket = null;
-        }
+        this.disposeSocket(connection, true);
         this.connections.delete(machineId);
         if (this.primaryMachineId === machineId) {
             const nextEntry = this.connections.keys().next();
@@ -263,7 +289,7 @@ class ApiSocket {
         return Array.from(this.connections.keys());
     }
 
-    onReconnected = (listener: (machineId: string) => void) => {
+    onReconnected = (listener: (machineId: string, initialRetry: boolean) => void) => {
         this.reconnectedListeners.add(listener);
         return () => this.reconnectedListeners.delete(listener);
     };
@@ -415,6 +441,48 @@ class ApiSocket {
         return this.connections.get(machineId);
     }
 
+    private disposeSocket(connection: MachineConnection, notifyDisconnect: boolean) {
+        const socket = connection.socket;
+        if (!socket) {
+            return;
+        }
+        connection.socket = null;
+        socket.removeAllListeners();
+        socket.disconnect();
+        if (notifyDisconnect) {
+            const machineId = connection.config.credentials.machineId;
+            this.machineDisconnectListeners.forEach(listener => listener(machineId, Date.now()));
+        }
+    }
+
+    private cancelReconnect(connection: MachineConnection) {
+        if (connection.reconnectTimer) {
+            clearTimeout(connection.reconnectTimer);
+            connection.reconnectTimer = null;
+        }
+    }
+
+    private scheduleReconnect(connection: MachineConnection) {
+        if (connection.intentionalDisconnect || connection.reconnectTimer || connection.socket) {
+            return;
+        }
+        const attempt = connection.reconnectAttempt++;
+        const delay = attempt === 0
+            ? 0
+            : Math.min(RECONNECT_BASE_DELAY_MS * (2 ** (attempt - 1)), RECONNECT_MAX_DELAY_MS);
+        connection.reconnectTimer = setTimeout(() => {
+            connection.reconnectTimer = null;
+            if (connection.intentionalDisconnect || connection.socket) {
+                return;
+            }
+            const machineId = connection.config.credentials.machineId;
+            void this.connect(machineId).catch((error) => {
+                console.error(`Failed to reconnect socket for machine ${machineId}:`, error);
+                this.scheduleReconnect(connection);
+            });
+        }, delay);
+    }
+
     private isVerboseLogging(): boolean {
         try {
             return storage.getState().localSettings.verboseLogging;
@@ -458,20 +526,29 @@ class ApiSocket {
         const machineId = connection.config.credentials.machineId;
 
         socket.on('connect', () => {
+            if (connection.socket !== socket) {
+                return;
+            }
             if (this.isVerboseLogging()) {
                 console.log('SyncSocket connected', { machineId, recovered: socket.recovered, socketId: socket.id });
             }
+            const connectedAfterInitialRetry = !connection.hasConnected && connection.reconnectAttempt > 0;
+            this.cancelReconnect(connection);
+            connection.reconnectAttempt = 0;
             this.updateMachineStatus(machineId, 'connected');
             const waiters = connection.firstConnectWaiters.splice(0);
             waiters.forEach(resolve => resolve());
             const wasConnected = connection.hasConnected;
             connection.hasConnected = true;
-            if (wasConnected && !socket.recovered) {
-                this.reconnectedListeners.forEach(listener => listener(machineId));
+            if ((wasConnected || connectedAfterInitialRetry) && !socket.recovered) {
+                this.reconnectedListeners.forEach(listener => listener(machineId, connectedAfterInitialRetry));
             }
         });
 
         socket.on('disconnect', () => {
+            if (connection.socket !== socket) {
+                return;
+            }
             if (this.isVerboseLogging()) {
                 console.log('SyncSocket disconnected', { machineId });
             }
@@ -481,19 +558,26 @@ class ApiSocket {
             const intentional = connection.intentionalDisconnect;
             connection.socket = null;
             if (!intentional) {
-                void this.connect(machineId);
+                this.scheduleReconnect(connection);
             }
         });
 
         socket.on('connect_error', (error) => {
+            if (connection.socket !== socket) {
+                return;
+            }
             if (this.isVerboseLogging()) {
                 console.error('SyncSocket connection error', { machineId, error });
             }
+            this.disposeSocket(connection, true);
             this.updateMachineStatus(machineId, 'error');
-            this.machineDisconnectListeners.forEach(listener => listener(machineId, Date.now()));
+            this.scheduleReconnect(connection);
         });
 
         socket.on('error', (error) => {
+            if (connection.socket !== socket) {
+                return;
+            }
             if (this.isVerboseLogging()) {
                 console.error('SyncSocket error', { machineId, error });
             }
@@ -501,6 +585,9 @@ class ApiSocket {
         });
 
         socket.onAny((event, data) => {
+            if (connection.socket !== socket) {
+                return;
+            }
             if (this.isVerboseLogging()) {
                 console.log(`SyncSocket event ${event}`, { machineId });
             }

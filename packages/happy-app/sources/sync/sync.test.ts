@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
     tunnelFetch: vi.fn(),
     alert: vi.fn(),
     messageHandlers: new Map<string, (data: any, machineId: string) => void>(),
-    reconnectedListeners: [] as Array<(machineId: string) => void>,
+    reconnectedListeners: [] as Array<(machineId: string, initialRetry?: boolean) => void>,
     storageState: {
         sessions: {} as Record<string, any>,
         machines: {} as Record<string, any>,
@@ -59,7 +59,7 @@ vi.mock('./apiSocket', async () => {
             }),
             onMachineDisconnected: vi.fn(),
             onDeviceCodeExpired: vi.fn(),
-            onReconnected: vi.fn((listener: (machineId: string) => void) => {
+            onReconnected: vi.fn((listener: (machineId: string, initialRetry?: boolean) => void) => {
                 mocks.reconnectedListeners.push(listener);
                 return () => {
                     mocks.reconnectedListeners = mocks.reconnectedListeners.filter(item => item !== listener);
@@ -245,6 +245,25 @@ function makePlainUpdate(content: unknown, seq = 1) {
         },
     };
 }
+
+describe('sync machine credential upsert', () => {
+    it('replaces a known machine, adds new machines, and makes the upserted machine primary', () => {
+        const machineA = { authMode: 'dev-tunnel', machineId: 'machine-a', tunnelUrl: 'https://a.invalid', firstSeenAt: 1 };
+        const machineB = { authMode: 'dev-tunnel', machineId: 'machine-b', tunnelUrl: 'https://b.invalid', firstSeenAt: 2 };
+        (sync as any).configureMachines([machineA, machineB]);
+
+        const repairedA = { ...machineA, tunnelUrl: 'https://a-repaired.invalid' };
+        sync.upsertMachineCredentials(repairedA as any);
+        expect((sync as any).credentialsList).toEqual([repairedA, machineB]);
+        expect((sync as any).credentialsByMachineId.get('machine-a')).toEqual(repairedA);
+        expect(sync.getCredentials()).toEqual(repairedA);
+
+        const machineC = { authMode: 'dev-tunnel', machineId: 'machine-c', tunnelUrl: 'https://c.invalid', firstSeenAt: 3 };
+        sync.upsertMachineCredentials(machineC as any);
+        expect((sync as any).credentialsList).toEqual([machineC, repairedA, machineB]);
+        expect(sync.getCredentials()).toEqual(machineC);
+    });
+});
 
 function installIncomingMessageHarness(_content: unknown, session: StoredSession) {
     mocks.storageState.sessions = { 'session-1': session };
@@ -1084,6 +1103,17 @@ describe('sync WS3 last-seen update seq persistence', () => {
 
         expect(machinesSync.invalidate).toHaveBeenCalledOnce();
         expect(sessionsSync.invalidate).not.toHaveBeenCalled();
+    });
+
+    it('invalidates sessions when the first successful connection arrives after retries', () => {
+        const { sessionsSync, machinesSync } = installWs3SyncHarness();
+        mocks.storageState.lastSeenUpdateSeqByMachineId = { mA: 42 };
+        (sync as any).subscribeToUpdates();
+
+        mocks.reconnectedListeners[0]?.('mA', true);
+
+        expect(machinesSync.invalidate).toHaveBeenCalledOnce();
+        expect(sessionsSync.invalidate).toHaveBeenCalledOnce();
     });
 });
 

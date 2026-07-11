@@ -9,4 +9,7 @@ export * from './agentTree';
 export * from './agentComms';
 export * from './publicDeviceAuth';
 export * from './publicPairingInvite';
+export * from './localPairingInvite';
+export * from './localDeviceAuth';
+export * from './sessionOutputSnapshot';
 export * from './tunnel/types';

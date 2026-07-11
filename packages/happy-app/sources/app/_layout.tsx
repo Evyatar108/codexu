@@ -175,7 +175,7 @@ function getDevEnvironmentCredentials(): AuthCredentials | null {
         return null;
     }
 
-    return { machineId, tunnelUrl, deviceCode, deviceCodeExpiresAt, firstSeenAt: Date.now() };
+    return { authMode: 'dev-tunnel', machineId, tunnelUrl, deviceCode, deviceCodeExpiresAt, firstSeenAt: Date.now() };
 }
 
 function getDevWebQueryCredentials(): AuthCredentials | null {
@@ -192,7 +192,7 @@ function getDevWebQueryCredentials(): AuthCredentials | null {
         return null;
     }
 
-    return { machineId, tunnelUrl, deviceCode, deviceCodeExpiresAt, firstSeenAt: Date.now() };
+    return { authMode: 'dev-tunnel', machineId, tunnelUrl, deviceCode, deviceCodeExpiresAt, firstSeenAt: Date.now() };
 }
 
 export default function RootLayout() {
@@ -225,10 +225,11 @@ export default function RootLayout() {
     const [initState, setInitState] = React.useState<{ credentials: AuthCredentials | null } | null>(null);
     React.useEffect(() => {
         (async () => {
+            let credentials: AuthCredentials | null = null;
             try {
                 await loadFonts();
 
-                let credentials = await TokenStorage.getCredentials();
+                credentials = await TokenStorage.getUsableCredentials();
                 const devCredentials = getDevWebQueryCredentials() ?? getDevEnvironmentCredentials();
 
                 if (devCredentials) {
@@ -250,10 +251,10 @@ export default function RootLayout() {
                 if (credentials) {
                     await syncRestore(credentials);
                 }
-
-                setInitState({ credentials });
             } catch (error) {
                 console.error('Error initializing:', error);
+            } finally {
+                setInitState({ credentials });
             }
         })();
     }, []);

@@ -38,8 +38,9 @@ import { usePageTurnScroll } from './usePageTurnScroll';
 
 const SCROLL_THRESHOLD = 300;
 
-export const ForkFlatChatList = React.memo((props: { session: Session }) => {
-    const { messages } = useSessionMessages(props.session.id);
+export const ForkFlatChatList = React.memo((props: { session: Session, messages?: Message[] }) => {
+    const stored = useSessionMessages(props.session.id);
+    const messages = props.messages ?? stored.messages;
     const latestBoundary = useLatestBoundary(props.session.id);
     return (
         <ForkFlatChatListInternal

@@ -1,0 +1,24 @@
+{
+  "task": "codex-native-happy-app-local-compat",
+  "runtime": {
+    "app": "real Expo web bundle",
+    "browser": "agent-browser Chromium",
+    "server": "pinned Rust codex-happy-compat-spike fixture",
+    "nodeHappyServer": false
+  },
+  "route": "http://localhost:8081/server",
+  "result": "PASS",
+  "assertions": {
+    "inviteKindDispatch": "local",
+    "machineId": "compat-machine",
+    "authMode": "paired-device",
+    "endpoint": "http://127.0.0.1:43127",
+    "deviceKeyPersisted": true,
+    "cloudflareCredentialsPresent": false,
+    "pairSecretPersisted": false,
+    "pairingNoncePersisted": false,
+    "inputClearedAfterEnrollment": true,
+    "errorModalPresent": false
+  },
+  "redaction": "Invite token, pair secret, pairing nonce, proof envelope, and private key are omitted."
+}

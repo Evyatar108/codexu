@@ -127,6 +127,7 @@ export async function enrollPublicServer(
     const githubLogin = (payload as { githubLogin?: unknown }).githubLogin;
 
     const credentials: AuthCredentials = {
+        authMode: 'paired-device',
         machineId: machine.machineId,
         // The invite URL is the address the app just reached through Cloudflare,
         // so it is authoritative for later requests (the server-reported

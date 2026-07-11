@@ -880,7 +880,7 @@ function isPublicPairingInviteValid(invite, now = /* @__PURE__ */ new Date()) {
   const nowMs = now.getTime();
   return nowMs >= issuedAt && nowMs <= expiresAt;
 }
-function toBase64Url(text) {
+function toBase64Url$1(text) {
   const bytes = new TextEncoder().encode(text);
   return encodeBase64(bytes).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
@@ -890,7 +890,7 @@ function fromBase64Url(token) {
 }
 function encodePublicPairingInvite(invite) {
   const validated = PublicPairingInviteSchema.parse(invite);
-  return toBase64Url(JSON.stringify(validated));
+  return toBase64Url$1(JSON.stringify(validated));
 }
 function decodePublicPairingInvite(token) {
   if (!token) return null;
@@ -924,6 +924,401 @@ const PUBLIC_PAIRING_INVITE_TEST_VECTOR = (() => {
   };
   return { invite, token: encodePublicPairingInvite(invite) };
 })();
+
+const LOCAL_PAIRING_INVITE_KIND = "happy-local-pairing";
+const LOCAL_PAIRING_INVITE_VERSION = 1;
+const LOCAL_PAIRING_AUTH_MODE = "paired-device";
+const LOCAL_PAIRING_WINDOW_MS = 12e4;
+const LOCAL_PAIRING_FORWARD_SKEW_MS = 3e4;
+const LOCAL_PAIRING_SECRET_BYTES = 32;
+const LOCAL_PAIRING_NONCE_BYTES = 24;
+const LOCAL_PAIRING_SECRET_HEADER = "X-Happy-Pairing-Secret";
+const LOCAL_PAIRING_NONCE_HEADER = "X-Happy-Pairing-Nonce";
+const LocalPairingInviteShapeSchema = z__namespace.object({
+  kind: z__namespace.literal(LOCAL_PAIRING_INVITE_KIND),
+  version: z__namespace.literal(LOCAL_PAIRING_INVITE_VERSION),
+  authMode: z__namespace.literal(LOCAL_PAIRING_AUTH_MODE),
+  serverUrl: z__namespace.string().min(1),
+  browserOrigin: z__namespace.string().min(1),
+  machineId: z__namespace.string().min(1).max(256),
+  pairSecret: z__namespace.string().min(1),
+  pairingNonce: z__namespace.string().min(1),
+  issuedAt: z__namespace.string().datetime(),
+  expiresAt: z__namespace.string().datetime()
+}).strict();
+const LocalPairingInviteSchema = LocalPairingInviteShapeSchema.superRefine((invite, context) => {
+  if (!isStrictLoopbackServerUrl(invite.serverUrl)) {
+    context.addIssue({
+      code: z__namespace.ZodIssueCode.custom,
+      path: ["serverUrl"],
+      message: "serverUrl must be an explicit http://127.0.0.1:<port> origin"
+    });
+  }
+  if (!isOrigin(invite.browserOrigin)) {
+    context.addIssue({
+      code: z__namespace.ZodIssueCode.custom,
+      path: ["browserOrigin"],
+      message: "browserOrigin must be an exact URL origin"
+    });
+  }
+  if (!isCanonicalBase64UrlBytes$1(invite.pairSecret, LOCAL_PAIRING_SECRET_BYTES)) {
+    context.addIssue({
+      code: z__namespace.ZodIssueCode.custom,
+      path: ["pairSecret"],
+      message: `pairSecret must be ${LOCAL_PAIRING_SECRET_BYTES} canonical base64url bytes`
+    });
+  }
+  if (!isCanonicalBase64UrlBytes$1(invite.pairingNonce, LOCAL_PAIRING_NONCE_BYTES)) {
+    context.addIssue({
+      code: z__namespace.ZodIssueCode.custom,
+      path: ["pairingNonce"],
+      message: `pairingNonce must be ${LOCAL_PAIRING_NONCE_BYTES} canonical base64url bytes`
+    });
+  }
+  const issuedAt = Date.parse(invite.issuedAt);
+  const expiresAt = Date.parse(invite.expiresAt);
+  if (expiresAt - issuedAt !== LOCAL_PAIRING_WINDOW_MS) {
+    context.addIssue({
+      code: z__namespace.ZodIssueCode.custom,
+      path: ["expiresAt"],
+      message: `pairing window must be exactly ${LOCAL_PAIRING_WINDOW_MS}ms`
+    });
+  }
+});
+function createLocalPairingInvite(input) {
+  const issuedAt = parseDate(input.issuedAt) ?? /* @__PURE__ */ new Date();
+  const expiresAt = parseDate(input.expiresAt) ?? new Date(issuedAt.getTime() + LOCAL_PAIRING_WINDOW_MS);
+  return LocalPairingInviteSchema.parse({
+    kind: LOCAL_PAIRING_INVITE_KIND,
+    version: LOCAL_PAIRING_INVITE_VERSION,
+    authMode: LOCAL_PAIRING_AUTH_MODE,
+    serverUrl: input.serverUrl,
+    browserOrigin: input.browserOrigin,
+    machineId: input.machineId,
+    pairSecret: input.pairSecret ?? generateLocalPairingSecret(),
+    pairingNonce: input.pairingNonce ?? generateLocalPairingNonce(),
+    issuedAt: issuedAt.toISOString(),
+    expiresAt: expiresAt.toISOString()
+  });
+}
+function encodeLocalPairingInvite(invite) {
+  const validated = LocalPairingInviteSchema.parse(invite);
+  return encodeBase64Url(new TextEncoder().encode(JSON.stringify(validated)));
+}
+function decodeLocalPairingInvite(token, expectedBrowserOrigin) {
+  if (!token) {
+    return null;
+  }
+  try {
+    const bytes = decodeBase64Url(token.trim());
+    const parsed = LocalPairingInviteSchema.safeParse(
+      JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes))
+    );
+    if (!parsed.success) {
+      return null;
+    }
+    if (expectedBrowserOrigin !== void 0 && parsed.data.browserOrigin !== expectedBrowserOrigin) {
+      return null;
+    }
+    return parsed.data;
+  } catch {
+    return null;
+  }
+}
+function isLocalPairingInviteValid(invite, expectedBrowserOrigin, now = /* @__PURE__ */ new Date()) {
+  const parsed = LocalPairingInviteSchema.safeParse(invite);
+  if (!parsed.success || parsed.data.browserOrigin !== expectedBrowserOrigin) {
+    return false;
+  }
+  const issuedAt = Date.parse(parsed.data.issuedAt);
+  const expiresAt = Date.parse(parsed.data.expiresAt);
+  const nowMs = now.getTime();
+  return issuedAt <= nowMs + LOCAL_PAIRING_FORWARD_SKEW_MS && expiresAt > nowMs;
+}
+function generateLocalPairingSecret() {
+  return toBase64Url(generatePublicRequestNonce(LOCAL_PAIRING_SECRET_BYTES));
+}
+function generateLocalPairingNonce() {
+  return toBase64Url(generatePublicRequestNonce(LOCAL_PAIRING_NONCE_BYTES));
+}
+function encodeBase64Url(bytes) {
+  return encodeBase64(bytes).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+function decodeBase64Url(value) {
+  if (!value || !/^[A-Za-z0-9_-]+$/.test(value) || value.length % 4 === 1) {
+    throw new Error("invalid base64url input");
+  }
+  const standard = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = standard.padEnd(Math.ceil(standard.length / 4) * 4, "=");
+  const decoded = decodeBase64(padded);
+  if (encodeBase64Url(decoded) !== value) {
+    throw new Error("non-canonical base64url input");
+  }
+  return decoded;
+}
+function isStrictLoopbackServerUrl(value) {
+  const match = /^http:\/\/127\.0\.0\.1:(\d{1,5})$/.exec(value);
+  if (!match) {
+    return false;
+  }
+  const port = Number(match[1]);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    return false;
+  }
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" && parsed.hostname === "127.0.0.1" && parsed.port === String(port) && parsed.pathname === "/" && parsed.search === "" && parsed.hash === "" && parsed.username === "" && parsed.password === "";
+  } catch {
+    return false;
+  }
+}
+function isCanonicalBase64UrlBytes$1(value, byteLength) {
+  try {
+    return decodeBase64Url(value).length === byteLength;
+  } catch {
+    return false;
+  }
+}
+function isOrigin(value) {
+  try {
+    const parsed = new URL(value);
+    return parsed.origin === value && parsed.pathname === "/" && parsed.search === "" && parsed.hash === "" && parsed.username === "" && parsed.password === "";
+  } catch {
+    return false;
+  }
+}
+function parseDate(value) {
+  if (value === void 0) {
+    return null;
+  }
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) {
+    throw new Error("Invalid date supplied to local pairing invite");
+  }
+  return date;
+}
+function toBase64Url(value) {
+  return value.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+ed__namespace.hashes.sha512 = (message) => sha2_js.sha512(message);
+const LOCAL_DEVICE_PROOF_ENVELOPE_VERSION = 1;
+const LOCAL_DEVICE_PROOF_DOMAIN = "happy-local-device-proof/v1";
+const LOCAL_DEVICE_PROOF_HEADER = "X-Happy-Local-Device-Proof";
+const LOCAL_DEVICE_PROOF_FRESHNESS_MS = 12e4;
+const LOCAL_DEVICE_PROOF_CLOCK_SKEW_MS = 3e4;
+const LOCAL_DEVICE_PROOF_NONCE_BYTES = 24;
+const LocalSignedRequestEnvelopeShapeSchema = z__namespace.object({
+  v: z__namespace.literal(LOCAL_DEVICE_PROOF_ENVELOPE_VERSION),
+  keyId: z__namespace.string().min(1).max(256),
+  publicKey: z__namespace.string().min(1),
+  nonce: z__namespace.string().min(1),
+  issuedAt: z__namespace.number().int().nonnegative(),
+  method: z__namespace.string().regex(/^[A-Z]+$/),
+  target: z__namespace.string().min(1),
+  bodyHash: z__namespace.string().min(1),
+  signature: z__namespace.string().min(1)
+}).strict();
+const LocalSignedRequestEnvelopeSchema = LocalSignedRequestEnvelopeShapeSchema.superRefine((envelope, context) => {
+  if (!isCanonicalBase64Bytes(envelope.publicKey, 32)) {
+    context.addIssue({ code: z__namespace.ZodIssueCode.custom, path: ["publicKey"], message: "invalid Ed25519 public key" });
+  }
+  if (!isCanonicalBase64UrlBytes(envelope.nonce, LOCAL_DEVICE_PROOF_NONCE_BYTES)) {
+    context.addIssue({ code: z__namespace.ZodIssueCode.custom, path: ["nonce"], message: "invalid proof nonce" });
+  }
+  try {
+    if (canonicalizeLocalRequestTarget(envelope.target) !== envelope.target) {
+      context.addIssue({ code: z__namespace.ZodIssueCode.custom, path: ["target"], message: "target is not canonical" });
+    }
+  } catch {
+    context.addIssue({ code: z__namespace.ZodIssueCode.custom, path: ["target"], message: "invalid proof target" });
+  }
+  if (!isCanonicalBase64Bytes(envelope.bodyHash, 32)) {
+    context.addIssue({ code: z__namespace.ZodIssueCode.custom, path: ["bodyHash"], message: "invalid SHA-256 body hash" });
+  }
+  if (!isCanonicalBase64Bytes(envelope.signature, 64)) {
+    context.addIssue({ code: z__namespace.ZodIssueCode.custom, path: ["signature"], message: "invalid Ed25519 signature" });
+  }
+});
+function canonicalizeLocalRequestTarget(target) {
+  if (!target.startsWith("/") || target.includes("#") || /[\u0000-\u001f\u007f]/.test(target)) {
+    throw new Error("invalid proof target");
+  }
+  validatePercentEncodingAndUtf8(target);
+  const parsed = new URL(`http://localhost${target}`);
+  const pairs = Array.from(parsed.searchParams.entries()).sort(([leftKey, leftValue], [rightKey, rightValue]) => {
+    const keyOrder = compareUtf8(leftKey, rightKey);
+    return keyOrder !== 0 ? keyOrder : compareUtf8(leftValue, rightValue);
+  });
+  const search = new URLSearchParams();
+  for (const [key, value] of pairs) {
+    search.append(key, value);
+  }
+  const encodedQuery = search.toString();
+  return encodedQuery ? `${parsed.pathname}?${encodedQuery}` : parsed.pathname;
+}
+function canonicalLocalRequestStringToSign(fields) {
+  return [
+    LOCAL_DEVICE_PROOF_DOMAIN,
+    normalizeMethod(fields.method),
+    canonicalizeLocalRequestTarget(fields.target),
+    fields.keyId,
+    fields.publicKey,
+    fields.nonce,
+    String(fields.issuedAt),
+    fields.bodyHash
+  ].join("\n");
+}
+async function signLocalRequest(input, secretKey) {
+  const publicKey = encodeBase64(await ed__namespace.getPublicKeyAsync(secretKey));
+  const envelope = {
+    v: LOCAL_DEVICE_PROOF_ENVELOPE_VERSION,
+    keyId: input.keyId,
+    publicKey,
+    nonce: input.nonce,
+    issuedAt: input.issuedAt,
+    method: normalizeMethod(input.method),
+    target: canonicalizeLocalRequestTarget(input.target),
+    bodyHash: input.bodyHash,
+    signature: ""
+  };
+  const canonical = canonicalLocalRequestStringToSign(envelope);
+  envelope.signature = encodeBase64(await ed__namespace.signAsync(new TextEncoder().encode(canonical), secretKey));
+  return LocalSignedRequestEnvelopeSchema.parse(envelope);
+}
+async function verifyLocalRequest(envelope, context) {
+  const parsed = LocalSignedRequestEnvelopeSchema.safeParse(envelope);
+  if (!parsed.success) {
+    return { ok: false, reason: "invalid_envelope" };
+  }
+  const proof = parsed.data;
+  let target;
+  try {
+    target = canonicalizeLocalRequestTarget(context.target);
+  } catch {
+    return { ok: false, reason: "invalid_target" };
+  }
+  if (proof.method !== normalizeMethod(context.method)) {
+    return { ok: false, reason: "method_mismatch" };
+  }
+  if (proof.target !== target) {
+    return { ok: false, reason: "target_mismatch" };
+  }
+  if (context.bodyHash !== void 0 && proof.bodyHash !== context.bodyHash) {
+    return { ok: false, reason: "body_hash_mismatch" };
+  }
+  if (context.expectedPublicKey !== void 0 && proof.publicKey !== context.expectedPublicKey) {
+    return { ok: false, reason: "public_key_mismatch" };
+  }
+  try {
+    const valid = await ed__namespace.verifyAsync(
+      decodeBase64(proof.signature),
+      new TextEncoder().encode(canonicalLocalRequestStringToSign(proof)),
+      decodeBase64(proof.publicKey)
+    );
+    return valid ? { ok: true } : { ok: false, reason: "signature_invalid" };
+  } catch {
+    return { ok: false, reason: "signature_invalid" };
+  }
+}
+function isLocalProofFresh(issuedAt, now, freshnessMs = LOCAL_DEVICE_PROOF_FRESHNESS_MS, clockSkewMs = LOCAL_DEVICE_PROOF_CLOCK_SKEW_MS) {
+  return issuedAt >= now - freshnessMs && issuedAt <= now + clockSkewMs;
+}
+function encodeLocalDeviceProofHeader(envelope) {
+  return encodeBase64Url(new TextEncoder().encode(JSON.stringify(LocalSignedRequestEnvelopeSchema.parse(envelope))));
+}
+function decodeLocalDeviceProofHeader(header) {
+  if (!header) {
+    return null;
+  }
+  try {
+    const json = new TextDecoder("utf-8", { fatal: true }).decode(decodeBase64Url(header));
+    const parsed = LocalSignedRequestEnvelopeSchema.safeParse(JSON.parse(json));
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+function hashLocalRequestBody(body) {
+  return hashRequestBody(body);
+}
+function validatePercentEncodingAndUtf8(value) {
+  for (let index = 0; index < value.length; index += 1) {
+    if (value[index] === "%" && !/^[0-9A-Fa-f]{2}$/.test(value.slice(index + 1, index + 3))) {
+      throw new Error("invalid proof target encoding");
+    }
+    const code = value.charCodeAt(index);
+    if (code >= 55296 && code <= 57343) {
+      const isHigh = code <= 56319;
+      const next = value.charCodeAt(index + 1);
+      if (!isHigh || next < 56320 || next > 57343) {
+        throw new Error("invalid proof target unicode");
+      }
+      index += 1;
+    }
+  }
+}
+function compareUtf8(left, right) {
+  const leftBytes = new TextEncoder().encode(left);
+  const rightBytes = new TextEncoder().encode(right);
+  const length = Math.min(leftBytes.length, rightBytes.length);
+  for (let index = 0; index < length; index += 1) {
+    if (leftBytes[index] !== rightBytes[index]) {
+      return leftBytes[index] - rightBytes[index];
+    }
+  }
+  return leftBytes.length - rightBytes.length;
+}
+function isCanonicalBase64Bytes(value, byteLength) {
+  try {
+    const decoded = decodeBase64(value);
+    return decoded.length === byteLength && encodeBase64(decoded) === value;
+  } catch {
+    return false;
+  }
+}
+function isCanonicalBase64UrlBytes(value, byteLength) {
+  try {
+    return decodeBase64Url(value).length === byteLength;
+  } catch {
+    return false;
+  }
+}
+
+const SESSION_OUTPUT_SNAPSHOT_TYPE = "session-output-snapshot";
+const SESSION_OUTPUT_SNAPSHOT_TEXT_MAX_BYTES = 1024 * 1024;
+const SESSION_OUTPUT_SNAPSHOT_ID_MAX_CHARS = 256;
+const boundedIdentity = z__namespace.string().min(1).max(SESSION_OUTPUT_SNAPSHOT_ID_MAX_CHARS);
+const SessionOutputSnapshotPayloadSchema = z__namespace.object({
+  sessionId: boundedIdentity,
+  threadId: boundedIdentity,
+  turnId: boundedIdentity,
+  itemId: boundedIdentity,
+  revision: z__namespace.number().int().nonnegative(),
+  text: z__namespace.string().refine(
+    (value) => new TextEncoder().encode(value).byteLength <= SESSION_OUTPUT_SNAPSHOT_TEXT_MAX_BYTES,
+    `text must be at most ${SESSION_OUTPUT_SNAPSHOT_TEXT_MAX_BYTES} UTF-8 bytes`
+  ),
+  emittedAt: z__namespace.number().int().nonnegative()
+}).strict();
+const SessionOutputSnapshotEphemeralUpdateSchema = SessionOutputSnapshotPayloadSchema.extend({
+  type: z__namespace.literal(SESSION_OUTPUT_SNAPSHOT_TYPE),
+  id: boundedIdentity
+}).strict().superRefine((update, context) => {
+  if (update.id !== update.sessionId) {
+    context.addIssue({
+      code: z__namespace.ZodIssueCode.custom,
+      path: ["id"],
+      message: "ephemeral update id must equal sessionId"
+    });
+  }
+});
+function getSessionOutputSnapshotKey(sessionId, itemId) {
+  return `${sessionId}:${itemId}`;
+}
+function getSessionOutputSnapshotTransientMessageId(sessionId, itemId) {
+  return `happy-session-output-snapshot:${getSessionOutputSnapshotKey(sessionId, itemId)}`;
+}
 
 const MachineTunnelSchema = z__namespace.object({
   machineId: z__namespace.string(),
@@ -962,10 +1357,27 @@ exports.CoreUpdateContainerSchema = CoreUpdateContainerSchema;
 exports.DoneLedgerRecordSchema = DoneLedgerRecordSchema;
 exports.ErrorLedgerRecordSchema = ErrorLedgerRecordSchema;
 exports.IdleReachedLedgerRecordSchema = IdleReachedLedgerRecordSchema;
+exports.LOCAL_DEVICE_PROOF_CLOCK_SKEW_MS = LOCAL_DEVICE_PROOF_CLOCK_SKEW_MS;
+exports.LOCAL_DEVICE_PROOF_DOMAIN = LOCAL_DEVICE_PROOF_DOMAIN;
+exports.LOCAL_DEVICE_PROOF_ENVELOPE_VERSION = LOCAL_DEVICE_PROOF_ENVELOPE_VERSION;
+exports.LOCAL_DEVICE_PROOF_FRESHNESS_MS = LOCAL_DEVICE_PROOF_FRESHNESS_MS;
+exports.LOCAL_DEVICE_PROOF_HEADER = LOCAL_DEVICE_PROOF_HEADER;
+exports.LOCAL_DEVICE_PROOF_NONCE_BYTES = LOCAL_DEVICE_PROOF_NONCE_BYTES;
+exports.LOCAL_PAIRING_AUTH_MODE = LOCAL_PAIRING_AUTH_MODE;
+exports.LOCAL_PAIRING_FORWARD_SKEW_MS = LOCAL_PAIRING_FORWARD_SKEW_MS;
+exports.LOCAL_PAIRING_INVITE_KIND = LOCAL_PAIRING_INVITE_KIND;
+exports.LOCAL_PAIRING_INVITE_VERSION = LOCAL_PAIRING_INVITE_VERSION;
+exports.LOCAL_PAIRING_NONCE_BYTES = LOCAL_PAIRING_NONCE_BYTES;
+exports.LOCAL_PAIRING_NONCE_HEADER = LOCAL_PAIRING_NONCE_HEADER;
+exports.LOCAL_PAIRING_SECRET_BYTES = LOCAL_PAIRING_SECRET_BYTES;
+exports.LOCAL_PAIRING_SECRET_HEADER = LOCAL_PAIRING_SECRET_HEADER;
+exports.LOCAL_PAIRING_WINDOW_MS = LOCAL_PAIRING_WINDOW_MS;
 exports.LastOutputSummaryLedgerRecordSchema = LastOutputSummaryLedgerRecordSchema;
 exports.LedgerErrorCodeSchema = LedgerErrorCodeSchema;
 exports.LedgerRecordSchema = LedgerRecordSchema;
 exports.LegacyMessageContentSchema = LegacyMessageContentSchema;
+exports.LocalPairingInviteSchema = LocalPairingInviteSchema;
+exports.LocalSignedRequestEnvelopeSchema = LocalSignedRequestEnvelopeSchema;
 exports.MAX_HOPS = MAX_HOPS;
 exports.MachineTunnelSchema = MachineTunnelSchema;
 exports.MessageContentSchema = MessageContentSchema;
@@ -983,6 +1395,9 @@ exports.PUBLIC_PAIRING_INVITE_VERSION = PUBLIC_PAIRING_INVITE_VERSION;
 exports.PendingPermissionLedgerRecordSchema = PendingPermissionLedgerRecordSchema;
 exports.PublicPairingInviteSchema = PublicPairingInviteSchema;
 exports.PublicSignedRequestEnvelopeSchema = PublicSignedRequestEnvelopeSchema;
+exports.SESSION_OUTPUT_SNAPSHOT_ID_MAX_CHARS = SESSION_OUTPUT_SNAPSHOT_ID_MAX_CHARS;
+exports.SESSION_OUTPUT_SNAPSHOT_TEXT_MAX_BYTES = SESSION_OUTPUT_SNAPSHOT_TEXT_MAX_BYTES;
+exports.SESSION_OUTPUT_SNAPSHOT_TYPE = SESSION_OUTPUT_SNAPSHOT_TYPE;
 exports.SenderKeysSchema = SenderKeysSchema;
 exports.SessionGetAgentTreeRequestSchema = SessionGetAgentTreeRequestSchema;
 exports.SessionGetAgentTreeResponseSchema = SessionGetAgentTreeResponseSchema;
@@ -990,6 +1405,8 @@ exports.SessionMessageContentSchema = SessionMessageContentSchema;
 exports.SessionMessageRangeRequestSchema = SessionMessageRangeRequestSchema;
 exports.SessionMessageRangeResponseSchema = SessionMessageRangeResponseSchema;
 exports.SessionMessageSchema = SessionMessageSchema;
+exports.SessionOutputSnapshotEphemeralUpdateSchema = SessionOutputSnapshotEphemeralUpdateSchema;
+exports.SessionOutputSnapshotPayloadSchema = SessionOutputSnapshotPayloadSchema;
 exports.SessionProtocolMessageSchema = SessionProtocolMessageSchema;
 exports.SpawnLedgerRecordSchema = SpawnLedgerRecordSchema;
 exports.TofuHandshakeMessageSchema = TofuHandshakeMessageSchema;
@@ -1010,22 +1427,39 @@ exports.VoiceConversationDeniedSchema = VoiceConversationDeniedSchema;
 exports.VoiceConversationGrantedSchema = VoiceConversationGrantedSchema;
 exports.VoiceConversationResponseSchema = VoiceConversationResponseSchema;
 exports.VoiceUsageResponseSchema = VoiceUsageResponseSchema;
+exports.canonicalLocalRequestStringToSign = canonicalLocalRequestStringToSign;
 exports.canonicalRequestStringToSign = canonicalRequestStringToSign;
+exports.canonicalizeLocalRequestTarget = canonicalizeLocalRequestTarget;
 exports.createEnvelope = createEnvelope;
+exports.createLocalPairingInvite = createLocalPairingInvite;
 exports.createPublicPairingInvite = createPublicPairingInvite;
 exports.decodeBase64 = decodeBase64;
+exports.decodeBase64Url = decodeBase64Url;
+exports.decodeLocalDeviceProofHeader = decodeLocalDeviceProofHeader;
+exports.decodeLocalPairingInvite = decodeLocalPairingInvite;
 exports.decodePublicDeviceProofHeader = decodePublicDeviceProofHeader;
 exports.decodePublicPairingInvite = decodePublicPairingInvite;
 exports.encodeBase64 = encodeBase64;
+exports.encodeBase64Url = encodeBase64Url;
+exports.encodeLocalDeviceProofHeader = encodeLocalDeviceProofHeader;
+exports.encodeLocalPairingInvite = encodeLocalPairingInvite;
 exports.encodePublicDeviceProofHeader = encodePublicDeviceProofHeader;
 exports.encodePublicPairingInvite = encodePublicPairingInvite;
 exports.findSenderDropEntry = findSenderDropEntry;
 exports.forkBoilerplateEntry = forkBoilerplateEntry;
+exports.generateLocalPairingNonce = generateLocalPairingNonce;
+exports.generateLocalPairingSecret = generateLocalPairingSecret;
 exports.generatePairSecret = generatePairSecret;
 exports.generatePublicRequestNonce = generatePublicRequestNonce;
+exports.getSessionOutputSnapshotKey = getSessionOutputSnapshotKey;
+exports.getSessionOutputSnapshotTransientMessageId = getSessionOutputSnapshotTransientMessageId;
+exports.hashLocalRequestBody = hashLocalRequestBody;
 exports.hashRequestBody = hashRequestBody;
+exports.isLocalPairingInviteValid = isLocalPairingInviteValid;
+exports.isLocalProofFresh = isLocalProofFresh;
 exports.isPublicPairingInviteValid = isPublicPairingInviteValid;
 exports.isPublicProofFresh = isPublicProofFresh;
+exports.isStrictLoopbackServerUrl = isStrictLoopbackServerUrl;
 exports.localCommandCaveatEntry = localCommandCaveatEntry;
 exports.makeWrappedTagEntry = makeWrappedTagEntry;
 exports.nonRenderableEntries = nonRenderableEntries;
@@ -1049,7 +1483,9 @@ exports.sessionToolCallStartEventSchema = sessionToolCallStartEventSchema;
 exports.sessionTurnEndEventSchema = sessionTurnEndEventSchema;
 exports.sessionTurnEndStatusSchema = sessionTurnEndStatusSchema;
 exports.sessionTurnStartEventSchema = sessionTurnStartEventSchema;
+exports.signLocalRequest = signLocalRequest;
 exports.signPublicRequest = signPublicRequest;
 exports.skillBodyEntry = skillBodyEntry;
 exports.systemReminderEntry = systemReminderEntry;
+exports.verifyLocalRequest = verifyLocalRequest;
 exports.verifyPublicRequest = verifyPublicRequest;

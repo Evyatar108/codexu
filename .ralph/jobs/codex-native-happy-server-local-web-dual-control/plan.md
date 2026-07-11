@@ -446,7 +446,7 @@ Compatibility bodies:
 - Message GET returns
   `{messages:[{id,seq,content,localId,createdAt,updatedAt}],hasMore}`.
   Message POST accepts
-  `{messages:[{localId,content:<plaintext SessionEnvelope JSON string>}]}`
+  `{messages:[{localId,content:<plaintext RawRecord JSON string wrapping a SessionEnvelope>}]}`
   and returns the inserted-or-existing rows without `content`, matching the
   current app outbox contract.
 
@@ -468,7 +468,9 @@ Add `SessionPayloadCodec`:
 
 For `LegacyPlainJsonV1`:
 
-- message body is serialized `SessionEnvelope` JSON stored inside the legacy outer shape `{ "t":"encrypted", "c":"<plaintext JSON>" }`;
+- message body is serialized `RawRecord` JSON shaped as
+  `{ "role":"session", "content":<SessionEnvelope> }`, stored inside the
+  legacy outer shape `{ "t":"encrypted", "c":"<plaintext JSON>" }`;
 - metadata remains plaintext JSON string;
 - agent state remains plaintext JSON string or null;
 - persisted settings remain plaintext JSON and may include user-configured
@@ -1168,9 +1170,12 @@ The preferred implementation derives one transient standard text item in `Sessio
 Set-Location D:\harness-efforts\codexu\.worktrees\codex-native-happy-app-compat
 pnpm --filter @slopus/happy-wire typecheck
 pnpm --filter @slopus/happy-wire test
-pnpm --filter happy-app exec vitest run sources\auth\localEnrollment.test.ts sources\auth\machineAuth.test.ts sources\auth\tokenStorage.test.ts sources\sync\socketOptions.test.ts sources\sync\apiSocket.test.ts sources\sync\sessionOutputSnapshot.test.ts sources\sync\sync.test.ts sources\-session\SessionView.snapshot.test.tsx sources\text\translations.test.ts
+pnpm --filter happy-app exec vitest run sources\auth\connectTokenRefresh.test.ts sources\auth\localEnrollment.test.ts sources\auth\machineAuth.test.ts sources\auth\pairingInviteDispatch.test.ts sources\auth\publicEnrollment.test.ts sources\auth\tokenStorage.test.ts sources\sync\machineDelete.test.ts sources\sync\pushRegistration.test.ts sources\sync\socketOptions.test.ts sources\sync\apiSocket.test.ts sources\sync\sessionOutputSnapshot.test.ts sources\sync\storageSessionOutputSnapshot.test.ts sources\sync\sync.test.ts sources\-session\SessionView.snapshot.test.tsx sources\text\translations.test.ts
 pnpm --filter happy-app typecheck
 ```
+
+The final J5 acceptance log records this exact 15-file selection at 154 passing
+tests. Reducer/local-id replacement has an additional focused 79-test log.
 
 Real browser regression, web-server shell:
 
@@ -1191,6 +1196,12 @@ agent-browser --session native-happy-app snapshot -i
 agent-browser --session native-happy-app screenshot .ralph\jobs\codex-native-happy-server-local-web-dual-control\acceptance\app-compat.png --full
 agent-browser --session native-happy-app close
 ```
+
+The production-route browser capture uses the pinned Codex fixture tree plus
+the reviewable acceptance-only `acceptance\app-compat-harness.patch`, applied
+to a disposable copy. `acceptance\app-compat-reproduction.md` records the
+fixture tree hash, adapter hash, build commands, and cleanup; the Codex
+submodule source and pointer remain unchanged.
 
 ## J6 — Dual-control correctness
 

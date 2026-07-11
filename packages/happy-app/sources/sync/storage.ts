@@ -35,6 +35,14 @@ import { sync } from "./sync";
 import { isMutableTool } from "@/components/tools/knownTools";
 import { projectManager } from "./projectManager";
 import { parseCompositeSessionId } from "./machineSessionId";
+import type { SessionOutputSnapshotPayload } from "@slopus/happy-wire";
+import {
+    applySessionOutputSnapshot as applySnapshotToMap,
+    clearSessionOutputSnapshotForDurableMessage,
+    clearSessionOutputSnapshotsForMachine as clearSnapshotsForMachine,
+    clearSessionOutputSnapshotsForSession,
+    type SessionOutputSnapshotMap,
+} from "./sessionOutputSnapshot";
 
 /**
  * Centralized session online state resolver
@@ -226,6 +234,7 @@ interface StorageState {
     sessionsData: SessionListItem[] | null;  // Legacy - to be removed
     sessionListViewData: SessionListViewItem[] | null;
     sessionMessages: Record<string, SessionMessages>;
+    sessionOutputSnapshots: SessionOutputSnapshotMap;
     sessionGitStatus: Record<string, GitStatus | null>;
     sessionGitStatusFiles: Record<string, GitStatusFiles | null>;
     sessionFileCache: Record<string, Record<string, { content: string | null; diff: string | null; isBinary: boolean; cachedAt: number }>>;
@@ -243,6 +252,8 @@ interface StorageState {
     applyLoaded: () => void;
     applyReady: () => void;
     applyMessages: (sessionId: string, messages: NormalizedMessage[]) => { changed: string[], hasReadyEvent: boolean };
+    applySessionOutputSnapshot: (snapshot: SessionOutputSnapshotPayload) => void;
+    clearSessionOutputSnapshotsForMachine: (machineId: string) => void;
     applyMessagesLoaded: (
         sessionId: string,
         pagination?: {
@@ -503,6 +514,7 @@ export const storage = create<StorageState>()((set, get) => {
         sessionsData: null,  // Legacy - to be removed
         sessionListViewData: null,
         sessionMessages: {},
+        sessionOutputSnapshots: {},
         sessionGitStatus: {},
         sessionGitStatusFiles: {},
         sessionFileCache: {},
@@ -661,7 +673,6 @@ export const storage = create<StorageState>()((set, get) => {
 
                     const messagesArray = Object.values(mergedMessagesMap)
                         .sort((a, b) => b.createdAt - a.createdAt);
-
                     updatedSessionMessages[session.id] = {
                         messages: messagesArray,
                         messagesMap: mergedMessagesMap,
@@ -801,6 +812,14 @@ export const storage = create<StorageState>()((set, get) => {
                 // Convert to array and sort by createdAt
                 const messagesArray = Object.values(mergedMessagesMap)
                     .sort((a, b) => b.createdAt - a.createdAt);
+                let sessionOutputSnapshots = state.sessionOutputSnapshots;
+                for (const message of processedMessages) {
+                    sessionOutputSnapshots = clearSessionOutputSnapshotForDurableMessage(
+                        sessionOutputSnapshots,
+                        sessionId,
+                        'localId' in message ? message.localId : null,
+                    );
+                }
 
                 // Update session with todos and latestUsage
                 // IMPORTANT: We extract latestUsage from the mutable reducerState and copy it to the Session object
@@ -833,6 +852,7 @@ export const storage = create<StorageState>()((set, get) => {
                 return {
                     ...state,
                     sessions: updatedSessions,
+                    sessionOutputSnapshots,
                     sessionMessages: {
                         ...state.sessionMessages,
                         [sessionId]: {
@@ -868,6 +888,26 @@ export const storage = create<StorageState>()((set, get) => {
 
             return { changed: Array.from(changed), hasReadyEvent };
         },
+        applySessionOutputSnapshot: (snapshot: SessionOutputSnapshotPayload) => set((state) => {
+            const durableMessages = state.sessionMessages[snapshot.sessionId]?.messages ?? [];
+            const sessionOutputSnapshots = applySnapshotToMap(
+                state.sessionOutputSnapshots,
+                snapshot,
+                durableMessages,
+            );
+            return sessionOutputSnapshots === state.sessionOutputSnapshots
+                ? state
+                : { ...state, sessionOutputSnapshots };
+        }),
+        clearSessionOutputSnapshotsForMachine: (machineId: string) => set((state) => {
+            const sessionOutputSnapshots = clearSnapshotsForMachine(
+                state.sessionOutputSnapshots,
+                machineId,
+            );
+            return sessionOutputSnapshots === state.sessionOutputSnapshots
+                ? state
+                : { ...state, sessionOutputSnapshots };
+        }),
         applyMessagesLoaded: (sessionId: string, pagination) => set((state) => {
             const existingSession = state.sessionMessages[sessionId];
             let result: StorageState;
@@ -1500,6 +1540,10 @@ export const storage = create<StorageState>()((set, get) => {
             
             // Remove session messages if they exist
             const { [sessionId]: deletedMessages, ...remainingSessionMessages } = state.sessionMessages;
+            const remainingSessionOutputSnapshots = clearSessionOutputSnapshotsForSession(
+                state.sessionOutputSnapshots,
+                sessionId,
+            );
             
             // Remove session git status if it exists
             const { [sessionId]: deletedGitStatus, ...remainingGitStatus } = state.sessionGitStatus;
@@ -1541,6 +1585,7 @@ export const storage = create<StorageState>()((set, get) => {
                 ...state,
                 sessions: remainingSessions,
                 sessionMessages: remainingSessionMessages,
+                sessionOutputSnapshots: remainingSessionOutputSnapshots,
                 sessionGitStatus: remainingGitStatus,
                 sessionGitStatusFiles: remainingGitStatusFiles,
                 sessionFileCache: remainingFileCache,
@@ -1584,6 +1629,14 @@ export function useSessionMessages(sessionId: string): { messages: Message[], is
             messages: session?.messages ?? emptyArray,
             isLoaded: session?.isLoaded ?? false,
         };
+    }));
+}
+
+export function useSessionOutputSnapshots(sessionId: string): SessionOutputSnapshotMap {
+    return storage(useShallow((state) => {
+        const entries = Object.entries(state.sessionOutputSnapshots)
+            .filter(([, snapshot]) => snapshot.sessionId === sessionId);
+        return Object.fromEntries(entries);
     }));
 }
 

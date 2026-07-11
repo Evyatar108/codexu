@@ -1,0 +1,40 @@
+   Compiling codex-happy-compat-spike v0.1.0 (D:\harness-efforts\codexu\.worktrees\codex-native-happy-app-compat\.rust-fixture-source)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 21.22s
+     Running unittests src\main.rs (.rust-fixture-target\debug\deps\codex_happy_compat_spike-7c0d695abfb29bbe.exe)
+
+running 15 tests
+test auth::tests::canonical_query_rejects_malformed_percent_encoding ... ok
+test server::tests::polling_session_websocket_upgrade_is_rejected ... ok
+test auth::tests::canonical_query_sorts_decoded_pairs_and_preserves_duplicates ... ok
+test auth::tests::canonical_query_accepts_literal_and_encoded_replacement_character ... ok
+test contract::tests::update_session_marker_matches_shared_wire_shape ... ok
+test contract::tests::cas_ack_shapes_match_contract ... ok
+test server::tests::non_exact_bind_and_origin_are_rejected ... ok
+test server::tests::fixture_stopping_requires_a_rejected_rpc_before_exit ... ok
+test auth::tests::canonical_query_rejects_invalid_utf8_octets ... ok
+test contract::tests::roles_have_fixed_rooms_and_allowlists ... ok
+test server::tests::replay_overflow_uses_exact_1024_update_window ... ok
+test auth::tests::signed_proof_binds_method_target_and_raw_body ... ok
+test auth::tests::nonce_replay_survives_journal_reopen ... ok
+test auth::tests::proof_freshness_and_key_conflicts_fail_closed ... ok
+test auth::tests::pairing_window_expires_and_rate_limits_failures ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests\compatibility.rs (.rust-fixture-target\debug\deps\compatibility-def84f8f343fed6a.exe)
+
+running 12 tests
+test auth::tests::canonical_query_rejects_malformed_percent_encoding ... ok
+test auth::tests::canonical_query_rejects_invalid_utf8_octets ... ok
+test auth::tests::canonical_query_accepts_literal_and_encoded_replacement_character ... ok
+test auth::tests::canonical_query_sorts_decoded_pairs_and_preserves_duplicates ... ok
+test contract::tests::roles_have_fixed_rooms_and_allowlists ... ok
+test contract::tests::cas_ack_shapes_match_contract ... ok
+test contract::tests::update_session_marker_matches_shared_wire_shape ... ok
+test auth::tests::signed_proof_binds_method_target_and_raw_body ... ok
+test auth::tests::nonce_replay_survives_journal_reopen ... ok
+test auth::tests::proof_freshness_and_key_conflicts_fail_closed ... ok
+test auth::tests::pairing_window_expires_and_rate_limits_failures ... ok
+test pinned_stack_proves_transport_ack_auth_replay_and_restart_contract ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.41s

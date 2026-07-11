@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
     removeMachineCredentials: vi.fn(async () => true),
-    getCredentials: vi.fn(async () => null as null | { machineId: string }),
+    getCredentialsList: vi.fn(async () => [] as Array<{ machineId: string; authMode?: string }>),
     deleteMachine: vi.fn(),
     removeMachine: vi.fn(),
     request: vi.fn(),
@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/auth/tokenStorage', () => ({
     TokenStorage: {
         removeMachineCredentials: mocks.removeMachineCredentials,
-        getCredentials: mocks.getCredentials,
+        getCredentialsList: mocks.getCredentialsList,
     },
 }));
 
@@ -39,6 +39,7 @@ import { machineDelete } from './ops';
 describe('machineDelete', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mocks.getCredentialsList.mockResolvedValue([]);
     });
 
     it('logically unpairs a machine locally without deleting the Dev Tunnel', async () => {
@@ -61,7 +62,7 @@ describe('machineDelete', () => {
             logout: mocks.logout,
             refreshCredentials: mocks.refreshCredentials,
         });
-        mocks.getCredentials.mockResolvedValue(null);
+        mocks.getCredentialsList.mockResolvedValue([]);
 
         await machineDelete('machine-1');
 
@@ -75,7 +76,24 @@ describe('machineDelete', () => {
             logout: mocks.logout,
             refreshCredentials: mocks.refreshCredentials,
         });
-        mocks.getCredentials.mockResolvedValue({ machineId: 'machine-2' });
+        mocks.getCredentialsList.mockResolvedValue([{ machineId: 'machine-2' }]);
+
+        await machineDelete('machine-1');
+
+        expect(mocks.refreshCredentials).toHaveBeenCalled();
+        expect(mocks.logout).not.toHaveBeenCalled();
+    });
+
+    it('refreshes to unauthenticated recovery when only incomplete credentials remain', async () => {
+        mocks.getCurrentAuth.mockReturnValue({
+            credentials: { machineId: 'machine-1' },
+            logout: mocks.logout,
+            refreshCredentials: mocks.refreshCredentials,
+        });
+        mocks.getCredentialsList.mockResolvedValue([{
+            machineId: 'partial-machine',
+            authMode: 'paired-device',
+        }]);
 
         await machineDelete('machine-1');
 

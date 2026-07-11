@@ -23,6 +23,7 @@ import { TokenStorage, type AuthCredentials } from './tokenStorage';
 
 function machine(overrides: Partial<AuthCredentials> = {}): AuthCredentials {
     return {
+        authMode: 'dev-tunnel',
         machineId: 'machine-1',
         tunnelId: 'tunnel-1',
         tunnelUrl: 'https://machine.example.test',

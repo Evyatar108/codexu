@@ -166,6 +166,7 @@ export function credentialsFromPairMachine(machine: MachineTunnel, pairMachine: 
     connectTokenExpiry: number;
 }): AuthCredentials {
     return {
+        authMode: 'dev-tunnel',
         machineId: pairMachine.machineId,
         tunnelUrl: pairMachine.tunnelUrl,
         tunnelId: machine.tunnelId,

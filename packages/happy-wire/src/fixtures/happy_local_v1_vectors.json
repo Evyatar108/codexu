@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "invite": {
+    "payload": {
+      "kind": "happy-local-pairing",
+      "version": 1,
+      "authMode": "paired-device",
+      "serverUrl": "http://127.0.0.1:43127",
+      "browserOrigin": "http://localhost:8081",
+      "machineId": "persistent-machine-id",
+      "pairSecret": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+      "pairingNonce": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3",
+      "issuedAt": "2026-07-10T00:00:00.000Z",
+      "expiresAt": "2026-07-10T00:02:00.000Z"
+    },
+    "token": "eyJraW5kIjoiaGFwcHktbG9jYWwtcGFpcmluZyIsInZlcnNpb24iOjEsImF1dGhNb2RlIjoicGFpcmVkLWRldmljZSIsInNlcnZlclVybCI6Imh0dHA6Ly8xMjcuMC4wLjE6NDMxMjciLCJicm93c2VyT3JpZ2luIjoiaHR0cDovL2xvY2FsaG9zdDo4MDgxIiwibWFjaGluZUlkIjoicGVyc2lzdGVudC1tYWNoaW5lLWlkIiwicGFpclNlY3JldCI6IkFBRUNBd1FGQmdjSUNRb0xEQTBPRHhBUkVoTVVGUllYR0JrYUd4d2RIaDgiLCJwYWlyaW5nTm9uY2UiOiJJQ0VpSXlRbEppY29LU29yTEMwdUx6QXhNak0wTlRZMyIsImlzc3VlZEF0IjoiMjAyNi0wNy0xMFQwMDowMDowMC4wMDBaIiwiZXhwaXJlc0F0IjoiMjAyNi0wNy0xMFQwMDowMjowMC4wMDBaIn0"
+  },
+  "canonicalTargets": [
+    {
+      "input": "/probe?z=2&a=hello+world&a=hello%20rust",
+      "canonical": "/probe?a=hello+rust&a=hello+world&z=2"
+    },
+    {
+      "input": "/probe?b=2&a=2&a=1&a=1",
+      "canonical": "/probe?a=1&a=1&a=2&b=2"
+    },
+    {
+      "input": "/v3/sessions/s1/../s1/messages?limit=100&after_seq=0",
+      "canonical": "/v3/sessions/s1/messages?after_seq=0&limit=100"
+    },
+    {
+      "input": "/probe?value=%EF%BF%BD",
+      "canonical": "/probe?value=%EF%BF%BD"
+    }
+  ],
+  "invalidTargets": [
+    "/probe?broken=%",
+    "/probe?broken=%2",
+    "/probe?broken=%zz",
+    "/probe?broken=%FF",
+    "/probe?broken=%C3",
+    "/probe?broken=%C0%AF",
+    "https://example.com/probe",
+    "/probe#fragment"
+  ],
+  "proof": {
+    "seedHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "keyId": "local-device-test-key",
+    "publicKeyBase64": "A6EHv/POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg=",
+    "nonceBase64Url": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3",
+    "issuedAt": 1783641600000,
+    "method": "POST",
+    "targetInput": "/v3/sessions/s1/messages?limit=100&after_seq=0&tag=hello+world&tag=hello%20rust",
+    "canonicalTarget": "/v3/sessions/s1/messages?after_seq=0&limit=100&tag=hello+rust&tag=hello+world",
+    "body": "{\"version\":1,\"machineId\":\"persistent-machine-id\",\"deviceKeyId\":\"local-device-test-key\",\"deviceEd25519PublicKey\":\"A6EHv/POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg=\"}",
+    "bodyHashBase64": "SSNjnOoYeHfpCPchXxWbVSu9tzxmyeb2gkoGgQCCq4Y=",
+    "canonicalString": "happy-local-device-proof/v1\nPOST\n/v3/sessions/s1/messages?after_seq=0&limit=100&tag=hello+rust&tag=hello+world\nlocal-device-test-key\nA6EHv/POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg=\nICEiIyQlJicoKSorLC0uLzAxMjM0NTY3\n1783641600000\nSSNjnOoYeHfpCPchXxWbVSu9tzxmyeb2gkoGgQCCq4Y=",
+    "signatureBase64": "Xb8tCUf+PO2fuIh77wjYeGsg0b7VWK8xC6HvzEZoewSChQkyQvapjo/aYJ1r84HVl7A0tGVwPKnPABL+9npZBQ==",
+    "envelope": {
+      "v": 1,
+      "keyId": "local-device-test-key",
+      "publicKey": "A6EHv/POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg=",
+      "nonce": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3",
+      "issuedAt": 1783641600000,
+      "method": "POST",
+      "target": "/v3/sessions/s1/messages?after_seq=0&limit=100&tag=hello+rust&tag=hello+world",
+      "bodyHash": "SSNjnOoYeHfpCPchXxWbVSu9tzxmyeb2gkoGgQCCq4Y=",
+      "signature": "Xb8tCUf+PO2fuIh77wjYeGsg0b7VWK8xC6HvzEZoewSChQkyQvapjo/aYJ1r84HVl7A0tGVwPKnPABL+9npZBQ=="
+    },
+    "headerBase64Url": "eyJ2IjoxLCJrZXlJZCI6ImxvY2FsLWRldmljZS10ZXN0LWtleSIsInB1YmxpY0tleSI6IkE2RUh2L1BPRUw0ZGNOMFk1MHZBbVdmazFqQ2JwUTFmSGR5R1pCSlZNYmc9Iiwibm9uY2UiOiJJQ0VpSXlRbEppY29LU29yTEMwdUx6QXhNak0wTlRZMyIsImlzc3VlZEF0IjoxNzgzNjQxNjAwMDAwLCJtZXRob2QiOiJQT1NUIiwidGFyZ2V0IjoiL3YzL3Nlc3Npb25zL3MxL21lc3NhZ2VzP2FmdGVyX3NlcT0wJmxpbWl0PTEwMCZ0YWc9aGVsbG8rcnVzdCZ0YWc9aGVsbG8rd29ybGQiLCJib2R5SGFzaCI6IlNTTmpuT29ZZUhmcENQY2hYeFdiVlN1OXR6eG15ZWIyZ2tvR2dRQ0NxNFk9Iiwic2lnbmF0dXJlIjoiWGI4dENVZitQTzJmdUloNzd3alllR3NnMGI3VldLOHhDNkh2ekVab2V3U0NoUWt5UXZhcGpvL2FZSjFyODRIVmw3QTB0R1Z3UEtuUEFCTCs5bnBaQlE9PSJ9"
+  },
+  "snapshot": {
+    "payload": {
+      "sessionId": "happy-session-id",
+      "threadId": "primary-codex-thread-id",
+      "turnId": "codex-turn-id",
+      "itemId": "agent-message-item-id",
+      "revision": 7,
+      "text": "full accumulated text",
+      "emittedAt": 1783641600123
+    },
+    "ephemeralUpdate": {
+      "type": "session-output-snapshot",
+      "id": "happy-session-id",
+      "sessionId": "happy-session-id",
+      "threadId": "primary-codex-thread-id",
+      "turnId": "codex-turn-id",
+      "itemId": "agent-message-item-id",
+      "revision": 7,
+      "text": "full accumulated text",
+      "emittedAt": 1783641600123
+    }
+  },
+  "legacyPlainJsonV1": {
+    "sessionEnvelope": {
+      "id": "fixture-envelope-id",
+      "time": 1783641600123,
+      "role": "agent",
+      "turn": "codex-turn-id",
+      "ev": {
+        "t": "text",
+        "text": "fixture assistant response"
+      }
+    },
+    "rawRecord": {
+      "role": "session",
+      "content": {
+        "id": "fixture-envelope-id",
+        "time": 1783641600123,
+        "role": "agent",
+        "turn": "codex-turn-id",
+        "ev": {
+          "t": "text",
+          "text": "fixture assistant response"
+        }
+      }
+    },
+    "outerContent": {
+      "t": "encrypted",
+      "c": "{\"role\":\"session\",\"content\":{\"id\":\"fixture-envelope-id\",\"time\":1783641600123,\"role\":\"agent\",\"turn\":\"codex-turn-id\",\"ev\":{\"t\":\"text\",\"text\":\"fixture assistant response\"}}}"
+    },
+    "metadata": "{\"path\":\"C:\\\\fixture\",\"flavor\":\"codex\"}",
+    "agentState": "{\"turnActive\":false}"
+  }
+}

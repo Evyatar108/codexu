@@ -1,24 +1,56 @@
-import { PUBLIC_DEVICE_PROOF_HEADER } from '@slopus/happy-wire';
+import { LOCAL_DEVICE_PROOF_HEADER, PUBLIC_DEVICE_PROOF_HEADER } from '@slopus/happy-wire';
 
-import { AuthCredentials } from './tokenStorage';
+import { AuthCredentials, getAuthCredentialsIssue } from './tokenStorage';
 import { ensureFreshConnectToken } from './connectTokenRefresh';
-import { generateSecureNonce } from './deviceKeypair';
+import { generateSecureBase64UrlNonce, generateSecureNonce } from './deviceKeypair';
+import { buildLocalDeviceProofHeader } from './localDeviceProof';
 import { buildPublicDeviceProofHeader, type DeviceProofBinding } from './publicDeviceProof';
 import { CF_ACCESS_CLIENT_ID_HEADER, CF_ACCESS_CLIENT_SECRET_HEADER } from './publicEnrollment';
 
 /**
- * A device is in public-server (example.com single-user) mode once it has been
- * enrolled via a public pairing invite: it then holds Cloudflare Access
- * service-token creds plus an Ed25519 device key. Their presence is what
- * switches request auth away from the default Dev Tunnels path.
+ * `authMode` is the sole mode discriminator. Paired-device credentials use
+ * Cloudflare Access only when both edge fields are present; otherwise they use
+ * the local proof contract.
  */
+export type MachineAuthKind = 'dev-tunnel' | 'paired-local' | 'paired-public';
+
+export class InvalidPairedDeviceCredentialsError extends Error {
+    constructor(message = 'Paired-device credentials are incomplete; re-pair this machine') {
+        super(message);
+        this.name = 'InvalidPairedDeviceCredentialsError';
+    }
+}
+
+export interface MachineProofBinding extends DeviceProofBinding {
+    /** Exact path+query used by the local proof contract. */
+    target: string;
+}
+
 export function isPublicModeCredentials(credentials: AuthCredentials): boolean {
-    return Boolean(
-        credentials.cloudflareAccessClientId
-        && credentials.cloudflareAccessClientSecret
-        && credentials.deviceKeyId
-        && credentials.deviceSecretKey,
-    );
+    return credentials.authMode === 'paired-device'
+        && hasCompleteDeviceKey(credentials)
+        && hasCompleteCloudflareCredentials(credentials);
+}
+
+export function isLocalPairedDeviceCredentials(credentials: AuthCredentials): boolean {
+    return credentials.authMode === 'paired-device'
+        && hasCompleteDeviceKey(credentials)
+        && !credentials.cloudflareAccessClientId
+        && !credentials.cloudflareAccessClientSecret;
+}
+
+export function resolveMachineAuthKind(credentials: AuthCredentials): MachineAuthKind {
+    if (credentials.authMode === 'dev-tunnel') {
+        return 'dev-tunnel';
+    }
+    const issue = getAuthCredentialsIssue(credentials);
+    if (issue === 'missing-device-key') {
+        throw new InvalidPairedDeviceCredentialsError('Paired-device credentials are missing device key material; re-pair this machine');
+    }
+    if (issue === 'incomplete-cloudflare') {
+        throw new InvalidPairedDeviceCredentialsError('Paired-device Cloudflare credentials are incomplete; re-pair this machine');
+    }
+    return credentials.cloudflareAccessClientId ? 'paired-public' : 'paired-local';
 }
 
 function coerceProofBody(body: unknown): Uint8Array | string | null {
@@ -43,9 +75,11 @@ export async function tunnelFetch(
     credentials: AuthCredentials,
     init?: Omit<RequestInit, 'headers'> & { headers?: Record<string, string> },
 ): Promise<Response> {
-    const binding: DeviceProofBinding = {
+    const parsedUrl = new URL(url);
+    const binding: MachineProofBinding = {
         method: (init?.method ?? 'GET').toUpperCase(),
-        path: new URL(url).pathname,
+        path: parsedUrl.pathname,
+        target: `${parsedUrl.pathname}${parsedUrl.search}`,
         body: coerceProofBody(init?.body),
     };
     const headers: Record<string, string> = {
@@ -68,9 +102,10 @@ export async function tunnelFetch(
 export async function getMachineAuthHeaders(
     credentials: AuthCredentials,
     machineId = credentials.machineId,
-    binding?: DeviceProofBinding,
+    binding?: MachineProofBinding,
 ): Promise<Record<string, string>> {
-    if (isPublicModeCredentials(credentials)) {
+    const authKind = resolveMachineAuthKind(credentials);
+    if (authKind === 'paired-public') {
         const headers: Record<string, string> = {
             [CF_ACCESS_CLIENT_ID_HEADER]: credentials.cloudflareAccessClientId!,
             [CF_ACCESS_CLIENT_SECRET_HEADER]: credentials.cloudflareAccessClientSecret!,
@@ -85,9 +120,41 @@ export async function getMachineAuthHeaders(
         }
         return headers;
     }
+    if (authKind === 'paired-local') {
+        if (!binding) {
+            throw new InvalidPairedDeviceCredentialsError('Local paired-device requests require an exact request binding');
+        }
+        return {
+            [LOCAL_DEVICE_PROOF_HEADER]: await buildLocalDeviceProofHeader(
+                { keyId: credentials.deviceKeyId!, secretKey: credentials.deviceSecretKey! },
+                {
+                    method: binding.method,
+                    target: binding.target,
+                    body: binding.body,
+                },
+                generateSecureBase64UrlNonce(),
+                Date.now(),
+            ),
+        };
+    }
 
     const { connectToken } = await ensureFreshConnectToken(credentials, machineId);
     return {
         'X-Tunnel-Authorization': `tunnel ${connectToken}`,
     };
+}
+
+function hasCompleteDeviceKey(credentials: AuthCredentials): boolean {
+    return Boolean(
+        credentials.deviceKeyId
+        && credentials.devicePublicKey
+        && credentials.deviceSecretKey,
+    );
+}
+
+function hasCompleteCloudflareCredentials(credentials: AuthCredentials): boolean {
+    return Boolean(
+        credentials.cloudflareAccessClientId
+        && credentials.cloudflareAccessClientSecret,
+    );
 }

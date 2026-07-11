@@ -48,6 +48,10 @@ export function generateSecureNonce(byteLength = 24): string {
     return encodeBase64(getRandomBytes(byteLength));
 }
 
+export function generateSecureBase64UrlNonce(byteLength = 24): string {
+    return toBase64Url(getRandomBytes(byteLength));
+}
+
 function toBase64Url(bytes: Uint8Array): string {
     return encodeBase64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 
 const connect = vi.hoisted(() => ({
     ensureFreshConnectToken: vi.fn(async () => ({ connectToken: 'connect-jwt', connectTokenExpiry: Date.now() + 60_000 })),
@@ -9,15 +10,25 @@ vi.mock('@/auth/connectTokenRefresh', () => connect);
 import {
     PUBLIC_DEVICE_AUTH_TEST_VECTOR,
     PUBLIC_DEVICE_PROOF_HEADER,
+    LOCAL_DEVICE_PROOF_HEADER,
+    decodeLocalDeviceProofHeader,
     decodePublicDeviceProofHeader,
     encodeBase64,
+    hashLocalRequestBody,
+    verifyLocalRequest,
 } from '@slopus/happy-wire';
 
-import { getMachineAuthHeaders, tunnelFetch, isPublicModeCredentials } from './machineAuth';
+import {
+    InvalidPairedDeviceCredentialsError,
+    getMachineAuthHeaders,
+    tunnelFetch,
+    isPublicModeCredentials,
+} from './machineAuth';
 import { CF_ACCESS_CLIENT_ID_HEADER, CF_ACCESS_CLIENT_SECRET_HEADER } from './publicEnrollment';
 import type { AuthCredentials } from './tokenStorage';
 
 const credentials: AuthCredentials = {
+    authMode: 'dev-tunnel',
     machineId: 'machine-1',
     tunnelUrl: 'https://machine.example.test',
     firstSeenAt: 1,
@@ -34,6 +45,7 @@ function hexToBytes(hex: string): Uint8Array {
 }
 
 const publicCredentials: AuthCredentials = {
+    authMode: 'paired-device',
     machineId: 'public-machine',
     tunnelUrl: 'https://happy.example.com',
     firstSeenAt: 1,
@@ -42,6 +54,24 @@ const publicCredentials: AuthCredentials = {
     deviceKeyId: PUBLIC_DEVICE_AUTH_TEST_VECTOR.keyId,
     devicePublicKey: 'device-public-key-placeholder',
     deviceSecretKey: encodeBase64(hexToBytes(PUBLIC_DEVICE_AUTH_TEST_VECTOR.seedHex)),
+};
+
+const localVectors = JSON.parse(readFileSync(
+    new URL('../../../happy-wire/src/fixtures/happy_local_v1_vectors.json', import.meta.url),
+    'utf8',
+)) as {
+    invite: { payload: { serverUrl: string; machineId: string } };
+    proof: { seedHex: string; keyId: string; publicKeyBase64: string };
+};
+
+const localCredentials: AuthCredentials = {
+    authMode: 'paired-device',
+    machineId: localVectors.invite.payload.machineId,
+    tunnelUrl: localVectors.invite.payload.serverUrl,
+    firstSeenAt: 1,
+    deviceKeyId: localVectors.proof.keyId,
+    devicePublicKey: localVectors.proof.publicKeyBase64,
+    deviceSecretKey: encodeBase64(hexToBytes(localVectors.proof.seedHex)),
 };
 
 describe('machine auth', () => {
@@ -87,6 +117,7 @@ describe('public-server machine auth', () => {
         const headers = await getMachineAuthHeaders(publicCredentials, publicCredentials.machineId, {
             method: 'POST',
             path: '/v1/sessions',
+            target: '/v1/sessions',
             body: '{"a":1}',
         });
 
@@ -127,5 +158,65 @@ describe('public-server machine auth', () => {
         // Server strips the query string; the proof path must be the bare pathname.
         expect(envelope?.path).toBe('/v1/sessions');
         expect(envelope?.method).toBe('POST');
+    });
+});
+
+describe('local paired-device machine auth', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('signs the exact query and raw request body without Cloudflare or Dev Tunnels fallback', async () => {
+        const body = '{"local":true}';
+        let sentHeaders: Record<string, string> | undefined;
+        global.fetch = vi.fn(async (_url: string, init: RequestInit) => {
+            sentHeaders = init.headers as Record<string, string>;
+            return new Response('{}', { status: 200 });
+        }) as never;
+
+        await tunnelFetch(
+            `${localCredentials.tunnelUrl}/v3/sessions/s1/messages?b=2&a=hello%20world&a=1`,
+            localCredentials,
+            { method: 'POST', body },
+        );
+
+        expect(sentHeaders).toBeDefined();
+        expect(sentHeaders).not.toHaveProperty(CF_ACCESS_CLIENT_ID_HEADER);
+        expect(sentHeaders).not.toHaveProperty(CF_ACCESS_CLIENT_SECRET_HEADER);
+        expect(sentHeaders).not.toHaveProperty('X-Tunnel-Authorization');
+        expect(connect.ensureFreshConnectToken).not.toHaveBeenCalled();
+
+        const proof = decodeLocalDeviceProofHeader(sentHeaders![LOCAL_DEVICE_PROOF_HEADER]);
+        expect(proof?.target).toBe('/v3/sessions/s1/messages?a=1&a=hello+world&b=2');
+        await expect(verifyLocalRequest(proof, {
+            method: 'POST',
+            target: '/v3/sessions/s1/messages?b=2&a=hello%20world&a=1',
+            bodyHash: hashLocalRequestBody(body),
+            expectedPublicKey: localCredentials.devicePublicKey,
+        })).resolves.toEqual({ ok: true });
+    });
+
+    it('fails closed for incomplete paired-device credentials', async () => {
+        const incompleteCredentials: AuthCredentials[] = [
+            { ...localCredentials, deviceSecretKey: undefined },
+            { ...localCredentials, cloudflareAccessClientId: 'cf-id-only' },
+            { ...localCredentials, cloudflareAccessClientSecret: 'cf-secret-only' },
+        ];
+
+        for (const incomplete of incompleteCredentials) {
+            await expect(getMachineAuthHeaders(incomplete, incomplete.machineId, {
+                method: 'GET',
+                path: '/v1/updates',
+                target: '/v1/updates',
+                body: null,
+            })).rejects.toBeInstanceOf(InvalidPairedDeviceCredentialsError);
+        }
+        expect(connect.ensureFreshConnectToken).not.toHaveBeenCalled();
+    });
+
+    it('requires an exact binding for every local paired-device request', async () => {
+        await expect(getMachineAuthHeaders(localCredentials))
+            .rejects.toBeInstanceOf(InvalidPairedDeviceCredentialsError);
+        expect(connect.ensureFreshConnectToken).not.toHaveBeenCalled();
     });
 });

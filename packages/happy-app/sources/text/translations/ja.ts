@@ -458,12 +458,12 @@ export const ja: TranslationStructure = {
 
     server: {
         publicPairing: {
-            sectionTitle: 'Public Server Pairing',
-            sectionFooter: 'Paste a pairing invite to connect this device to a public Happy server. The invite carries the Cloudflare Access credentials and a one-time pairing secret.',
-            invitePlaceholder: 'Paste pairing invite',
-            pairButton: 'Pair with public server',
-            invalidInvite: 'That pairing invite is invalid or has expired.',
-            failed: 'Pairing failed. Check the invite and try again.',
+            sectionTitle: 'サーバーとペアリング',
+            sectionFooter: '接続するHappyサーバーのペアリング招待を貼り付けてください。ローカル招待と公開招待は個別に検証されます。',
+            invitePlaceholder: 'ペアリング招待を貼り付け',
+            pairButton: 'サーバーとペアリング',
+            invalidInvite: 'このペアリング招待は無効か、有効期限が切れています。',
+            failed: 'ペアリングに失敗しました。招待を確認して、もう一度お試しください。',
         },
 
         // Used by Server Configuration screen (app/(app)/server.tsx)

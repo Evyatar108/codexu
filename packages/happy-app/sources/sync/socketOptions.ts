@@ -3,7 +3,7 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 import { AuthCredentials } from '@/auth/tokenStorage';
-import { getMachineAuthHeaders, isPublicModeCredentials } from '@/auth/machineAuth';
+import { getMachineAuthHeaders, resolveMachineAuthKind } from '@/auth/machineAuth';
 
 export type TunnelSocketOptions = Partial<ManagerOptions & SocketOptions>;
 
@@ -18,16 +18,19 @@ function getTunnelHappyClientId(): string {
 
 export async function buildTunnelSocketOptions(credentials: AuthCredentials, machineId = credentials.machineId, lastSeenSeq?: number): Promise<TunnelSocketOptions> {
     const happyClient = getTunnelHappyClientId();
-    const isPublic = isPublicModeCredentials(credentials);
+    const authKind = resolveMachineAuthKind(credentials);
+    const isPublic = authKind === 'paired-public';
+    const isLocal = authKind === 'paired-local';
     const isWeb = Platform.OS === 'web';
     // The socket handshake device-proof binding is FIXED on the server side to
-    // GET /v1/updates with an empty body (bodyHash is not checked for sockets).
+    // GET /v1/updates with an empty body. The proof's bodyHash is the canonical
+    // empty-body hash and is verified with the rest of the signed envelope.
     // Those SOCKET_PROOF_* constants are server-only (remoteDeviceAuth.ts) and
     // are intentionally NOT exported from happy-wire, so they are duplicated
     // here. The proof is built once (single nonce) and reused across every
     // transport's headers for this one-shot connection (reconnection is off).
-    const socketBinding = isPublic
-        ? { method: 'GET', path: '/v1/updates', body: null }
+    const socketBinding = isPublic || isLocal
+        ? { method: 'GET', path: '/v1/updates', target: '/v1/updates', body: null }
         : undefined;
     const authHeaders = await getMachineAuthHeaders(credentials, machineId, socketBinding);
     const replayAuth = typeof lastSeenSeq === 'number' && Number.isFinite(lastSeenSeq) ? { lastSeenSeq } : {};
@@ -46,13 +49,11 @@ export async function buildTunnelSocketOptions(credentials: AuthCredentials, mac
         },
         extraHeaders: headers,
         transportOptions: {
-            websocket: {
-                extraHeaders: headers,
-            },
+            ...(!isLocal ? { websocket: { extraHeaders: headers } } : {}),
             // Public mode allows the polling fallback (some Cloudflare Access
             // edges buffer/deny raw WebSocket upgrades); carry the same
             // CF-Access + device-proof headers on it too.
-            ...(isPublic ? { polling: { extraHeaders: headers } } : {}),
+            ...(isPublic || isLocal ? { polling: { extraHeaders: headers } } : {}),
         },
         // Public mode over Cloudflare Access: the browser WebSocket API cannot
         // attach the CF-Access service-token nor the device-proof headers to the
@@ -61,9 +62,11 @@ export async function buildTunnelSocketOptions(credentials: AuthCredentials, mac
         // keep websocket-first with polling as a fallback. tryAllTransports lets
         // engine.io fall back to polling if the first transport's open fails
         // instead of terminating (reconnection is off for the single-use nonce).
-        transports: isPublic
-            ? (isWeb ? ['polling'] : ['websocket', 'polling'])
-            : ['websocket'],
+        transports: isLocal
+            ? ['polling']
+            : isPublic
+                ? (isWeb ? ['polling'] : ['websocket', 'polling'])
+                : ['websocket'],
         ...(isPublic ? { tryAllTransports: true } : {}),
         reconnection: false,
     };

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 
 vi.mock('expo-constants', () => ({
     default: { expoConfig: { version: '1.2.3' } },
@@ -17,6 +18,8 @@ import { Platform } from 'react-native';
 import {
     PUBLIC_DEVICE_AUTH_TEST_VECTOR,
     PUBLIC_DEVICE_PROOF_HEADER,
+    LOCAL_DEVICE_PROOF_HEADER,
+    decodeLocalDeviceProofHeader,
     decodePublicDeviceProofHeader,
     encodeBase64,
 } from '@slopus/happy-wire';
@@ -32,6 +35,7 @@ function hexToBytes(hex: string): Uint8Array {
 }
 
 const publicCredentials: AuthCredentials = {
+    authMode: 'paired-device',
     machineId: 'public-machine',
     tunnelUrl: 'https://happy.example.com',
     firstSeenAt: 1,
@@ -40,6 +44,24 @@ const publicCredentials: AuthCredentials = {
     deviceKeyId: PUBLIC_DEVICE_AUTH_TEST_VECTOR.keyId,
     devicePublicKey: 'device-public-key-placeholder',
     deviceSecretKey: encodeBase64(hexToBytes(PUBLIC_DEVICE_AUTH_TEST_VECTOR.seedHex)),
+};
+
+const localVectors = JSON.parse(readFileSync(
+    new URL('../../../happy-wire/src/fixtures/happy_local_v1_vectors.json', import.meta.url),
+    'utf8',
+)) as {
+    invite: { payload: { serverUrl: string; machineId: string } };
+    proof: { seedHex: string; keyId: string; publicKeyBase64: string };
+};
+
+const localCredentials: AuthCredentials = {
+    authMode: 'paired-device',
+    machineId: localVectors.invite.payload.machineId,
+    tunnelUrl: localVectors.invite.payload.serverUrl,
+    firstSeenAt: 1,
+    deviceKeyId: localVectors.proof.keyId,
+    devicePublicKey: localVectors.proof.publicKeyBase64,
+    deviceSecretKey: encodeBase64(hexToBytes(localVectors.proof.seedHex)),
 };
 
 describe('socketOptions', () => {
@@ -51,6 +73,7 @@ describe('socketOptions', () => {
 
     it('builds Socket.IO options with Dev Tunnels auth and reconnect disabled', async () => {
         const credentials: AuthCredentials = {
+            authMode: 'dev-tunnel',
             machineId: 'machine-1',
             tunnelUrl: 'https://machine.example.test',
             firstSeenAt: 123,
@@ -72,6 +95,7 @@ describe('socketOptions', () => {
 
     it('uses the machineId override in the auth payload when provided', async () => {
         const credentials: AuthCredentials = {
+            authMode: 'dev-tunnel',
             machineId: 'machine-1',
             tunnelUrl: 'https://machine.example.test',
             firstSeenAt: 123,
@@ -86,6 +110,7 @@ describe('socketOptions', () => {
 
     it('uses credentials.machineId in the auth payload when no override is provided', async () => {
         const credentials: AuthCredentials = {
+            authMode: 'dev-tunnel',
             machineId: 'machine-1',
             tunnelUrl: 'https://machine.example.test',
             firstSeenAt: 123,
@@ -100,6 +125,7 @@ describe('socketOptions', () => {
 
     it('includes finite lastSeenSeq only when provided', async () => {
         const credentials: AuthCredentials = {
+            authMode: 'dev-tunnel',
             machineId: 'machine-1',
             tunnelUrl: 'https://machine.example.test',
             firstSeenAt: 123,
@@ -120,6 +146,7 @@ describe('socketOptions', () => {
 
     it('keeps the Dev Tunnels transport list to websocket-only with no polling options', async () => {
         const credentials: AuthCredentials = {
+            authMode: 'dev-tunnel',
             machineId: 'machine-1',
             tunnelUrl: 'https://machine.example.test',
             firstSeenAt: 123,
@@ -185,5 +212,32 @@ describe('socketOptions', () => {
         const envelope = decodePublicDeviceProofHeader(pollingHeaders[PUBLIC_DEVICE_PROOF_HEADER]!);
         expect(envelope?.method).toBe('GET');
         expect(envelope?.path).toBe('/v1/updates');
+    });
+
+    it('uses polling-only local proof with replay sequence and no WebSocket header assumption', async () => {
+        const options = await buildTunnelSocketOptions(localCredentials, localCredentials.machineId, 73);
+
+        expect(options.transports).toEqual(['polling']);
+        expect(options.tryAllTransports).toBeUndefined();
+        expect(options.reconnection).toBe(false);
+        expect(options.auth).toMatchObject({
+            clientType: 'user-scoped',
+            machineId: localCredentials.machineId,
+            lastSeenSeq: 73,
+        });
+
+        const transportOptions = options.transportOptions as any;
+        expect(transportOptions.websocket).toBeUndefined();
+        const pollingHeaders = transportOptions.polling.extraHeaders as Record<string, string>;
+        expect(pollingHeaders).not.toHaveProperty('X-Tunnel-Authorization');
+        expect(pollingHeaders).not.toHaveProperty(CF_ACCESS_CLIENT_ID_HEADER);
+        expect(pollingHeaders).not.toHaveProperty(CF_ACCESS_CLIENT_SECRET_HEADER);
+        const proof = decodeLocalDeviceProofHeader(pollingHeaders[LOCAL_DEVICE_PROOF_HEADER]);
+        expect(proof).toMatchObject({
+            method: 'GET',
+            target: '/v1/updates',
+            keyId: localCredentials.deviceKeyId,
+            publicKey: localCredentials.devicePublicKey,
+        });
     });
 });

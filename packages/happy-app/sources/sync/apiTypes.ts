@@ -4,6 +4,7 @@ import {
     ApiUpdateMachineStateSchema,
     ApiUpdateNewMessageSchema,
     ApiUpdateSessionStateSchema,
+    SessionOutputSnapshotEphemeralUpdateSchema,
     type ApiMessage,
 } from '@slopus/happy-wire';
 import { GitHubProfileSchema, ImageRefSchema } from './profile';
@@ -120,6 +121,7 @@ export const ApiEphemeralUpdateSchema = z.union([
     ApiEphemeralActivityUpdateSchema,
     ApiEphemeralUsageUpdateSchema,
     ApiEphemeralMachineActivityUpdateSchema,
+    SessionOutputSnapshotEphemeralUpdateSchema,
 ]);
 
 export type ApiEphemeralActivityUpdate = z.infer<typeof ApiEphemeralActivityUpdateSchema>;

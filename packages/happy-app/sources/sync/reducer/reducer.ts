@@ -130,6 +130,7 @@ export type LatestBoundary = {
 type ReducerMessage = {
     id: string;
     realID: string | null;
+    localId: string | null;
     createdAt: number;
     seq: number;
     role: 'user' | 'agent';
@@ -596,6 +597,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
         state.messages.set(mid, {
             id: mid,
             realID: message.id,
+            localId: message.localId,
             role: 'agent',
             createdAt: message.createdAt,
             seq: message.seq,
@@ -680,6 +682,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                     state.messages.set(mid, {
                         id: mid,
                         realID: null,
+                        localId: null,
                         role: 'agent',
                         createdAt: request.createdAt || Date.now(),
                         seq: DEFAULT_UNSEQUENCED_MESSAGE_SEQ,
@@ -837,6 +840,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                     state.messages.set(mid, {
                         id: mid,
                         realID: null,
+                        localId: null,
                         role: 'agent',
                         createdAt: completed.createdAt || Date.now(),
                         seq: DEFAULT_UNSEQUENCED_MESSAGE_SEQ,
@@ -876,6 +880,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
             state.messages.set(mid, {
                 id: mid,
                 realID: msg.id,
+                localId: msg.localId,
                 role: 'user',
                 createdAt: msg.createdAt,
                 seq: msg.seq,
@@ -918,6 +923,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                     state.messages.set(mid, {
                         id: mid,
                         realID: msg.id,
+                        localId: msg.localId,
                         role: 'agent',
                         createdAt: msg.createdAt,
                         seq: msg.seq,
@@ -1035,6 +1041,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         state.messages.set(mid, {
                             id: mid,
                             realID: msg.id,
+                            localId: msg.localId,
                             role: 'agent',
                             createdAt: msg.createdAt,
                             seq: msg.seq,
@@ -1131,6 +1138,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
             let userMsg: ReducerMessage = {
                 id: mid,
                 realID: msg.id,
+                localId: msg.localId,
                 role: 'user',
                 createdAt: msg.createdAt,
                 seq: msg.seq,
@@ -1154,6 +1162,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                     let textMsg: ReducerMessage = {
                         id: mid,
                         realID: msg.id,
+                        localId: msg.localId,
                         role: 'agent',
                         createdAt: msg.createdAt,
                         seq: msg.seq,
@@ -1199,6 +1208,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                     let toolMsg: ReducerMessage = {
                         id: mid,
                         realID: msg.id,
+                        localId: msg.localId,
                         role: 'agent',
                         createdAt: msg.createdAt,
                         seq: msg.seq,
@@ -1335,6 +1345,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
             state.messages.set(mid, {
                 id: mid,
                 realID: msg.id,
+                localId: msg.localId,
                 role: 'agent',
                 createdAt: msg.createdAt,
                 seq: msg.seq,
@@ -1463,7 +1474,7 @@ function convertReducerMessageToMessage(reducerMsg: ReducerMessage, state: Reduc
     if (reducerMsg.role === 'user' && reducerMsg.text !== null) {
         return {
             id: reducerMsg.id,
-            localId: null,
+            localId: reducerMsg.localId,
             createdAt: reducerMsg.createdAt,
             seq: reducerMsg.seq,
             kind: 'user-text',
@@ -1475,7 +1486,7 @@ function convertReducerMessageToMessage(reducerMsg: ReducerMessage, state: Reduc
     } else if (reducerMsg.role === 'agent' && reducerMsg.text !== null) {
         return {
             id: reducerMsg.id,
-            localId: null,
+            localId: reducerMsg.localId,
             createdAt: reducerMsg.createdAt,
             seq: reducerMsg.seq,
             kind: 'agent-text',
@@ -1496,7 +1507,7 @@ function convertReducerMessageToMessage(reducerMsg: ReducerMessage, state: Reduc
 
         return {
             id: reducerMsg.id,
-            localId: null,
+            localId: reducerMsg.localId,
             createdAt: reducerMsg.createdAt,
             seq: reducerMsg.seq,
             kind: 'tool-call',

@@ -474,12 +474,12 @@ export const pl: TranslationStructure = {
 
     server: {
         publicPairing: {
-            sectionTitle: 'Public Server Pairing',
-            sectionFooter: 'Paste a pairing invite to connect this device to a public Happy server. The invite carries the Cloudflare Access credentials and a one-time pairing secret.',
-            invitePlaceholder: 'Paste pairing invite',
-            pairButton: 'Pair with public server',
-            invalidInvite: 'That pairing invite is invalid or has expired.',
-            failed: 'Pairing failed. Check the invite and try again.',
+            sectionTitle: 'Sparuj z serwerem',
+            sectionFooter: 'Wklej zaproszenie do parowania z serwera Happy, z którym chcesz się połączyć. Zaproszenia lokalne i publiczne są weryfikowane oddzielnie.',
+            invitePlaceholder: 'Wklej zaproszenie do parowania',
+            pairButton: 'Sparuj z serwerem',
+            invalidInvite: 'To zaproszenie do parowania jest nieprawidłowe lub wygasło.',
+            failed: 'Parowanie nie powiodło się. Sprawdź zaproszenie i spróbuj ponownie.',
         },
 
         // Used by Server Configuration screen (app/(app)/server.tsx)

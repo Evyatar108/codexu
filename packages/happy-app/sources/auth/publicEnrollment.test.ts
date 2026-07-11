@@ -64,6 +64,7 @@ describe('enrollPublicServer', () => {
 
         expect(parsed.machineId).toBe(invite.machineId);
         expect(credentials).toEqual({
+            authMode: 'paired-device',
             machineId: 'server-machine-id',
             tunnelUrl: 'https://happy.example.com',
             firstSeenAt: withinWindow(),

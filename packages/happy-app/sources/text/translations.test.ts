@@ -136,6 +136,22 @@ const REQUIRED_FILES_SIDEBAR_KEYS = [
     'files.refreshChangesHint',
 ] as const;
 
+const REQUIRED_PAIRING_KEYS = [
+    'server.publicPairing.sectionTitle',
+    'server.publicPairing.sectionFooter',
+    'server.publicPairing.invitePlaceholder',
+    'server.publicPairing.pairButton',
+    'server.publicPairing.invalidInvite',
+    'server.publicPairing.failed',
+] as const;
+
+const STALE_PUBLIC_ONLY_PAIRING_CLAIMS = [
+    'Public Server Pairing',
+    'public Happy server',
+    'Cloudflare Access credentials',
+    'Pair with public server',
+] as const;
+
 type TranslationTree =
     | string
     | ((...args: any[]) => string)
@@ -259,6 +275,27 @@ describe('translations', () => {
 
                 expect(value, `${language}.${key}`).toBeTypeOf('string');
                 expect((value as string).trim(), `${language}.${key}`).not.toBe('');
+            }
+        }
+    });
+
+    it('keeps pairing copy generic across local and public invite modes', () => {
+        for (const [language, dictionary] of Object.entries(translations)) {
+            for (const key of REQUIRED_PAIRING_KEYS) {
+                const value = getByPath(dictionary, key);
+                expect(value, `${language}.${key}`).toBeTypeOf('string');
+                expect((value as string).trim(), `${language}.${key}`).not.toBe('');
+                if (language !== 'en') {
+                    expect(value, `${language}.${key} should be localized`)
+                        .not.toBe(getByPath(en, key));
+                }
+            }
+
+            const pairingCopy = REQUIRED_PAIRING_KEYS
+                .map(key => getByPath(dictionary, key))
+                .join('\n');
+            for (const staleClaim of STALE_PUBLIC_ONLY_PAIRING_CLAIMS) {
+                expect(pairingCopy, `${language} pairing copy`).not.toContain(staleClaim);
             }
         }
     });
