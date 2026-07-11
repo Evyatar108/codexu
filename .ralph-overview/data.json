@@ -1839,12 +1839,9 @@
       "scope": "happy-app|codexu",
       "lifecycle": "tracked",
       "status": "todo",
-      "lastTouchedAt": "2026-07-10T23:30:00Z",
+      "lastTouchedAt": "2026-07-11T00:30:00Z",
       "initialStage": "plan-ready",
-      "blockedOn": [
-        "codex-native-happy-p0-rust-hardening",
-        "codex-native-happy-p0-renderer-visible"
-      ],
+      "blockedOn": [],
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -1852,7 +1849,11 @@
         },
         {
           "className": "cmd-warn",
-          "html": "<strong>P0 NO-GO evidence committed locally @ 29df8f860 (not merged)</strong>. Real Chromium/socket.io-client 4.8.1 proved polling, pairing, acks, room isolation, CAS, replay/reconnect/overflow, restart, and Rust-client compatibility. Blocking failures: (1) J0 malformed UTF-8 percent query canonicalization returned 200 instead of fail-closed 401; (2) exact <code>server_stopping</code> ack transition unavailable. Renderer state replacement (revisions 7→8 + durable replacement) passed, but computed text was <code>0px</code>; separate Opus 4.8 UI task required. Keep this branch/evidence for rerun; do not merge as GO."
+          "html": "<strong>Initial P0 NO-GO evidence @ 29df8f860</strong>. Most browser protocol checks passed; blockers were malformed UTF-8, missing stopping ack, and 0px renderer."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "<strong>Remediations integrated on retained branch</strong>: Sol protocol fixes shipped via Codex 3ff55692e / codexu 15caa318d; Opus renderer fix integrated as rebased commits 745dd995f + d1aa1b3f6. J1 is ready for full clean-checkout rerun."
         }
       ],
       "command": {
@@ -1861,11 +1862,11 @@
         "warnings": [
           {
             "className": "cmd-warn",
-            "html": "Blocked on the Sol Rust hardening task and Opus renderer-visibility task. After both land, rebase the retained J1 branch, rerun the same real Chromium evidence, and replace the NO-GO artifact only if every required check passes."
+            "html": "Full rerun required before merge. Also resolve the pre-existing tracked entry-point import of missing `sources/polyfills/screenOrientation.ts` so a clean checkout boots without an untracked build enabler; source-verify canonical behavior."
           }
         ],
         "prompts": {
-          "impl": "After blockers `codex-native-happy-p0-rust-hardening` and `codex-native-happy-p0-renderer-visible` ship, resume the retained J1 worktree/branch at commit 29df8f860. Rebase onto current main (including new Codex pointer), integrate the renderer fix, and rerun Job J1 / US-004..006 from `.ralph/jobs/codex-native-happy-server-local-web-dual-control/plan.md` using GPT-5.6 Sol. Use the existing Expo web app and actual socket.io-client 4.8.1. The rerun must prove malformed UTF-8 query returns 401, exact server_stopping ack, visible nonzero-font renderer replacement, plus all previously passing pairing/polling/acks/ranges/CAS/isolation/reconnect/replay/restart checks. Update redacted compatibility-result.json and browser-proof.png with explicit overall GO/NO-GO. No toy client, UI redesign, happy-cli/Node happy-server, tunnel or remote transport. Phase 5a/5b reviews, commit locally, do not push."
+          "impl": "Resume the retained J1 worktree/branch after integrated remediations. Use GPT-5.6 Sol. Rerun Job J1 / US-004..006 from `.ralph/jobs/codex-native-happy-server-local-web-dual-control/plan.md` against Codex fixture 3ff55692e. First source-verify and resolve the pre-existing clean-checkout build blocker: `packages/happy-app/index.ts` imports missing tracked `sources/polyfills/screenOrientation.ts`; restore the canonical polyfill behavior from repository history or current architecture and commit it if correct, with focused test/typecheck. Then run real Expo web + Chromium/agent-browser using socket.io-client 4.8.1. Required rerun deltas: malformed `%FF` returns 401; `fixture-enter-stopping` -> `rpc-call compat-session:abort` returns exact server_stopping -> `fixture-exit-stopping`; renderer text is visible at nonzero size with stable revisions/durable replacement. Reprove all previous pairing/polling/Origin/CORS/tamper/replay/acks/ranges/CAS/isolation/reconnect/restart/Rust-client checks. Replace compatibility-result.json/browser-proof.png with redacted final evidence and explicit overall GO/NO-GO. No happy-cli/Node happy-server/tunnel/toy client/UI redesign. Phase 5a/5b GPT-5.6 Sol reviews; commit locally, do not push."
         }
       }
     },
@@ -1880,6 +1881,10 @@
         {
           "className": "cmd-warn",
           "html": "UI-only remediation from real P0 Chromium evidence: keyed transient replacement is correct, but the existing MessageView proof renders durable/transient text at computed <code>font-size: 0px</code>. Diagnose and make the dev proof visibly render without redesigning chat UI or changing transport/state semantics."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "<strong>Renderer fix ready @ eab9a56eb</strong> (Opus 4.8; integrated into retained J1 branch, not yet merged to main). Root cause: web Unistyles flatten returns opaque class markers, so <code>AnimatedMarkdownText</code> coerced undefined font size to 0 and overrode the valid 16px CSS base. Fix omits unresolved/nonpositive animated fontSize; native/e-ink positive numeric scaling remains unchanged. Real Chromium evidence: 16px, visible, durable=1/transient=0; focused 18/18, typecheck green; Phase 5a/5b clean."
         }
       ],
       "command": {
