@@ -10704,6 +10704,145 @@
           }
         ]
       }
+    },
+    {
+      "id": "copilot-agent-runtime-pending-worktrees",
+      "scope": "bookkeeping|codexu",
+      "lifecycle": "archived",
+      "status": "ok",
+      "lastTouchedAt": "2026-07-12T23:13:23.732Z",
+      "kanbanCards": [
+        {
+          "column": "ready",
+          "cardClass": null,
+          "inlineStyle": null,
+          "html": "<div class=\"card-title\">Copilot Agent Runtime pending worktrees</div><div class=\"sub\">Local knowledge bank: <code>D:\\harness-efforts\\copilot-agent-runtime\\.worktrees\\.shared\\knowledge\\README.md</code>. Latest handoff: <code>.worktrees\\.shared\\handoffs\\2026-07-12-runtime-orchestration-handoff.md</code>. WebSocket: PR #12490 / issue #12491. Paging: PR #12494 / issue #12492. Queued-message: draft PR #12499 / issue #8525. Shared PR/build skills and the combined local build are documented under <code>.worktrees\\.shared</code>.</div>",
+          "order": 10
+        }
+      ],
+      "command": {
+        "name": "copilot-agent-runtime-pending-worktrees",
+        "descriptionHtml": "Maintain the Copilot Agent Runtime worktree, issue, PR, combined-build, and shared knowledge inventory.",
+        "warnings": [],
+        "prompts": {
+          "impl": "Update D:\\harness-efforts\\copilot-agent-runtime\\.worktrees\\.shared\\knowledge\\README.md, the matching detailed page under .shared\\knowledge\\worktrees, and this overview row whenever a Copilot Agent Runtime worktree is created, committed, pushed, linked to an issue or PR, reviewed, merged, superseded, or removed. Write session handoffs under .shared\\handoffs. Validate .ralph-overview/data.json after every bookkeeping change."
+        }
+      },
+      "initialStage": "implementing",
+      "workstream": "tooling",
+      "sizeBucket": "small",
+      "risk": "low",
+      "effort": 1
+    },
+    {
+      "id": "copilot-background-by-default-execution-mode",
+      "scope": "copilot-agent-runtime",
+      "lifecycle": "archived",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-12T23:13:23.732Z",
+      "initialStage": "brainstorming",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Design a default-off experimental Copilot CLI execution mode where long-running shell commands and subagents run in the background by default, keeping the foreground conversation responsive to new user messages. The coordinator must receive event-driven completion notifications and wake only when results are ready, following the philosophy of <code>D:\\ai-developer-toolkit\\plugins\\stop-copilot-shell-polling</code>. Acceptance must include a real E2E where a long-running general-purpose subagent remains active while a later user message is processed promptly instead of waiting minutes."
+        }
+      ],
+      "command": {
+        "name": "copilot-background-by-default-execution-mode",
+        "descriptionHtml": "Design an opt-in responsive execution mode that backgrounds shell commands and subagents by default.",
+        "warnings": [],
+        "prompts": {
+          "brainstorm": "Brainstorm a source-verified design for an opt-in, default-off experimental Copilot CLI execution mode in D:\\harness-efforts\\copilot-agent-runtime where long-running shell commands and Task/subagent calls run in the background by default so the foreground conversation remains responsive to new user messages. Follow the event-driven, no-polling philosophy of D:\\ai-developer-toolkit\\plugins\\stop-copilot-shell-polling, but verify feasibility rigorously rather than rubber-stamping the preferred direction. Analyze current tool dispatch, task mode defaults, isProcessing/turnActive semantics, queued and immediate message delivery, background task registries, shell completion notifications, session wake-up paths, permissions, TTY/interactive commands, cancellation, errors, ordering/dependencies, resource limits, concurrency, task visibility, SDK/shared-API compatibility, and remote/WebSocket behavior. Define which operations are safe to auto-background and which must remain foreground, how explicit mode overrides behave, how completion results re-enter model context, and how the user can inspect or interrupt work. Propose experimental feature-flag and settings UX with behavior unchanged by default. Cross-reference issue #8525 and draft PR #12499 so the design composes with foreground-idle message wake-up and avoids duplicate pending/timeline entries. Require deterministic unit/integration coverage and a real CLI E2E: launch a long-running general-purpose subagent or shell task, then send a user question while it is still active; the CLI must answer promptly, keep the task visible, and process its eventual completion exactly once via an event-driven wake-up without periodic polling. Before creating any issue, exhaustively search open issues and PRs in github/copilot-agent-runtime for an existing proposal or partial implementation. Also perform an internal source audit of Claude Code at D:\\harness-efforts\\claude-code\\worktrees\\main to verify whether and how it keeps the foreground conversation responsive while shell commands or subagents continue asynchronously. Internally trace its execution defaults, explicit foreground/background overrides, task lifecycle, completion notification and wake-up mechanism, message queue behavior, cancellation/error semantics, and user-visible task controls. Treat Claude Code as a potential behavioral precedent to verify, not an assumption to rubber-stamp. IMPORTANT PUBLIC-DISCLOSURE BOUNDARY: the Claude Code source audit is for internal design confidence only. Any public Copilot issue, PR, comment, or documentation must mention only externally observable Claude Code product behavior and user experience; do not mention that source code was inspected, do not cite the local source tree, file paths, line numbers, commits, private implementation details, or quote/reproduce its code. If internal verification confirms the behavior, the eventual issue may say that Claude Code demonstrates this user-facing execution model and compare observable semantics only. If it differs, document the discrepancy internally and do not make the public claim."
+        }
+      }
+    },
+    {
+      "id": "copilot-tasks-view-active-focus-and-completed-collapse",
+      "scope": "copilot-agent-runtime",
+      "lifecycle": "archived",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-12T23:13:23.732Z",
+      "initialStage": "brainstorming",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Improve the Copilot CLI <code>/tasks</code> experience when many completed attached background shell commands accumulate. Today the view can open scrolled near the bottom while the focused cursor and active tasks are at the top, outside the visible viewport; users must manually scroll through completed shells to find current work. Explore collapsing or grouping completed attached shells, active-first presentation, and focus-aware scrolling without disrupting intentional manual navigation."
+        }
+      ],
+      "command": {
+        "name": "copilot-tasks-view-active-focus-and-completed-collapse",
+        "descriptionHtml": "Improve `/tasks` navigation by prioritizing active work, collapsing completed shells, and keeping focus visible.",
+        "warnings": [],
+        "prompts": {
+          "brainstorm": "Brainstorm a high-quality Copilot CLI /tasks UX improvement in D:\\harness-efforts\\copilot-agent-runtime for sessions with many completed attached background shell commands. Diagnose the current task-list data flow, sorting/grouping, selected cursor state, viewport/scroll state, keyboard navigation, task lifecycle categories, and re-render behavior. Evaluate complementary options rather than assuming one fix: collapse completed attached shells behind a summary row; group completed work by type or time; show active/running/idle/waiting tasks first; place terminal-completed history in a secondary section; automatically scroll the selected/focused row into view on open, selection change, and list mutation; and preserve deliberate manual scrolling so auto-follow does not fight the user. Define how completed subagents, detached shells, attached shells, failed tasks, cancelled tasks, and active tasks should differ. Consider large-list performance, accessibility, terminal height changes, focus restoration after removals, whether collapsed state persists, and sensible default behavior. Source-audit the current /tasks implementation and relevant TUI list/virtualization primitives. Search open github/copilot-agent-runtime issues and PRs before filing anything. Require real TUI/CLI regression coverage with enough completed shells to overflow the viewport: opening /tasks must show the focused active row, active tasks must be reachable immediately, completed history must remain inspectable, keyboard selection must stay visible, and manual scroll behavior must remain predictable. This is a UI/UX task: use strong interaction-design judgment and keep the design terminal-native, compact, and non-disruptive."
+        }
+      }
+    },
+    {
+      "id": "copilot-pending-message-recall-to-input",
+      "scope": "copilot-agent-runtime",
+      "lifecycle": "archived",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-12T23:13:23.732Z",
+      "initialStage": "brainstorming",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Allow users to pull the most recent pending or queued message back into the Copilot CLI input editor with Up Arrow so they can revise it or choose not to send it. The operation must atomically remove the message from pending state, preserve its full editable content, and avoid duplicate timeline, queue, or persistence entries. The interaction should follow the observable user experience offered by Claude Code without exposing or relying publicly on implementation details."
+        }
+      ],
+      "command": {
+        "name": "copilot-pending-message-recall-to-input",
+        "descriptionHtml": "Let Up Arrow recall pending messages into the input editor for editing or cancellation.",
+        "warnings": [],
+        "prompts": {
+          "brainstorm": "Brainstorm a terminal-native Copilot CLI UX for recalling pending messages into the input editor, similar to Claude Code's observable behavior. Source-audit the current input history, Up Arrow handling, pending steering and queued item APIs, `removeMostRecentPendingItem`, attachments, multiline input, slash commands, prompt modes, Ctrl+Q queue semantics, and pending UI updates in D:\\harness-efforts\\copilot-agent-runtime. Decide precise activation rules so recall does not break ordinary command-history navigation: for example, only when the input is empty and a user-authored pending item exists, with repeated Up Arrow optionally recalling additional pending items in LIFO order. Define whether steering and explicitly queued messages are both recallable, how batches/attachments/displayPrompt/model metadata are restored, how the queue item is removed atomically before editing, what happens if the user presses Escape or submits again, and how remote/multi-client sessions behave. Preserve ordering of remaining queued work and guarantee the recalled message is not simultaneously visible as pending or persisted twice. Search open issues and PRs before filing anything. Require focused SDK/state tests plus a real terminal E2E covering: queue multiple messages, recall the newest with Up Arrow, verify it leaves pending UI and appears exactly in the editor, edit and resubmit it, verify one final user.message, recall and discard another, and confirm normal Up Arrow history behavior when no pending item exists. Public descriptions may compare only externally observable Claude Code UX; do not mention internal source inspection or private implementation details."
+        }
+      }
+    },
+    {
+      "id": "copilot-multi-question-back-navigation-preserve-custom-answer",
+      "scope": "copilot-agent-runtime",
+      "lifecycle": "archived",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-12T23:13:23.732Z",
+      "initialStage": "brainstorming",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Fix multi-question Copilot CLI prompts so custom free-text answers survive backward navigation. Today a user can type a custom answer, advance to a later question, press Shift+Tab to return, and find the earlier text erased instead of available for review and editing. Each question's draft answer should be preserved independently until final submit or cancellation."
+        }
+      ],
+      "command": {
+        "name": "copilot-multi-question-back-navigation-preserve-custom-answer",
+        "descriptionHtml": "Preserve custom answers when navigating backward through multi-question prompts.",
+        "warnings": [],
+        "prompts": {
+          "brainstorm": "Brainstorm a robust fix for Copilot CLI multi-question dialogs where a custom typed answer is lost after advancing and then navigating backward with Shift+Tab. Source-audit the ask_user/elicitation/multi-step form state model, question index transitions, custom-option/free-text input buffers, Tab/Shift+Tab handlers, validation, focus management, submit/cancel paths, remote responses, and dialog re-render/remount behavior in D:\\harness-efforts\\copilot-agent-runtime. Determine whether drafts are stored globally, reset on question change, or reconstructed incorrectly, and design per-question durable draft state that preserves exact text and cursor/editability when revisiting a question. Cover transitions between predefined choices and custom answers, toggling away from and back to Other/custom, required/optional questions, multiline text, validation errors, repeated forward/back navigation, mouse and keyboard paths, cancellation, and final payload correctness. Ensure drafts are cleared only when the dialog is definitively submitted or cancelled, not on navigation. Search open issues and PRs before filing anything. Require focused component/state tests and a real TUI E2E with multiple questions: type a custom answer in question 1, advance, enter an answer in question 2, Shift+Tab back, verify question 1 text and cursor are preserved, edit it, advance again, and verify final submission contains the edited answer exactly once. Include regression coverage that predefined selections and untouched questions continue behaving normally."
+        }
+      }
+    },
+    {
+      "id": "copilot-instant-escape-cancel-experience",
+      "scope": "copilot-agent-runtime",
+      "lifecycle": "archived",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-12T23:13:23.732Z",
+      "initialStage": "brainstorming",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Make Escape cancellation in Copilot CLI feel instantaneous. Today stopping model generation, shell commands, subagents, or related background work can take long enough that the UI appears unresponsive. Explore an immediate user-facing cancellation boundary that stops rendering/thinking state and restores control at once, while process termination, transport aborts, persistence, and cleanup complete safely in the background."
+        }
+      ],
+      "command": {
+        "name": "copilot-instant-escape-cancel-experience",
+        "descriptionHtml": "Design near-instant Escape cancellation with safe asynchronous teardown.",
+        "warnings": [],
+        "prompts": {
+          "brainstorm": "Brainstorm how Copilot CLI can make Escape cancellation feel instantaneous while preserving correct cleanup in D:\\harness-efforts\\copilot-agent-runtime. Source-audit the full cancellation chain: terminal key handling and repeated-Escape semantics, foreground model/stream abort, Responses/WebSocket transport, tool execution, attached and detached shell process trees, Task/subagent cancellation, hooks, permission/ask-user dialogs, queued and steering messages, session state, event persistence, background notification generation, locks, and final UI re-render. Separate user-perceived cancellation latency from teardown completion. Evaluate a two-phase design where Escape immediately acknowledges cancellation, stops streaming/spinners, marks the foreground turn cancelled, restores the input field, and allows new interaction within a strict latency target, while idempotent cleanup continues asynchronously with visible task status and eventual completion notification. Define which work Escape cancels by default: current foreground turn only, child tools, attached background work, or all background agents; consider a second Escape or explicit escalation for broader cancellation. Compare externally observable Claude Code cancellation behavior as UX prior art, but do not mention internal source inspection or private implementation details publicly. Instrument latency milestones from keypress to visual acknowledgement, transport abort, process termination, queue readiness, and persistence completion. Account for Windows process termination, TTY applications, hung hooks, non-cooperative MCP tools, race conditions with natural completion, duplicate cancellation events, orphaned tasks, lost queued messages, and resume behavior after interruption. Search open github/copilot-agent-runtime issues and PRs before filing anything. Require focused state-machine tests and real terminal E2E scenarios with a slow streaming model, long shell command, background subagent, and hung/non-cooperative cleanup: Escape must visibly return control immediately, no further streamed content may appear, new user input must be accepted promptly, cleanup must complete exactly once, and no processes or pending UI rows may be leaked."
+        }
+      }
     }
   ]
 }
