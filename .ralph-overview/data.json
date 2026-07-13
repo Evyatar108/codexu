@@ -2058,6 +2058,10 @@
         {
           "className": "cmd-warn",
           "html": "Ralph 5.64 installed dogfood proved Codex V2 spawns exact-route children but the Copilot host delivers only encrypted task payloads; children complete immediately with no work, targetless waits then time out, and the parent continues inline. Fix the native V2 handoff/completion contract before Ralph 5.64 can tag."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Brainstorm shipped @ e405545a2: selected D-001 provider-capability-aware plaintext V2 handoff plus exact task_name wait. Operator decisions: general capability flag; plaintext fallback for Copilot; Ralph 5.64 remains blocked until installed V2 .4 acceptance."
         }
       ],
       "command": {
@@ -2065,7 +2069,8 @@
         "descriptionHtml": "Make Codex V2 subagent task handoff and completion reliable on the Copilot host.",
         "warnings": [],
         "prompts": {
-          "brainstorm": "Investigate and design the smallest native Codex fork fix for V2 subagent execution on the Copilot host. Start from installed dogfood evidence under .ralph/jobs/ralph-model-routing-ui-opus48-nonui-gpt56sol/dogfood and raw sessions identified in the 2026-07-13 failure: V2 spawn requests carry exact gpt-5.6-sol/xhigh routing but child rollouts receive encrypted communication, complete in under one second with last_agent_message=null, and targetless waits miss already-completed notifications. Verify the encryption/decryption boundary and Completed(None)/wait semantics against codex 0.141 source; do not rubber-stamp the current diagnosis. Treat the codex fork as ours to extend. Produce a recommended implementation/release path, compatibility impact for V1 and V2, decisive tests, and installed-host acceptance evidence needed to unblock Ralph 5.64."
+          "brainstorm": "Investigate and design the smallest native Codex fork fix for V2 subagent execution on the Copilot host. Start from installed dogfood evidence under .ralph/jobs/ralph-model-routing-ui-opus48-nonui-gpt56sol/dogfood and raw sessions identified in the 2026-07-13 failure: V2 spawn requests carry exact gpt-5.6-sol/xhigh routing but child rollouts receive encrypted communication, complete in under one second with last_agent_message=null, and targetless waits miss already-completed notifications. Verify the encryption/decryption boundary and Completed(None)/wait semantics against codex 0.141 source; do not rubber-stamp the current diagnosis. Treat the codex fork as ours to extend. Produce a recommended implementation/release path, compatibility impact for V1 and V2, decisive tests, and installed-host acceptance evidence needed to unblock Ralph 5.64.",
+          "plan": "/plan-with-ralph --from-brainstorm .ralph/brainstorms/codex-v2-copilot-encrypted-subagent-handoff/brainstorm.json \"Plan D-001 for Codex 0.141.0-copilot-api.4. Operator decisions: model encrypted inter-agent-message support as a general provider capability; for Copilot/unsupported providers generate truthful plaintext spawn_agent/send_message/followup_task schemas and input_text communication; retain encrypted_content for capable providers; keep Ralph 5.64 blocked until installed V2 .4 dogfood passes. Add optional exact task_name wait with subscribe-before-current-read race safety, preserve omitted-target V2 and V1 behavior, register SANDBOX PATCH markers plus patch-surface sections 14/15, define focused tests and cargo check, and include full publish-sandbox-patch release/install acceptance. Resolve the brainstorm open questions consistently with these decisions.\""
         }
       }
     },
