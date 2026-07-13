@@ -1,0 +1,104 @@
+I’m loading the task brief and repository state before acting.
+
+The brief targets Ralph’s toolkit worktree and installed-host dogfood evidence; I’m mapping those artifacts and governing guidance next.
+
+Direct access to the sibling evidence/worktree is restricted in this execution context, so I’m checking the plan worktree’s tracked mirrors and local Git objects without bypassing that boundary.
+
+I found the prior plan artifacts locally. I’m now resolving the candidate toolkit commits through GitHub and tracing their generated/runtime surfaces.
+
+The candidate SHAs are local-only and unavailable through GitHub; I’m grounding the analysis in the committed convergence plan, current released toolkit sources, and tracked prerequisite artifacts, while preserving that evidence limitation explicitly.
+
+The released toolkit head is newer than the original 5.64 plan. I’m inventorying its current Ralph sources/tests and the installed-runner contract so the correction plan is surgical rather than replaying the old matrix.
+
+The correction depends on Codex V2’s actual tool/event contract, so I’m verifying the plaintext identity and terminal-state fields against the fork source.
+
+The fork wrapper pins `Evyatar108/codex-openai-fork` at `587a6a8a`; I’m reading the exact V2 wait/list/spawn implementation at that pinned runtime.
+
+The codexu repo has a release branch that may pin the local toolkit candidate; I’m checking its gitlink and any tracked release evidence without touching the worktree.
+
+I’ve confirmed the runtime mismatch: V2 `wait_agent` is targetless, `message` is encrypted, and `list_agents.agent_status.completed` explicitly permits null. I’m enumerating every generated artifact and baseline that encodes the stale contract.
+
+I’m pinning the expected V2 role set and artifact obligations from the generated quick-plan recipe so the acceptance criteria can assert exact cardinality rather than “some completed children.”
+
+A key additional issue is visible: current plan recipes emit `task_name: "general_purpose"` for every distinct role. I’m tracing the central dispatch-site IDs so the plan can require unique plaintext V2 role names without changing agent type or routing.
+
+### Codebase Architecture
+
+Ralph is a Node 20+/ESM plugin in the `ai-developer-toolkit` submodule. Authored sources live under `plugins/ralph/{src,scripts,skills,agents,docs}`; `scripts/generate-copilot-artifacts.mjs` and `scripts/codex-lowering.mjs` produce `.copilot-plugin/**` and `.codex-plugin/**`. Tests use Node’s built-in test runner plus shell/PowerShell contract tests.
+
+Implementation belongs only in `D:\harness-efforts\codexu\ai-developer-toolkit\.worktrees\publish-ralph-564`, continuing from candidate HEAD `4100a48d` including `48e63c0c`. Do not edit codexu or the Codex submodule, push, tag, or install.
+
+### Feature-Relevant Code
+
+Primary authored change:
+
+- `plugins/ralph/scripts/codex-lowering.mjs`
+  - `v2SingleDelegationSteps()` and `v2FanoutSteps()` currently emit targeted-looking `wait_agent { agent_name }`, then `list_agents`.
+  - `PROSE_SITE_INVENTORY` has stable role-bearing `siteId` values but emits generic `taskName: "general-purpose"`.
+  - `AGENT_SITE_INVENTORY`, `singleDelegationRecipe()`, `fanOutRecipe()`, and `outputHandlingProse()` are the natural integration points.
+
+Regenerated outputs containing V2 recipes:
+
+- `plugins/ralph/.codex-plugin/codex-skills/{brainstorm-with-ralph,implement-with-ralph,multi-model-investigate,plan-with-ralph}/SKILL.md`
+- `plugins/ralph/.codex-plugin/internal-workflows/{analyze-iteration,convert-to-ralph-prd,review-changes}/SKILL.md`
+
+Tests and evidence:
+
+- `plugins/ralph/tests/test-codex-generator.mjs`
+- `plugins/ralph/tests/test-model-routing-telemetry.mjs`
+- `plugins/ralph/tests/test-model-routing.mjs`
+- `plugins/ralph/tests/test-regression-smoke-phase-4.mjs`
+- `plugins/ralph/tests/fixtures/model-routing/**`
+- `plugins/ralph/tests/fixtures/regression-smoke-phase-4/post-migration-caller-surface.txt` if regenerated source references alter it
+- `plugins/ralph/docs/model-routing-dogfood.md`, especially `Invoke-CodexInstalledSkill`, `Assert-CodexInstalledRoute`, and `Assert-CodexPlanRoutes`
+- `plugins/ralph/CHANGELOG.md`
+- `plugins/ralph/AGENTS.md`
+
+### Technical Constraints
+
+Pinned Codex V2 behavior is decisive:
+
+- `spawn_agent.message` is schema-encrypted. It cannot identify a role in external telemetry.
+- V2 requires plaintext `task_name`; spawn returns the canonical task path as `task_name`.
+- `list_agents` returns canonical `agent_name`/agent path and `agent_status`.
+- V2 `wait_agent` is targetless, accepts only `timeout_ms`, and returns no child content.
+- Final output is `agent_status.completed`, whose value may legally be null (`Completed(None)`).
+- `last_task_message` is the latest instruction, not the final response.
+- V1 remains a separate namespaced contract: targeted `multi_agent_v1.wait_agent`, then `status[id].completed`.
+
+The current generic `general_purpose` V2 names are unsuitable for role/cardinality correlation. Role identity must be a deterministic lowercase/underscore name derived from the registered dispatch site, while agent type remains independently responsible for routing/instructions.
+
+Ralph can land fail-closed lowering/tests before `codex-v2-copilot-encrypted-subagent-handoff`. That Codex task is required only for successful final installed V2 acceptance. Ralph 5.64.0 is untagged, so update its existing release entry rather than introducing 5.64.1.
+
+### Implementation Suggestions
+
+1. Separate `agentType` from V2 `roleTaskName`. Derive unique task names from stable site IDs, such as `plan_with_ralph_researcher`, while preserving existing model, effort, UI classification, and recipe cardinality.
+2. Replace V2 lifecycle prose with:
+   - spawn and capture returned canonical `task_name`;
+   - call `list_agents` before waiting;
+   - match each expected role by exact returned task path;
+   - if all are terminal, skip waiting;
+   - otherwise call targetless `wait_agent { timeout_ms }`, re-list, and repeat until terminal or timeout;
+   - fail on missing/duplicate roles, `completed: null`, errored/shutdown/not-found status, timeout, or empty required output.
+3. Keep V1 lowering byte-semantically unchanged.
+4. Strengthen existing output contracts: required artifact absence or invalid final output must stop the workflow. Explicitly prohibit parent synthesis, artifact writing, or other inline fallback after child failure.
+5. Update dogfood/runner correlation to use V2 `task_name`/`agent_path`, never encrypted `arguments.message`. Assert the exact expected role set, cardinality, per-role model/effort, non-null completion, required artifacts, and successful child lifecycle.
+6. Add fixtures for encrypted-message success, already-terminal-before-wait, missing/extra/duplicate roles, `Completed(None)`, null session `last_agent_message`, missing artifacts, and attempted inline fallback.
+7. Preserve current exact-route tests: Luna medium, Sol xhigh, Sol medium, Opus high, plus both V1 and V2 generated cardinalities.
+
+Run:
+
+```powershell
+node plugins/ralph/scripts/generate-copilot-artifacts.mjs --target=all --write
+node plugins/ralph/scripts/generate-copilot-artifacts.mjs --target=all --check
+node plugins/ralph/scripts/check-copilot-parity.mjs
+node plugins/ralph/tests/test-codex-generator.mjs
+node plugins/ralph/tests/test-model-routing-telemetry.mjs
+node plugins/ralph/tests/test-model-routing.mjs
+node plugins/ralph/tests/test-regression-smoke-phase-4.mjs
+bash plugins/ralph/tests/test-copilot-generator.sh
+node tools/validate-codex-marketplace-policy.mjs
+node plugins/ralph/tests/run.mjs
+```
+
+Final release gates must run the installed skill through Codex V1 and V2. V2 must retain encrypted payloads yet correlate every role through plaintext task paths, skip stale waits for already-terminal children, produce non-null completions and required artifacts, and show no inline fallback. V2 success remains blocked until the Codex runtime prerequisite ships; V1 and all source-level Ralph gates can pass first.

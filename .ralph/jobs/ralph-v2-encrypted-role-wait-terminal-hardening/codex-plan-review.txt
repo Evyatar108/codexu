@@ -1,0 +1,25 @@
+### Feasibility
+
+- [High] The artifact contract required by AC 7 and AC 14 is not currently representable unambiguously. `outputHandlingProse()` receives only the coarse values `json`, `text`, `artifact`, or `review-meta` in `ai-developer-toolkit/plugins/ralph/scripts/codex-lowering.mjs:583`. Although `PROSE_SITE_INVENTORY` has `inputContract` strings, those mix required outputs, optional inputs, directories, and schemas—for example the plan drafter and review synthesis entries around `ai-developer-toolkit/plugins/ralph/scripts/codex-lowering.mjs:1260`. The plan should explicitly add structured metadata such as `requiredArtifacts: [{ pathKey, format, freshnessRule }]` and define validators per site. Otherwise “every named required artifact” and “structurally valid” leave the implementer guessing and risk treating optional inputs as required outputs.
+- [Medium] The implementation checkout prerequisite is missing. In the plan worktree, `ai-developer-toolkit` is an uninitialized submodule, while candidate `4100a48d` exists only in the initialized primary checkout’s registered publication worktree. “From the codexu root” is ambiguous and a literal `git -C ai-developer-toolkit worktree add ...` from a fresh Ralph worktree will fail. Add an explicit preflight: initialize the submodule or use the primary checkout’s absolute initialized toolkit path, then verify `git cat-file -e 4100a48d^{commit}` before creating the dedicated worktree.
+
+### Completeness
+
+- [High] The V1 marker requirements conflict with the existing fan-out generator and the proposed “byte-semantic preservation” assertion. Single delegation inserts `RALPH_DISPATCH_ROLE` at `ai-developer-toolkit/plugins/ralph/scripts/codex-lowering.mjs:664`, but `fanOutRecipe()` emits each fan-out message body without a marker at `ai-developer-toolkit/plugins/ralph/scripts/codex-lowering.mjs:704`. AC 10 says V1 retains the plaintext marker, while Step 3 asks for V1 byte-semantic preservation. The plan must decide explicitly whether fan-out is in scope: either add a per-lens marker and test the new byte contract, or narrow AC 10 and telemetry assertions to single-agent sites.
+- [High] AC 23’s “old failed evidence remains byte-preserved” is not verifiable as planned. The evidence is job-local and may be untracked; preserving filenames or writing a new run directory does not prove old bytes were unchanged. Before US-005, generate a SHA-256 manifest covering the named old summary, command, JSONL, stderr, session-correlation, and probe files, then verify the same manifest after the new runs. This must occur before refreshing or executing the mirrored runner.
+- [Medium] The no-inline-fallback requirement is broader than the specified verification. `test-codex-live-smoke.mjs` is double-opt-in and normally performs only static recipe-shape checks (`ai-developer-toolkit/plugins/ralph/tests/test-codex-live-smoke.mjs:161`). The installed gate covers successful V1/V2 executions, not injected child-failure behavior. AC 8 should identify the exact generated `plan-with-ralph` fallback clauses that must be removed or guarded and require static negative assertions for each affected phase.
+
+### Ordering
+
+No issues found. The serial source cluster is reasonable because authored lowering, generated artifacts, telemetry fixtures, and documentation share substantial write surfaces. Deferring installed acceptance until the native Codex prerequisite is also correct.
+
+### Simplicity
+
+No issues found. Extending the centralized lowerer and existing telemetry fixture builder is preferable to introducing another runtime wrapper or telemetry framework.
+
+### Acceptance Criteria Quality
+
+- [High] AC 7 uses “site-declared final-output shape,” “every named required artifact,” and “structurally valid” without enumerating the declarations or validators. Convert this into a table mapping each affected site to required path, format/schema, non-empty rule, and freshness/attribution rule.
+- [High] AC 10 is internally ambiguous because V1 fan-out does not currently carry `RALPH_DISPATCH_ROLE`, yet the criterion calls this preserved behavior. Specify single versus fan-out behavior explicitly.
+- [High] AC 23 lacks objective evidence for “byte-preserved.” Require before-and-after hashes and name the manifest location.
+- [Medium] AC 8 lists many surrounding activities but does not map them to generated files or exact prohibited fallback text. Add per-artifact negative assertions so an autonomous agent can prove the criterion without interpreting broad prose.

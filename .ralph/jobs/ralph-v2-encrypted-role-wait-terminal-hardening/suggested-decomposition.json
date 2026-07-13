@@ -1,0 +1,33 @@
+{
+  "clusters": [
+    {
+      "name": "ralph-source-hardening",
+      "stories": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004"
+      ],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "plugins/ralph/scripts/codex-lowering.mjs",
+          "plugins/ralph/tests/test-codex-generator.mjs",
+          "plugins/ralph/tests/test-model-routing-telemetry.mjs",
+          "plugins/ralph/docs/model-routing-dogfood.md",
+          "plugins/ralph/.codex-plugin/**/SKILL.md",
+          "plugins/ralph/AGENTS.md",
+          "plugins/ralph/CHANGELOG.md"
+        ],
+        "exclusiveFiles": [
+          ".claude/skills/release-plugin/SKILL.md",
+          "plugins/ralph/tests/test-codex-live-smoke.mjs",
+          "plugins/ralph/tests/fixtures/regression-smoke-phase-4/post-migration-caller-surface.txt"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "Execute US-001 through US-004 serially in one dedicated toolkit worktree. One writer must own authored lowering, regeneration, canonical telemetry, docs, and validation so generated and tracked contracts cannot drift."
+    }
+  ]
+}

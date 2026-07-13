@@ -1,0 +1,127 @@
+### Codebase Architecture
+
+- **Target repository:** `D:\harness-efforts\codexu\ai-developer-toolkit\.worktrees\publish-ralph-564`, currently at `4100a48d`, following `48e63c0c`.
+- Ralph is a **Node.js 20+ ESM plugin**. Runtime and transformation code uses `.mjs`; workflows are authored as Markdown skills.
+- Canonical sources live under:
+  - `plugins/ralph/claude-skills/`
+  - `plugins/ralph/agents/`
+  - `plugins/ralph/scripts/`
+- `plugins/ralph/scripts/generate-copilot-artifacts.mjs` mechanically generates `.copilot-plugin/` and `.codex-plugin/`. Generated files must not be hand-edited.
+- Codex-specific rewriting is centralized in `plugins/ralph/scripts/codex-lowering.mjs`.
+- Tests use Node’s built-in test runner, PowerShell subprocess fixtures, and a smaller Bash regression layer. There is no repository-root `package.json`; commands run directly with `node`.
+- The installed-host harness is external/job-local: `.ralph/jobs/ralph-model-routing-ui-opus48-nonui-gpt56sol/dogfood/run-installed-skill-dogfood.ps1`.
+
+### Feature-Relevant Code
+
+**Observed failure**
+
+- `dogfood/codex-plan.jsonl.command.json` launched Codex V2 with the correct explicit schema exposure.
+- The parent rollout spawned `plan_researcher` and `plan_drafter` with exact `gpt-5.6-sol` / `xhigh`, but `arguments.message` was encrypted ciphertext.
+- Spawn outputs returned plaintext `/root/plan_researcher` and `/root/plan_drafter`.
+- Both children completed in approximately one second with:
+  - exact effective model/effort;
+  - `task_complete.last_agent_message: null`;
+  - zero assistant messages;
+  - `list_agents.agent_status.completed: null`.
+- Each subsequent targetless `wait_agent {timeout_ms:600000}` timed out. The parent then produced plan artifacts inline.
+- `installed-skill-dogfood-summary.json` failed because role extraction still parsed encrypted `arguments.message`, yielding no roles.
+
+**Authored behavior**
+
+- `plugins/ralph/scripts/codex-lowering.mjs:274` — V1/V2 surface detection.
+- `plugins/ralph/scripts/codex-lowering.mjs:311` — shared fail-closed operational prose.
+- `plugins/ralph/scripts/codex-lowering.mjs:445` — V2 single-child sequence currently waits before `list_agents`.
+- `plugins/ralph/scripts/codex-lowering.mjs:499` — V2 fan-out sequence also waits before inspecting terminal state.
+- `plugins/ralph/scripts/codex-lowering.mjs:635` — single-delegation role marker generation.
+- `plugins/ralph/claude-skills/plan-with-ralph/SKILL.md:526` and `plugins/ralph/claude-skills/plan-with-ralph/SKILL.md:541` contain generic research fallback language that remains unsafe when copied into the Codex artifact.
+
+**Telemetry contract**
+
+- `plugins/ralph/docs/model-routing-dogfood.md:654` — canonical `Get-CodexChildRollouts` PowerShell implementation.
+- `plugins/ralph/docs/model-routing-dogfood.md:734` incorrectly derives every role from `arguments.message`.
+- `plugins/ralph/docs/model-routing-dogfood.md:753` already exposes V2 `agent_path`.
+- `plugins/ralph/docs/model-routing-dogfood.md:776` checks task completion but not non-null `last_agent_message`.
+- `plugins/ralph/docs/model-routing-dogfood.md:813` preserves exact role/model/effort/cardinality assertions.
+- The external `dogfood/run-installed-skill-dogfood.ps1` duplicates this contract and must be refreshed for installed acceptance.
+
+**Tests and baselines**
+
+- `plugins/ralph/tests/test-codex-generator.mjs` — recipe ordering, V1/V2 parity, no-inline-fallback, task-name and artifact-contract assertions.
+- `plugins/ralph/tests/test-model-routing-telemetry.mjs:182` — synthetic V1/V2 rollout fixture. Its V2 message is currently plaintext and successful completion lacks realistic `last_agent_message`.
+- `plugins/ralph/tests/test-regression-smoke-phase-4.mjs:614`
+- `plugins/ralph/tests/fixtures/regression-smoke-phase-4/post-migration-caller-surface.txt`
+- Release documentation:
+  - `plugins/ralph/AGENTS.md`
+  - `plugins/ralph/CHANGELOG.md`
+
+Generation affects these recipe-bearing files:
+
+- `plugins/ralph/.codex-plugin/codex-skills/brainstorm-with-ralph/SKILL.md`
+- `plugins/ralph/.codex-plugin/codex-skills/implement-with-ralph/SKILL.md`
+- `plugins/ralph/.codex-plugin/codex-skills/multi-model-investigate/SKILL.md`
+- `plugins/ralph/.codex-plugin/codex-skills/plan-with-ralph/SKILL.md`
+- `plugins/ralph/.codex-plugin/internal-workflows/analyze-iteration/SKILL.md`
+- `plugins/ralph/.codex-plugin/internal-workflows/convert-to-ralph-prd/SKILL.md`
+- `plugins/ralph/.codex-plugin/internal-workflows/review-changes/SKILL.md`
+
+### Technical Constraints
+
+- Preserve **V1 Collab**: role marker from plaintext V1 `message`, `agent_id` correlation, targeted wait, and close.
+- For **V2**, role identity must come from plaintext `arguments.task_name`, returned `output.task_name`, and child `agent_path`. Do not decrypt or inspect `arguments.message`.
+- Input `task_name` is underscore-normalized; output and `agent_path` may be canonical `/root/<role>` paths. Compare canonical leaf/path consistently.
+- Preserve exact requested/effective model, effort, child cardinality, parent-child bijection, cwd, and completion-count checks.
+- `Completed(None)`, null/blank `last_agent_message`, missing artifacts, timeout, or failed state must terminate the workflow. Parent execution cannot replace child output.
+- Codex 0.141 V2 has targetless waits and no close tool. Therefore `list_agents` must be consulted **before** waiting.
+- PowerShell tests intentionally exercise Windows PowerShell 5.1. Keep standalone `.ps1` changes ASCII-safe and UTF-8-no-BOM where command evidence requires it.
+- Session filenames do not reliably communicate UTC time; correlate using embedded timestamps and bounded cwd/thread IDs.
+- The long Windows paths are already near practical limits. Do not add unnecessary nested fixture directories.
+- Ralph changes can merge independently. Final installed V2 acceptance remains blocked on `codex-v2-copilot-encrypted-subagent-handoff`; this task must not modify the Codex runtime as a workaround.
+
+### Implementation Suggestions
+
+1. **Correct V2 recipe sequencing**
+   - After every spawn batch, call `list_agents` immediately.
+   - Match exact returned identity.
+   - Treat non-empty `agent_status.completed` as success.
+   - Treat `completed: null`, failed/cancelled state, missing identity, or missing output as hard failure.
+   - Call targetless `wait_agent` only while at least one matched child is genuinely running.
+   - Re-list after each wait; never wait when all requested children are already terminal.
+
+2. **Strengthen output boundaries**
+   - Require a non-empty final child result and every named durable artifact.
+   - Add explicit prose prohibiting the parent from researching, drafting, reviewing, synthesizing, or writing substitute artifacts after child failure.
+   - Use Codex-specific lowering substitutions to neutralize the generic research fallback without changing Claude/Copilot behavior.
+
+3. **Fix telemetry correlation**
+   - V1: retain `RALPH_DISPATCH_ROLE` parsing.
+   - V2: require valid input `task_name`; require returned `task_name` and child `agent_path` to identify the same role; never parse `message`.
+   - Require exactly one `task_complete` with non-empty `last_agent_message`.
+   - Extend the fixture so V2 uses opaque encrypted-looking message text and includes negative cases for null/empty completion and path/task mismatch.
+
+4. **Installed gate separation**
+   - Land source, generated artifacts, tests, documentation, and baselines first.
+   - Update the job-local runner only as the external acceptance harness.
+   - Run installed V1 acceptance immediately.
+   - Run installed V2 acceptance only after the Codex prerequisite ships; no tag or publication before both pass.
+
+**Acceptance criteria**
+
+- V2 encrypted messages never affect role extraction.
+- V2 already-terminal children cause zero additional targetless waits.
+- `Completed(None)`, null final message, absent artifact, or inline fallback fails.
+- V1 and V2 retain exact model/effort/cardinality and bijection validation.
+- All seven generated Codex recipe files reflect the new ordering.
+- Source gates pass:
+
+```text
+node plugins/ralph/scripts/generate-copilot-artifacts.mjs --target=codex --write
+node plugins/ralph/scripts/generate-copilot-artifacts.mjs --target=all --check
+node --test plugins/ralph/tests/test-codex-generator.mjs
+node --test plugins/ralph/tests/test-model-routing-telemetry.mjs
+node --test plugins/ralph/tests/test-regression-smoke-phase-4.mjs
+node plugins/ralph/scripts/check-copilot-parity.mjs
+node tools/validate-codex-marketplace-policy.mjs
+node plugins/ralph/tests/run.mjs
+```
+
+- Final release evidence contains successful installed Copilot, Codex V1, and prerequisite-fixed Codex V2 runs with non-null child output and required artifacts.

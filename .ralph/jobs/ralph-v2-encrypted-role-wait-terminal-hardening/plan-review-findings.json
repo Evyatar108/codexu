@@ -1,0 +1,263 @@
+{
+  "planFile": "D:\\harness-efforts\\codexu\\.ralph\\jobs\\.staging\\20260713T180228Z-solo-128620\\draft-plan.md",
+  "repoDir": "D:\\harness-efforts\\codexu\\.ralph\\jobs\\ralph-v2-encrypted-role-wait-terminal-hardening\\worktree\\plan",
+  "reviewCycle": 2,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "consensus",
+      "classification": "fixable",
+      "storyId": "US-005",
+      "scopeStoryIds": [
+        "US-005"
+      ],
+      "uiUxJudgment": "not-required",
+      "category": "Ordering",
+      "sectionRef": "Suggested Decomposition > US-005; Acceptance Criteria 22-23; Next Step",
+      "description": "The primary and Copilot lanes agree that the prerequisite-blocked installed gate cannot remain an implementation story or future-host acceptance criterion in the source Ralph job. A terminal-complete job cannot later resume US-005, while leaving it blocked prevents a clean source-job terminal deliverable. The user explicitly requires installed V1/V2 acceptance to be documented separately as a lead-owned gate.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Removed US-005, its decomposition cluster, and AC-22/AC-23 while preserving the installed V1/V2 procedure as a separate lead-owned gate after the source Ralph job terminates.",
+      "relevantFiles": [
+        ".ralph/jobs/ralph-v2-encrypted-role-wait-terminal-hardening/plan.md"
+      ],
+      "suggestedFix": "Remove US-005, its cluster, and AC-22/AC-23 from the source PRD. Preserve the procedure in a non-story lead-owned gate/handoff after codex-v2-copilot-encrypted-subagent-handoff."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "classification": "fixable",
+      "storyId": null,
+      "scopeStoryIds": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004"
+      ],
+      "uiUxJudgment": "not-required",
+      "category": "Feasibility",
+      "sectionRef": "Technical Constraints 1; Files to Create/Modify; Suggested Decomposition; Next Step",
+      "description": "The source handoff crosses repository and checkout boundaries it cannot execute. The codexu job-local runner is outside the toolkit target repo, the proposed codexu-root --parallel flow cannot create the required exact-base toolkit worktree through one repository root, and a fresh plan worktree may have an uninitialized toolkit submodule. Candidate-local source work and lead-owned codexu evidence work must be separated.",
+      "status": "fixed",
+      "fixedInIteration": 2,
+      "resolution": "Separated candidate-based toolkit source work from lead-owned codexu evidence work, added absolute repository and ancestry preflights, and replaced the infeasible parallel handoff with a serial target-repo workflow.",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph/claude-skills/decompose-plan/SKILL.md",
+        ".ralph/jobs/ralph-model-routing-ui-opus48-nonui-gpt56sol/dogfood/run-installed-skill-dogfood.ps1"
+      ],
+      "suggestedFix": "Use one initialized absolute ai-developer-toolkit repository/worktree, verify 4100a48d exists and includes 48e63c0c, remove the --parallel handoff, and treat the codexu runner as read-only reference until the lead-owned gate."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "consensus",
+      "classification": "fixable",
+      "storyId": null,
+      "scopeStoryIds": [],
+      "uiUxJudgment": "not-required",
+      "category": "Completeness",
+      "sectionRef": "Implementation Strategy 7; Acceptance Criteria 22-23",
+      "description": "The deferred installed acceptance procedure is not executable or auditable enough. It lacks exact V1/V2 forcing commands, proof of the selected tool surface, installed manifest/version and published-SHA provenance, stable non-overwriting evidence schema, complete command records, and fail-closed conditions. Distinct filenames alone also do not prove the old failed evidence remained byte-preserved.",
+      "status": "fixed",
+      "fixedInIteration": 3,
+      "resolution": "Expanded the deferred installed gate with exact forced-surface commands, provenance and command records, surface assertions, immutable run evidence, and pre/post SHA-256 preservation checks.",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph/docs/model-routing-dogfood.md",
+        ".ralph/jobs/ralph-model-routing-ui-opus48-nonui-gpt56sol/dogfood/run-installed-skill-dogfood.ps1"
+      ],
+      "suggestedFix": "Put the exact forced-surface commands and assertions in the lead-owned gate, preserve the intact V2 inline-table argument, distinguish source from installed evidence, and verify a pre-run SHA-256 manifest after the run."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "copilot-secondary",
+      "classification": "fixable",
+      "storyId": null,
+      "scopeStoryIds": [],
+      "uiUxJudgment": "not-required",
+      "category": "Ordering",
+      "sectionRef": "Overview; Approach > Architecture, Stage B; Out of Scope",
+      "description": "The release dependency is inverted. The installed gate can exercise the corrected candidate only after the lead integrates and pushes it, verifies publication SHAs, and refreshes the real installed copies. The current plan instead postpones pushing, publication, and installation until after that gate.",
+      "status": "fixed",
+      "fixedInIteration": 4,
+      "resolution": "Reordered the lead-owned release flow to integrate and publish the reviewed candidate, verify SHAs, refresh installed copies, run installed V1/V2 acceptance, then tag and complete codexu pointer/version-table closeout.",
+      "relevantFiles": [
+        "ai-developer-toolkit/.claude/skills/release-plugin/SKILL.md"
+      ],
+      "suggestedFix": "State the lead sequence as local reviewed handoff, publication-branch integration, push and SHA verification, install refresh, installed V1/V2 gate, then tag and codexu pointer/version-table closeout."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "copilot-secondary",
+      "classification": "fixable",
+      "storyId": null,
+      "scopeStoryIds": [],
+      "uiUxJudgment": "not-required",
+      "category": "Feasibility",
+      "sectionRef": "Technical Constraints 1; Implementation Strategy 1; release handoff",
+      "description": "Candidate 4100a48d and toolkit main are divergent, and current main contains 267e7cd7 touching the same lowering, generated artifacts, telemetry guide, manifests, and release skill. A direct fast-forward is impossible, while publication requires the prepared candidate on the publication branch.",
+      "status": "fixed",
+      "fixedInIteration": 5,
+      "resolution": "Added a lead-owned reconciliation and revalidation prerequisite before publishing the divergent 4100a48d candidate.",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph/scripts/codex-lowering.mjs",
+        "ai-developer-toolkit/plugins/ralph/docs/model-routing-dogfood.md",
+        "ai-developer-toolkit/.claude/skills/release-plugin/SKILL.md"
+      ],
+      "suggestedFix": "Add a lead-owned merge/rebase-and-review prerequisite. After conflict resolution, regenerate artifacts and rerun every affected targeted and full source gate before publication."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "consensus",
+      "classification": "fixable",
+      "storyId": null,
+      "scopeStoryIds": [
+        "US-001",
+        "US-002",
+        "US-003"
+      ],
+      "uiUxJudgment": "not-required",
+      "category": "Criteria Quality",
+      "sectionRef": "Technical Constraints > required artifacts; Implementation Strategy 2-4; Acceptance Criteria 7, 9, 13-14, 17",
+      "description": "All lanes found the site-declared output/artifact contract underspecified. Coarse labels such as json, text, artifact, and review-meta do not enumerate required outputs versus optional inputs or define path, format/schema, nonblank rule, freshness, child provenance, and stale-artifact rejection for every single and fan-out dispatch site.",
+      "status": "fixed",
+      "fixedInIteration": 6,
+      "resolution": "Added a structured per-site and role output contract matrix requirement with exhaustive tests and explicit artifact schema, freshness, run attribution, hash, and owning-child provenance criteria.",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph/scripts/codex-lowering.mjs",
+        "ai-developer-toolkit/plugins/ralph/tests/test-codex-generator.mjs",
+        "ai-developer-toolkit/plugins/ralph/tests/test-model-routing-telemetry.mjs"
+      ],
+      "suggestedFix": "Add a structured source-of-truth matrix keyed by dispatch site and role, with required artifact path keys, validators, formats/schemas, freshness/run attribution, and owning-child provenance; pin every row in tests."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "codex",
+      "classification": "fixable",
+      "storyId": "US-001",
+      "scopeStoryIds": [
+        "US-001",
+        "US-003"
+      ],
+      "uiUxJudgment": "not-required",
+      "category": "Completeness",
+      "sectionRef": "Technical Constraints > V1; Implementation Strategy 2-3; Acceptance Criterion 10",
+      "description": "The V1 marker requirement conflicts with current fan-out generation and the proposed byte-semantic preservation assertion. Single delegation inserts RALPH_DISPATCH_ROLE, but fan-out messages currently do not, so the plan cannot both claim marker preservation across V1 and preserve fan-out bytes unchanged.",
+      "status": "fixed",
+      "fixedInIteration": 7,
+      "resolution": "Specified per-lens V1 fan-out markers and narrowed byte-preservation assertions to the unchanged task body following the intentional marker prefix.",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph/scripts/codex-lowering.mjs",
+        "ai-developer-toolkit/plugins/ralph/tests/test-codex-generator.mjs"
+      ],
+      "suggestedFix": "Explicitly choose whether to add per-lens V1 fan-out markers and test the changed contract or narrow marker-preservation criteria and telemetry to the sites that already emit the marker."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "codex",
+      "classification": "fixable",
+      "storyId": "US-001",
+      "scopeStoryIds": [
+        "US-001",
+        "US-003"
+      ],
+      "uiUxJudgment": "not-required",
+      "category": "Criteria Quality",
+      "sectionRef": "Implementation Strategy 2-3; Acceptance Criterion 8",
+      "description": "The no-inline-fallback requirement is broader than the planned verification. The static live-smoke path does not normally execute injected child failures, and the plan does not identify each generated fallback clause or artifact that must be absent or guarded.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Mapped every affected generated dispatch phase and prohibited plan fallback clause to static assertions, with injected child-failure coverage where available.",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph/tests/test-codex-live-smoke.mjs",
+        "ai-developer-toolkit/plugins/ralph/tests/test-codex-generator.mjs",
+        "ai-developer-toolkit/plugins/ralph/.codex-plugin/codex-skills/plan-with-ralph/SKILL.md"
+      ],
+      "suggestedFix": "Map every affected generated phase and prohibited fallback clause to a static negative assertion, with dynamic failure coverage where available."
+    },
+    {
+      "id": "F-009",
+      "severity": "High",
+      "source": "copilot-secondary",
+      "detectedBy": [
+        "copilot-secondary"
+      ],
+      "category": "Acceptance Criteria",
+      "sectionRef": "Acceptance Criteria 22-23",
+      "description": "The amended plan reintroduces prerequisite-blocked, lead-owned installed-gate criteria into a source job that must terminate after US-004. Ralph cannot terminally satisfy these future obligations before the prerequisite ships.",
+      "status": "fixed",
+      "fixedInIteration": 3,
+      "resolution": "Moved prerequisite-blocked installed-gate obligations out of source-job acceptance criteria into an explicitly excluded post-source lead-owned gate.",
+      "relevantFiles": null,
+      "suggestedFix": "Move criteria 22-23 into a separate post-source lead-owned gate explicitly excluded from PRD and source-job completion."
+    },
+    {
+      "id": "F-010",
+      "severity": "Critical",
+      "source": "copilot-secondary",
+      "detectedBy": [
+        "copilot-secondary"
+      ],
+      "category": "Data Integrity",
+      "sectionRef": "Approach > Implementation Strategy 7 vs Acceptance Criteria 23",
+      "description": "The strategy hashes only evidence outside `dogfood/runs/`, while criterion 23 protects everything outside the newly created run directory. Excluding the entire runs tree leaves prior failed runs unprotected from mutation or deletion during retries.",
+      "status": "fixed",
+      "fixedInIteration": 2,
+      "resolution": "Updated strategy step 7 to hash every pre-existing dogfood evidence and runner file, including older run directories, while excluding only the newly created run directory.",
+      "relevantFiles": [
+        "plugins/ralph/docs/model-routing-dogfood.md",
+        ".ralph/jobs/ralph-model-routing-ui-opus48-nonui-gpt56sol/dogfood/run-installed-skill-dogfood.ps1"
+      ],
+      "suggestedFix": "Exclude only the newly created run directory and integrity-check every other pre-existing evidence file, including older run directories."
+    },
+    {
+      "id": "F-011",
+      "severity": "High",
+      "source": "copilot-secondary",
+      "detectedBy": [
+        "copilot-secondary"
+      ],
+      "category": "Feasibility",
+      "sectionRef": "US-001 — Harden generated V2 delegation and preserve V1; structural-identity acceptance criterion",
+      "description": "US-001 requires the generated runtime recipe to bind the child rollout's `agent_path`, but the parent can observe only the requested `task_name`, spawn-returned identity, and `list_agents` fields. `thread_spawn.agent_path` is available only to the post-run telemetry implemented in US-002, making US-001's verified evidence unattainable from its listed implementation surfaces.",
+      "status": "fixed",
+      "fixedInIteration": 4,
+      "resolution": "Separated generated-runtime identity binding from telemetry-only child agent_path verification in the acceptance criteria and US-001/US-002 scopes.",
+      "relevantFiles": [
+        "plugins/ralph/scripts/codex-lowering.mjs",
+        "plugins/ralph/docs/model-routing-dogfood.md",
+        "plugins/ralph/tests/test-model-routing-telemetry.mjs"
+      ],
+      "suggestedFix": "Limit US-001 to request → spawn output → exact `list_agents.agent_name` binding, and assign spawn output → child `agent_path` verification exclusively to US-002 telemetry."
+    },
+    {
+      "id": "F-012",
+      "severity": "High",
+      "source": "codex",
+      "detectedBy": [
+        "codex"
+      ],
+      "classification": "fixable",
+      "storyId": null,
+      "scopeStoryIds": [],
+      "uiUxJudgment": "not-required",
+      "category": "Data Integrity",
+      "sectionRef": "Architecture Stage B; Implementation Strategy 7; Post-Source Lead-Owned Gate",
+      "description": "The plan schedules an in-place refresh of the pre-existing job-local runner before creating a manifest that covers that runner and later requires every pre-existing byte to remain unchanged. Those requirements are mutually exclusive and would destroy historical evidence before the integrity baseline is captured.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Reordered Stage B so all pre-existing dogfood files are baselined before a corrected runner is copied only into the new run directory and executed, with post-run integrity verification.",
+      "relevantFiles": [
+        "plugins/ralph/docs/model-routing-dogfood.md",
+        ".ralph/jobs/ralph-model-routing-ui-opus48-nonui-gpt56sol/dogfood/run-installed-skill-dogfood.ps1"
+      ],
+      "suggestedFix": "Keep the existing job-local runner immutable. Create the new run directory, hash every pre-existing dogfood file including the historical runner and older runs, copy the corrected canonical runner into the new run directory only, execute that copy, then verify the pre-existing path set and hashes are unchanged. Apply this ordering consistently across architecture, strategy, and the post-source gate."
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+I’m loading the task specification and repository state first.
+
+I’ve confirmed this is a read-only plan review. I’m checking the candidate commit, authored lowering, telemetry contract, and test/release surfaces referenced by the plan.
+
+The candidate commit exists and directly includes `48e63c0c`. I’m now validating whether the proposed story split can reach Ralph terminal state and whether the listed files/tests actually cover the claimed contracts.
+
+A concrete execution risk has emerged: the handoff omits Ralph’s explicit `--skip` mechanism for the externally blocked story. I’m checking the exact-base/stale-base behavior and artifact-validation ownership before finalizing severity.
+
+### Feasibility
+
+- **[High] Invalid parallel handoff.** The proposed `--parallel` command runs from codexu, but `plugins/ralph/claude-skills/decompose-plan/SKILL.md` creates all worktrees from one repository root. It cannot create the required toolkit worktree from `4100a48d`, and `implement-with-ralph` explicitly requires multi-repo plans to be split. Remove this handoff and run US-001–US-004 from the dedicated `ai-developer-toolkit` worktree.
+
+The candidate commit, `48e63c0c` ancestry, referenced files, and six `5.64.0` stamps are accurate.
+
+### Completeness
+
+- **[High] US-005 has no viable deferred lifecycle.** `implement-with-ralph` treats blocked stories as complete during Phase 4, after which a terminal-complete job permanently no-ops on resume. Therefore marking US-005 blocked cannot support executing it later when `codex-v2-copilot-encrypted-subagent-handoff` ships. Move US-005 into a separate prerequisite-gated job or lead-owned acceptance procedure.
+
+### Ordering
+
+No additional issues found.
+
+### Simplicity
+
+No issues found once the invalid parallel path and deferred story are separated.
+
+### Acceptance Criteria Quality
+
+- **[High] AC-22 and AC-23 are unverifiable by the current implementation run.** They require a future installed host and lead-supplied provenance, conflicting with the source-only handoff. These criteria belong in the separate deferred acceptance job.
+- **[Medium] AC-7’s artifact validation is underspecified.** Add a `PROSE_SITE_INVENTORY.siteId` mapping listing each required artifact path and validator—for example JSON schema validation for `prd.json` and `suggested-decomposition.json`, plus non-empty Markdown and reviewer findings checks.
