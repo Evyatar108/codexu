@@ -1,0 +1,52 @@
+{
+  "brainstormName": "codex-v2-copilot-encrypted-subagent-handoff",
+  "uiUxJudgment": "not-required",
+  "overviewTaskId": "codex-v2-copilot-encrypted-subagent-handoff",
+  "idea": "Investigate and design the smallest native Codex fork fix for V2 subagent execution on the Copilot host. Start from installed dogfood evidence under .ralph/jobs/ralph-model-routing-ui-opus48-nonui-gpt56sol/dogfood and raw sessions identified in the 2026-07-13 failure: V2 spawn requests carry exact gpt-5.6-sol/xhigh routing but child rollouts receive encrypted communication, complete in under one second with last_agent_message=null, and targetless waits miss already-completed notifications. Verify the encryption/decryption boundary and Completed(None)/wait semantics against codex 0.141 source; do not rubber-stamp the current diagnosis. Treat the codex fork as ours to extend. Produce a recommended implementation/release path, compatibility impact for V1 and V2, decisive tests, and installed-host acceptance evidence needed to unblock Ralph 5.64.\nTask-dispatch evidence and decision constraints:\n- Inspect .ralph/jobs/ralph-model-routing-ui-opus48-nonui-gpt56sol/dogfood/codex-plan.command.json, codex-plan.jsonl, codex-plan.stderr.log, and installed-skill-dogfood-summary.json.\n- Correlate the parent rollout at C:\\Users\\evmitran\\.codex\\sessions\\2026\\07\\13\\rollout-2026-07-13T09-26-53-019f5c4d-8bd2-7112-856d-5a8ddc6c22c4.jsonl and identify/inspect both child rollouts from raw evidence.\n- Verify the Codex fork V2 encryption/decryption boundary, Copilot host behavior, task completion Completed(None), and targetless wait race against current source.\n- Compare native encryption handoff fix, protocol/tool-schema adjustment, host adapter fix, and a safe V1 fallback.\n- Recommend the smallest architecturally correct solution, required Codex release path, compatibility risks, and decisive unit/integration/installed-host tests. Treat the fork as ours to extend. Do not implement.",
+  "availableLenses": [
+    "codex",
+    "copilot",
+    "devils-advocate"
+  ],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Provider-capability-aware plaintext V2 handoff with exact targeted wait",
+      "summary": "At the native schema and communication boundary, use truthful plaintext V2 messages only for providers without encrypted cross-child support, preserve encrypted behavior elsewhere, and independently add an optional exact task target that subscribes to its status watch before inspecting the current value.",
+      "contributingLenses": [
+        "codex",
+        "copilot",
+        "devils-advocate"
+      ]
+    },
+    {
+      "id": "D-002",
+      "name": "Preserve encryption through a real Copilot service capability",
+      "summary": "Require the Copilot service to decrypt provider-issued encrypted tool content across child requests; use any local adapter or wire alias only as a diagnostic because Codex has neither plaintext nor the key.",
+      "contributingLenses": [
+        "codex",
+        "copilot",
+        "devils-advocate"
+      ]
+    },
+    {
+      "id": "D-003",
+      "name": "Explicit V1 containment fallback",
+      "summary": "Disable V2 explicitly on Copilot and use V1's plaintext handoff and targetful wait as a temporary fail-closed rollback and release-control case, never as a silent V2 downgrade.",
+      "contributingLenses": [
+        "codex",
+        "copilot",
+        "devils-advocate"
+      ]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Is plaintext delegated-task visibility acceptable for Copilot, or is encrypted handoff a hard security requirement?",
+    "Should encrypted-tool-argument support be modeled as a general provider capability or use the existing Copilot predicate for the first release?",
+    "Should the optional exact task_name wait ship in the same .4 release while remaining independently testable?",
+    "Should Ralph 5.64 remain blocked until published-installed-host .4 acceptance, with explicit V1 as the only interim fallback?",
+    "What service-side encrypted cross-child support should be tracked separately without blocking the native fork fix?"
+  ]
+}
