@@ -2085,6 +2085,10 @@
         {
           "className": "cmd-warn",
           "html": "Ralph V2 dogfood telemetry derives roles from encrypted arguments.message, waits without checking already-terminal agents, and does not reject Completed(None). Plan a fail-closed correction while Codex runtime task codex-v2-copilot-encrypted-subagent-handoff fixes the underlying child handoff."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Plan shipped @ ae4eb9ac6: 4 serial stories; 12 review findings fixed, zero open. Final clean re-review was content-exclusion-blocked and is recorded in plan.md. Source implementation may complete before the Codex .4 prerequisite; installed V1/V2 acceptance remains lead-owned and blocked."
         }
       ],
       "command": {
@@ -2092,7 +2096,8 @@
         "descriptionHtml": "Harden Ralph Codex V2 role correlation, terminal checks, and empty completion handling.",
         "warnings": [],
         "prompts": {
-          "plan": "Plan a surgical Ralph correction for Codex V2 dogfood and generated recipes. Use V2 task_name rather than encrypted arguments.message as the stable role identity; check list_agents/terminal state before targetless wait so already-completed children do not cause stale waits; reject Completed(None), null last_agent_message, missing artifacts, and inline parent fallback; retain V1 compatibility and exact model/effort/cardinality checks. Update plugins/ralph/scripts/codex-lowering.mjs, generated Codex skills, docs/model-routing-dogfood.md, the external installed-skill runner contract, telemetry fixtures/tests, release notes, and regression baselines as applicable. Reference task codex-v2-copilot-encrypted-subagent-handoff as the runtime prerequisite for final installed-host acceptance. Require full generation/parity/tests plus installed V1/V2 evidence before Ralph 5.64 tagging."
+          "plan": "Plan a surgical Ralph correction for Codex V2 dogfood and generated recipes. Use V2 task_name rather than encrypted arguments.message as the stable role identity; check list_agents/terminal state before targetless wait so already-completed children do not cause stale waits; reject Completed(None), null last_agent_message, missing artifacts, and inline parent fallback; retain V1 compatibility and exact model/effort/cardinality checks. Update plugins/ralph/scripts/codex-lowering.mjs, generated Codex skills, docs/model-routing-dogfood.md, the external installed-skill runner contract, telemetry fixtures/tests, release notes, and regression baselines as applicable. Reference task codex-v2-copilot-encrypted-subagent-handoff as the runtime prerequisite for final installed-host acceptance. Require full generation/parity/tests plus installed V1/V2 evidence before Ralph 5.64 tagging.",
+          "impl": "/implement-with-ralph --from-plan D:/harness-efforts/codexu/.ralph/jobs/ralph-v2-encrypted-role-wait-terminal-hardening/plan.md --target-repo D:/harness-efforts/codexu/ai-developer-toolkit/.worktrees/ralph-v2-encrypted-role-wait-terminal-hardening-base --allow-stale-base --ui-ux-judgment not-required --call-ui-ux-judgment not-required --autonomous"
         }
       }
     }
