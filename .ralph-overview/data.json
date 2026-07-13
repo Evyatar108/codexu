@@ -1912,6 +1912,184 @@
           "plan": "Create a Phase-4 reviewed implementation plan from `.ralph/brainstorms/codex-native-happy-server-local-web-dual-control/brainstorm.md` and `.json` using GPT-5.6 Sol. This is non-UI architecture/protocol/runtime work; the existing Happy web app is only the acceptance surface. Preserve D-001: scoped Codex-owned Rust `codex-happy-server` compatibility plane using Axum + Socketioxide + SQLx/SQLite, existing Happy HTTP/Socket.IO browser contract, direct serialized `CodexControlAdapter`, stable Codex thread identity, explicit local plaintext codec, and fail-closed Ed25519 paired-device auth. Hard constraint: no `happy-cli` executable/daemon and no Node happy-server runtime; no fallback to legacy daemon paths. Operator decisions: pairing window is 2 minutes, closes after one successful enrollment, explicitly reopened; Phase-1 dogfood uses a fixed configured port and a fresh invite after process restart; do not add UI design work unless P0 proves the existing renderer cannot replace keyed in-progress snapshots—then file a separate Opus 4.8 UI task. Decompose by proof boundary: (P0) actual Chromium existing-web-build + socket.io-client 4.8.1 ↔ minimal Socketioxide server/Rust-client compatibility spike, including polling, headers, acks, ranges, reconnect and paired auth; (P1) Rust server foundation/routes/SQLite/auth; (P1b) Codex lifecycle/codec/identity/control adapter and removal of happy-cli fallback; (P1c) minimal happy-app/happy-wire local paired-mode + transient snapshot compatibility; (P1d) authoritative first-answer-wins approvals, prompt mirroring/dedup, turn steer/start and interrupt arbitration; (P2) real same-machine TUI + existing Happy web dual-control dogfood with process inventory proving no happy-cli/Node server. Include exact relative paths across codex wrapper/inner repo and codexu happy-app/wire/docs, repo/worktree boundaries, dependencies, security model, plaintext-at-rest limitation, acceptance evidence, cargo/typecheck/vitest/browser commands, Phase 5a/5b convergence, and explicit stop/go criteria after P0. Because implementation spans codex plus codexu packages, plan must split into coordinated jobs/phases rather than pretending one Ralph PRD can own two repos."
         }
       }
+    },
+    {
+      "id": "demo-harness-creator-demo",
+      "scope": "docs",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-12T02:37:33.1734973Z",
+      "initialStage": "plan-ready",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Create the self-referential Agent based presentation creation demo and companion deep dive from the approved brief; show the complete creator loop without overstating unfinished no-GPU media support."
+        }
+      ],
+      "command": {
+        "name": "demo-harness-creator-demo",
+        "descriptionHtml": "Plan and build the <code>demo-harness</code> narrated demo: brief → agent authoring → media evidence → Tasks/review → playback → ArtifactStore publish and reuse.",
+        "warnings": [],
+        "prompts": {
+          "plan": "Use <code>docs/demos/demo-harness/demo-brief.md</code>, <code>demo-harness.md</code>, and <code>.ralph/brainstorms/demo-creation-tool-story/selected-direction.md</code> to plan the demo and its source-grounded deep-dive companion. Do not implement slides until the brief is approved."
+        }
+      }
+    },
+    {
+      "id": "tts-production-access",
+      "scope": "tts",
+      "lifecycle": "tracked",
+      "status": "in-progress",
+      "lastTouchedAt": "2026-07-12T20:13:10.365Z",
+      "initialStage": "planning",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "A creator without CUDA still lacks a proven end-to-end TTS workflow. Complete managed-provider routing, voice discovery, credentials, conformance tests, and representative quality/cost/latency benchmarks.",
+          "column": "todo"
+        }
+      ],
+      "command": {
+        "name": "tts-production-access",
+        "descriptionHtml": "Deliver a production-ready no-GPU TTS path using Azure AI Speech as the managed default, OpenAI-compatible alternatives, and optional remote Qwen.",
+        "warnings": [],
+        "prompts": {
+          "plan": "Plan <code>docs/plans/09-production-tts-access.md</code>: finish end-to-end provider routing for CLI and portal, Azure credential and voice discovery support, optional word boundaries, conformance/live tests, documentation, and a non-GPU consumer proof."
+        }
+      }
+    },
+    {
+      "id": "speech-verification-alignment",
+      "scope": "tts",
+      "lifecycle": "tracked",
+      "status": "in-progress",
+      "lastTouchedAt": "2026-07-12T20:13:10.365Z",
+      "initialStage": "planning",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "WhisperX currently couples transcript verification and reference-text alignment behind a CUDA service. Separate the contracts and validate managed, low-resource, and hosted alternatives against objective quality and timing gates.",
+          "column": "todo"
+        }
+      ],
+      "command": {
+        "name": "speech-verification-alignment",
+        "descriptionHtml": "Provide no-GPU transcription verification and marker alignment through independent provider contracts with WhisperX compatibility.",
+        "warnings": [],
+        "prompts": {
+          "plan": "Plan <code>docs/plans/10-transcription-alignment-access.md</code>: add independent TranscriptionProvider and AlignmentProvider contracts, a benchmark corpus, Azure/hosted provider evaluation, TTS-native timing support, CPU alignment-only fallback, and explicit accuracy/privacy/cost gates."
+        }
+      }
+    },
+    {
+      "id": "codex-fast-runnable-dev-build-tier",
+      "scope": "codex|codexu",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-13T03:50:00Z",
+      "initialStage": "brainstorming",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "The current Codex inner loop can compile-check changes in roughly 43-132 seconds, but producing a runnable optimized binary still takes about 31 minutes after a core edit. Design and measure a fast, runnable, non-optimized development build tier so local fixes can be launched and smoke-tested without paying the release-build cost. Keep optimized builds as the final release/dogfood gate."
+        }
+      ],
+      "command": {
+        "name": "codex-fast-runnable-dev-build-tier",
+        "descriptionHtml": "Design and measure a fast runnable Codex development-build tier",
+        "warnings": [],
+        "prompts": {
+          "brainstorm": "Run /brainstorm-with-ralph for codex-fast-runnable-dev-build-tier. Goal: enable developers to build and launch a runnable Codex fork binary for local change/fix testing substantially faster than the current approximately 31-minute optimized executable rebuild. This is not another cargo-check tier: the output must be an actually runnable binary usable by the local launcher/smoke workflow. Investigate and empirically compare candidate Cargo profiles, package/feature selection, incremental and sccache behavior, linking/codegen costs, launcher integration, and Windows-specific constraints. Establish a realistic measured acceptance threshold rather than assuming one. Identify semantic or performance differences from the optimized artifact, which tests require the optimized build, how to keep the release path unchanged, upstream-conflict surface, cache invalidation behavior after representative core edits, and whether a thin script/profile/launcher change suffices or Rust source changes are justified. Use the existing codex-rs-core-change-incremental-build-over-30m measurements and branch as reference, but do not conflate cargo check with a runnable build. Produce a recommended direction, measurement matrix, acceptance criteria, and implementation decomposition. Work in an isolated Ralph-managed worktree; do not push or modify the dirty codexu primary checkout."
+        }
+      }
+    },
+    {
+      "id": "codex-upstream-rebase-latest-2026-07-12",
+      "scope": "codex|codexu",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-13T05:35:18Z",
+      "initialStage": "planning",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Rebase the Codex fork onto the latest stable upstream OpenAI Codex release after the current fork base. Complete the entire closeout: overlay conflict resolution, Phase 5a workspace check, release cut, wrapper gitlink update, and Phase 5b CI/interim closeout."
+        }
+      ],
+      "command": {
+        "name": "codex-upstream-rebase-latest-2026-07-12",
+        "descriptionHtml": "Rebase the Codex fork onto the latest upstream release and complete release closeout",
+        "warnings": [],
+        "prompts": {
+          "plan": "/plan-with-ralph \"Plan the next Codex upstream rebase onto the latest stable OpenAI Codex release after the fork's current base. Read codex/.claude/commands/rebase-upstream.md and codex/CLAUDE.md first. Determine the exact upstream target, inventory overlay and sandbox-patch conflicts, preserve fork-local Happy/autoconnect and orchestration behavior, and plan the full mandatory closeout: cargo metadata preflight, Phase 5a cargo check --workspace, any rebase-debt tasks, /publish-sandbox-patch release cut, codex wrapper gitlink update in codexu, remote verification, launcher smoke, and Phase 5b invariant-check CI or documented interim closeout. Use isolated worktrees in the codex submodule and parent codexu repo; implementation members must not push directly to main.\""
+        }
+      }
+    },
+    {
+      "id": "codex-release-tarball-launcher-vendor-layout-mismatch",
+      "scope": "codex|codexu",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-13T07:45:00Z",
+      "initialStage": "planning",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "The published v0.141.0-copilot-api.3 npm tarball contains all four native binaries under vendor/<target>/codex/, but package/bin/codex.js resolves vendor/<target>/bin/codex.exe. A clean npm install -g succeeds yet codex --version fails with Missing optional dependency @openai/codex-win32-x64. The installed host required a manual layout repair."
+        }
+      ],
+      "command": {
+        "name": "codex-release-tarball-launcher-vendor-layout-mismatch",
+        "descriptionHtml": "Fix the Codex release tarball launcher/vendor layout mismatch and cut a corrective release",
+        "warnings": [],
+        "prompts": {
+          "plan": "/plan-with-ralph \"Plan and fix the Codex Windows release bundle regression reproduced from v0.141.0-copilot-api.3: package/bin/codex.js resolves vendor/x86_64-pc-windows-msvc/bin/codex.exe (or @openai/codex-win32-x64), while the published tarball places codex.exe, codex-core.exe, codex-command-runner.exe, and codex-windows-sandbox-setup.exe under vendor/x86_64-pc-windows-msvc/codex/. A clean npm install -g of the GitHub Release asset completes but codex --version throws Missing optional dependency. Determine the canonical layout versus launcher behavior, update the packaging/publish recipe and/or launcher consistently, preserve co-location of all four binaries and rg, add an install-from-packed-tarball smoke that runs codex --version from a clean temp prefix, verify upgrade cleanup under Windows file locking, update release docs, and cut a corrective fork release through /publish-sandbox-patch with wrapper/codexu pointer closeout. Read codex/.claude/commands/publish-sandbox-patch.md and prior task codex-sandbox-setup-exe-not-vendored-in-release. Do not treat manually copying binaries into vendor/<target>/bin as the product fix.\""
+        }
+      }
+    },
+    {
+      "id": "codex-v2-copilot-encrypted-subagent-handoff",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-13T17:58:41.6638805Z",
+      "initialStage": "brainstorming",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Ralph 5.64 installed dogfood proved Codex V2 spawns exact-route children but the Copilot host delivers only encrypted task payloads; children complete immediately with no work, targetless waits then time out, and the parent continues inline. Fix the native V2 handoff/completion contract before Ralph 5.64 can tag."
+        }
+      ],
+      "command": {
+        "name": "codex-v2-copilot-encrypted-subagent-handoff",
+        "descriptionHtml": "Make Codex V2 subagent task handoff and completion reliable on the Copilot host.",
+        "warnings": [],
+        "prompts": {
+          "brainstorm": "Investigate and design the smallest native Codex fork fix for V2 subagent execution on the Copilot host. Start from installed dogfood evidence under .ralph/jobs/ralph-model-routing-ui-opus48-nonui-gpt56sol/dogfood and raw sessions identified in the 2026-07-13 failure: V2 spawn requests carry exact gpt-5.6-sol/xhigh routing but child rollouts receive encrypted communication, complete in under one second with last_agent_message=null, and targetless waits miss already-completed notifications. Verify the encryption/decryption boundary and Completed(None)/wait semantics against codex 0.141 source; do not rubber-stamp the current diagnosis. Treat the codex fork as ours to extend. Produce a recommended implementation/release path, compatibility impact for V1 and V2, decisive tests, and installed-host acceptance evidence needed to unblock Ralph 5.64."
+        }
+      }
+    },
+    {
+      "id": "ralph-v2-encrypted-role-wait-terminal-hardening",
+      "scope": "ralph-orchestration",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-13T17:58:41.6638805Z",
+      "initialStage": "planning",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Ralph V2 dogfood telemetry derives roles from encrypted arguments.message, waits without checking already-terminal agents, and does not reject Completed(None). Plan a fail-closed correction while Codex runtime task codex-v2-copilot-encrypted-subagent-handoff fixes the underlying child handoff."
+        }
+      ],
+      "command": {
+        "name": "ralph-v2-encrypted-role-wait-terminal-hardening",
+        "descriptionHtml": "Harden Ralph Codex V2 role correlation, terminal checks, and empty completion handling.",
+        "warnings": [],
+        "prompts": {
+          "plan": "Plan a surgical Ralph correction for Codex V2 dogfood and generated recipes. Use V2 task_name rather than encrypted arguments.message as the stable role identity; check list_agents/terminal state before targetless wait so already-completed children do not cause stale waits; reject Completed(None), null last_agent_message, missing artifacts, and inline parent fallback; retain V1 compatibility and exact model/effort/cardinality checks. Update plugins/ralph/scripts/codex-lowering.mjs, generated Codex skills, docs/model-routing-dogfood.md, the external installed-skill runner contract, telemetry fixtures/tests, release notes, and regression baselines as applicable. Reference task codex-v2-copilot-encrypted-subagent-handoff as the runtime prerequisite for final installed-host acceptance. Require full generation/parity/tests plus installed V1/V2 evidence before Ralph 5.64 tagging."
+        }
+      }
     }
   ],
   "phaseTree": [
