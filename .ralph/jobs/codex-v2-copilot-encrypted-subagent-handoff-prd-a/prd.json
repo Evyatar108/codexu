@@ -1,0 +1,122 @@
+{
+  "project": "Codex-Patched Provider-Aware Handoff and Exact Wait",
+  "description": "Implement the nested codex-patched provider capability, provider-aware V2 schema/runtime encoding, and exact race-safe V2 task wait while preserving capable-provider encryption, targetless V2 behavior, and all V1 behavior.",
+  "deslop": true,
+  "uiUxJudgment": "not-required",
+  "overviewTaskId": "codex-v2-copilot-encrypted-subagent-handoff",
+  "jobDir": "D:/harness-efforts/codexu/.ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-a",
+  "repoDir": "D:/harness-efforts/codexu/codex/.worktrees/codex-v2-copilot-encrypted-subagent-handoff/external/repos/codex-patched",
+  "branch": {
+    "name": "ralph/codex-v2-copilot-encrypted-subagent-handoff-source",
+    "created": true
+  },
+  "worktree": {
+    "path": "D:/harness-efforts/codexu/codex/.worktrees/codex-v2-copilot-encrypted-subagent-handoff/external/repos/codex-patched",
+    "branch": "ralph/codex-v2-copilot-encrypted-subagent-handoff-source",
+    "startPoint": "587a6a8ab8948ff912b1f24a62833b277934302d",
+    "external": true
+  },
+  "additionalDirs": [
+    "D:/harness-efforts/codexu/codex/.worktrees/codex-v2-copilot-encrypted-subagent-handoff/codex-rs-overlay/codex-invariant-tests",
+    "D:/harness-efforts/codexu/codex/.worktrees/codex-v2-copilot-encrypted-subagent-handoff/docs"
+  ],
+  "writeScope": [
+    "codex-rs/model-provider/src/provider.rs",
+    "codex-rs/model-provider/src/copilot.rs",
+    "codex-rs/model-provider/src/amazon_bedrock/mod.rs",
+    "codex-rs/core/src/tools/spec_plan.rs",
+    "codex-rs/core/src/tools/handlers/multi_agents_spec.rs",
+    "codex-rs/core/src/tools/handlers/multi_agents_v2.rs",
+    "codex-rs/core/src/tools/handlers/multi_agents_v2/spawn.rs",
+    "codex-rs/core/src/tools/handlers/multi_agents_v2/send_message.rs",
+    "codex-rs/core/src/tools/handlers/multi_agents_v2/followup_task.rs",
+    "codex-rs/core/src/tools/handlers/multi_agents_v2/message_tool.rs",
+    "codex-rs/core/src/tools/handlers/multi_agents_v2/wait.rs",
+    "codex-rs/core/src/tools/handlers/multi_agents_spec_tests.rs",
+    "codex-rs/core/src/tools/spec_plan_tests.rs",
+    "codex-rs/core/src/tools/handlers/multi_agents_tests.rs",
+    "codex-rs/core/src/tools/handlers/multi_agents_v2_spec.rs",
+    "codex-rs/core/src/tools/handlers/multi_agents_v2_spec_tests.rs"
+  ],
+  "immutableInputs": {
+    "nestedBaseSha": "587a6a8ab8948ff912b1f24a62833b277934302d",
+    "wrapperContextSha": "89a6cbea7cd382fa4873b259fb996dcf988a5fdc"
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "sourceStoryId": "A-001",
+      "title": "A-001 — General provider capability",
+      "description": "As a Codex provider maintainer, I want encrypted inter-agent messaging represented as a default-capable provider capability so that Copilot can explicitly select plaintext without weakening capable providers.",
+      "uiUxJudgment": "not-required",
+      "acceptanceCriteria": [
+        "`ProviderCapabilities` exposes an encrypted-inter-agent-message capability whose default-capable path resolves to supported/encrypted.",
+        "Copilot explicitly reports the capability as unsupported while Bedrock, default, and configured-provider paths remain supported, with focused provider tests covering each path.",
+        "The implementation does not add fields to serialized provider info, configuration, app-server, or protocol schemas.",
+        "Every changed upstream-canonical capability block has exactly one `// SANDBOX PATCH: provider-aware-v2-handoff` marker family annotation.",
+        "Tests pass: `just test -p codex-model-provider` exits 0 from the effective nested checkout.",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "blocked": false,
+      "notes": "One-iteration scope for source story A-001. Modify only this PRD's writeScope and preserve encrypted-by-default policy.",
+      "verifiedEvidence": [],
+      "dependencies": []
+    },
+    {
+      "id": "US-002",
+      "sourceStoryId": "A-002",
+      "title": "A-002 — Truthful V2 schemas and runtime encoding",
+      "description": "As a Codex multi-agent maintainer, I want one provider-derived V2 message encoding to drive schemas and runtime constructors for spawn, send, and follow-up so that each provider receives truthful message fields.",
+      "uiUxJudgment": "not-required",
+      "acceptanceCriteria": [
+        "Production tool planning resolves exactly one internal `V2MessageEncoding` from the active provider capability and passes that value to both schema and handler construction for `spawn_agent`, `send_message`, and `followup_task`.",
+        "Unsupported encoding omits `encrypted_content` from all three V2 schemas, requires readable nonempty `input_text`, and constructs plaintext with `InterAgentCommunication::new` without storing plaintext under `encrypted_content`.",
+        "Capable encoding preserves all three encrypted schemas and runtime construction through `InterAgentCommunication::new_encrypted`.",
+        "Model, effort, collaboration mode, fork behavior, send queueing, and follow-up trigger turns remain unchanged, and regression tests preserve V1 plus omitted-target V2 behavior.",
+        "V2-only schema construction and colocated tests live in `multi_agents_v2_spec.rs` and `multi_agents_v2_spec_tests.rs`, and `multi_agents_spec.rs` is at most 800 lines.",
+        "Every changed upstream-canonical schema or encoding block has exactly one `// SANDBOX PATCH: provider-aware-v2-handoff` marker family annotation.",
+        "Focused `just test -p codex-core` filters cover capable and unsupported schemas plus runtime encoding for spawn, send, and follow-up, and all selected tests exit 0.",
+        "Tests pass",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "blocked": false,
+      "notes": "One-iteration scope for source story A-002. Preserve the reviewed single-policy schema/runtime design.",
+      "verifiedEvidence": [],
+      "dependencies": [
+        "US-001"
+      ]
+    },
+    {
+      "id": "US-003",
+      "sourceStoryId": "A-003",
+      "title": "A-003 — Exact race-safe V2 task wait",
+      "description": "As a Codex multi-agent caller, I want an optional exact V2 `wait_agent.task_name` branch so that I can wait for one task without unrelated mailbox or completion activity satisfying the wait.",
+      "uiUxJudgment": "not-required",
+      "acceptanceCriteria": [
+        "The V2 wait schema accepts optional `task_name` beside `timeout_ms`, while schema and regression tests preserve the existing targetless V2 branch and all V1 behavior.",
+        "The exact branch resolves one target, emits paired target-only telemetry, subscribes before reading current state, and uses that same receiver for current and future status.",
+        "Unrelated mailbox or completion activity cannot satisfy the exact wait, while steering and timeout behavior remain available for the resolved target.",
+        "Initial subscription failure and receiver closure each perform exactly one bounded fallback lookup; `NotFound` is classified as target-unavailable and never as success.",
+        "`Completed(None)` is a final wait state but is not reported as meaningful role completion, with deterministic coverage for nonexistent UUID and resolve-then-remove cases.",
+        "The exact-wait test matrix covers current-state and race boundaries, timeout, steering, telemetry pairing, unrelated activity, subscription failure, receiver closure, nonexistent UUID, resolve-then-remove, and `Completed(None)`.",
+        "Every changed upstream-canonical exact-wait block has exactly one `// SANDBOX PATCH: exact-v2-wait` marker family annotation.",
+        "Focused `just test -p codex-core` exact-wait, targetless V2, V1 regression, and `subagent_notifications` filters exit 0.",
+        "Tests pass",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "blocked": false,
+      "notes": "One-iteration scope for source story A-003. Do not alter targetless V2 or V1 semantics.",
+      "verifiedEvidence": [],
+      "dependencies": [
+        "US-001",
+        "US-002"
+      ]
+    }
+  ]
+}
