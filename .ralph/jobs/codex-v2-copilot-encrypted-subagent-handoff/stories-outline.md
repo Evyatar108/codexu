@@ -1,6 +1,6 @@
 # Stories Outline: Codex V2 Copilot Plaintext Subagent Handoff and Exact Wait
 
-*Preliminary decomposition from `/plan-with-ralph`. Materialize the three repository-scoped PRDs described in `plan.md`; do not run this combined plan directly.*
+*Preliminary decomposition from `/plan-with-ralph`. The three repository-scoped implementation seeds are materialized under `scoped-plans/`; do not run this combined outline directly.*
 
 ## US-001: Add the general provider capability
 **Description:** As a Codex provider integrator, I want a runtime capability for encrypted inter-agent messages so each provider can advertise truthful support.

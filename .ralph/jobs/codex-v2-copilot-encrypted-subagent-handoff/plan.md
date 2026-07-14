@@ -507,6 +507,14 @@ Reference without modifying Ralph plugin source:
 - Write scope: only task-local dogfood runner, validator, evidence schemas, workflow-state helpers, bounded input templates, and tooling tests; no generated evidence, gitlinks, overview shards, release artifacts, installation, or external actions
 - Hard gate: `validate-prd-scope.mjs` exits `0`; fixture-driven fail-closed tests pass; completion produces an immutable static-tooling prerequisite receipt for release and dogfood execution
 
+### Scoped-seed ownership validation
+
+- PRD A uniquely owns scoped stories A-001/A-002/A-003, covering parent US-001/US-002/US-003.
+- PRD B uniquely owns B-001 (parent US-004) and B-002 (only the wrapper static release-command/workflow slice of US-005).
+- PRD C uniquely owns C-001/C-002/C-003 (only the codexu static tooling slices of parent US-005/US-006/US-007).
+- Parent US-005/US-006/US-007 are orchestration stories, not duplicated writable stories: their remaining integration, generated-evidence, publication, installation, gitlink, and bookkeeping slices are explicitly lead/operator-owned.
+- The three scoped plans contain 8 unique scoped story IDs and 31 unique writable path entries. Their writable sets are pairwise disjoint; read-only predecessor context and lead/operator exclusions are not writable assignments.
+
 ### Cluster: capability-and-truthful-encoding
 - Stories: US-001, US-002
 - Execution unit: PRD A
@@ -620,11 +628,11 @@ All findings are fixed; no open, wont-fix, agent-failure, or failed re-review en
 ## Next Step
 Canonical plan path after the lead fast-forwards this branch: `.ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/plan.md`.
 
-After the lead fast-forwards the plan branch to main, materialize and validate the three scoped plan/PRD seeds, then run them serially:
+The three repository-scoped seeds are materialized under `scoped-plans/`. Run them serially:
 
-1. PRD A: `$ralph-orchestration:implement-with-ralph --from-plan <codex-patched-plan> --target-repo D:\harness-efforts\codexu\codex\external\repos\codex-patched`
-2. PRD B, only after PRD A's immutable commit receipt: `$ralph-orchestration:implement-with-ralph --from-plan <codex-wrapper-plan> --target-repo D:\harness-efforts\codexu\codex`
-3. PRD C, only after PRD B's immutable commit receipt: `$ralph-orchestration:implement-with-ralph --from-plan <codexu-dogfood-tooling-plan> --target-repo D:\harness-efforts\codexu`
+1. PRD A: `$ralph-orchestration:implement-with-ralph --from-plan .ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/scoped-plans/codex-patched-plan.md --target-repo D:\harness-efforts\codexu\codex\external\repos\codex-patched`
+2. PRD B, only after the lead verifies and persists PRD A's immutable receipt at `.ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/receipts/prd-a-nested-source.json`: `$ralph-orchestration:implement-with-ralph --from-plan .ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/scoped-plans/codex-wrapper-plan.md --target-repo D:\harness-efforts\codexu\codex`
+3. PRD C, only after the lead verifies and persists PRD B's immutable receipt at `.ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/receipts/prd-b-codex-wrapper.json`: `$ralph-orchestration:implement-with-ralph --from-plan .ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/scoped-plans/codexu-dogfood-tooling-plan.md --target-repo D:\harness-efforts\codexu`
 
 The lead then performs the integration/publication and generated-evidence portions of US-005, the operator/lead perform the installation/execution portions of US-006 using PRD C's committed tooling, and the lead performs the merge/bookkeeping portions of US-007. Do not invoke the original combined plan directly and do not add `--parallel`.
 
