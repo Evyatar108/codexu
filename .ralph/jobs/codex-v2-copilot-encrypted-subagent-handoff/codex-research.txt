@@ -1,0 +1,101 @@
+### Codebase Architecture
+
+- The implementation lives in a patched OpenAI Codex Rust workspace at `codex/external/repos/codex-patched/codex-rs/`, pinned as a git submodule by the wrapper repository under `codex/`.
+- It is a large Cargo workspace using Rust 2024, Tokio, Serde, Schemars, and custom `codex-tools` JSON schemas. Core behavior is primarily in:
+  - `core/` — sessions, agents, tool registration and handlers.
+  - `model-provider/` — runtime provider abstraction and capabilities.
+  - `model-provider-info/` — serialized provider configuration and built-ins.
+  - `protocol/` — shared wire/session types.
+- Fork-only crates live under `codex/codex-rs-overlay/`, but the requested changes affect upstream-owned tool/schema seams and therefore require `// SANDBOX PATCH:` markers.
+- Builds and tests use Cargo plus repository `just` commands. Local work must source `codex/scripts/iteration-env.sh`; release packaging uses the separate profile in `codex/.claude/commands/publish-sandbox-patch.md`.
+
+### Feature-Relevant Code
+
+**Provider capability**
+
+- `codex-rs/model-provider/src/provider.rs`
+  - Already defines `ProviderCapabilities` and `ModelProvider::capabilities()`.
+  - This is the natural general capability seam. Add an encrypted-inter-agent-message capability defaulting to `true`.
+- `codex-rs/model-provider/src/copilot.rs`
+  - `CopilotModelProvider` currently inherits all default capabilities.
+  - Override `capabilities()` so only encrypted V2 inter-agent messages are unsupported.
+- `codex-rs/model-provider/src/amazon_bedrock/mod.rs`
+  - Contains explicit `ProviderCapabilities` literals that must add the new default-true member.
+- Using `ProviderCapabilities` is much smaller than adding a field to `ModelProviderInfo`; that struct has roughly 70 literal construction sites.
+
+**Schema generation**
+
+- `codex-rs/core/src/tools/handlers/multi_agents_spec.rs`
+  - `spawn_agent_common_properties_v2()` marks `message` with `.with_encrypted()`.
+  - `create_send_message_tool()` and `create_followup_task_tool()` do likewise.
+  - `wait_agent_tool_parameters_v2()` currently exposes only `timeout_ms`.
+- `codex-rs/core/src/tools/spec_plan.rs:730`
+  - Builds V2 handlers with access to `turn_context.provider.capabilities()`.
+  - Pass the resolved message-encoding capability into the three message handlers so their model-visible schemas and runtime behavior use one decision.
+- Existing schema tests are in `core/src/tools/handlers/multi_agents_spec_tests.rs`.
+
+**Communication encoding**
+
+- `core/src/tools/handlers/multi_agents_v2.rs:43`
+  - `communication_from_tool_message()` unconditionally calls `InterAgentCommunication::new_encrypted`.
+  - Extend this shared constructor to select `new_encrypted` or `new`.
+- `core/src/tools/handlers/multi_agents_v2/spawn.rs:116`
+  - Converts the initial text-only child operation into inter-agent communication.
+  - Existing model/reasoning override logic already preserves requested routing.
+- `core/src/tools/handlers/multi_agents_v2/message_tool.rs:58`
+  - Shared dispatch for `send_message` and `followup_task`.
+- `protocol/src/protocol.rs:686`
+  - `InterAgentCommunication::new()` stores plaintext in `content`.
+  - `new_encrypted()` empties `content` and sets `encrypted_content`.
+  - `to_model_input_item()` already emits `agent_message/input_text` versus `encrypted_content` correctly. No protocol or client transport rewrite is necessary.
+
+**Exact V2 wait**
+
+- `core/src/tools/handlers/multi_agents_v2/wait.rs`
+  - Targetless behavior subscribes only to input-queue mailbox/steering activity.
+  - Add optional `task_name` to `WaitArgs`, retaining the existing branch unchanged when omitted.
+- `core/src/agent/agent_resolver.rs`
+  - `resolve_agent_target()` already resolves relative and canonical V2 task names.
+- `core/src/agent/control.rs:340`
+  - `subscribe_status()` returns a Tokio watch receiver carrying the current status and future updates.
+- `core/src/tools/handlers/multi_agents/wait.rs`
+  - V1 provides the correct subscribe-first pattern and `wait_for_final_status()` helper behavior.
+- `core/src/agent/status.rs`
+  - Provides `is_final`; `Completed(None)` must remain valid.
+
+**Tests and release**
+
+- `core/src/tools/handlers/multi_agents_tests.rs`
+  - Existing V2 encoding and targetless wait tests.
+- `core/tests/suite/subagent_notifications.rs:1027`
+  - Existing encrypted `agent_message` wire integration test; retain it for encryption-capable providers and add a Copilot plaintext counterpart.
+- `model-provider/src/copilot.rs` tests can enforce the Copilot capability override.
+- `codex/docs/implementation/patch-surface.md`
+  - Add §14 invariant/test rows and a §15 replant subsection.
+- `codex/.claude/commands/publish-sandbox-patch.md`
+  - Defines version bump, four-binary build, tests, submodule retention tag, wrapper tag, bundle, and non-destructive verification.
+
+### Technical Constraints
+
+- All edits under `external/repos/codex-patched/codex-rs/` require nearby `// SANDBOX PATCH:` markers plus patch-surface invariant and replant documentation.
+- V1 schemas and handlers must remain unchanged.
+- Encryption-capable providers must default to encrypted behavior. A new capability must therefore default to `true`, with Copilot explicitly returning `false`.
+- Tool schemas are constructed before invocation, so capability selection must be carried into handler state; checking only `turn.provider` during message dispatch would leave the schema potentially inconsistent.
+- Preserve the existing targetless wait implementation exactly. Historical completion scanning there would cause false wakes from stale open agents.
+- Targeted wait must subscribe to the target status watch before inspecting its current value. Tokio `watch` then covers completion before the call, during setup, and afterward without a check/subscribe gap.
+- User steering must remain a competing wake condition for non-final targeted waits.
+- The workspace version is currently `0.141.0-copilot-api.3`; `.4` requires updating `Cargo.toml` and `Cargo.lock`.
+- No dependency addition should be necessary.
+
+### Implementation Suggestions
+
+1. Extend `ProviderCapabilities` with a clearly named field such as `encrypted_inter_agent_messages`, defaulting to `true`; override it to `false` in `CopilotModelProvider`.
+2. Introduce a small internal V2 message-encoding enum or named option rather than passing opaque booleans. Store it in the spawn, send, and follow-up handlers.
+3. Make schema helpers conditionally call `.with_encrypted()`. Do not place plaintext beneath `encrypted_content`.
+4. Change only `communication_from_tool_message()` to choose `InterAgentCommunication::new()` or `new_encrypted()`, keeping spawn/send/follow-up unified.
+5. Add `task_name: Option<String>` to V2 wait:
+   - Omitted: run the existing mailbox-based path.
+   - Present: resolve target, subscribe to status, inspect current status, then `tokio::select!` status changes against steering activity under the existing deadline.
+6. Keep `WaitAgentResult`’s summary shape unless tests demonstrate consumers require status content; the completion notification remains the source of child output.
+7. Add focused tests for both capability values, all three schemas, all three message paths, exact-wait races, targetless regression, V1 regression, and Copilot routing/canary completion.
+8. Validate with focused provider/core tests, the existing encrypted wire test, then frozen-profile `cargo check --workspace`. Publish only after those pass, and retain the Ralph parent/child rollout JSONL plus four expected role artifacts as dogfood evidence.

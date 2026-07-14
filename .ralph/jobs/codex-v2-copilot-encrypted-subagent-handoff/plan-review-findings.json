@@ -1,0 +1,542 @@
+{
+  "planFile": "D:\\harness-efforts\\codexu\\.ralph\\jobs\\.staging\\20260713T193412Z-solo-186108\\draft-plan.md",
+  "repoDir": "D:\\harness-efforts\\codexu\\.ralph\\jobs\\codex-v2-copilot-encrypted-subagent-handoff\\worktree\\plan",
+  "reviewCycle": 2,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Critical",
+      "source": "consensus",
+      "classification": "fixable",
+      "uiUxJudgment": "not-required",
+      "category": "Repository scope and ownership",
+      "sectionRef": "Implementation Strategy 8; Preliminary Story Decomposition US-005–US-007; Suggested Decomposition; Next Step",
+      "description": "The plan acknowledges one-repository-per-PRD but still emits one serial and one parallel implement-with-ralph handoff spanning nested codex-patched, the Codex wrapper, and codexu. Ralph validates one writable repoDir/writeScope per PRD, while cross-repo pointer bumps, release integration, and parent closeout are lead-owned. One job can therefore silently omit or illegally write later stories.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Split execution into serial repository-scoped PRD A and PRD B jobs, removed the combined parallel handoff, and assigned integration, publication, installation, evidence, gitlink, and overview closeout to explicit lead/operator phases.",
+      "relevantFiles": [
+        "ai-developer-toolkit\\plugins\\ralph\\AGENTS.md",
+        ".ralph\\jobs\\.staging\\20260713T193412Z-solo-186108\\draft-plan.md"
+      ],
+      "suggestedFix": "Replace the single handoff with repository-scoped execution units: PRD A targets nested codex-patched and carries only Rust/Cargo writeScope; PRD B targets the Codex wrapper and carries only invariant/docs writeScope with PRD A as an immutable commit prerequisite. Keep nested-to-wrapper integration, publication, operator install, codexu gitlink/evidence, and overview closeout as explicit lead/operator phases with receipts. Remove the current parallel handoff because --parallel cannot express this cross-repo ownership."
+    },
+    {
+      "id": "F-002",
+      "severity": "Critical",
+      "source": "copilot",
+      "classification": "fixable",
+      "uiUxJudgment": "not-required",
+      "category": "External action approval",
+      "sectionRef": "Implementation Strategy 5; US-005",
+      "description": "The release sequence performs pushes, immutable tags, account switches, and GitHub Release creation without a hard operator approval checkpoint, despite repository policy requiring confirmation before pushes and externally visible actions.",
+      "status": "fixed",
+      "fixedInIteration": 2,
+      "resolution": "Added a candidate-bound prepublication receipt and explicit persisted operator approval gate before all externally visible release actions.",
+      "relevantFiles": [
+        "AGENTS.md",
+        "codex\\.claude\\commands\\publish-sandbox-patch.md"
+      ],
+      "suggestedFix": "Stop after local build/tests and a prepublication receipt. Require an explicit approval bound to newVersion, nested candidate SHA, wrapper candidate SHA, remotes, retentionTag, wrapperTag, assetName, and assetSha256. Persist release-approval.json with approvedBy, approvedAt, approvedActions, and those bound values. No git push, tag push, or gh release create may run before this receipt exists."
+    },
+    {
+      "id": "F-003",
+      "severity": "Critical",
+      "source": "consensus",
+      "classification": "fixable",
+      "uiUxJudgment": "not-required",
+      "category": "Release reachability and immutable tags",
+      "sectionRef": "Implementation Strategy 5; Acceptance Criteria 14–15; US-005",
+      "description": "The authoritative release workflow tags the current topic commit but runs git push origin main, which pushes a separate local main ref. The immutable wrapper tag/release can therefore reference a commit not integrated into wrapper main, while the member would also violate lead-only main integration.",
+      "status": "fixed",
+      "fixedInIteration": 3,
+      "resolution": "Added a lead-only wrapper main fast-forward, push/fetch equality and ancestry gates before immutable tagging, with all SHAs and command outputs required in release-receipt.json.",
+      "relevantFiles": [
+        "AGENTS.md",
+        "codex\\.claude\\commands\\publish-sandbox-patch.md"
+      ],
+      "suggestedFix": "Make the lead fast-forward the reviewed wrapper topic commit onto local wrapper main, push main, fetch, and require local main == origin/main plus git merge-base --is-ancestor <wrapperReleaseSha> origin/main. Create the immutable wrapper tag only at that verified main-reachable SHA, then push the tag and create the release. Record all command outputs and SHAs in release-receipt.json."
+    },
+    {
+      "id": "F-004",
+      "severity": "Critical",
+      "source": "codex",
+      "classification": "fixable",
+      "uiUxJudgment": "not-required",
+      "category": "Conflicting test instructions",
+      "sectionRef": "Technical Constraints; Implementation Strategy 4–5; Acceptance Criterion 12",
+      "description": "The verification plan conflicts with applicable instructions: nested AGENTS.md prohibits direct cargo test and requires just test, including the complete suite after core changes with operator approval; the plan says no full local suite; publish-sandbox-patch.md still invokes cargo test -p codex-copilot-launcher. An implementation agent cannot satisfy all three contracts.",
+      "status": "fixed",
+      "fixedInIteration": 4,
+      "resolution": "Aligned verification with the authoritative nested AGENTS.md contract, added the operator-approved complete just test gate, enumerated focused tests, and required correcting the release command to use just test.",
+      "relevantFiles": [
+        "codex\\external\\repos\\codex-patched\\AGENTS.md",
+        "codex\\CLAUDE.md",
+        "codex\\.claude\\commands\\publish-sandbox-patch.md"
+      ],
+      "suggestedFix": "Before implementation, update the authoritative release command to just test -p codex-copilot-launcher and list every focused/integration command. Resolve the complete-suite contradiction explicitly: either obtain operator approval and run complete just test after focused gates, or amend the governing instructions to define a focused-plus-CI exception for this release. The plan must name the selected contract and cannot merely skip the gate."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "consensus",
+      "classification": "fixable",
+      "uiUxJudgment": "not-required",
+      "category": "Release preflight ordering",
+      "sectionRef": "Implementation Strategy 4–5; US-004–US-005",
+      "description": "Step 4 creates tracked wrapper invariant/docs changes and Step 5 then enters release Step 0, which rejects every tracked wrapper change except the nested gitlink. The required commit order and clean-tree precondition are contradictory.",
+      "status": "fixed",
+      "fixedInIteration": 5,
+      "resolution": "Clarified the required commit sequence so wrapper-owned changes are committed before the clean-tree preflight and the final lead-owned wrapper release commit records only the final nested gitlink.",
+      "relevantFiles": [
+        "codex\\.claude\\commands\\publish-sandbox-patch.md",
+        "codex\\codex-rs-overlay\\codex-invariant-tests\\tests\\multi_agent_v2_handoff.rs",
+        "codex\\docs\\implementation\\patch-surface.md",
+        "codex\\docs\\implementation\\regression-history.md"
+      ],
+      "suggestedFix": "Specify this order: finish and commit clean nested source changes; create/run wrapper invariant/docs changes; commit wrapper-owned files without staging the dirty nested gitlink; verify wrapper status contains only the allowed gitlink and inner status is clean; then run release Step 0 and version bump. The final lead-owned wrapper release commit records the final nested version SHA."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "consensus",
+      "classification": "fixable",
+      "uiUxJudgment": "not-required",
+      "category": "Missing dogfood prerequisite",
+      "sectionRef": "Implementation Strategy 7; Files to Create/Modify Repository C; Acceptance Criterion 17",
+      "description": "The exact runner required by AC 17 is not reproducible: verification found it absent from the plan worktree and present only as an untracked file in the primary checkout. Its hard-coded primary-checkout paths add another unstated dependency.",
+      "status": "fixed",
+      "fixedInIteration": 6,
+      "resolution": "Replaced the untracked hard-coded dogfood dependency with a tracked, parameterized task-local runner pinned by commit SHA and verified using git ls-files, git show, and SHA-256 hashes before execution.",
+      "relevantFiles": [
+        ".ralph\\jobs\\ralph-model-routing-ui-opus48-nonui-gpt56sol\\dogfood\\run-installed-skill-dogfood.ps1"
+      ],
+      "suggestedFix": "Add a prerequisite commit that tracks the exact runner and its bounded input files, then pin that commit SHA in the plan and verify git ls-files plus Get-FileHash before use. Alternatively copy a provenance-bound runner into the current task's lead-owned dogfood directory and make all paths parameters; do not depend on an untracked primary-checkout file."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "copilot-secondary",
+      "classification": "fixable",
+      "uiUxJudgment": "not-required",
+      "category": "Evidence preservation ordering",
+      "sectionRef": "Implementation Strategy 7; Acceptance Criterion 20",
+      "description": "The runner truncates stdout/stderr and rewrites summary files, and recreates same-name probe directories. Rerunning it before snapshotting will destroy the named `.3` failure evidence that AC 20 requires preserving.",
+      "status": "fixed",
+      "fixedInIteration": 7,
+      "resolution": "Added a committed pre-.4 failure snapshot with per-file hashes, required fresh unique .4 run directories, and mandated post-run integrity verification in Strategy 7 and Acceptance Criterion 20.",
+      "relevantFiles": [
+        ".ralph\\jobs\\ralph-model-routing-ui-opus48-nonui-gpt56sol\\dogfood\\run-installed-skill-dogfood.ps1",
+        ".ralph\\jobs\\codex-v2-copilot-encrypted-subagent-handoff\\dogfood"
+      ],
+      "suggestedFix": "Before any .4 run, copy every .3 command, bounds, rollout, summary, stdout/stderr, role artifact, and probe input into dogfood\\pre-api4-failure-snapshot\\<UTC>; write an inventory containing relativePath, byteLength, sha256, sourcePath, and capturedAt; commit that snapshot in codexu. Run .4 into a fresh unique directory, then re-hash the committed snapshot and fail if any value changed."
+    },
+    {
+      "id": "F-008",
+      "severity": "High",
+      "source": "codex",
+      "classification": "fixable",
+      "uiUxJudgment": "not-required",
+      "category": "Installed plugin provenance",
+      "sectionRef": "Research Findings; Implementation Strategy 7; Acceptance Criterion 17",
+      "description": "The plan cites a machine-local Ralph 5.64 cache path. The installed manifests do report 5.64.0, but no immutable source commit/tag/release or installed-file hash is recorded, so the exact recipe under test is not reproducible.",
+      "status": "fixed",
+      "fixedInIteration": 8,
+      "resolution": "Added a fail-closed Ralph plugin provenance receipt that binds the installed manifest and plan skill to an immutable source commit/release/tag using SHA-256 equality verification.",
+      "relevantFiles": [
+        "C:\\Users\\evmitran\\.codex\\plugins\\cache\\ai-developer-toolkit\\ralph-orchestration\\5.64.0\\.codex-plugin\\plugin.json",
+        "C:\\Users\\evmitran\\.codex\\plugins\\cache\\ai-developer-toolkit\\ralph-orchestration\\5.64.0\\.codex-plugin\\codex-skills\\plan-with-ralph\\SKILL.md"
+      ],
+      "suggestedFix": "Add a provenance gate and receipt with pluginName, version, immutable source repository, source commit, release/tag, installedRoot, pluginManifestSha256, planSkillSha256, installedAt, and a verified equality result against files fetched/read from the immutable source. A version string or cache-directory name alone must fail."
+    },
+    {
+      "id": "F-009",
+      "severity": "High",
+      "source": "consensus",
+      "classification": "fixable",
+      "uiUxJudgment": "not-required",
+      "category": "Artifact ownership evidence",
+      "sectionRef": "Implementation Strategy 7; Acceptance Criteria 18–19",
+      "description": "AC 19 incorrectly requires all four final artifacts to be child-produced. Installed Ralph 5.64 defines plan_researcher as a prose-return child and the parent compiles research-brief.md. Conversely, artifact-writing roles need deterministic child session/write evidence rather than mere final-file existence.",
+      "status": "fixed",
+      "fixedInIteration": 9,
+      "resolution": "Replaced blanket child-produced artifact requirements with the installed Ralph 5.64 role ownership matrix, deterministic child write evidence, researcher prose synthesis proof, and parent transformation hashes.",
+      "relevantFiles": [
+        "C:\\Users\\evmitran\\.codex\\plugins\\cache\\ai-developer-toolkit\\ralph-orchestration\\5.64.0\\.codex-plugin\\codex-skills\\plan-with-ralph\\SKILL.md"
+      ],
+      "suggestedFix": "Replace the blanket criterion with a role matrix. plan_researcher: record child task/session ID, terminal prose hash/canary, and the parent synthesis record proving that prose populated the Researcher Findings section of parent-written research-brief.md. plan_drafter, plan_initial_review, and plan_review_synthesis: record child task/session ID plus child-side write/tool event, artifact path, hash, and parse result. Record any parent move/finalization as a separate transformation with source/destination hashes."
+    },
+    {
+      "id": "F-010",
+      "severity": "High",
+      "source": "copilot-secondary",
+      "classification": "fixable",
+      "uiUxJudgment": "not-required",
+      "category": "Missing integration tests",
+      "sectionRef": "Implementation Strategy 4; Files to Create/Modify Repository A; Acceptance Criteria 2–9",
+      "description": "The plan adds unit/schema/router tests and a structural invariant but no new core/tests/suite test_codex integration test for unsupported-provider production handoff or exact targeted wait, despite the agent-logic integration-test mandate.",
+      "status": "fixed",
+      "fixedInIteration": 10,
+      "resolution": "Added production-dispatch integration tests for provider-aware V2 handoff and exact targeted waits, including suite registration, coverage matrices, and focused test gates.",
+      "relevantFiles": [
+        "codex\\external\\repos\\codex-patched\\codex-rs\\core\\tests\\suite",
+        "codex\\external\\repos\\codex-patched\\AGENTS.md"
+      ],
+      "suggestedFix": "Add named suite modules, for example core/tests/suite/multi_agent_v2_provider_handoff.rs and multi_agent_v2_exact_wait.rs, registered in the suite. Use test_codex to drive production tool dispatch. Cover Copilot plaintext and capable encrypted spawn/send/follow-up, already-final and future exact completion, unrelated completion isolation, steering, timeout, invalid target, and closure. Gate with exact commands such as just test -p codex-core --test all multi_agent_v2_provider_handoff and just test -p codex-core --test all multi_agent_v2_exact_wait."
+    },
+    {
+      "id": "F-011",
+      "severity": "High",
+      "source": "consensus",
+      "classification": "fixable",
+      "uiUxJudgment": "not-required",
+      "category": "Operator pause and resume",
+      "sectionRef": "Implementation Strategy 6–8; US-006–US-007",
+      "description": "The operator-owned global install and lead-owned parent closeout have no durable pause/resume protocol. A single autonomous invocation can block indefinitely, terminate early, or falsely mark completion.",
+      "status": "fixed",
+      "fixedInIteration": 11,
+      "resolution": "Added a durable state-machine pause/resume protocol with hash-bound operator install and lead closeout requests, validated receipts, explicit resume commands, and fail-closed completion gates.",
+      "relevantFiles": [
+        ".ralph\\jobs\\codex-v2-copilot-encrypted-subagent-handoff\\dogfood"
+      ],
+      "suggestedFix": "Define persisted states release_published -> awaiting_operator_install -> installed_verified -> dogfood_passed -> awaiting_lead_closeout -> complete. Before pausing, write operator-install-request.json with releaseReceiptSha256, exact asset path/hash, exact npm install command, locking-process prerequisites, requestedAt, and resumeCommand. Resume only when install-receipt.json exists, validates against the release receipt, and proves version/PATH/vendor state. After dogfood, write a lead-closeout request naming the exact wrapper SHA and acceptance-summary hash."
+    },
+    {
+      "id": "F-012",
+      "severity": "High",
+      "source": "consensus",
+      "classification": "fixable",
+      "uiUxJudgment": "not-required",
+      "category": "Evidence manifest schema",
+      "sectionRef": "Files to Create/Modify Repository C; Acceptance Criteria 14–21",
+      "description": "The planned receipts and acceptance summary are named but their required fields, ownership, ordering, and validation commands are not defined. Installation can begin before immutable release data is durable, and closeout cannot independently determine whether each role/wait/artifact criterion passed.",
+      "status": "fixed",
+      "fixedInIteration": 12,
+      "resolution": "Defined release, install, and acceptance evidence schemas with explicit ownership, immutable checkpoint ordering, required per-role fields, and fail-closed validation commands before installation, dogfood, or closeout.",
+      "relevantFiles": [
+        ".ralph\\jobs\\codex-v2-copilot-encrypted-subagent-handoff\\dogfood\\release-receipt.json",
+        ".ralph\\jobs\\codex-v2-copilot-encrypted-subagent-handoff\\dogfood\\acceptance-summary.json"
+      ],
+      "suggestedFix": "Define schemas. release-receipt.json must require schemaVersion,status,createdAt,newVersion,nestedSha,retentionTag/sha,wrapperSha,wrapperTag/sha,originMainSha,reachableFromOriginMain,asset{name,url,size,sha256},approvalReceiptSha256,commands[]. install-receipt.json must require releaseReceiptSha256,requestedAt,installedAt,operator,installCommand,exitCode,npmGlobalEntry,resolvedPaths[],vendorInventory[],codexVersion,assetSha256. acceptance-summary.json must require release/install receipt hashes, Ralph provenance, preApi4SnapshotInventorySha256, command/bounds hashes, per-role task/session/message/wait/terminal/artifact evidence, telemetry references, privacy result, status, completedAt, and parentCloseoutAllowed. Add a schema-validation command for every receipt and forbid install/closeout until its predecessor validates."
+    },
+    {
+      "id": "F-013",
+      "severity": "High",
+      "source": "copilot-secondary",
+      "classification": "fixable",
+      "uiUxJudgment": "not-required",
+      "category": "Stale release documentation",
+      "sectionRef": "Files to Create/Modify Repository B; Acceptance Criterion 11",
+      "description": "The plan updates codex/CLAUDE.md only with a runtime confusion point, but its Distribution section and the install/developer guides still claim GitHub Packages publication/alternatives. That contradicts the GitHub-Releases-only authoritative release workflow.",
+      "status": "fixed",
+      "fixedInIteration": 13,
+      "resolution": "Expanded the wrapper documentation story and acceptance criterion to remove active GitHub Packages guidance from CLAUDE.md, install.md, and developer-guide.md while requiring GitHub Release tarball and bundle-layout verification.",
+      "relevantFiles": [
+        "codex\\CLAUDE.md",
+        "codex\\docs\\workflows\\install.md",
+        "codex\\docs\\workflows\\developer-guide.md",
+        "codex\\.claude\\commands\\publish-sandbox-patch.md"
+      ],
+      "suggestedFix": "Expand the wrapper docs story to remove GitHub Packages publishing/auth/alternative language from all three active docs, document direct GitHub Release tarball installation and the four-binary-plus-rg layout, and cross-check every distribution sentence against publish-sandbox-patch.md. Acceptance must grep these files for stale GitHub Packages claims and allow only explicit historical/deprecation text."
+    },
+    {
+      "id": "F-014",
+      "severity": "High",
+      "source": "copilot-secondary",
+      "classification": "fixable",
+      "uiUxJudgment": "not-required",
+      "category": "Executable rollback",
+      "sectionRef": "Risk Areas > Release rollback; Acceptance Criterion 22",
+      "description": "Rollback is conceptual rather than executable: no exact `.3` asset/tag/digest, reinstall command, V2-disable command/config path, or version/PATH/V1 smoke is pinned.",
+      "status": "fixed",
+      "fixedInIteration": 14,
+      "resolution": "Pinned the exact .3 release asset, hashes, wrapper/nested tags and commits, reinstall and V2-containment commands, plus mandatory version/PATH/vendor/V1 smoke verification.",
+      "relevantFiles": [
+        "codex\\docs\\implementation\\regression-history.md",
+        "codex\\docs\\workflows\\install.md"
+      ],
+      "suggestedFix": "Before publication, resolve and record the exact v0.141.0-copilot-api.3 release URL, asset name, size, SHA-256, wrapper tag/SHA, and nested retention tag/SHA. Document project-relative download plus hash verification and npm install -g <verified-.3-tarball>; document one-shot -c features.multi_agent_v2=false and the persistent ~/.codex/config.toml [features] multi_agent_v2 = false containment. Require post-rollback npm ls -g, where.exe/Get-Command, codex --version == .3, vendor inventory, and a tool-surface smoke proving V2 is disabled/V1 remains usable."
+    },
+    {
+      "id": "F-015",
+      "severity": "Medium",
+      "source": "copilot",
+      "classification": "fixable",
+      "uiUxJudgment": "not-required",
+      "category": "Targeted wait telemetry",
+      "sectionRef": "Approach > Optional exact V2 task_name wait; Acceptance Criterion 7",
+      "description": "The plan mentions exact telemetry but does not define event cardinality and field equality for targeted waits.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Defined exact begin/end event cardinality and field equality for resolved targeted waits, with outcome-specific tests and zero waiting events for invalid targets.",
+      "relevantFiles": [
+        "codex\\external\\repos\\codex-patched\\codex-rs\\protocol\\src\\protocol.rs",
+        "codex\\external\\repos\\codex-patched\\codex-rs\\core\\src\\tools\\handlers\\multi_agents_v2\\wait.rs"
+      ],
+      "suggestedFix": "Require exactly one CollabWaitingBeginEvent and one CollabWaitingEndEvent per targeted call; matching sender_thread_id and call_id; begin.receiver_thread_ids and receiver_agents naming only the resolved target; end.agent_statuses/statuses naming that same target and its authoritative final/nonfinal outcome; monotonic timestamps. Test terminal, timeout, steering, invalid target, and channel closure, and assert unrelated agents never appear."
+    },
+    {
+      "id": "F-016",
+      "severity": "Medium",
+      "source": "copilot",
+      "classification": "fixable",
+      "uiUxJudgment": "not-required",
+      "category": "Status channel closure semantics",
+      "sectionRef": "Approach > Optional exact V2 task_name wait; Acceptance Criterion 7",
+      "description": "Channel closure behavior is ambiguous. get_status() returns AgentStatus::NotFound and is_final() treats NotFound as final, which can turn loss of authoritative state into false successful completion.",
+      "status": "fixed",
+      "fixedInIteration": 2,
+      "resolution": "Clarified channel-closure fallback semantics and tests so NotFound produces a pinned target-unavailable error rather than false successful completion.",
+      "relevantFiles": [
+        "codex\\external\\repos\\codex-patched\\codex-rs\\core\\src\\agent\\control.rs",
+        "codex\\external\\repos\\codex-patched\\codex-rs\\core\\src\\agent\\status.rs",
+        "codex\\external\\repos\\codex-patched\\codex-rs\\core\\src\\tools\\handlers\\multi_agents_v2\\wait.rs"
+      ],
+      "suggestedFix": "State and test: on receiver closure, perform exactly one bounded control.get_status(target). A concrete final status returns normally; PendingInit/Running/Interrupted yields a model-facing lost-status error; NotFound always yields a specific model-facing target-unavailable error and must not pass through generic is_final success. Pin the exact error text or stable error variant."
+    },
+    {
+      "id": "F-017",
+      "severity": "Medium",
+      "source": "copilot",
+      "classification": "fixable",
+      "uiUxJudgment": "not-required",
+      "category": "Dogfood criteria determinism",
+      "sectionRef": "Implementation Strategy 7; Acceptance Criteria 18–19",
+      "description": "Terms such as meaningful, non-failure contribution, and does not consume the 600000-ms ceiling are not machine-testable and permit inconsistent acceptance.",
+      "status": "fixed",
+      "fixedInIteration": 3,
+      "resolution": "Defined exact per-role canary, terminal-record, wait timing/status, artifact parsing/byte-length, and researcher hash-correlation predicates; exit 0 alone cannot pass.",
+      "relevantFiles": [
+        ".ralph\\jobs\\codex-v2-copilot-encrypted-subagent-handoff\\dogfood\\validate-installed-v2-handoff.ps1"
+      ],
+      "suggestedFix": "Define exact predicates: each role has one expected nonsecret canary; one matching completed terminal record; nonblank last_agent_message containing the role canary or role-specific output marker; timed_out == false; elapsedMs >= 0 and < 600000; no errored/shutdown-without-completion status; exact taskName equality; required JSON parses; required prose files have byteLength > 0; researcher terminal-prose hash is referenced by the parent brief correlation record. Exit 0 alone never passes."
+    },
+    {
+      "id": "F-018",
+      "severity": "Medium",
+      "source": "copilot",
+      "classification": "fixable",
+      "uiUxJudgment": "not-required",
+      "category": "Patch marker semantics",
+      "sectionRef": "Approach > Patch registration; Acceptance Criterion 10",
+      "description": "The criterion that every edit carries exactly one marker family can be read as one family per file, although multi_agents_spec.rs legitimately contains encoding and exact-wait blocks from both families.",
+      "status": "fixed",
+      "fixedInIteration": 4,
+      "resolution": "Clarified marker assignment is per logical block/hunk, permits distinct families within one file, and requires invariant checks for unmarked, duplicate, or conflicting block markers.",
+      "relevantFiles": [
+        "codex\\external\\repos\\codex-patched\\codex-rs\\core\\src\\tools\\handlers\\multi_agents_spec.rs",
+        "codex\\codex-rs-overlay\\codex-invariant-tests\\tests\\multi_agent_v2_handoff.rs"
+      ],
+      "suggestedFix": "Rewrite AC 10 to require exactly one applicable SANDBOX PATCH family per changed logical block/hunk, not per file. Explicitly permit both families in one file when blocks are distinct. Make the invariant test map each expected seam/block to its family, reject unmarked changed logical blocks, and reject duplicate/conflicting markers on the same block."
+    },
+    {
+      "id": "F-019",
+      "severity": "Medium",
+      "source": "codex",
+      "classification": "fixable",
+      "uiUxJudgment": "not-required",
+      "category": "Large module growth",
+      "sectionRef": "Approach > Architecture; Files to Create/Modify Repository A",
+      "description": "multi_agents_spec.rs is verified at 854 lines, above the roughly 800-line threshold, yet the plan adds both encoding policy and exact-wait schema behavior there.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Extracted V2 message and exact-wait schema ownership into private sibling helper/test modules, leaving small delegations in the 854-line shared module and requiring it to finish at or below 800 lines.",
+      "relevantFiles": [
+        "codex\\external\\repos\\codex-patched\\codex-rs\\core\\src\\tools\\handlers\\multi_agents_spec.rs"
+      ],
+      "suggestedFix": "Prefer a sibling private V2 schema helper module that owns conditional message schemas and exact-wait schema construction, leaving only small delegating calls in multi_agents_spec.rs and colocating tests/docs with the helper. If extraction would increase upstream-conflict surface, document the measured line delta, ownership rationale, and why the exception is smaller than the extraction."
+    },
+    {
+      "id": "F-020",
+      "severity": "Medium",
+      "source": "copilot",
+      "classification": "fixable",
+      "uiUxJudgment": "not-required",
+      "category": "Archived overview shard",
+      "sectionRef": "Files to Create/Modify Repository C; US-007",
+      "description": "The closeout inventory names only .ralph-overview/data.json, but mark-shipped can move a task from the hot shard to .ralph-overview/data.archived.json under one lock.",
+      "status": "fixed",
+      "fixedInIteration": 2,
+      "resolution": "Updated Repository C and US-007 closeout steps to account for both overview shards and validate/stage only helper-owned changes.",
+      "relevantFiles": [
+        ".ralph-overview\\data.json",
+        ".ralph-overview\\data.archived.json",
+        "tools\\data-edit.mjs"
+      ],
+      "suggestedFix": "List both overview shards as possible helper-owned outputs while retaining node tools/data-edit.mjs mark-shipped as the only write path. Acceptance should parse both JSON files, verify the task exists in exactly one correct shard with lifecycle/shipManifest updated, and stage only the shard(s) actually changed."
+    },
+    {
+      "id": "F-021",
+      "severity": "Critical",
+      "source": "copilot-secondary",
+      "detectedBy": [
+        "copilot-secondary"
+      ],
+      "category": "repo-rule-constraint",
+      "sectionRef": "Implementation Strategy 5–8; Suggested Decomposition",
+      "description": "US-005–US-007 assign coding of the runner, validator, schemas, and release-command changes directly to the lead while excluding them from both PRDs. Root AGENTS.md forbids bookkeeper-lead coding, leaving required AC artifacts without a valid implementation owner.",
+      "status": "fixed",
+      "fixedInIteration": 3,
+      "resolution": "Added a serial codexu-targeted PRD C for runner, validator, schemas, templates, and tests; assigned the release-command edit to PRD B and limited lead ownership to integration, publication, generated evidence, and closeout.",
+      "relevantFiles": [
+        "AGENTS.md",
+        ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/dogfood/run-installed-v2-dogfood.ps1",
+        ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/dogfood/validate-installed-v2-handoff.ps1",
+        ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/dogfood/evidence-schemas.json"
+      ],
+      "suggestedFix": "Add a serial codexu-targeted PRD/member for static dogfood tooling, leaving only merge, publication, and generated evidence to the lead."
+    },
+    {
+      "id": "F-022",
+      "severity": "Critical",
+      "source": "copilot-secondary",
+      "detectedBy": [
+        "copilot-secondary"
+      ],
+      "category": "privacy-safety",
+      "sectionRef": "Implementation Strategy 7; Acceptance Criterion 20",
+      "description": "The plan commits the complete raw pre-.4 rollout/log snapshot before any privacy validation; the later acceptance privacy check cannot prevent secrets or unrelated session content from already reaching origin history.",
+      "status": "fixed",
+      "fixedInIteration": 4,
+      "resolution": "Required pre-commit sanitization and fail-closed privacy scanning, committing only sanitized derivatives while retaining hashed raw originals outside version control.",
+      "relevantFiles": [
+        ".ralph/jobs/ralph-model-routing-ui-opus48-nonui-gpt56sol/dogfood/",
+        ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/dogfood/pre-api4-failure-snapshot/"
+      ],
+      "suggestedFix": "Sanitize and scan before inventorying or committing, retain only sanitized derivatives in Git, and keep hashed raw originals outside version control."
+    },
+    {
+      "id": "F-023",
+      "severity": "Critical",
+      "source": "copilot-secondary",
+      "detectedBy": [
+        "copilot-secondary"
+      ],
+      "category": "release-integration",
+      "sectionRef": "Implementation Strategy 5; Acceptance Criteria 14–15",
+      "description": "The release flow verifies and pushes only wrapper origin/main, conflicting with AGENTS.md and repo-topology.md requirements to synchronize every configured wrapper mirror; approval and receipt schemas likewise cannot prove work/personal synchronization.",
+      "status": "fixed",
+      "fixedInIteration": 5,
+      "resolution": "Updated the release plan to preflight, approve, push, fetch, and verify wrapper main across origin, work, and personal, with per-mirror evidence required in release receipts.",
+      "relevantFiles": [
+        "AGENTS.md",
+        "codex/docs/workflows/repo-topology.md",
+        "codex/.claude/commands/publish-sandbox-patch.md"
+      ],
+      "suggestedFix": "Preflight canonical remotes and bind push/fetch/SHA verification for origin, work, and personal into approval and release receipts."
+    },
+    {
+      "id": "F-024",
+      "severity": "High",
+      "source": "copilot-secondary",
+      "detectedBy": [
+        "copilot-secondary"
+      ],
+      "category": "implementation-order",
+      "sectionRef": "Implementation Strategy 4–5; Acceptance Criteria 12 and 14",
+      "description": "Step 5 edits publish-sandbox-patch.md only after PRD B has converged and committed, although that file is excluded from PRD B's write scope. Step 0 then rejects the uncommitted tracked edit, while the final release commit must remain gitlink-only.",
+      "status": "fixed",
+      "fixedInIteration": 6,
+      "resolution": "Clarified acceptance criteria 12 and 14 so PRD B reviews and commits the launcher-test and project-relative-scratch corrections before release preflight.",
+      "relevantFiles": [
+        "codex/.claude/commands/publish-sandbox-patch.md"
+      ],
+      "suggestedFix": "Include the launcher-test and project-relative-scratch corrections in PRD B and review/commit them before release preflight."
+    },
+    {
+      "id": "F-025",
+      "severity": "High",
+      "source": "copilot-secondary",
+      "detectedBy": [
+        "copilot-secondary"
+      ],
+      "category": "unimplementable-acceptance",
+      "sectionRef": "Implementation Strategy 2–3; Acceptance Criteria 2, 3, 7, and 9",
+      "description": "ACs 2, 3, 7, and 9 require test_codex production-dispatch coverage for real Copilot capability routing and every status-channel closure fallback class, but the current harness exposes neither injectable Copilot provider/auth nor deterministic receiver-closure status control; the plan also forbids recreating that fixture and excludes test-support changes.",
+      "status": "fixed",
+      "fixedInIteration": 7,
+      "resolution": "Replaced non-injectable Copilot and status-closure production-dispatch requirements with scoped planner/handler tests and a private deterministic receiver/fallback test boundary.",
+      "relevantFiles": [
+        "codex/external/repos/codex-patched/codex-rs/core/tests/common/test_codex.rs",
+        "codex/external/repos/codex-patched/codex-rs/core/tests/suite/client.rs",
+        "codex/external/repos/codex-patched/codex-rs/model-provider/src/provider.rs"
+      ],
+      "suggestedFix": "Use scoped router/helper tests with an unsupported-capability provider and deterministic closure dependency, or explicitly add the minimal test-harness seam to PRD A."
+    },
+    {
+      "id": "F-026",
+      "severity": "Critical",
+      "source": "copilot-secondary",
+      "detectedBy": [
+        "copilot-secondary"
+      ],
+      "category": "unapproved-external-action",
+      "sectionRef": "Approach > Files to Create/Modify; Implementation Strategy step 6; Acceptance Criterion 11",
+      "description": "The plan treats `publish-npm.yml` as read-only, but pushing the planned `.4` tag triggers two `npm publish` commands. AC 11 checks only documentation and would miss unintended package publication.",
+      "status": "fixed",
+      "fixedInIteration": 8,
+      "resolution": "Added publish-npm.yml to PRD B’s write scope, required removal of package publishing before tagging, and expanded acceptance checks to scan all active workflows and release instructions.",
+      "relevantFiles": [
+        "codex/.github/workflows/publish-npm.yml"
+      ],
+      "suggestedFix": "Disable or explicitly approve package publication before tagging and add a repository-wide active-instruction check."
+    },
+    {
+      "id": "F-027",
+      "severity": "Critical",
+      "source": "copilot-secondary",
+      "detectedBy": [
+        "copilot-secondary"
+      ],
+      "category": "release-approval-integrity",
+      "sectionRef": "Approach > Implementation Strategy > step 6; Acceptance Criteria 14–15",
+      "description": "The approval receipt does not bind the final wrapper candidate SHA that is later pushed and tagged, so approval may cover a different commit than the externally published artifact.",
+      "status": "fixed",
+      "fixedInIteration": 9,
+      "resolution": "Bound operator approval to the exact wrapperCandidateSha and required all wrapper pushes, tags, receipts, and release validation to match that approved commit.",
+      "relevantFiles": [
+        ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/dogfood/evidence-schemas.json",
+        ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/dogfood/validate-installed-v2-handoff.ps1"
+      ],
+      "suggestedFix": "Include `wrapperCandidateSha` in approval receipts and verify every push and tag matches it."
+    },
+    {
+      "id": "F-028",
+      "severity": "High",
+      "source": "copilot-secondary",
+      "detectedBy": [
+        "copilot-secondary"
+      ],
+      "category": "unachievable-provenance-gate",
+      "sectionRef": "Technical Constraints; Implementation Strategy step 8; Acceptance Criterion 17",
+      "description": "The Ralph provenance gate requires byte-identical installed and repository manifests, but installation deterministically rewrites the `skills` path. The referenced source also lacks the required tag/release, making the acceptance criterion unsatisfiable.",
+      "status": "fixed",
+      "fixedInIteration": 10,
+      "resolution": "Replaced the unsatisfiable byte-identical release/tag gate with commit-and-package provenance that permits only the documented deterministic skills-path rewrite.",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph/.codex-plugin/plugin.json"
+      ],
+      "suggestedFix": "Bind provenance to the immutable commit and packaged artifact while allowing the documented deterministic manifest rewrite."
+    },
+    {
+      "id": "F-029",
+      "severity": "High",
+      "source": "copilot-secondary",
+      "detectedBy": [
+        "copilot-secondary"
+      ],
+      "category": "missing-race-handling",
+      "sectionRef": "Approach > Architecture > Optional exact V2 task_name wait; Acceptance Criterion 7",
+      "description": "Exact-wait handling covers receiver closure but not initial `subscribe_status` failure after resolution. A missing or concurrently removed target could bypass required telemetry and the distinct unavailable result; the acceptance matrix does not test this race.",
+      "status": "fixed",
+      "fixedInIteration": 11,
+      "resolution": "Added explicit handling and tests for initial subscribe_status failures, nonexistent UUIDs, and resolve-then-remove races with paired telemetry and distinct target-unavailable errors.",
+      "relevantFiles": [
+        "codex/external/repos/codex-patched/codex-rs/core/src/agent/agent_resolver.rs",
+        "codex/external/repos/codex-patched/codex-rs/core/src/agent/control.rs",
+        "codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_v2/wait.rs"
+      ],
+      "suggestedFix": "Define and test initial subscription failure, nonexistent UUIDs, and resolve-then-remove races with consistent telemetry and unavailable errors."
+    }
+  ]
+}

@@ -1,0 +1,179 @@
+{
+  "clusters": [
+    {
+      "name": "capability-and-truthful-encoding",
+      "stories": [
+        "US-001",
+        "US-002"
+      ],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_spec.rs",
+          "codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_v2_spec.rs",
+          "codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_v2_spec_tests.rs",
+          "codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_tests.rs"
+        ],
+        "exclusiveFiles": [
+          "codex/external/repos/codex-patched/codex-rs/model-provider/src/provider.rs",
+          "codex/external/repos/codex-patched/codex-rs/model-provider/src/copilot.rs",
+          "codex/external/repos/codex-patched/codex-rs/model-provider/src/amazon_bedrock/mod.rs",
+          "codex/external/repos/codex-patched/codex-rs/core/src/tools/spec_plan.rs",
+          "codex/external/repos/codex-patched/codex-rs/core/src/tools/spec_plan_tests.rs",
+          "codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_v2.rs",
+          "codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_v2/spawn.rs",
+          "codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_v2/send_message.rs",
+          "codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_v2/followup_task.rs",
+          "codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_v2/message_tool.rs",
+          "codex/external/repos/codex-patched/codex-rs/core/src/tools/spec_plan_tests.rs",
+          "codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_spec_tests.rs"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "PRD A only. US-001 establishes the policy US-002 consumes, and all three V2 message tools must update schema and runtime atomically."
+    },
+    {
+      "name": "exact-task-wait",
+      "stories": [
+        "US-003"
+      ],
+      "phase": 2,
+      "dependsOn": [
+        "capability-and-truthful-encoding"
+      ],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_spec.rs",
+          "codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_v2_spec.rs",
+          "codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_v2_spec_tests.rs",
+          "codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_tests.rs"
+        ],
+        "exclusiveFiles": [
+          "codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_v2/wait.rs"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "PRD A only. The exact wait shares the extracted V2 schema and central handler tests with phase 1 and must land serially on the same nested source tip."
+    },
+    {
+      "name": "invariant-docs-and-local-gates",
+      "stories": [
+        "US-004",
+        "US-005"
+      ],
+      "phase": 3,
+      "dependsOn": [
+        "exact-task-wait"
+      ],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "codex/docs/implementation/patch-surface.md",
+          "codex/docs/implementation/regression-history.md",
+          "codex/CLAUDE.md"
+        ],
+        "exclusiveFiles": [
+          "codex/codex-rs-overlay/codex-invariant-tests/tests/multi_agent_v2_handoff.rs",
+          "codex/docs/workflows/install.md",
+          "codex/docs/workflows/developer-guide.md",
+          "codex/.claude/commands/publish-sandbox-patch.md",
+          "codex/.github/workflows/publish-npm.yml"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "PRD B only. Wrapper invariants, release command/workflow, and documentation consume PRD A immutable output and must be reviewed and committed before release preflight."
+    },
+    {
+      "name": "static-dogfood-tooling",
+      "stories": [
+        "US-005",
+        "US-006",
+        "US-007"
+      ],
+      "phase": 4,
+      "dependsOn": [
+        "invariant-docs-and-local-gates"
+      ],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/dogfood/run-installed-v2-dogfood.ps1",
+          ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/dogfood/validate-installed-v2-handoff.ps1",
+          ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/dogfood/evidence-schemas.json",
+          ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/dogfood/tests/**",
+          ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/dogfood/templates/**"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "PRD C only. A fresh codexu member implements and tests all static release/dogfood/closeout tooling before lead-owned publication or generated evidence."
+    },
+    {
+      "name": "release-api4",
+      "stories": [
+        "US-005"
+      ],
+      "phase": 5,
+      "dependsOn": [
+        "static-dogfood-tooling"
+      ],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "codex/external/repos/codex-patched",
+          "codex/docs/implementation/patch-surface.md",
+          "codex/docs/implementation/regression-history.md"
+        ],
+        "exclusiveFiles": [
+          "codex/external/repos/codex-patched/codex-rs/Cargo.toml",
+          "codex/external/repos/codex-patched/codex-rs/Cargo.lock"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "Lead-owned integration/publication after PRD B and PRD C. Version, nested retention tag, wrapper mirror synchronization/tag, bundle, and receipts form one immutable serial transaction."
+    },
+    {
+      "name": "installed-v2-dogfood",
+      "stories": [
+        "US-006"
+      ],
+      "phase": 6,
+      "dependsOn": [
+        "release-api4"
+      ],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/dogfood/validate-installed-v2-handoff.ps1",
+          ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/dogfood/acceptance-summary.json",
+          ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/dogfood/release-receipt.json",
+          ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/dogfood/parent-rollout.jsonl",
+          ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/dogfood/children/**",
+          ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/dogfood/artifact-inventory.json"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "Operator installation and lead-owned execution use PRD C committed tooling against the exact published .4 bundle; acceptance must complete before parent closeout."
+    },
+    {
+      "name": "codexu-parent-closeout",
+      "stories": [
+        "US-007"
+      ],
+      "phase": 7,
+      "dependsOn": [
+        "installed-v2-dogfood"
+      ],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/dogfood/**"
+        ],
+        "exclusiveFiles": [
+          "codex",
+          ".ralph-overview/data.json",
+          ".ralph-overview/data.archived.json"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Lead-owned codexu merge/bookkeeping closeout consumes passing acceptance and the exact wrapper release SHA; it is never folded into a wrapper PRD."
+    }
+  ]
+}

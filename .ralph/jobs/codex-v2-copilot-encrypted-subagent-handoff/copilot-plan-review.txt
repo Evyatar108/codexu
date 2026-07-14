@@ -1,0 +1,31 @@
+I’m loading the task brief and workspace state before drafting the implementation plan.
+
+The brief is a plan-review task, not an implementation task. I’m reading the review contract and the proposed plan in sections, then I’ll verify its load-bearing code references.
+
+I’m checking the plan’s provider-capability, handler-construction, exact-wait, and release assumptions against the pinned submodule source.
+
+The central design is feasible; I’m now checking lifecycle edge cases and whether the release/dogfood ownership can actually satisfy the plan’s terminal criteria.
+
+### Feasibility
+
+- [Critical] The proposed single `/implement-with-ralph` invocation cannot own the nested `codex-patched`, wrapper `codex`, and parent `codexu` writes. `ai-developer-toolkit/plugins/ralph/AGENTS.md` requires one writable repo per PRD, but US-005 alone spans nested and wrapper repos. Split this into repo-scoped PRDs with `writeScope`, leaving pointer bumps and publication ceremony lead-owned.
+- [High] The required `.ralph/jobs/ralph-model-routing-ui-opus48-nonui-gpt56sol/dogfood/run-installed-skill-dogfood.ps1` is absent from the reviewed commit, even though `.gitignore` explicitly tracks `.ralph/jobs/**`. AC-17 therefore depends on ephemeral state outside the implementation worktree. Make the runner a tracked prerequisite or include its recreation in scope.
+
+### Completeness
+
+- [Critical] The verification strategy conflicts with `codex/external/repos/codex-patched/AGENTS.md`: the plan forbids the full `just test` suite after changing `codex-core`, while that file requires it, and `codex/.claude/commands/publish-sandbox-patch.md` still prescribes direct `cargo test`, which is also forbidden. Resolve the instruction conflict and update the authoritative release workflow before implementation.
+- [High] Ralph 5.64 provenance is underspecified. The checked-in toolkit manifests are 5.62.0, while acceptance requires an exact installed 5.64 runner. Record the immutable 5.64 commit/tag or release digest and an explicit installation/provenance gate rather than relying only on a machine-local cache path.
+
+### Ordering
+
+- [High] Step 4 creates wrapper-owned invariant and documentation changes, then Step 5 runs the release Step-0 clean-tree preflight. That preflight rejects every tracked wrapper change except the nested gitlink, so the described sequence necessarily fails. Either commit wrapper changes before preflight, postpone them until afterward, or explicitly update the preflight’s allowed-path contract.
+- [High] US-006 requires an operator-only global installation and US-007 requires a lead-owned parent closeout, but the Next Step presents one autonomous implementation invocation. Define persisted pause/resume handoffs and separate terminal states for “release published,” “awaiting operator install,” and “awaiting lead closeout.”
+
+### Simplicity
+
+- [Medium] `multi_agents_spec.rs` is already 854 lines, yet the plan adds both encoding-policy and exact-wait schema logic there. This conflicts with the large-module guidance. Extract V2-specific schema helpers into a sibling module, or document why the existing schema ownership makes extraction impractical.
+
+### Acceptance Criteria Quality
+
+- [High] AC-16 through AC-21 mix implementation-agent, operator, and lead responsibilities without naming the authoritative artifact that unlocks each transition. Define exact manifest fields and commands that independently prove installation, dogfood passage, pointer advancement, and blocker removal; otherwise an autonomous agent cannot determine when each criterion is satisfied.
+

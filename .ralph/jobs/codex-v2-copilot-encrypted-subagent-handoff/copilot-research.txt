@@ -1,0 +1,72 @@
+I’m loading the task prompt and repository state first.
+
+I’ve confirmed this is a research-only plan analysis. I’m tracing the native provider, schema, V2 handler, wait, tests, and release seams without modifying files.
+
+The core seams match the feature framing: V2 schemas are provider-blind, all V2 text funnels through one encrypted constructor, and `wait_agent` currently listens only to aggregate input-queue activity. I’m now checking the provider defaulting, task/status registry, and existing test harnesses that constrain the plan.
+
+The natural implementation path is now clear: provider capability must be captured when the tool plan is built, then reused by both schema constructors and runtime message construction; exact waits can reuse the existing V1 status-watch pattern plus the V2 steering receiver. I’m checking those prior-art implementations and race-test hooks before writing the final analysis.
+
+A key prerequisite mismatch surfaced: this worktree pins Ralph 5.62 and lacks the four named 5.64 rollout roles, while acceptance explicitly targets the installed 5.64 plugin. I’m verifying the installed artifact path so the plan can separate Codex source changes from the post-release dogfood correctly.
+
+Research complete; no files were changed.
+
+## Codebase Architecture
+
+- The releasable fork is `codex/`, which wraps the patched upstream repository at `codex/external/repos/codex-patched/`. Rust changes land and are tagged in the inner repository first; the outer wrapper then records the gitlink and publishes the binary bundle.
+- Provider capabilities live in `codex-rs/model-provider-info/src/lib.rs`. Tool registration is assembled per turn in `core/src/tools/spec_plan.rs`, where the active provider is available.
+- V2 tool schemas are defined in `core/src/tools/handlers/multi_agents_spec.rs`. Runtime handling is split across `multi_agents_v2/spawn.rs`, `message_tool.rs`, and `wait.rs`, with shared communication construction in `multi_agents_v2.rs`.
+- Wire representation belongs to `protocol/src/protocol.rs`: `InterAgentCommunication::new()` produces plaintext `content`, while `new_encrypted()` produces only `encrypted_content`.
+- Agent identity and status are already centralized in `core/src/agent/control.rs`; targets resolve by UUID, relative task name, or canonical path, and status subscriptions use current-value `watch` receivers.
+
+## Feature-Relevant Code
+
+- `ModelProviderInfo` is the correct owner for a general encrypted-V2-message capability. Copilot is already identifiable by its reserved provider ID.
+- Current V2 schemas mark `message` encrypted for all providers in:
+  - `spawn_agent`
+  - `send_message`
+  - `followup_task`
+- `spec_plan.rs` should derive the provider capability once and pass it into the V2 handlers. This keeps schema generation and runtime encoding consistent.
+- `multi_agents_v2.rs::communication_from_tool_message()` is the narrow runtime seam: select `InterAgentCommunication::new()` for unsupported providers and retain `new_encrypted()` elsewhere.
+- Spawn model and effort routing in `multi_agents_v2/spawn.rs` is independent and should remain untouched.
+- V2 `wait_agent` is currently targetless and wakes from aggregate `InputQueueActivity`. Add optional `task_name` to its schema and arguments, then use existing target resolution and `AgentControl::subscribe_status()`.
+- For targeted waits:
+  1. Resolve the exact target.
+  2. Subscribe to its status receiver.
+  3. Inspect the receiver’s current value.
+  4. Return immediately if final.
+  5. Otherwise select between status changes, user steering, and timeout.
+- `InputQueueActivity` combines `Mailbox` and `Steer` in one latest-value watch channel. Targeted waiting must ignore mailbox-only activity without losing steering. A small helper in `core/src/session/input_queue.rs` that checks pending user input after any activity is safer than trusting the coalesced enum value.
+- Existing tests provide the required seams:
+  - Provider/default/serde: `model-provider-info/tests/model_provider_info_tests.rs`
+  - Schemas: `multi_agents_spec_tests.rs`
+  - Handler/wait behavior: `multi_agents_tests.rs`
+  - Wire integration: `core/tests/suite/subagent_notifications.rs`
+
+## Technical Constraints
+
+- A normal `bool` capability is unsafe because `ModelProviderInfo` derives `Default`; false would silently make old/custom providers plaintext. Prefer `Option<bool>` interpreted as `true` when absent, with Copilot explicitly set to `Some(false)`.
+- Adding a provider field requires updating direct struct literals and regenerating `core/config.schema.json`.
+- Schema and runtime policy must use the same value. Omitting the schema annotation while still calling `new_encrypted()`, or vice versa, creates mislabeled data.
+- All three V2 communication tools must change together. Spawn-only handling leaves follow-up and parent-to-child messages broken.
+- Omitted-target `wait_agent`, V1 behavior, and non-Copilot encrypted behavior must remain unchanged.
+- `Completed(None)` remains a legitimate generic final state; acceptance should reject it only for the non-empty dogfood canary.
+- Every edit to upstream-canonical files requires `// SANDBOX PATCH:` registration plus invariant and replant documentation in `codex/docs/implementation/patch-surface.md` sections 14 and 15.
+- The checked-in toolkit reports Ralph 5.62 and lacks the named 5.64 rollout roles. Acceptance must use the installed Ralph 5.64 cache, not the in-tree plugin. Direct inspection of that installed cache was restricted in this environment; committed brainstorm evidence identifies its `plan-with-ralph` task-targeting recipe.
+- `publish-sandbox-patch.md` forbids agents from globally replacing the operator’s installation. The release plan therefore needs an explicit operator-owned `.4` install gate before dogfood.
+
+## Implementation Suggestions
+
+1. Add a compatibility-safe provider capability such as `supports_encrypted_multi_agent_messages: Option<bool>` and an accessor defaulting to true. Set Copilot false; retain encrypted defaults elsewhere. Regenerate the config schema and add old-config/custom-provider serde tests.
+2. Derive `encrypt_messages` once in `spec_plan.rs`. Pass it into V2 spawn, send, and follow-up handlers so their schemas conditionally call `.with_encrypted()` and runtime construction selects the matching communication constructor.
+3. Extend only V2 `wait_agent` with optional `task_name`. Populate targeted waiting telemetry with the resolved receiver and terminal status, while preserving the existing result shape unless Ralph demonstrably requires more.
+4. Add deterministic tests for:
+   - Copilot plaintext and non-Copilot encrypted schemas/wire items.
+   - Plaintext never appearing under `encrypted_content`.
+   - Already-final targets.
+   - Completion after subscription but before initial inspection.
+   - Later completion, timeout, steering, unrelated mailbox activity, and omitted-target legacy behavior.
+   - Exact `gpt-5.6-sol`/`xhigh` spawn routing.
+5. Run focused crate tests and `cargo check --workspace` under the frozen iteration profile. Update patch-surface documentation.
+6. Bump the inner workspace and lockfile to `0.141.0-copilot-api.4`, publish through `codex/.claude/commands/publish-sandbox-patch.md`, install the published bundle, then run the exact installed Ralph 5.64 dogfood.
+7. Keep Ralph 5.64 blocked until raw parent and four child rollouts prove `plan_researcher`, `plan_drafter`, `plan_initial_review`, and `plan_review_synthesis` received readable tasks, used Copilot with `gpt-5.6-sol`/`xhigh`, returned meaningful output, produced their expected artifacts, and avoided `600000` ms waits.
+

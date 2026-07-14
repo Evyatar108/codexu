@@ -1,0 +1,861 @@
+[
+  {
+    "iteration": 1,
+    "finding_id": "F-001",
+    "duration_s": 387,
+    "status": "fixed",
+    "summary": "Split execution into serial repository-scoped PRD A and PRD B jobs, removed the combined parallel handoff, and assigned integration, publication, installation, evidence, gitlink, and overview closeout to explicit lead/operator phases.",
+    "openFindingsBefore": [
+      "F-001",
+      "F-002",
+      "F-003",
+      "F-004",
+      "F-005",
+      "F-006",
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014",
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "openFindingsAfter": [
+      "F-002",
+      "F-003",
+      "F-004",
+      "F-005",
+      "F-006",
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014",
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T20:55:51Z"
+  },
+  {
+    "iteration": 2,
+    "finding_id": "F-002",
+    "duration_s": 275,
+    "status": "fixed",
+    "summary": "Added a candidate-bound prepublication receipt and explicit persisted operator approval gate before all externally visible release actions.",
+    "openFindingsBefore": [
+      "F-002",
+      "F-003",
+      "F-004",
+      "F-005",
+      "F-006",
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014",
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "openFindingsAfter": [
+      "F-003",
+      "F-004",
+      "F-005",
+      "F-006",
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014",
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T21:00:26Z"
+  },
+  {
+    "iteration": 3,
+    "finding_id": "F-003",
+    "duration_s": 195,
+    "status": "fixed",
+    "summary": "Added a lead-only wrapper main fast-forward, push/fetch equality and ancestry gates before immutable tagging, with all SHAs and command outputs required in release-receipt.json.",
+    "openFindingsBefore": [
+      "F-003",
+      "F-004",
+      "F-005",
+      "F-006",
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014",
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "openFindingsAfter": [
+      "F-004",
+      "F-005",
+      "F-006",
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014",
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T21:03:42Z"
+  },
+  {
+    "iteration": 4,
+    "finding_id": "F-004",
+    "duration_s": 162,
+    "status": "fixed",
+    "summary": "Aligned verification with the authoritative nested AGENTS.md contract, added the operator-approved complete just test gate, enumerated focused tests, and required correcting the release command to use just test.",
+    "openFindingsBefore": [
+      "F-004",
+      "F-005",
+      "F-006",
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014",
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "openFindingsAfter": [
+      "F-005",
+      "F-006",
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014",
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T21:06:24Z"
+  },
+  {
+    "iteration": 5,
+    "finding_id": "F-005",
+    "duration_s": 409,
+    "status": "fixed",
+    "summary": "Clarified the required commit sequence so wrapper-owned changes are committed before the clean-tree preflight and the final lead-owned wrapper release commit records only the final nested gitlink.",
+    "openFindingsBefore": [
+      "F-005",
+      "F-006",
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014",
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "openFindingsAfter": [
+      "F-006",
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014",
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T21:13:14Z"
+  },
+  {
+    "iteration": 6,
+    "finding_id": "F-006",
+    "duration_s": 221,
+    "status": "fixed",
+    "summary": "Replaced the untracked hard-coded dogfood dependency with a tracked, parameterized task-local runner pinned by commit SHA and verified using git ls-files, git show, and SHA-256 hashes before execution.",
+    "openFindingsBefore": [
+      "F-006",
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014",
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "openFindingsAfter": [
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014",
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T21:16:55Z"
+  },
+  {
+    "iteration": 7,
+    "finding_id": "F-007",
+    "duration_s": 253,
+    "status": "fixed",
+    "summary": "Added a committed pre-.4 failure snapshot with per-file hashes, required fresh unique .4 run directories, and mandated post-run integrity verification in Strategy 7 and Acceptance Criterion 20.",
+    "openFindingsBefore": [
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014",
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "openFindingsAfter": [
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014",
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T21:21:08Z"
+  },
+  {
+    "iteration": 8,
+    "finding_id": "F-008",
+    "duration_s": 305,
+    "status": "fixed",
+    "summary": "Added a fail-closed Ralph plugin provenance receipt that binds the installed manifest and plan skill to an immutable source commit/release/tag using SHA-256 equality verification.",
+    "openFindingsBefore": [
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014",
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "openFindingsAfter": [
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014",
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T21:26:13Z"
+  },
+  {
+    "iteration": 9,
+    "finding_id": "F-009",
+    "duration_s": 231,
+    "status": "fixed",
+    "summary": "Replaced blanket child-produced artifact requirements with the installed Ralph 5.64 role ownership matrix, deterministic child write evidence, researcher prose synthesis proof, and parent transformation hashes.",
+    "openFindingsBefore": [
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014",
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "openFindingsAfter": [
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014",
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T21:30:05Z"
+  },
+  {
+    "iteration": 10,
+    "finding_id": "F-010",
+    "duration_s": 268,
+    "status": "fixed",
+    "summary": "Added production-dispatch integration tests for provider-aware V2 handoff and exact targeted waits, including suite registration, coverage matrices, and focused test gates.",
+    "openFindingsBefore": [
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014",
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "openFindingsAfter": [
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014",
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T21:34:33Z"
+  },
+  {
+    "iteration": 11,
+    "finding_id": "F-011",
+    "duration_s": 479,
+    "status": "fixed",
+    "summary": "Added a durable state-machine pause/resume protocol with hash-bound operator install and lead closeout requests, validated receipts, explicit resume commands, and fail-closed completion gates.",
+    "openFindingsBefore": [
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014",
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "openFindingsAfter": [
+      "F-012",
+      "F-013",
+      "F-014",
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T21:42:32Z"
+  },
+  {
+    "iteration": 12,
+    "finding_id": "F-012",
+    "duration_s": 418,
+    "status": "fixed",
+    "summary": "Defined release, install, and acceptance evidence schemas with explicit ownership, immutable checkpoint ordering, required per-role fields, and fail-closed validation commands before installation, dogfood, or closeout.",
+    "openFindingsBefore": [
+      "F-012",
+      "F-013",
+      "F-014",
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "openFindingsAfter": [
+      "F-013",
+      "F-014",
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T21:49:31Z"
+  },
+  {
+    "iteration": 13,
+    "finding_id": "F-013",
+    "duration_s": 236,
+    "status": "fixed",
+    "summary": "Expanded the wrapper documentation story and acceptance criterion to remove active GitHub Packages guidance from CLAUDE.md, install.md, and developer-guide.md while requiring GitHub Release tarball and bundle-layout verification.",
+    "openFindingsBefore": [
+      "F-013",
+      "F-014",
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "openFindingsAfter": [
+      "F-014",
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T21:53:27Z"
+  },
+  {
+    "iteration": 14,
+    "finding_id": "F-014",
+    "duration_s": 461,
+    "status": "fixed",
+    "summary": "Pinned the exact .3 release asset, hashes, wrapper/nested tags and commits, reinstall and V2-containment commands, plus mandatory version/PATH/vendor/V1 smoke verification.",
+    "openFindingsBefore": [
+      "F-014",
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "openFindingsAfter": [
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T22:01:08Z"
+  },
+  {
+    "phase": "soft-cap",
+    "iteration": 15,
+    "openMediumCount": 6,
+    "openCount": 6,
+    "severities": {
+      "Medium": 6
+    },
+    "timestamp": "2026-07-13T22:01:08Z"
+  },
+  {
+    "iteration": 1,
+    "finding_id": "F-015",
+    "duration_s": 166,
+    "status": "fixed",
+    "summary": "Defined exact begin/end event cardinality and field equality for resolved targeted waits, with outcome-specific tests and zero waiting events for invalid targets.",
+    "openFindingsBefore": [
+      "F-015",
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "openFindingsAfter": [
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T22:04:36Z"
+  },
+  {
+    "iteration": 2,
+    "finding_id": "F-016",
+    "duration_s": 201,
+    "status": "fixed",
+    "summary": "Clarified channel-closure fallback semantics and tests so NotFound produces a pinned target-unavailable error rather than false successful completion.",
+    "openFindingsBefore": [
+      "F-016",
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "openFindingsAfter": [
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T22:07:58Z"
+  },
+  {
+    "iteration": 3,
+    "finding_id": "F-017",
+    "duration_s": 215,
+    "status": "fixed",
+    "summary": "Defined exact per-role canary, terminal-record, wait timing/status, artifact parsing/byte-length, and researcher hash-correlation predicates; exit 0 alone cannot pass.",
+    "openFindingsBefore": [
+      "F-017",
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "openFindingsAfter": [
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T22:11:33Z"
+  },
+  {
+    "iteration": 4,
+    "finding_id": "F-018",
+    "duration_s": 121,
+    "status": "fixed",
+    "summary": "Clarified marker assignment is per logical block/hunk, permits distinct families within one file, and requires invariant checks for unmarked, duplicate, or conflicting block markers.",
+    "openFindingsBefore": [
+      "F-018",
+      "F-019",
+      "F-020"
+    ],
+    "openFindingsAfter": [
+      "F-019",
+      "F-020"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T22:13:34Z"
+  },
+  {
+    "phase": "soft-cap",
+    "iteration": 5,
+    "openMediumCount": 2,
+    "openCount": 2,
+    "severities": {
+      "Medium": 2
+    },
+    "timestamp": "2026-07-13T22:13:34Z"
+  },
+  {
+    "iteration": 1,
+    "finding_id": "F-019",
+    "duration_s": 420,
+    "status": "fixed",
+    "summary": "Extracted V2 message and exact-wait schema ownership into private sibling helper/test modules, leaving small delegations in the 854-line shared module and requiring it to finish at or below 800 lines.",
+    "openFindingsBefore": [
+      "F-019",
+      "F-020"
+    ],
+    "openFindingsAfter": [
+      "F-020"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T22:20:58Z"
+  },
+  {
+    "iteration": 2,
+    "finding_id": "F-020",
+    "duration_s": 243,
+    "status": "fixed",
+    "summary": "Updated Repository C and US-007 closeout steps to account for both overview shards and validate/stage only helper-owned changes.",
+    "openFindingsBefore": [
+      "F-020"
+    ],
+    "openFindingsAfter": [],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T22:25:01Z"
+  },
+  {
+    "iteration": 2,
+    "finding_id": "re-review",
+    "phase": "re-review",
+    "duration_s": 1220,
+    "status": "rereview",
+    "summary": "Re-review round 1 found 5 new Medium+ finding(s)",
+    "reviewers": [
+      "copilot-secondary"
+    ],
+    "timestamp": "2026-07-13T22:45:21Z"
+  },
+  {
+    "iteration": 3,
+    "finding_id": "F-021",
+    "duration_s": 368,
+    "status": "fixed",
+    "summary": "Added a serial codexu-targeted PRD C for runner, validator, schemas, templates, and tests; assigned the release-command edit to PRD B and limited lead ownership to integration, publication, generated evidence, and closeout.",
+    "openFindingsBefore": [
+      "F-021",
+      "F-022",
+      "F-023",
+      "F-024",
+      "F-025"
+    ],
+    "openFindingsAfter": [
+      "F-022",
+      "F-023",
+      "F-024",
+      "F-025"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T22:51:30Z"
+  },
+  {
+    "iteration": 4,
+    "finding_id": "F-022",
+    "duration_s": 86,
+    "status": "fixed",
+    "summary": "Required pre-commit sanitization and fail-closed privacy scanning, committing only sanitized derivatives while retaining hashed raw originals outside version control.",
+    "openFindingsBefore": [
+      "F-022",
+      "F-023",
+      "F-024",
+      "F-025"
+    ],
+    "openFindingsAfter": [
+      "F-023",
+      "F-024",
+      "F-025"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T22:52:56Z"
+  },
+  {
+    "iteration": 5,
+    "finding_id": "F-023",
+    "duration_s": 261,
+    "status": "fixed",
+    "summary": "Updated the release plan to preflight, approve, push, fetch, and verify wrapper main across origin, work, and personal, with per-mirror evidence required in release receipts.",
+    "openFindingsBefore": [
+      "F-023",
+      "F-024",
+      "F-025"
+    ],
+    "openFindingsAfter": [
+      "F-024",
+      "F-025"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T22:57:18Z"
+  },
+  {
+    "iteration": 6,
+    "finding_id": "F-024",
+    "duration_s": 155,
+    "status": "fixed",
+    "summary": "Clarified acceptance criteria 12 and 14 so PRD B reviews and commits the launcher-test and project-relative-scratch corrections before release preflight.",
+    "openFindingsBefore": [
+      "F-024",
+      "F-025"
+    ],
+    "openFindingsAfter": [
+      "F-025"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T22:59:54Z"
+  },
+  {
+    "iteration": 7,
+    "finding_id": "F-025",
+    "duration_s": 416,
+    "status": "fixed",
+    "summary": "Replaced non-injectable Copilot and status-closure production-dispatch requirements with scoped planner/handler tests and a private deterministic receiver/fallback test boundary.",
+    "openFindingsBefore": [
+      "F-025"
+    ],
+    "openFindingsAfter": [],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T23:06:51Z"
+  },
+  {
+    "iteration": 7,
+    "finding_id": "re-review",
+    "phase": "re-review",
+    "duration_s": 1227,
+    "status": "rereview",
+    "summary": "Re-review round 2 found 4 new Medium+ finding(s)",
+    "reviewers": [
+      "copilot-secondary"
+    ],
+    "timestamp": "2026-07-13T23:27:18Z"
+  },
+  {
+    "iteration": 8,
+    "finding_id": "F-026",
+    "duration_s": 373,
+    "status": "fixed",
+    "summary": "Added publish-npm.yml to PRD B’s write scope, required removal of package publishing before tagging, and expanded acceptance checks to scan all active workflows and release instructions.",
+    "openFindingsBefore": [
+      "F-026",
+      "F-027",
+      "F-028",
+      "F-029"
+    ],
+    "openFindingsAfter": [
+      "F-027",
+      "F-028",
+      "F-029"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T23:33:31Z"
+  },
+  {
+    "iteration": 9,
+    "finding_id": "F-027",
+    "duration_s": 388,
+    "status": "fixed",
+    "summary": "Bound operator approval to the exact wrapperCandidateSha and required all wrapper pushes, tags, receipts, and release validation to match that approved commit.",
+    "openFindingsBefore": [
+      "F-027",
+      "F-028",
+      "F-029"
+    ],
+    "openFindingsAfter": [
+      "F-028",
+      "F-029"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T23:40:00Z"
+  },
+  {
+    "iteration": 10,
+    "finding_id": "F-028",
+    "duration_s": 367,
+    "status": "fixed",
+    "summary": "Replaced the unsatisfiable byte-identical release/tag gate with commit-and-package provenance that permits only the documented deterministic skills-path rewrite.",
+    "openFindingsBefore": [
+      "F-028",
+      "F-029"
+    ],
+    "openFindingsAfter": [
+      "F-029"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T23:46:07Z"
+  },
+  {
+    "iteration": 11,
+    "finding_id": "F-029",
+    "duration_s": 356,
+    "status": "fixed",
+    "summary": "Added explicit handling and tests for initial subscribe_status failures, nonexistent UUIDs, and resolve-then-remove races with paired telemetry and distinct target-unavailable errors.",
+    "openFindingsBefore": [
+      "F-029"
+    ],
+    "openFindingsAfter": [],
+    "agentExitCode": 0,
+    "timestamp": "2026-07-13T23:52:03Z"
+  }
+]

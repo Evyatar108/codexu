@@ -1,0 +1,30 @@
+### Feasibility
+
+- [Critical] The release sequence performs externally visible pushes, immutable tags, account switching, and GitHub Release creation without an explicit operator approval gate. Root `AGENTS.md` requires confirmation before pushes or actions visible to others. Add a hard approval checkpoint immediately before the first `git push`, retention tag, wrapper tag, or `gh release create`; local build and verification may precede approval.
+- [High] The wrapper topology uses `ralph/codex-v2-copilot-encrypted-subagent-handoff`, but the authoritative workflow runs `git push origin main` at `codex/.claude/commands/publish-sandbox-patch.md:343`. From the feature worktree this pushes the separate local `main` ref, not the current release commit. Specify an approved fast-forward/merge into wrapper `main`, or an explicitly verified `HEAD:main` push, before tagging and publishing.
+- [High] US-006 is operator-owned and therefore cannot complete autonomously, but the plan lacks a durable pause/resume state. Define the exact receipt written before requesting installation, the command the operator runs, and the command or manifest condition that resumes validation. Otherwise the implementation job may block indefinitely or falsely terminate before criteria 16–21.
+- The provider-owner amendment is adequate. `ProviderCapabilities` and `turn_context.provider.capabilities()` exist at `codex-rs/model-provider/src/provider.rs:29` and `codex-rs/core/src/tools/spec_plan.rs:727`; the proposed runtime seam avoids unnecessary serialized API changes.
+
+### Completeness
+
+- [High] The plan does not require proving that the wrapper release commit is reachable from `origin/main`. Acceptance criterion 14 checks tag-to-SHA identity, but that can pass while `origin/main` remains stale due to the feature-branch problem. Add an assertion equivalent to `merge-base --is-ancestor <wrapper-release-sha> origin/main`.
+- [Medium] Targeted-wait telemetry is mentioned but insufficiently specified. Tests should assert exactly one `CollabWaitingBeginEvent` and one matching `CollabWaitingEndEvent`, the resolved `receiver_thread_ids`/`receiver_agents`, final status maps, matching `call_id`, and behavior for timeout, steering, invalid target, and channel closure.
+- [Medium] Channel-closure semantics are ambiguous. `AgentControl::get_status()` returns `AgentStatus::NotFound`, not a `Result`, at `codex-rs/core/src/agent/control.rs:265`, while `is_final()` treats `NotFound` as final at `codex-rs/core/src/agent/status.rs:23`. Explicitly require `NotFound` after closure to produce the planned model-facing target error rather than successful completion.
+- [Medium] Overview closeout can modify both `.ralph-overview/data.json` and `.ralph-overview/data.archived.json` because `mark-shipped` moves tasks between hot and cold shards. Repository C’s file inventory should list both, while retaining `tools/data-edit.mjs` as the only write path.
+
+### Ordering
+
+- [High] Step 4 creates tracked wrapper invariant and documentation changes, then Step 5 starts the publish workflow’s clean-wrapper preflight. That preflight explicitly fails on any tracked wrapper change other than the nested gitlink at `codex/.claude/commands/publish-sandbox-patch.md:47`. Yet the plan postpones the wrapper docs/invariant commit until after the nested version commit. Add a precise sequence: commit wrapper tests/docs before preflight, or temporarily preserve and restore them with an explicitly verified mechanism, then create the final wrapper release commit.
+- [High] The required commit order and release precondition currently conflict: “all nested source/release commits first; wrapper gitlink/docs second” cannot coexist with running wrapper invariant tests before release while still entering Step 0 clean. Resolve this contradiction explicitly rather than leaving it to implementation-time improvisation.
+- [Medium] The operator-install handoff should occur only after the release receipt and asset digest are durably stored in the codexu task directory. Currently evidence generation is spread across Steps 5–7, leaving unclear which immutable data is available when installation begins.
+
+### Simplicity
+
+No issues found. The shared encoding enum and separate targeted/targetless wait branches are appropriate and simpler than widening serialized provider configuration or rewriting protocol transport.
+
+### Acceptance Criteria Quality
+
+- [High] “Child-produced artifact” lacks a deterministic proof method. Define required rollout evidence, such as a matching child session ID plus child-side file-write/tool event for each artifact, and explicitly reject artifacts only observed in the parent rollout.
+- [Medium] “Meaningful,” “non-failure contribution,” and “does not consume the 600000-ms ceiling” are not machine-testable. Specify minimum content rules, prohibited failure markers, required JSON fields, and a concrete elapsed-time threshold—or reduce the timing requirement to `timed_out == false`.
+- [Medium] Criterion 7 says channel closure must be covered but does not state the expected result. Require either the final authoritative status or a specific model-facing error when the fallback status is `NotFound`.
+- [Medium] Criterion 10 says every edit carries “exactly one” marker family, while fork rules require markers on edited lines. Clarify that each changed logical block has one applicable family and that a file such as `multi_agents_spec.rs` may legitimately contain both families in separate blocks.
