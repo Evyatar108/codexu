@@ -1,7 +1,7 @@
 # Implementation Plan: PRD A — Codex-Patched Provider-Aware Handoff and Exact Wait
 <!-- ralph-meta {"overviewTaskId":"codex-v2-copilot-encrypted-subagent-handoff","uiUxJudgment":"not-required"} -->
 
-*Repository-scoped implementation seed derived from the reviewed parent plan. Consume this file directly with `/implement-with-ralph --from-plan`; do not run the combined parent plan.*
+*Repository-scoped implementation seed derived from the reviewed parent plan. Use the external-worktree bootstrap below; do not pass this file directly to `/implement-with-ralph --from-plan` and do not run the combined parent plan.*
 
 ## Overview
 
@@ -11,7 +11,8 @@ This execution unit ends with reviewed local nested-source commits and an immuta
 
 ## Execution Contract
 
-- **Exact target repository:** `D:\harness-efforts\codexu\codex\external\repos\codex-patched`
+- **Exact `repoDir` and externally managed worktree:** `D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched`
+- **Ralph tracking job:** `D:\harness-efforts\codexu\.ralph\jobs\codex-v2-copilot-encrypted-subagent-handoff-prd-a`
 - **UI/UX judgment:** `not-required`
 - **Base branch:** current fetched `sandbox-patches`
 - **Source branch:** `ralph/codex-v2-copilot-encrypted-subagent-handoff-source`
@@ -21,6 +22,39 @@ This execution unit ends with reviewed local nested-source commits and an immuta
 - **Writable repository:** the effective nested checkout only.
 
 The lead must create the wrapper context worktree from fetched wrapper `origin/main`, recursively initialize its nested checkout, and create the source branch from current `sandbox-patches`. Do **not** create a standalone inner `codex-patched\.worktrees\...` build checkout: the Rust workspace depends on the surrounding wrapper overlay through its normal relative path.
+
+### Supported external-worktree bootstrap and exact dispatch
+
+The installed Ralph workflow has no public `--reuse-existing-worktree`, `--worktree-path`, or `--no-worktree` option on the normal `--from-plan` path. That path always asks `convert-to-ralph-prd` to create `<job_dir>\worktree`, so it is forbidden for PRD A. The supported path is the converter's documented batch contract followed by the implementation skill's documented Phase 2R resume contract:
+
+1. The lead creates the wrapper context worktree and effective nested checkout above, fetches the inner remotes, checks out the source branch at the exact current `sandbox-patches` tip, and records:
+   - `NESTED_BASE_SHA = git -C <effective-nested-checkout> rev-parse sandbox-patches`
+   - `WRAPPER_CONTEXT_SHA = git -C <wrapper-context-worktree> rev-parse HEAD`
+   - proof that nested `HEAD == NESTED_BASE_SHA`, the source branch name is exact, and both trees are clean except for the expected checked-out nested gitlink relationship.
+2. From the codexu root, dispatch one policy-routed PRD-materialization task. This task creates orchestration artifacts only; it must not edit source:
+
+   ```text
+   task(
+     agent_type="general-purpose",
+     description="Materialize PRD A external-worktree job",
+     name="materialize-prd-a",
+     model="gpt-5.6-sol",
+     reasoning_effort="xhigh",
+     prompt="Resolve the installed Ralph plugin root from the active implement-with-ralph skill. Read .copilot-plugin/internal-workflows/create-prd/SKILL.md and .copilot-plugin/internal-workflows/convert-to-ralph-prd/SKILL.md. Generate a three-story PRD markdown from D:\harness-efforts\codexu\.ralph\jobs\codex-v2-copilot-encrypted-subagent-handoff\scoped-plans\codex-patched-plan.md, then execute convert-to-ralph-prd in batch mode with: --batch --branch ralph/codex-v2-copilot-encrypted-subagent-handoff-source --worktree-path D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched --start-point <NESTED_BASE_SHA> --job-dir D:\harness-efforts\codexu\.ralph\jobs\codex-v2-copilot-encrypted-subagent-handoff-prd-a --target-repo D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched --ui-ux-judgment not-required --overview-task-id codex-v2-copilot-encrypted-subagent-handoff. Substitute the recorded immutable NESTED_BASE_SHA, not a branch name. Preserve exactly A-001/A-002/A-003 as three one-iteration Ralph stories; add the exact Writable Files list as top-level writeScope; set additionalDirs only to the wrapper overlay/docs directories needed as read-only context; set worktree.external=true. Complete converter schema/model-routing and criteria-warning validation. Scaffold job-state.json with status PENDING, startCommit=NESTED_BASE_SHA, zero iterations, 0/3 passed, no orchestrator phase, and the resolved pluginRoot. Do not create any worktree, edit code, push, release, install, or run Ralph."
+   )
+   ```
+
+3. Before implementation, the lead verifies all of the following:
+   - `prd.json.repoDir == prd.json.worktree.path ==` the effective nested checkout;
+   - `worktree.branch` and `branch.name` are the exact source branch, `worktree.startPoint == job-state.json.startCommit == NESTED_BASE_SHA`, and `worktree.external == true`;
+   - the PRD contains exactly three stories mapping one-to-one to A-001/A-002/A-003, and its `writeScope` is exactly the 16 paths under `Writable Files`, with no wrapper or codexu writable path;
+   - `node <plugin_root>\src\model-routing-policy.mjs validate-prd --prd <job_dir>\prd.json` and `node <plugin_root>\src\validate-prd-scope.mjs --prd <job_dir>\prd.json` both exit `0`;
+   - the effective nested checkout is still clean at `NESTED_BASE_SHA`, and `<job_dir>\worktree` was not created.
+4. Dispatch implementation with this exact command:
+
+   `$ralph-orchestration:implement-with-ralph --run-only --job D:\harness-efforts\codexu\.ralph\jobs\codex-v2-copilot-encrypted-subagent-handoff-prd-a --ui-ux-judgment not-required --allow-stale-base --autonomous`
+
+   `--run-only` reads the validated external `worktree.path`, skips normal worktree creation, executes stories in that effective nested checkout, and retains Phase 5a/5b review-fix convergence and later Ralph finalization. `--allow-stale-base` is intentional only because Ralph's generic freshness guard compares against the inner repository's default branch while this patch must fork from the separately verified current `sandbox-patches`; it does not waive the explicit `HEAD == NESTED_BASE_SHA` gate. Do not add `--from-plan`, `--target-repo`, or `--parallel` to this dispatch.
 
 Before editing, record wrapper HEAD, nested base SHA, remotes, branch, and clean status; run `cargo metadata --no-deps --format-version 1` from `codex-rs`; and re-probe every named source seam. Any incompatible source drift is a hard stop requiring plan refresh.
 
@@ -32,7 +66,7 @@ On completion, return a receipt payload for the lead to verify and persist at:
 
 `D:\harness-efforts\codexu\.ralph\jobs\codex-v2-copilot-encrypted-subagent-handoff\receipts\prd-a-nested-source.json`
 
-The PRD must not write into codexu itself. The payload must contain:
+The implementation stories and `writeScope` must not write into codexu; the Ralph tracking job above may contain only orchestration metadata and review artifacts. The payload must contain:
 
 - `schemaVersion`, `executionUnit: "PRD-A"`, `targetRepository`, `wrapperContextSha`, `baseBranch`, and `baseSha`;
 - ordered `commitShas` and `finalCommitSha`;
@@ -165,7 +199,8 @@ Capture expensive output once under a project-relative task evidence directory. 
 10. Every changed production/test block has exactly one applicable marker family and `multi_agents_spec.rs` is at most 800 lines.
 11. All listed focused, workspace, and approved full-suite gates pass.
 12. Only listed writable files changed; no version/lock, wrapper, parent, generated evidence, or installed-plugin file changed.
-13. Local commits exist on the source branch, the nested tree is clean, and nothing was pushed.
+13. The preseeded Ralph job passes the external-worktree identity, three-story mapping, exact `writeScope`, model-routing, criteria, and scope-validation gates above; no standalone inner worktree exists.
+14. Local commits exist on the source branch, the nested tree is clean, and nothing was pushed.
 
 ## Phase 5a / Phase 5b Convergence
 
@@ -184,8 +219,8 @@ None. Source drift or missing verified seams is a hard stop, not an invitation t
 
 ## Next Step
 
-Run only after the wrapper context worktree and nested source branch satisfy this plan:
+Run only after the wrapper context worktree, nested source branch, and preseeded job satisfy the supported external-worktree bootstrap above:
 
-`$ralph-orchestration:implement-with-ralph --from-plan .ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/scoped-plans/codex-patched-plan.md --target-repo D:\harness-efforts\codexu\codex\external\repos\codex-patched`
+`$ralph-orchestration:implement-with-ralph --run-only --job D:\harness-efforts\codexu\.ralph\jobs\codex-v2-copilot-encrypted-subagent-handoff-prd-a --ui-ux-judgment not-required --allow-stale-base --autonomous`
 
 Do not push. After the lead validates and persists PRD A's immutable receipt, continue with `codex-wrapper-plan.md`.
