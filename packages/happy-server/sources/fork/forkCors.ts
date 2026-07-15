@@ -23,7 +23,7 @@ export function installForkCors(fastifyApp: ReturnType<typeof createApi>) {
         // Access INJECTS that header between its edge and the origin; a browser
         // never sends it, so it must not appear in the preflight allowlist. The
         // pairing headers below ARE browser-sent (POST /pair/complete).
-        allowedHeaders: ['X-Tunnel-Authorization', 'X-Loopback-Capability', 'X-Happy-Client', 'Content-Type', 'X-Happy-Device-Proof', 'X-Happy-Pairing-Secret', 'X-Happy-Pairing-Nonce', 'CF-Access-Client-Id', 'CF-Access-Client-Secret'],
+        allowedHeaders: ['X-Tunnel-Authorization', 'X-Loopback-Capability', 'X-Happy-Client', 'Content-Type', 'X-Happy-Device-Proof', 'X-Happy-Local-Device-Proof', 'X-Happy-Pairing-Secret', 'X-Happy-Pairing-Nonce', 'CF-Access-Client-Id', 'CF-Access-Client-Secret'],
         methods: ['GET', 'POST', 'PUT', 'DELETE']
     });
 }

@@ -48,6 +48,7 @@ export function startDaemonControlServer({
   onHappySessionWebhook,
   localMachineId = 'local-machine',
   agentCommsRemote,
+  createPairingInvite,
 }: {
   getChildren: () => TrackedSession[];
   stopSession: (sessionId: string) => boolean | Promise<boolean>;
@@ -61,6 +62,11 @@ export function startDaemonControlServer({
     tunnelManager?: Pick<TunnelManager, 'listOperatorTunnels' | 'mintConnectToken'>;
     deliverRemote?: (envelope: AgentCommsEnvelope) => Promise<AgentCommsDeliveryAck>;
   };
+  createPairingInvite?: (
+    origin: string | undefined,
+    publicMode: boolean,
+    capability: string | undefined,
+  ) => Promise<string>;
 }): Promise<{ port: number; stop: () => Promise<void> }> {
   return new Promise((resolve) => {
     const app = fastify({
@@ -78,6 +84,43 @@ export function startDaemonControlServer({
           tunnelManager: agentCommsRemote.tunnelManager,
         })
         : undefined);
+
+    typed.post('/pair', {
+      schema: {
+        body: z.object({
+          origin: z.string().url().optional(),
+          public: z.boolean().optional(),
+        }),
+        response: {
+          200: z.object({ invite: z.string() }),
+          400: z.object({ error: z.string() }),
+          401: z.object({ error: z.string() }),
+          503: z.object({ error: z.string() }),
+        },
+      },
+    }, async (request, reply) => {
+      if (!createPairingInvite) {
+        return reply.code(503).send({ error: 'pairing_unavailable' });
+      }
+      if (!request.body.public) {
+        if (!request.body.origin || new URL(request.body.origin).origin !== request.body.origin) {
+          return reply.code(400).send({ error: 'invalid_origin' });
+        }
+      }
+      try {
+        return {
+          invite: await createPairingInvite(
+            request.body.origin,
+            request.body.public === true,
+            typeof request.headers['x-loopback-capability'] === 'string'
+              ? request.headers['x-loopback-capability']
+              : undefined,
+          ),
+        };
+      } catch {
+        return reply.code(401).send({ error: 'pairing_denied' });
+      }
+    });
 
     // Session reports itself after creation
     typed.post('/session-started', {

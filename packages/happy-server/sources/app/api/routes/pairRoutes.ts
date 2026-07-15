@@ -1,56 +1,29 @@
-import { z } from "zod";
+import {
+    CanonicalLocalProfileSchema,
+    PairCompleteRequestSchema,
+    PairCompleteResponseSchema,
+    signPairCompleteResponse,
+    type CanonicalLocalProfile,
+} from "@slopus/happy-wire";
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
+import * as path from "node:path";
 import nacl from "tweetnacl";
-import * as os from "os";
-import * as path from "path";
-import { type Fastify } from "../types";
-import { type TofuHandshakeConfig } from "../api";
-import { type PairingGate, type DeviceEnrollResult } from "../auth/remoteDeviceAuth";
+import { z } from "zod";
+
+import type { LocalAuthRuntime } from "../auth/localDeviceAuth";
+import type { PublicAuthRuntime } from "../auth/remoteDeviceAuth";
+import type { TofuHandshakeConfig } from "../api";
+import type { Fastify } from "../types";
 
 export interface PairRoutePaths {
     profile?: string;
 }
 
-/** Public-mode gating for the pre-enrollment `/pair/complete` route. */
 export interface PairRouteAuthOptions {
-    /**
-     * True when this listener is bound for public-internet exposure. In public
-     * mode `/pair/complete` fails closed unless the operator pairing gate passes;
-     * the historical Dev Tunnels behavior (gateway token is the identity gate) is
-     * preserved only when this is false.
-     */
-    publicMode?: boolean;
-    /** The operator pairing-window + QR-secret + replay gate (required in public mode). */
-    pairingGate?: PairingGate;
-    /**
-     * TOFU-enrolls the pairing device's Ed25519 public key into the live verifier
-     * (public mode only). Invoked ONLY after the pairing gate + profile checks pass,
-     * so a device is pinned exactly when pairing actually succeeds. Absent in tunnel
-     * mode (device proofs are not used there), where device key fields are ignored.
-     */
-    enrollDevice?: (record: { keyId: string; publicKey: string }) => Promise<DeviceEnrollResult>;
-}
-
-function defaultProfilePath(): string {
-    return path.join(os.homedir(), ".happy", "profile.json");
-}
-
-const ProfileSchema = z.object({
-    githubUserId: z.number(),
-    githubLogin: z.string(),
-    name: z.string().nullable().optional(),
-    avatarUrl: z.string().nullable().optional(),
-});
-
-type ProfileData = z.infer<typeof ProfileSchema>;
-
-async function readProfile(profilePath: string): Promise<ProfileData | null> {
-    try {
-        const fs = await import("fs/promises");
-        const text = await fs.readFile(profilePath, "utf-8");
-        return ProfileSchema.parse(JSON.parse(text));
-    } catch {
-        return null;
-    }
+    mode: "local" | "public";
+    localAuthRuntime?: LocalAuthRuntime;
+    publicAuthRuntime?: PublicAuthRuntime;
 }
 
 const PAIR_RATE_LIMIT_MAX = 30;
@@ -61,13 +34,6 @@ function isPairRateLimited(ip: string, now: number): boolean {
     const bucket = pairRateBuckets.get(ip);
     if (!bucket || now - bucket.windowStart >= PAIR_RATE_LIMIT_WINDOW_MS) {
         pairRateBuckets.set(ip, { count: 1, windowStart: now });
-        if (pairRateBuckets.size > 1024) {
-            for (const [k, value] of pairRateBuckets) {
-                if (now - value.windowStart >= PAIR_RATE_LIMIT_WINDOW_MS) {
-                    pairRateBuckets.delete(k);
-                }
-            }
-        }
         return false;
     }
     if (bucket.count >= PAIR_RATE_LIMIT_MAX) {
@@ -77,40 +43,39 @@ function isPairRateLimited(ip: string, now: number): boolean {
     return false;
 }
 
-export function pairRoutes(app: Fastify, tofuConfig: TofuHandshakeConfig, paths: PairRoutePaths = {}, authOptions: PairRouteAuthOptions = {}) {
-    // POST /pair/complete — single-step pair + refresh. Gateway X-Tunnel-Authorization
-    // (Dev Tunnels connect token) is the identity gate; the per-machine GitHub device
-    // flow that Sprint A originally specified was redundant on a personal fork because
-    // ownership of the tunnel already proves the caller is the operator. Identity is
-    // read from the locally-onboarded profile.json (written by `happy auth login --force`).
-    //
-    // In public mode this route is the ONLY path that can hand key material to a
-    // not-yet-paired device, so it fails closed behind the operator pairing gate
-    // (window + pre-shared QR secret + single-use nonce). No gate pass → 401 with
-    // no key material.
-    app.post('/pair/complete', {
+async function readCanonicalProfile(profilePath: string, localUserId: string): Promise<CanonicalLocalProfile> {
+    try {
+        const parsed = CanonicalLocalProfileSchema.safeParse(
+            JSON.parse(await fs.readFile(profilePath, "utf8")),
+        );
+        if (parsed.success) {
+            return parsed.data;
+        }
+    } catch {
+        // Profile display data is optional; local identity is always available.
+    }
+    return {
+        id: localUserId,
+        timestamp: Date.now(),
+        firstName: null,
+        lastName: null,
+        avatar: null,
+        github: null,
+        connectedServices: [],
+    };
+}
+
+export function pairRoutes(
+    app: Fastify,
+    tofuConfig: TofuHandshakeConfig,
+    paths: PairRoutePaths = {},
+    authOptions: PairRouteAuthOptions,
+) {
+    app.post("/pair/complete", {
         schema: {
-            body: z.object({
-                mobileEcdhPublicKey: z.string().optional(),
-                // Device-key enrollment (public mode). The app sends its Ed25519 device
-                // public key + id so the server can TOFU-pin it into the verifier that
-                // guards every subsequent request. Optional for back-compat (tunnel mode
-                // and legacy callers omit them); shape is validated in the handler.
-                deviceEd25519PublicKey: z.string().optional(),
-                deviceKeyId: z.string().optional(),
-            }),
+            body: z.unknown(),
             response: {
-                200: z.object({
-                    githubLogin: z.string(),
-                    machine: z.object({
-                        machineId: z.string(),
-                        tunnelUrl: z.string(),
-                        ed25519PublicKey: z.string(),
-                        x25519PublicKey: z.string(),
-                        ed25519Fingerprint: z.string().optional(),
-                        mobileSharedSecret: z.string().optional(),
-                    }),
-                }),
+                200: PairCompleteResponseSchema,
                 400: z.object({ error: z.string() }),
                 401: z.object({ error: z.string() }),
                 409: z.object({ error: z.string() }),
@@ -122,106 +87,92 @@ export function pairRoutes(app: Fastify, tofuConfig: TofuHandshakeConfig, paths:
         if (isPairRateLimited(request.ip, Date.now())) {
             return reply.code(429).send({ error: "rate_limited" });
         }
-        // Public mode fail-closed pairing gate. Runs BEFORE any key material is
-        // assembled so a denied request leaks nothing.
-        if (authOptions.publicMode) {
-            if (!authOptions.pairingGate) {
-                return reply.code(401).send({ error: "pairing_window_closed" });
+        if (!tofuConfig.tofuPublicKeys || !tofuConfig.ed25519SecretKey) {
+            return reply.code(503).send({ error: "tofu_key_material_unavailable" });
+        }
+        const enrollment = authOptions.mode === "local"
+            ? await authOptions.localAuthRuntime?.enroll({
+                headers: request.headers,
+                origin: typeof request.headers.origin === "string" ? request.headers.origin : undefined,
+                rawBody: (request as any).rawBody,
+                body: request.body,
+            })
+            : await authOptions.publicAuthRuntime?.enrollPairingDevice({
+                headers: request.headers,
+                rawBody: (request as any).rawBody,
+                body: request.body,
+            });
+        if (!enrollment?.ok) {
+            if (enrollment?.reason === "device_key_conflict") {
+                return reply.code(409).send({ error: "device_key_conflict" });
             }
-            const gate = authOptions.pairingGate.check(request.headers);
-            if (!gate.ok) {
-                return reply.code(401).send({ error: "pairing_denied" });
+            if (enrollment?.reason === "invalid_device_key") {
+                return reply.code(400).send({ error: "invalid_device_key" });
             }
+            return reply.code(401).send({ error: "pairing_denied" });
         }
-        if (!tofuConfig.tofuPublicKeys) {
-            return reply.code(503).send({ error: "tofu_public_keys_unavailable" });
+        const parsedBody = PairCompleteRequestSchema.safeParse(request.body);
+        if (!parsedBody.success || parsedBody.data.machineId !== tofuConfig.localUserId) {
+            return reply.code(400).send({ error: "invalid_device_key" });
         }
-
-        const profile = await readProfile(paths.profile ?? defaultProfilePath());
-        if (!profile) {
-            return reply.code(503).send({ error: "local_profile_unavailable" });
-        }
-
-        // TOFU device-key enrollment (public mode only). Runs AFTER the pairing gate +
-        // profile checks, so a device is pinned exactly when pairing genuinely succeeds
-        // (a denied gate or missing profile pins nothing). Enrollment is best-effort for
-        // back-compat: legacy callers that omit both fields still pair normally. When a
-        // device key IS supplied it must be well-formed and non-conflicting, else the
-        // request fails closed (400/409) with NO key material returned.
-        if (authOptions.enrollDevice) {
-            const { deviceEd25519PublicKey, deviceKeyId } = request.body;
-            const hasKey = deviceEd25519PublicKey !== undefined;
-            const hasId = deviceKeyId !== undefined;
-            if (hasKey || hasId) {
-                if (!hasKey || !hasId) {
-                    // Partial device identity is malformed — both fields are required together.
-                    return reply.code(400).send({ error: "invalid_device_key" });
-                }
-                const result = await authOptions.enrollDevice({
-                    keyId: deviceKeyId,
-                    publicKey: deviceEd25519PublicKey,
-                });
-                if (!result.ok) {
-                    if (result.reason === "device_key_conflict") {
-                        return reply.code(409).send({ error: "device_key_conflict" });
-                    }
-                    return reply.code(400).send({ error: "invalid_device_key" });
-                }
-            }
-        }
+        const pairRequest = parsedBody.data;
+        const record = {
+            keyId: pairRequest.deviceKeyId,
+            publicKey: pairRequest.deviceEd25519PublicKey,
+        };
 
         let mobileSharedSecret: string | undefined;
-        if (request.body.mobileEcdhPublicKey && tofuConfig.x25519SecretKey) {
-            const mobilePublicKeyBytes = Buffer.from(request.body.mobileEcdhPublicKey, "base64");
-            const sharedSecret = nacl.box.before(mobilePublicKeyBytes, tofuConfig.x25519SecretKey);
-            mobileSharedSecret = Buffer.from(sharedSecret).toString("base64");
+        if (pairRequest.mobileEcdhPublicKey && tofuConfig.x25519SecretKey) {
+            try {
+                const sharedSecret = nacl.box.before(
+                    Buffer.from(pairRequest.mobileEcdhPublicKey, "base64"),
+                    tofuConfig.x25519SecretKey,
+                );
+                mobileSharedSecret = Buffer.from(sharedSecret).toString("base64");
+            } catch {
+                return reply.code(400).send({ error: "invalid_mobile_ecdh_key" });
+            }
         }
 
-        const tunnelUrl = tofuConfig.publicUrl || process.env.PUBLIC_URL || `http://127.0.0.1:${process.env.PORT ?? "3005"}`;
-
-        return {
-            githubLogin: profile.githubLogin,
+        const tunnelUrl = tofuConfig.publicUrl
+            || process.env.PUBLIC_URL
+            || `http://127.0.0.1:${process.env.PORT ?? "3005"}`;
+        const profile = await readCanonicalProfile(
+            paths.profile ?? path.join(os.homedir(), ".happy", "local-profile.json"),
+            tofuConfig.localUserId,
+        );
+        return signPairCompleteResponse({
+            version: 2,
+            authMode: "paired-device",
+            githubLogin: null,
+            profile,
             machine: {
                 machineId: tofuConfig.localUserId,
                 tunnelUrl,
                 ed25519PublicKey: tofuConfig.tofuPublicKeys.ed25519PublicKey,
                 x25519PublicKey: tofuConfig.tofuPublicKeys.x25519PublicKey,
-                ed25519Fingerprint: tofuConfig.tofuPublicKeys.ed25519Fingerprint,
-                mobileSharedSecret,
+                ed25519Fingerprint: tofuConfig.tofuPublicKeys.ed25519Fingerprint ?? "",
+                ...(mobileSharedSecret ? { mobileSharedSecret } : {}),
             },
-        };
+            pairedDevice: record,
+            issuedAt: Date.now(),
+        }, tofuConfig.ed25519SecretKey);
     });
 
-    // /pair/connect — tunnel-level auth (X-Tunnel-Authorization with real Dev Tunnels connect JWT)
-    // is the security gate in tunnel mode. In public mode this route is registered behind the
-    // global fail-closed onRequest hook with the `deviceProof` policy, so the request never
-    // reaches this handler without a valid Cloudflare Access edge check + Ed25519 device proof.
     app.post("/pair/connect", {
         schema: {
-            body: z.object({
-                mobileEcdhPublicKey: z.string().optional(),
-            }),
+            body: z.object({ mobileEcdhPublicKey: z.string().optional() }),
         },
-    }, async (request, reply) => {
+    }, async (_request, reply) => {
         if (!tofuConfig.tofuPublicKeys) {
             return reply.code(503).send({ error: "tofu_public_keys_unavailable" });
         }
-
-        let mobileSharedSecret: string | undefined;
-        if (request.body.mobileEcdhPublicKey && tofuConfig.x25519SecretKey) {
-            const mobilePublicKeyBytes = Buffer.from(request.body.mobileEcdhPublicKey, "base64");
-            const sharedSecret = nacl.box.before(mobilePublicKeyBytes, tofuConfig.x25519SecretKey);
-            mobileSharedSecret = Buffer.from(sharedSecret).toString("base64");
-        }
-
-        const tunnelUrl = tofuConfig.publicUrl || process.env.PUBLIC_URL || `http://127.0.0.1:${process.env.PORT ?? "3005"}`;
         return {
             machineId: tofuConfig.localUserId,
-            tunnelUrl,
+            tunnelUrl: tofuConfig.publicUrl,
             ed25519PublicKey: tofuConfig.tofuPublicKeys.ed25519PublicKey,
             x25519PublicKey: tofuConfig.tofuPublicKeys.x25519PublicKey,
             ed25519Fingerprint: tofuConfig.tofuPublicKeys.ed25519Fingerprint,
-            mobileSharedSecret,
         };
     });
 }

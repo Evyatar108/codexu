@@ -176,6 +176,7 @@ export async function startDaemon(): Promise<void> {
       deliverRemote,
       spawnSessionFromSessionHandlerReady,
       resolveSpawnSessionFromSessionHandler,
+      createPairingInvite,
     } = await onDaemonRun({ machineId, hostname: initialMachineMetadata.host });
 
     // Setup state - key by PID
@@ -759,6 +760,13 @@ export async function startDaemon(): Promise<void> {
       localMachineId: machineId,
       agentCommsRemote: {
         deliverRemote,
+      },
+      createPairingInvite: async (origin, publicMode, capability) => {
+        const expected = (await fs.readFile(join(configuration.happyHomeDir, 'loopback-cap.txt'), 'utf8')).trim();
+        if (!capability || capability !== expected) {
+          throw new Error('Invalid loopback capability');
+        }
+        return createPairingInvite(origin, publicMode);
       },
     });
 

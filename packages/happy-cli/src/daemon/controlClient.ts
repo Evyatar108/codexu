@@ -9,8 +9,13 @@ import { clearDaemonState, readDaemonState } from '@/persistence';
 import { Metadata } from '@/api/types';
 import { configuration } from '@/configuration';
 import type { SpawnSessionFromSessionRpcOptions } from '@/api/apiMachine';
+import { readFile } from 'node:fs/promises';
 
-async function daemonPost(path: string, body?: any): Promise<{ error?: string } | any> {
+async function daemonPost(
+  path: string,
+  body?: any,
+  additionalHeaders: Record<string, string> = {},
+): Promise<{ error?: string } | any> {
   const state = await readDaemonState();
   if (!state?.httpPort) {
     const errorMessage = 'No daemon running, no state file found';
@@ -34,7 +39,7 @@ async function daemonPost(path: string, body?: any): Promise<{ error?: string } 
     const timeout = process.env.HAPPY_DAEMON_HTTP_TIMEOUT ? parseInt(process.env.HAPPY_DAEMON_HTTP_TIMEOUT) : 10_000;
     const response = await fetch(`http://127.0.0.1:${state.httpPort}${path}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...additionalHeaders },
       body: JSON.stringify(body || {}),
       // Mostly increased for stress test
       signal: AbortSignal.timeout(timeout)
@@ -47,7 +52,7 @@ async function daemonPost(path: string, body?: any): Promise<{ error?: string } 
         error: errorMessage
       };
     }
-    
+
     return await response.json();
   } catch (error) {
     const errorMessage = `Request failed: ${path}, ${error instanceof Error ? error.message : 'Unknown error'}`;
@@ -56,6 +61,19 @@ async function daemonPost(path: string, body?: any): Promise<{ error?: string } 
       error: errorMessage
     }
   }
+}
+
+export async function createDaemonPairingInvite(
+  options: { origin?: string; public?: boolean },
+): Promise<string> {
+  const capability = await readFile(configuration.happyHomeDir + '/loopback-cap.txt', 'utf8');
+  const result = await daemonPost('/pair', options, {
+    'X-Loopback-Capability': capability.trim(),
+  });
+  if (typeof result?.invite !== 'string') {
+    throw new Error(result?.error ?? 'Daemon did not return a pairing invite');
+  }
+  return result.invite;
 }
 
 const SESSION_STARTED_RETRY_TIMEOUT_MS = 3000;

@@ -24,11 +24,13 @@
 import type { createApi, ConfigureApiOptions, TofuHandshakeConfig } from "../api";
 import type { Fastify } from "../types";
 import { createPublicAuthRuntime, type PublicAuthRuntime } from "./remoteDeviceAuth";
+import { createLocalAuthRuntime, type LocalAuthRuntime } from "./localDeviceAuth";
 
 export interface ForkAuthPlaneResult {
     /** The public-mode runtime, or undefined outside public mode. Threaded by the
      *  caller into `startSocket` and `pairRoutes` exactly as before the relocation. */
     publicAuthRuntime?: PublicAuthRuntime;
+    localAuthRuntime?: LocalAuthRuntime;
 }
 
 /**
@@ -59,6 +61,22 @@ export function installForkAuthPlane(
     // for public internet exposure; the default tunnel/loopback paths are untouched.
     // FORK PATCH: [RESTORE-R1a-done] public-mode fail-closed boundary: buffer parser (captures rawBody) + onRequest httpGuard + preValidation bodyHashGuard; install order load-bearing for US-005 default-deny (invariant HS-2)
     let publicAuthRuntime: PublicAuthRuntime | undefined;
+    let localAuthRuntime: LocalAuthRuntime | undefined;
+    if (
+        (options.auth === "local-device" || options.auth === "public")
+        && (!tofuConfig.tofuPublicKeys || !tofuConfig.ed25519SecretKey)
+    ) {
+        throw new Error(`CRITICAL: auth "${options.auth}" requires complete server signing key material.`);
+    }
+    if (options.auth === "local-device") {
+        if (!options.localAuth) {
+            throw new Error('CRITICAL: auth "local-device" requires localAuth configuration.');
+        }
+        localAuthRuntime = createLocalAuthRuntime(options.localAuth);
+        installRawBodyParser(fastifyApp);
+        fastifyApp.addHook('onRequest', withLoopbackCapabilityFastPath(typed, localAuthRuntime.httpGuard));
+        fastifyApp.addHook('preValidation', localAuthRuntime.bodyHashGuard);
+    }
     if (options.auth === "public") {
         if (!options.publicAuth) {
             throw new Error('CRITICAL: auth "public" requires a publicAuth verifier + edge configuration. Refusing to configure a public listener without a fail-closed device verifier.');
@@ -71,22 +89,45 @@ export function installForkAuthPlane(
         // do NOT re-serialize the parsed JSON to hash it — canonicalization drift
         // between client and server would cause false rejections; only the bytes on
         // the wire are authoritative. This override applies to public mode only.
-        fastifyApp.addContentTypeParser('application/json', { parseAs: 'buffer' }, function (request: any, body: Buffer, done: (err: Error | null, body?: unknown) => void) {
-            request.rawBody = body;
-            if (body.length === 0) {
-                done(null, undefined);
-                return;
-            }
-            try {
-                done(null, JSON.parse(body.toString('utf8')));
-            } catch (err) {
-                (err as any).statusCode = 400;
-                done(err as Error, undefined);
-            }
-        });
-        fastifyApp.addHook('onRequest', publicAuthRuntime.httpGuard);
+        installRawBodyParser(fastifyApp);
+        fastifyApp.addHook('onRequest', withLoopbackCapabilityFastPath(typed, publicAuthRuntime.httpGuard));
         fastifyApp.addHook('preValidation', publicAuthRuntime.bodyHashGuard);
     }
 
-    return { publicAuthRuntime };
+    function withLoopbackCapabilityFastPath(
+        typed: Fastify,
+        guard: (request: any, reply: any) => Promise<unknown>,
+    ): (request: any, reply: any) => Promise<unknown> {
+        return async (request, reply) => {
+            if (
+                request.headers['x-loopback-capability'] !== undefined
+                && await typed.verifyLoopbackCapability(request, reply) !== false
+                && !reply.sent
+            ) {
+                return;
+            }
+            if (reply.sent) {
+                return;
+            }
+            return guard(request, reply);
+        };
+    }
+
+    return { publicAuthRuntime, localAuthRuntime };
+}
+
+function installRawBodyParser(fastifyApp: ReturnType<typeof createApi>): void {
+    fastifyApp.addContentTypeParser('application/json', { parseAs: 'buffer' }, function (request: any, body: Buffer, done: (err: Error | null, body?: unknown) => void) {
+        request.rawBody = body;
+        if (body.length === 0) {
+            done(null, undefined);
+            return;
+        }
+        try {
+            done(null, JSON.parse(body.toString('utf8')));
+        } catch (err) {
+            (err as any).statusCode = 400;
+            done(err as Error, undefined);
+        }
+    });
 }

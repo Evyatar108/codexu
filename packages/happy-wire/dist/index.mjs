@@ -666,13 +666,45 @@ function canonicalRequestStringToSign(fields) {
   return [
     PUBLIC_DEVICE_PROOF_DOMAIN,
     normalizeMethod(fields.method),
-    fields.path,
+    canonicalizePublicRequestTarget(fields.path),
     fields.keyId,
     fields.publicKey,
     fields.nonce,
     String(fields.issuedAt),
     fields.bodyHash
   ].join("\n");
+}
+function canonicalizePublicRequestTarget(target) {
+  if (!target.startsWith("/") || target.includes("#") || /[\u0000-\u001f\u007f]/.test(target)) {
+    throw new Error("invalid proof target");
+  }
+  for (let index = 0; index < target.length; index += 1) {
+    if (target[index] === "%" && !/^[0-9A-Fa-f]{2}$/.test(target.slice(index + 1, index + 3))) {
+      throw new Error("invalid proof target encoding");
+    }
+  }
+  const parsed = new URL(`http://localhost${target}`);
+  const pairs = Array.from(parsed.searchParams.entries()).sort(([leftKey, leftValue], [rightKey, rightValue]) => {
+    const keyOrder = compareUtf8$1(leftKey, rightKey);
+    return keyOrder !== 0 ? keyOrder : compareUtf8$1(leftValue, rightValue);
+  });
+  const query = new URLSearchParams();
+  for (const [key, value] of pairs) {
+    query.append(key, value);
+  }
+  const encoded = query.toString();
+  return encoded ? `${parsed.pathname}?${encoded}` : parsed.pathname;
+}
+function compareUtf8$1(left, right) {
+  const leftBytes = new TextEncoder().encode(left);
+  const rightBytes = new TextEncoder().encode(right);
+  const length = Math.min(leftBytes.length, rightBytes.length);
+  for (let index = 0; index < length; index += 1) {
+    if (leftBytes[index] !== rightBytes[index]) {
+      return leftBytes[index] - rightBytes[index];
+    }
+  }
+  return leftBytes.length - rightBytes.length;
 }
 function hashRequestBody(body) {
   let bytes;
@@ -699,10 +731,11 @@ function generatePublicRequestNonce(byteLength = 24) {
 }
 async function signPublicRequest(input, secretKey) {
   const method = normalizeMethod(input.method);
+  const path = canonicalizePublicRequestTarget(input.path);
   const publicKey = encodeBase64(await ed.getPublicKeyAsync(secretKey));
   const canonical = canonicalRequestStringToSign({
     method,
-    path: input.path,
+    path,
     keyId: input.keyId,
     publicKey,
     nonce: input.nonce,
@@ -717,7 +750,7 @@ async function signPublicRequest(input, secretKey) {
     nonce: input.nonce,
     issuedAt: input.issuedAt,
     method,
-    path: input.path,
+    path,
     bodyHash: input.bodyHash,
     signature
   };
@@ -731,7 +764,13 @@ async function verifyPublicRequest(envelope, context) {
   if (normalizeMethod(env.method) !== normalizeMethod(context.method)) {
     return { ok: false, reason: "method_mismatch" };
   }
-  if (env.path !== context.path) {
+  let target;
+  try {
+    target = canonicalizePublicRequestTarget(context.path);
+  } catch {
+    return { ok: false, reason: "path_mismatch" };
+  }
+  if (env.path !== target) {
     return { ok: false, reason: "path_mismatch" };
   }
   if (context.bodyHash !== void 0 && env.bodyHash !== context.bodyHash) {
@@ -1263,6 +1302,100 @@ function isCanonicalBase64UrlBytes(value, byteLength) {
   }
 }
 
+ed.hashes.sha512 = (message) => sha512(message);
+const PAIR_COMPLETE_REQUEST_VERSION = 1;
+const PAIR_COMPLETE_RESPONSE_VERSION = 2;
+const PAIR_COMPLETE_RESPONSE_DOMAIN = "happy-pair-complete/v2";
+const PairCompleteRequestSchema = z.object({
+  version: z.literal(PAIR_COMPLETE_REQUEST_VERSION),
+  machineId: z.string().min(1).max(256),
+  deviceKeyId: z.string().min(1).max(128),
+  deviceEd25519PublicKey: z.string().min(1),
+  mobileEcdhPublicKey: z.string().optional()
+}).strict();
+const CanonicalLocalProfileSchema = z.object({
+  id: z.string().min(1),
+  timestamp: z.number().int().nonnegative(),
+  firstName: z.string().nullable(),
+  lastName: z.string().nullable(),
+  avatar: z.null(),
+  github: z.object({
+    id: z.number(),
+    login: z.string(),
+    name: z.string(),
+    avatar_url: z.string(),
+    email: z.string().optional(),
+    bio: z.string().nullable()
+  }).nullable(),
+  connectedServices: z.array(z.string())
+}).strict();
+const PairCompleteResponseUnsignedSchema = z.object({
+  version: z.literal(PAIR_COMPLETE_RESPONSE_VERSION),
+  authMode: z.literal("paired-device"),
+  githubLogin: z.null(),
+  profile: CanonicalLocalProfileSchema,
+  machine: z.object({
+    machineId: z.string().min(1),
+    tunnelUrl: z.string().url(),
+    ed25519PublicKey: z.string().min(1),
+    x25519PublicKey: z.string().min(1),
+    ed25519Fingerprint: z.string().min(1),
+    mobileSharedSecret: z.string().optional()
+  }).strict(),
+  pairedDevice: z.object({
+    keyId: z.string().min(1),
+    publicKey: z.string().min(1)
+  }).strict(),
+  issuedAt: z.number().int().nonnegative()
+}).strict();
+const PairCompleteResponseSchema = PairCompleteResponseUnsignedSchema.extend({
+  serverSignature: z.string().min(1)
+}).strict();
+function canonicalPairCompleteResponse(response) {
+  const value = PairCompleteResponseUnsignedSchema.parse(response);
+  return [
+    PAIR_COMPLETE_RESPONSE_DOMAIN,
+    String(value.version),
+    value.machine.machineId,
+    value.machine.tunnelUrl,
+    value.machine.ed25519PublicKey,
+    value.machine.x25519PublicKey,
+    value.machine.ed25519Fingerprint,
+    value.pairedDevice.keyId,
+    value.pairedDevice.publicKey,
+    String(value.issuedAt),
+    encodeBase64(sha256(new TextEncoder().encode(JSON.stringify(value.profile)))),
+    value.machine.mobileSharedSecret ?? ""
+  ].join("\n");
+}
+async function signPairCompleteResponse(response, serverSecretKey) {
+  const validated = PairCompleteResponseUnsignedSchema.parse(response);
+  const signature = await ed.signAsync(
+    new TextEncoder().encode(canonicalPairCompleteResponse(validated)),
+    serverSecretKey
+  );
+  return PairCompleteResponseSchema.parse({
+    ...validated,
+    serverSignature: encodeBase64(signature)
+  });
+}
+async function verifyPairCompleteResponse(response) {
+  const parsed = PairCompleteResponseSchema.safeParse(response);
+  if (!parsed.success) {
+    return false;
+  }
+  const { serverSignature, ...unsigned } = parsed.data;
+  try {
+    return await ed.verifyAsync(
+      decodeBase64(serverSignature),
+      new TextEncoder().encode(canonicalPairCompleteResponse(unsigned)),
+      decodeBase64(unsigned.machine.ed25519PublicKey)
+    );
+  } catch {
+    return false;
+  }
+}
+
 const SESSION_OUTPUT_SNAPSHOT_TYPE = "session-output-snapshot";
 const SESSION_OUTPUT_SNAPSHOT_TEXT_MAX_BYTES = 1024 * 1024;
 const SESSION_OUTPUT_SNAPSHOT_ID_MAX_CHARS = 256;
@@ -1307,4 +1440,4 @@ const MachineTunnelSchema = z.object({
   owner: z.string()
 });
 
-export { AgentCommsChannelSchema, AgentCommsEnvelopeSchema, AgentCommsFromSchema, AgentCommsIngestBodySchema, AgentCommsKindSchema, AgentCommsScopeSchema, AgentCommsToSchema, AgentMessageSchema, AgentTreeDeltaSchema, AgentTreeEdgeSchema, AgentTreeNodeAddedDeltaSchema, AgentTreeNodeRemovedDeltaSchema, AgentTreeNodeSchema, AgentTreeNodeStatusChangedDeltaSchema, AgentTreePendingSpawnStartedDeltaSchema, AgentTreeSnapshotSchema, AgentTreeUpdateInboundPayloadSchema, AgentTreeUpdateOutboundPayloadSchema, ApiMessageSchema, ApiUpdateMachineStateSchema, ApiUpdateNewMessageSchema, ApiUpdateSessionStateSchema, CloudflareAccessServiceTokenSchema, CoreUpdateBodySchema, CoreUpdateContainerSchema, DoneLedgerRecordSchema, ErrorLedgerRecordSchema, IdleReachedLedgerRecordSchema, LOCAL_DEVICE_PROOF_CLOCK_SKEW_MS, LOCAL_DEVICE_PROOF_DOMAIN, LOCAL_DEVICE_PROOF_ENVELOPE_VERSION, LOCAL_DEVICE_PROOF_FRESHNESS_MS, LOCAL_DEVICE_PROOF_HEADER, LOCAL_DEVICE_PROOF_NONCE_BYTES, LOCAL_PAIRING_AUTH_MODE, LOCAL_PAIRING_FORWARD_SKEW_MS, LOCAL_PAIRING_INVITE_KIND, LOCAL_PAIRING_INVITE_VERSION, LOCAL_PAIRING_NONCE_BYTES, LOCAL_PAIRING_NONCE_HEADER, LOCAL_PAIRING_SECRET_BYTES, LOCAL_PAIRING_SECRET_HEADER, LOCAL_PAIRING_WINDOW_MS, LastOutputSummaryLedgerRecordSchema, LedgerErrorCodeSchema, LedgerRecordSchema, LegacyMessageContentSchema, LocalPairingInviteSchema, LocalSignedRequestEnvelopeSchema, MAX_HOPS, MachineTunnelSchema, MessageContentSchema, MessageMetaSchema, MessageSentLedgerRecordSchema, PUBLIC_DEVICE_AUTH_TEST_VECTOR, PUBLIC_DEVICE_PROOF_CLOCK_SKEW_MS, PUBLIC_DEVICE_PROOF_DOMAIN, PUBLIC_DEVICE_PROOF_ENVELOPE_VERSION, PUBLIC_DEVICE_PROOF_FRESHNESS_MS, PUBLIC_DEVICE_PROOF_HEADER, PUBLIC_PAIRING_INVITE_DEFAULT_TTL_MS, PUBLIC_PAIRING_INVITE_TEST_VECTOR, PUBLIC_PAIRING_INVITE_VERSION, PendingPermissionLedgerRecordSchema, PublicPairingInviteSchema, PublicSignedRequestEnvelopeSchema, SESSION_OUTPUT_SNAPSHOT_ID_MAX_CHARS, SESSION_OUTPUT_SNAPSHOT_TEXT_MAX_BYTES, SESSION_OUTPUT_SNAPSHOT_TYPE, SenderKeysSchema, SessionGetAgentTreeRequestSchema, SessionGetAgentTreeResponseSchema, SessionMessageContentSchema, SessionMessageRangeRequestSchema, SessionMessageRangeResponseSchema, SessionMessageSchema, SessionOutputSnapshotEphemeralUpdateSchema, SessionOutputSnapshotPayloadSchema, SessionProtocolMessageSchema, SpawnLedgerRecordSchema, TofuHandshakeMessageSchema, TofuPubkeysEventSchema, TofuPublicKeysSchema, TofuSessionKeyExchangeSchema, UpdateBodySchema, UpdateMachineBodySchema, UpdateNewMessageBodySchema, UpdateSchema, UpdateSessionBodySchema, UserMessageSchema, ValidationAttachedLedgerRecordSchema, VersionedEncryptedValueSchema, VersionedMachineEncryptedValueSchema, VersionedNullableEncryptedValueSchema, VoiceConversationDeniedSchema, VoiceConversationGrantedSchema, VoiceConversationResponseSchema, VoiceUsageResponseSchema, canonicalLocalRequestStringToSign, canonicalRequestStringToSign, canonicalizeLocalRequestTarget, createEnvelope, createLocalPairingInvite, createPublicPairingInvite, decodeBase64, decodeBase64Url, decodeLocalDeviceProofHeader, decodeLocalPairingInvite, decodePublicDeviceProofHeader, decodePublicPairingInvite, encodeBase64, encodeBase64Url, encodeLocalDeviceProofHeader, encodeLocalPairingInvite, encodePublicDeviceProofHeader, encodePublicPairingInvite, findSenderDropEntry, forkBoilerplateEntry, generateLocalPairingNonce, generateLocalPairingSecret, generatePairSecret, generatePublicRequestNonce, getSessionOutputSnapshotKey, getSessionOutputSnapshotTransientMessageId, hashLocalRequestBody, hashRequestBody, isLocalPairingInviteValid, isLocalProofFresh, isPublicPairingInviteValid, isPublicProofFresh, isStrictLoopbackServerUrl, localCommandCaveatEntry, makeWrappedTagEntry, nonRenderableEntries, normalizeMethod, routeHopValidation, sessionAgentConfigurationChangedEventSchema, sessionContextBoundaryEventSchema, sessionContextBoundaryKindSchema, sessionContextBoundaryTriggeredBySchema, sessionEnvelopeSchema, sessionEventSchema, sessionFileEventSchema, sessionMessageConsumptionEventSchema, sessionRoleSchema, sessionServiceMessageEventSchema, sessionStartEventSchema, sessionStopEventSchema, sessionTextEventSchema, sessionToolCallEndEventSchema, sessionToolCallStartEventSchema, sessionTurnEndEventSchema, sessionTurnEndStatusSchema, sessionTurnStartEventSchema, signLocalRequest, signPublicRequest, skillBodyEntry, systemReminderEntry, verifyLocalRequest, verifyPublicRequest };
+export { AgentCommsChannelSchema, AgentCommsEnvelopeSchema, AgentCommsFromSchema, AgentCommsIngestBodySchema, AgentCommsKindSchema, AgentCommsScopeSchema, AgentCommsToSchema, AgentMessageSchema, AgentTreeDeltaSchema, AgentTreeEdgeSchema, AgentTreeNodeAddedDeltaSchema, AgentTreeNodeRemovedDeltaSchema, AgentTreeNodeSchema, AgentTreeNodeStatusChangedDeltaSchema, AgentTreePendingSpawnStartedDeltaSchema, AgentTreeSnapshotSchema, AgentTreeUpdateInboundPayloadSchema, AgentTreeUpdateOutboundPayloadSchema, ApiMessageSchema, ApiUpdateMachineStateSchema, ApiUpdateNewMessageSchema, ApiUpdateSessionStateSchema, CanonicalLocalProfileSchema, CloudflareAccessServiceTokenSchema, CoreUpdateBodySchema, CoreUpdateContainerSchema, DoneLedgerRecordSchema, ErrorLedgerRecordSchema, IdleReachedLedgerRecordSchema, LOCAL_DEVICE_PROOF_CLOCK_SKEW_MS, LOCAL_DEVICE_PROOF_DOMAIN, LOCAL_DEVICE_PROOF_ENVELOPE_VERSION, LOCAL_DEVICE_PROOF_FRESHNESS_MS, LOCAL_DEVICE_PROOF_HEADER, LOCAL_DEVICE_PROOF_NONCE_BYTES, LOCAL_PAIRING_AUTH_MODE, LOCAL_PAIRING_FORWARD_SKEW_MS, LOCAL_PAIRING_INVITE_KIND, LOCAL_PAIRING_INVITE_VERSION, LOCAL_PAIRING_NONCE_BYTES, LOCAL_PAIRING_NONCE_HEADER, LOCAL_PAIRING_SECRET_BYTES, LOCAL_PAIRING_SECRET_HEADER, LOCAL_PAIRING_WINDOW_MS, LastOutputSummaryLedgerRecordSchema, LedgerErrorCodeSchema, LedgerRecordSchema, LegacyMessageContentSchema, LocalPairingInviteSchema, LocalSignedRequestEnvelopeSchema, MAX_HOPS, MachineTunnelSchema, MessageContentSchema, MessageMetaSchema, MessageSentLedgerRecordSchema, PAIR_COMPLETE_REQUEST_VERSION, PAIR_COMPLETE_RESPONSE_DOMAIN, PAIR_COMPLETE_RESPONSE_VERSION, PUBLIC_DEVICE_AUTH_TEST_VECTOR, PUBLIC_DEVICE_PROOF_CLOCK_SKEW_MS, PUBLIC_DEVICE_PROOF_DOMAIN, PUBLIC_DEVICE_PROOF_ENVELOPE_VERSION, PUBLIC_DEVICE_PROOF_FRESHNESS_MS, PUBLIC_DEVICE_PROOF_HEADER, PUBLIC_PAIRING_INVITE_DEFAULT_TTL_MS, PUBLIC_PAIRING_INVITE_TEST_VECTOR, PUBLIC_PAIRING_INVITE_VERSION, PairCompleteRequestSchema, PairCompleteResponseSchema, PairCompleteResponseUnsignedSchema, PendingPermissionLedgerRecordSchema, PublicPairingInviteSchema, PublicSignedRequestEnvelopeSchema, SESSION_OUTPUT_SNAPSHOT_ID_MAX_CHARS, SESSION_OUTPUT_SNAPSHOT_TEXT_MAX_BYTES, SESSION_OUTPUT_SNAPSHOT_TYPE, SenderKeysSchema, SessionGetAgentTreeRequestSchema, SessionGetAgentTreeResponseSchema, SessionMessageContentSchema, SessionMessageRangeRequestSchema, SessionMessageRangeResponseSchema, SessionMessageSchema, SessionOutputSnapshotEphemeralUpdateSchema, SessionOutputSnapshotPayloadSchema, SessionProtocolMessageSchema, SpawnLedgerRecordSchema, TofuHandshakeMessageSchema, TofuPubkeysEventSchema, TofuPublicKeysSchema, TofuSessionKeyExchangeSchema, UpdateBodySchema, UpdateMachineBodySchema, UpdateNewMessageBodySchema, UpdateSchema, UpdateSessionBodySchema, UserMessageSchema, ValidationAttachedLedgerRecordSchema, VersionedEncryptedValueSchema, VersionedMachineEncryptedValueSchema, VersionedNullableEncryptedValueSchema, VoiceConversationDeniedSchema, VoiceConversationGrantedSchema, VoiceConversationResponseSchema, VoiceUsageResponseSchema, canonicalLocalRequestStringToSign, canonicalPairCompleteResponse, canonicalRequestStringToSign, canonicalizeLocalRequestTarget, canonicalizePublicRequestTarget, createEnvelope, createLocalPairingInvite, createPublicPairingInvite, decodeBase64, decodeBase64Url, decodeLocalDeviceProofHeader, decodeLocalPairingInvite, decodePublicDeviceProofHeader, decodePublicPairingInvite, encodeBase64, encodeBase64Url, encodeLocalDeviceProofHeader, encodeLocalPairingInvite, encodePublicDeviceProofHeader, encodePublicPairingInvite, findSenderDropEntry, forkBoilerplateEntry, generateLocalPairingNonce, generateLocalPairingSecret, generatePairSecret, generatePublicRequestNonce, getSessionOutputSnapshotKey, getSessionOutputSnapshotTransientMessageId, hashLocalRequestBody, hashRequestBody, isLocalPairingInviteValid, isLocalProofFresh, isPublicPairingInviteValid, isPublicProofFresh, isStrictLoopbackServerUrl, localCommandCaveatEntry, makeWrappedTagEntry, nonRenderableEntries, normalizeMethod, routeHopValidation, sessionAgentConfigurationChangedEventSchema, sessionContextBoundaryEventSchema, sessionContextBoundaryKindSchema, sessionContextBoundaryTriggeredBySchema, sessionEnvelopeSchema, sessionEventSchema, sessionFileEventSchema, sessionMessageConsumptionEventSchema, sessionRoleSchema, sessionServiceMessageEventSchema, sessionStartEventSchema, sessionStopEventSchema, sessionTextEventSchema, sessionToolCallEndEventSchema, sessionToolCallStartEventSchema, sessionTurnEndEventSchema, sessionTurnEndStatusSchema, sessionTurnStartEventSchema, signLocalRequest, signPairCompleteResponse, signPublicRequest, skillBodyEntry, systemReminderEntry, verifyLocalRequest, verifyPairCompleteResponse, verifyPublicRequest };

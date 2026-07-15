@@ -11,6 +11,7 @@ const h = vi.hoisted(() => ({
     createdEd25519: false,
     ed25519Fingerprint: 'ed25519-fp',
     ed25519PublicKey: 'ed25519-pub',
+    ed25519PrivateKey: 'ed25519-priv',
     ecdhPublicKey: 'ecdh-pub',
     ecdhPrivateKey: 'ecdh-priv',
   },
@@ -25,7 +26,7 @@ const h = vi.hoisted(() => ({
     lastTunnelUrl: null as string | null,
   },
   tunnelManagerInstance: { __tag: 'tunnelManager' },
-  devtunnelsProviderInstance: { __tag: 'devtunnels-provider' },
+  localProviderInstance: { __tag: 'local-provider' },
   deliverRemoteSentinel: Object.assign(vi.fn(), { __tag: 'deliverRemote' }),
   ingestHandlerSentinel: Object.assign(vi.fn(), { __tag: 'ingestHandler' }),
   ingestServerHandle: { port: 5003, stop: vi.fn(async () => {}) },
@@ -56,8 +57,8 @@ vi.mock('@/agentComms/ingestServer', () => ({
 vi.mock('@/tunnel/tunnelManager', () => ({
   TunnelManager: vi.fn(() => h.tunnelManagerInstance),
 }));
-vi.mock('@/tunnel/devTunnelsDaemonProvider', () => ({
-  DevTunnelsDaemonProvider: vi.fn(() => h.devtunnelsProviderInstance),
+vi.mock('@/tunnel/localDaemonProvider', () => ({
+  LocalDaemonProvider: vi.fn(() => h.localProviderInstance),
 }));
 vi.mock('@/tunnel/cloudflareTunnelDaemonProvider', () => ({
   CloudflareTunnelDaemonProvider: vi.fn(() => ({ __tag: 'cloudflare-provider' })),
@@ -70,13 +71,18 @@ vi.mock('@/tunnel/publicTunnelConfig', () => ({
   writePublicPairingInvite: vi.fn(),
 }));
 vi.mock('@/tunnel/publicPairedDevices', () => ({
-  createDeviceEnrollmentPersister: vi.fn(),
-  readPublicPairedDevices: vi.fn(),
+  createDeviceEnrollmentPersister: vi.fn(() => vi.fn()),
+  readPublicPairedDevices: vi.fn(async () => []),
+}));
+vi.mock('node:fs/promises', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  readFile: vi.fn(async () => 'server-storage-secret'),
 }));
 vi.mock('@/daemon/bindListenersAndWriteCapability', () => ({
   bindListenersAndWriteCapability: vi.fn(async () => ({
     tunnelConfig: h.bindTunnelConfig,
     stop: h.listenerStop,
+    createLocalPairingInvite: vi.fn(() => ({ kind: 'happy-local-pairing' })),
   })),
 }));
 vi.mock('@/daemon/loopbackCapability', () => ({
@@ -91,7 +97,7 @@ import { createDevTunnelsAgentCommsDeliverRemote } from '@/agentComms/peerDelive
 import { createAgentCommsIngestHandler } from '@/agentComms/ingestHandler';
 import { startAgentCommsIngestServer } from '@/agentComms/ingestServer';
 import { TunnelManager } from '@/tunnel/tunnelManager';
-import { DevTunnelsDaemonProvider } from '@/tunnel/devTunnelsDaemonProvider';
+import { LocalDaemonProvider } from '@/tunnel/localDaemonProvider';
 import { CloudflareTunnelDaemonProvider } from '@/tunnel/cloudflareTunnelDaemonProvider';
 import { isPublicTunnelOptedIn } from '@/tunnel/publicTunnelConfig';
 import { bindListenersAndWriteCapability } from '@/daemon/bindListenersAndWriteCapability';
@@ -111,11 +117,11 @@ describe('onDaemonRun (M1-S5 / R4a fork daemon wiring hook)', () => {
     expect(loadOrCreateTofuKeypairs).toHaveBeenCalledWith(configuration.happyHomeDir);
     expect(readMachineState).toHaveBeenCalledWith(machineId);
 
-    // Default (non-public) path: Dev Tunnels provider, never Cloudflare.
+    // Default (non-public) path: offline local provider, never Cloudflare.
     expect(isPublicTunnelOptedIn).toHaveBeenCalled();
     expect(CloudflareTunnelDaemonProvider).not.toHaveBeenCalled();
     expect(TunnelManager).toHaveBeenCalledTimes(1);
-    expect(DevTunnelsDaemonProvider).toHaveBeenCalledWith({ manager: h.tunnelManagerInstance });
+    expect(LocalDaemonProvider).toHaveBeenCalledTimes(1);
 
     // Agent-comms remote delivery is wired to the local keypairs + tunnel manager.
     expect(createDevTunnelsAgentCommsDeliverRemote).toHaveBeenCalledWith({
@@ -145,20 +151,29 @@ describe('onDaemonRun (M1-S5 / R4a fork daemon wiring hook)', () => {
     expect(bindListenersAndWriteCapability).toHaveBeenCalledTimes(1);
     const [bindArgs, bindHome] = vi.mocked(bindListenersAndWriteCapability).mock.calls[0];
     expect(bindHome).toBe(configuration.happyHomeDir);
-    expect(bindArgs.sharedContext.machineKey).toBe(h.fakeKeypairs.ed25519PublicKey);
+    expect(bindArgs.sharedContext.machineKey).toBe('server-storage-secret');
     expect(bindArgs.sharedContext.localUserId).toBe(machineId);
     expect(bindArgs.sharedContext.tofuPublicKeys).toEqual({
       ed25519PublicKey: h.fakeKeypairs.ed25519PublicKey,
       x25519PublicKey: h.fakeKeypairs.ecdhPublicKey,
       x25519SecretKey: h.fakeKeypairs.ecdhPrivateKey,
       ed25519Fingerprint: h.fakeKeypairs.ed25519Fingerprint,
+      ed25519SecretKey: h.fakeKeypairs.ed25519PrivateKey,
     });
     // Scope A: agentCommsIngest is NOT injected into the embedded server.
     expect((bindArgs.sharedContext as unknown as Record<string, unknown>).agentCommsIngest).toBeUndefined();
-    expect(bindArgs.tunnelProvider).toBe(h.devtunnelsProviderInstance);
+    expect(bindArgs.tunnelProvider).toBe(h.localProviderInstance);
     expect(bindArgs.machineInfo).toEqual({ hostname, owner: machineId });
     // Default path binds no public listener.
     expect('publicListener' in bindArgs).toBe(false);
+    expect(bindArgs.localListener).toEqual(expect.objectContaining({
+      auth: 'local-device',
+      localAuth: expect.objectContaining({
+        machineId,
+        serverUrl: `http://127.0.0.1:${h.machineState.tunnelPort}`,
+        devices: [],
+      }),
+    }));
 
     // Persisted exactly once (post-bind), with the tunnel identity from the binding.
     expect(writeMachineState).toHaveBeenCalledTimes(1);

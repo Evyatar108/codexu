@@ -4,7 +4,10 @@ import {
     hashRequestBody,
     encodePublicDeviceProofHeader,
     PUBLIC_DEVICE_PROOF_HEADER,
+    encodeBase64,
+    generatePublicRequestNonce,
 } from "@slopus/happy-wire";
+import * as ed from "@noble/ed25519";
 import {
     CF_ACCESS_CLIENT_ID_HEADER,
     CF_ACCESS_CLIENT_SECRET_HEADER,
@@ -20,6 +23,7 @@ import {
     isValidDeviceKeyId,
     isValidEd25519PublicKeyBase64,
     resolvePublicRoutePolicy,
+    type RemoteDeviceRecord,
 } from "./remoteDeviceAuth";
 import { buildTestEdgeAssertion } from "./testEdgeAssertion";
 
@@ -469,6 +473,7 @@ describe("createPublicAuthRuntime.enrollDevice — pin into the live verifier + 
             edge: { serviceTokens: [] },
             onDeviceEnrolled: (device, all) => { persisted.push({ device, all }); },
         });
+
         const { envelope, header } = await proofFor("rt-n1");
 
         // Before enrollment the socket handshake fails closed.
@@ -486,6 +491,66 @@ describe("createPublicAuthRuntime.enrollDevice — pin into the live verifier + 
         const after = await runtime.verifySocketHandshake({ [PUBLIC_DEVICE_PROOF_HEADER]: header });
         expect(after.ok).toBe(true);
         expect(after.keyId).toBe(keyId);
+    });
+
+    describe("public pairing enrollment transaction", () => {
+        it("requires proof-of-possession and does not consume the pairing nonce on invalid enrollment", async () => {
+            const now = 1_800_000_000_000;
+            const seed = new Uint8Array(32).fill(44);
+            const keyId = "public-tablet";
+            const publicKey = encodeBase64(await ed.getPublicKeyAsync(seed));
+            const persisted: RemoteDeviceRecord[][] = [];
+            const runtime = createPublicAuthRuntime({
+                devices: [],
+                edge: { serviceTokens: [] },
+                now: () => now,
+                pairing: {
+                    secret: "pair-secret",
+                    windowOpenedAt: now - 1,
+                    windowClosesAt: now + 120_000,
+                    now: () => now,
+                },
+                onDeviceEnrolled: async (_device, devices) => {
+                    persisted.push(devices);
+                },
+            });
+            const headers = {
+                [PAIRING_SECRET_HEADER]: "pair-secret",
+                [PAIRING_NONCE_HEADER]: "pairing-nonce",
+            };
+            const invalid = await runtime.enrollPairingDevice({
+                headers,
+                rawBody: "{}",
+                body: {},
+            });
+            expect(invalid.ok).toBe(false);
+            expect(persisted).toEqual([]);
+
+            const body = JSON.stringify({
+                version: 1,
+                machineId: "machine-1",
+                deviceKeyId: keyId,
+                deviceEd25519PublicKey: publicKey,
+            });
+            const envelope = await signPublicRequest({
+                method: "POST",
+                path: "/pair/complete",
+                keyId,
+                nonce: generatePublicRequestNonce(),
+                issuedAt: now,
+                bodyHash: hashRequestBody(body),
+            }, seed);
+            const accepted = await runtime.enrollPairingDevice({
+                headers: {
+                    ...headers,
+                    [PUBLIC_DEVICE_PROOF_HEADER]: encodePublicDeviceProofHeader(envelope),
+                },
+                rawBody: body,
+                body: JSON.parse(body),
+            });
+            expect(accepted).toEqual({ ok: true, enrolled: true });
+            expect(persisted).toEqual([[{ keyId, publicKey }]]);
+        });
     });
 
     it("does NOT fire onDeviceEnrolled on an idempotent re-enroll, and rejects a conflicting key", async () => {

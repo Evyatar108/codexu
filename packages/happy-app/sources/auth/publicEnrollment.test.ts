@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import { PUBLIC_PAIRING_INVITE_TEST_VECTOR } from '@slopus/happy-wire';
+import {
+    PUBLIC_DEVICE_AUTH_TEST_VECTOR,
+    PUBLIC_DEVICE_PROOF_HEADER,
+    PUBLIC_PAIRING_INVITE_TEST_VECTOR,
+    encodeBase64,
+    signPairCompleteResponse,
+} from '@slopus/happy-wire';
+import * as ed from '@noble/ed25519';
 
 import {
     CF_ACCESS_CLIENT_ID_HEADER,
@@ -16,23 +23,39 @@ const invite = PUBLIC_PAIRING_INVITE_TEST_VECTOR.invite;
 const withinWindow = () => Date.parse('2026-05-11T12:05:00.000Z');
 
 const keypair: DeviceKeypair = {
-    keyId: 'device-key-fixture',
-    publicKey: 'ZGV2aWNlLXB1YmxpYy1rZXk=',
-    secretKey: 'ZGV2aWNlLXNlY3JldC1zZWVk',
+    keyId: PUBLIC_DEVICE_AUTH_TEST_VECTOR.keyId,
+    publicKey: PUBLIC_DEVICE_AUTH_TEST_VECTOR.publicKeyBase64,
+    secretKey: encodeBase64(Uint8Array.from(
+        PUBLIC_DEVICE_AUTH_TEST_VECTOR.seedHex.match(/../g)!.map(value => Number.parseInt(value, 16)),
+    )),
 };
 
-function serverResponse() {
-    return new Response(JSON.stringify({
-        githubLogin: 'octocat',
+async function serverResponse() {
+    const serverSecret = new Uint8Array(32).fill(22);
+    const payload = await signPairCompleteResponse({
+        version: 2,
+        authMode: 'paired-device',
+        githubLogin: null,
+        profile: {
+            id: invite.machineId,
+            timestamp: withinWindow(),
+            firstName: null,
+            lastName: null,
+            avatar: null,
+            github: null,
+            connectedServices: [],
+        },
         machine: {
             machineId: 'server-machine-id',
-            // Deliberately a loopback fallback: enrollment must ignore it and
-            // keep the invite URL the app actually reached through Cloudflare.
             tunnelUrl: 'http://127.0.0.1:3005',
-            ed25519PublicKey: 'srv-ed',
-            x25519PublicKey: 'srv-x',
+            ed25519PublicKey: encodeBase64(await ed.getPublicKeyAsync(serverSecret)),
+            x25519PublicKey: encodeBase64(new Uint8Array(32).fill(23)),
+            ed25519Fingerprint: 'SHA256:server',
         },
-    }), { status: 200 });
+        pairedDevice: { keyId: keypair.keyId, publicKey: keypair.publicKey },
+        issuedAt: withinWindow(),
+    }, serverSecret);
+    return new Response(JSON.stringify(payload), { status: 200 });
 }
 
 describe('enrollPublicServer', () => {
@@ -44,6 +67,7 @@ describe('enrollPublicServer', () => {
             generateKeypair: async () => keypair,
             generateNonce: () => 'fixed-nonce',
             now: withinWindow,
+            getCredentialsList: async () => [],
         });
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -56,8 +80,11 @@ describe('enrollPublicServer', () => {
             [CF_ACCESS_CLIENT_SECRET_HEADER]: invite.cloudflareAccess.clientSecret,
             [PAIRING_SECRET_HEADER]: invite.pairSecret,
             [PAIRING_NONCE_HEADER]: 'fixed-nonce',
+            [PUBLIC_DEVICE_PROOF_HEADER]: expect.any(String),
         });
         expect(JSON.parse(init.body as string)).toEqual({
+            version: 1,
+            machineId: invite.machineId,
             deviceEd25519PublicKey: keypair.publicKey,
             deviceKeyId: keypair.keyId,
         });
@@ -68,12 +95,13 @@ describe('enrollPublicServer', () => {
             machineId: 'server-machine-id',
             tunnelUrl: 'https://happy.example.com',
             firstSeenAt: withinWindow(),
-            login: 'octocat',
             cloudflareAccessClientId: invite.cloudflareAccess.clientId,
             cloudflareAccessClientSecret: invite.cloudflareAccess.clientSecret,
             deviceKeyId: keypair.keyId,
             devicePublicKey: keypair.publicKey,
             deviceSecretKey: keypair.secretKey,
+            serverEd25519PublicKey: expect.any(String),
+            serverEd25519Fingerprint: 'SHA256:server',
         });
     });
 
@@ -108,5 +136,21 @@ describe('enrollPublicServer', () => {
             generateNonce: () => 'n',
             now: withinWindow,
         })).rejects.toMatchObject({ code: 'pair_failed' });
+    });
+
+    it('rejects a changed server identity for an already pinned machine', async () => {
+        await expect(enrollPublicServer(validToken, {
+            fetch: vi.fn(async () => serverResponse()) as unknown as typeof fetch,
+            generateKeypair: async () => keypair,
+            generateNonce: () => 'fixed-nonce',
+            now: withinWindow,
+            getCredentialsList: async () => [{
+                authMode: 'paired-device',
+                machineId: invite.machineId,
+                tunnelUrl: invite.serverUrl,
+                firstSeenAt: 1,
+                serverEd25519PublicKey: 'different-server-key',
+            }],
+        })).rejects.toMatchObject({ code: 'invalid_response' });
     });
 });

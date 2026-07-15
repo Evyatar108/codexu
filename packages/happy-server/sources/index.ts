@@ -4,17 +4,22 @@ import path from "path";
 import type { EventRouter } from "./app/events/eventRouter";
 import type { ApiPaths, MachineStateGetter } from "./app/api/api";
 import type { PublicAuthConfig } from "./app/api/auth/remoteDeviceAuth";
+import type { LocalDeviceAuthConfig, LocalAuthRuntime } from "./app/api/auth/localDeviceAuth";
+import type { LocalPairingInvite } from "@slopus/happy-wire";
 import { decodeBase64 } from "privacy-kit";
 import { db, getPGlite } from "./storage/db";
 // FORK PATCH: [RESTORE-R3-done] operator-identity gate now lives in ./fork/operatorIdentityGate (invariant HS-5); re-exported here to preserve the index.ts public surface
 import { assertOperatorIdentityGate } from "./fork/operatorIdentityGate";
 export { assertOperatorIdentityGate };
+export type { LocalDeviceAuthConfig } from "./app/api/auth/localDeviceAuth";
+export type { PublicAuthConfig } from "./app/api/auth/remoteDeviceAuth";
 
 export interface TofuPublicKeys {
     ed25519PublicKey: string | Uint8Array;
     x25519PublicKey: string | Uint8Array;
     x25519SecretKey?: Uint8Array;
     ed25519Fingerprint?: string;
+    ed25519SecretKey?: Uint8Array;
 }
 
 export interface HappyServerConfig {
@@ -25,8 +30,9 @@ export interface HappyServerConfig {
     tofuPublicKeys?: TofuPublicKeys;
     host?: string;
     publicUrl?: string;
-    auth?: "tunnel" | "loopback" | "public";
+    auth?: "tunnel" | "loopback" | "local-device" | "public";
     publicAuth?: PublicAuthConfig;
+    localAuth?: LocalDeviceAuthConfig;
     paths?: ApiPaths;
     machineState?: MachineStateGetter;
     enablePrettyLogs?: boolean;
@@ -44,8 +50,9 @@ export interface HappyServerSharedContext {
 export interface CreateAppConfig extends HappyServerSharedContext {
     port: number;
     host?: string;
-    auth?: "tunnel" | "loopback" | "public";
+    auth?: "tunnel" | "loopback" | "local-device" | "public";
     publicAuth?: PublicAuthConfig;
+    localAuth?: LocalDeviceAuthConfig;
     paths?: ApiPaths;
     machineState?: MachineStateGetter;
 }
@@ -55,6 +62,7 @@ export interface HappyServerHandle {
     eventRouter: EventRouter;
     start: () => Promise<void>;
     stop: () => Promise<void>;
+    createLocalPairingInvite?: (browserOrigin: string) => LocalPairingInvite;
 }
 
 export interface BootstrapMachineForEmbeddedInput {
@@ -106,6 +114,7 @@ export function createApp(config: CreateAppConfig): HappyServerHandle {
     let isConfigured = false;
     let isStarted = false;
     let eventRouter: EventRouter | null = null;
+    let localAuthRuntime: LocalAuthRuntime | undefined;
 
     async function configure() {
         if (isConfigured) {
@@ -118,10 +127,6 @@ export function createApp(config: CreateAppConfig): HappyServerHandle {
         if (!config.enablePrettyLogs) {
             process.env.HAPPY_SERVER_QUIET_LOGGER = "true";
         }
-        if (!process.env.GITHUB_CLIENT_ID) {
-            console.warn("GITHUB_CLIENT_ID not set — mobile pairing routes will return 500. Set GITHUB_CLIENT_ID to enable pairing.");
-        }
-
         const [{ configureDb, db }, { configureFiles, loadFiles }, { configureApi }, { auth }, { initEncrypt }, { initGithub }, { startActivityCache }] = await Promise.all([
             import("./storage/db"),
             import("./storage/files"),
@@ -153,13 +158,18 @@ export function createApp(config: CreateAppConfig): HappyServerHandle {
                 ed25519Fingerprint: config.tofuPublicKeys.ed25519Fingerprint,
             } : undefined,
             x25519SecretKey: config.tofuPublicKeys?.x25519SecretKey,
+            ed25519SecretKey: config.tofuPublicKeys?.ed25519SecretKey,
         }, {
             auth: config.auth,
             publicAuth: config.publicAuth,
+            localAuth: config.localAuth,
             paths: config.paths,
             machineState: config.machineState,
             onEventRouter: (router) => {
                 eventRouter = router;
+            },
+            onLocalAuthRuntime: (runtime) => {
+                localAuthRuntime = runtime;
             },
         });
         isConfigured = true;
@@ -172,6 +182,12 @@ export function createApp(config: CreateAppConfig): HappyServerHandle {
                 throw new Error("Happy server event router is not configured yet");
             }
             return eventRouter;
+        },
+        createLocalPairingInvite(browserOrigin: string) {
+            if (!localAuthRuntime) {
+                throw new Error("Local paired-device listener is not configured");
+            }
+            return localAuthRuntime.createInvite(browserOrigin);
         },
         async start() {
             if (isStarted) {

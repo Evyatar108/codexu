@@ -4,6 +4,7 @@ declare module 'happy-server' {
   export interface ApiPaths {
     profile?: string;
     accountSettings?: string;
+    githubConnection?: string;
     loopbackCap?: string;
   }
 
@@ -75,11 +76,20 @@ declare module 'happy-server' {
     now?: () => number;
   }
 
+  export interface LocalDeviceAuthConfig {
+    machineId: string;
+    serverUrl: string;
+    devices: RemoteDeviceRecord[];
+    onDevicesChanged?: (devices: RemoteDeviceRecord[]) => void | Promise<void>;
+    now?: () => number;
+  }
+
   export interface TofuPublicKeys {
     ed25519PublicKey: string | Uint8Array;
     x25519PublicKey: string | Uint8Array;
     x25519SecretKey?: Uint8Array;
     ed25519Fingerprint?: string;
+    ed25519SecretKey?: Uint8Array;
   }
 
   export interface HappyServerConfig {
@@ -90,8 +100,9 @@ declare module 'happy-server' {
     tofuPublicKeys?: TofuPublicKeys;
     host?: string;
     publicUrl?: string;
-    auth?: 'tunnel' | 'loopback' | 'public';
+    auth?: 'tunnel' | 'loopback' | 'local-device' | 'public';
     publicAuth?: PublicAuthConfig;
+    localAuth?: LocalDeviceAuthConfig;
     paths?: ApiPaths;
     machineState?: MachineStateGetter;
     enablePrettyLogs?: boolean;
@@ -109,8 +120,9 @@ declare module 'happy-server' {
   export interface CreateAppConfig extends HappyServerSharedContext {
     port: number;
     host?: string;
-    auth?: 'tunnel' | 'loopback' | 'public';
+    auth?: 'tunnel' | 'loopback' | 'local-device' | 'public';
     publicAuth?: PublicAuthConfig;
+    localAuth?: LocalDeviceAuthConfig;
     paths?: ApiPaths;
     machineState?: MachineStateGetter;
   }
@@ -120,6 +132,7 @@ declare module 'happy-server' {
     eventRouter: unknown;
     start: () => Promise<void>;
     stop: () => Promise<void>;
+    createLocalPairingInvite?: (browserOrigin: string) => import('@slopus/happy-wire').LocalPairingInvite;
   }
 
   export interface BootstrapMachineForEmbeddedInput {

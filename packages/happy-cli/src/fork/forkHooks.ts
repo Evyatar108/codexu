@@ -36,11 +36,17 @@ import { createDevTunnelsAgentCommsDeliverRemote } from '@/agentComms/peerDelive
 import { createAgentCommsIngestHandler } from '@/agentComms/ingestHandler';
 import { startAgentCommsIngestServer } from '@/agentComms/ingestServer';
 import { TunnelManager } from '@/tunnel/tunnelManager';
-import { DevTunnelsDaemonProvider } from '@/tunnel/devTunnelsDaemonProvider';
+import { LocalDaemonProvider } from '@/tunnel/localDaemonProvider';
 import { CloudflareTunnelDaemonProvider } from '@/tunnel/cloudflareTunnelDaemonProvider';
 import type { DaemonTunnelProvider } from '@/tunnel/provider';
-import { assertPublicBindReady, buildPublicMode, isPublicTunnelOptedIn, readPublicTunnelConfig, writePublicPairingInvite, type PublicMode } from '@/tunnel/publicTunnelConfig';
+import { assertPublicBindReady, buildPublicMode, isPublicTunnelOptedIn, readPublicTunnelConfig, type PublicMode } from '@/tunnel/publicTunnelConfig';
 import { createDeviceEnrollmentPersister, readPublicPairedDevices } from '@/tunnel/publicPairedDevices';
+import { readFile } from 'node:fs/promises';
+import {
+  createPublicPairingInvite,
+  encodeLocalPairingInvite,
+  encodePublicPairingInvite,
+} from '@slopus/happy-wire';
 import { bindListenersAndWriteCapability } from '@/daemon/bindListenersAndWriteCapability';
 import { loopbackCapabilityPath } from '@/daemon/loopbackCapability';
 import { isSupportedAgent } from '@/modules/common/registerCommonHandlers';
@@ -124,6 +130,7 @@ export interface OnDaemonRunResult {
   spawnSessionFromSessionHandlerReady: Promise<SpawnSessionFromSessionHandler>;
   /** Publishes the daemon's spawn-session-from-session handler to the ingest/control planes. */
   resolveSpawnSessionFromSessionHandler: (handler: SpawnSessionFromSessionHandler) => void;
+  createPairingInvite: (browserOrigin?: string, publicMode?: boolean) => string;
 }
 
 /**
@@ -144,11 +151,12 @@ export async function onDaemonRun(options: OnDaemonRunOptions): Promise<OnDaemon
 
   let machineState = await resolveMachineState(machineId);
   const tunnelManager = new TunnelManager();
-  // Provider selection (opt-in only). Default stays Dev Tunnels; the Cloudflare
+  // Provider selection (opt-in only). Default is an offline loopback listener;
   // public provider is chosen ONLY when the operator sets
   // HAPPY_TUNNEL_PROVIDER=cloudflare AND supplies a valid public-tunnel.json.
   let tunnelProvider: DaemonTunnelProvider;
   let publicMode: PublicMode | null = null;
+  let refreshPublicPairingInvite: (() => string) | null = null;
   if (isPublicTunnelOptedIn()) {
     const publicTunnelConfig = await readPublicTunnelConfig();
     assertPublicBindReady(publicTunnelConfig);
@@ -164,6 +172,23 @@ export async function onDaemonRun(options: OnDaemonRunOptions): Promise<OnDaemon
       devices: persistedDevices,
       onDeviceEnrolled: createDeviceEnrollmentPersister(),
     });
+    refreshPublicPairingInvite = () => {
+      const issuedAt = new Date();
+      const invite = createPublicPairingInvite({
+        serverUrl,
+        machineId,
+        cloudflareAccess: publicTunnelConfig.cloudflareAccess.serviceTokens[0]!,
+        issuedAt,
+        ttlMs: publicTunnelConfig.pairing?.windowMs,
+      });
+      const pairing = publicMode!.publicAuth.pairing!;
+      pairing.secret = invite.pairSecret;
+      pairing.windowOpenedAt = issuedAt.getTime();
+      pairing.windowClosesAt = Date.parse(invite.expiresAt);
+      return encodePublicPairingInvite(invite);
+    };
+    publicMode.publicAuth.pairing!.windowOpenedAt = 0;
+    publicMode.publicAuth.pairing!.windowClosesAt = 0;
     tunnelProvider = new CloudflareTunnelDaemonProvider({
       hostname: publicTunnelConfig.hostname,
       tunnelName: publicTunnelConfig.tunnelName,
@@ -176,12 +201,9 @@ export async function onDaemonRun(options: OnDaemonRunOptions): Promise<OnDaemon
       },
     };
     await writeMachineState(machineState);
-    const inviteToken = await writePublicPairingInvite(configuration.publicPairingInviteFile, publicMode.invite);
     logger.debug(`[DAEMON RUN] Public mode enabled via Cloudflare named tunnel ${publicTunnelConfig.tunnelName} -> ${serverUrl}`);
-    console.log(`Happy public pairing invite (machine ${machineId}, expires ${publicMode.invite.expiresAt}):`);
-    console.log(inviteToken);
   } else {
-    tunnelProvider = new DevTunnelsDaemonProvider({ manager: tunnelManager });
+    tunnelProvider = new LocalDaemonProvider();
   }
   const deliverRemote = createDevTunnelsAgentCommsDeliverRemote({
     localKeypairs: tofuKeypairs,
@@ -196,7 +218,10 @@ export async function onDaemonRun(options: OnDaemonRunOptions): Promise<OnDaemon
     x25519PublicKey: tofuKeypairs.ecdhPublicKey,
     x25519SecretKey: tofuKeypairs.ecdhPrivateKey,
     ed25519Fingerprint: tofuKeypairs.ed25519Fingerprint,
+    ed25519SecretKey: tofuKeypairs.ed25519PrivateKey,
   };
+  const serverStorageKey = (await readFile(configuration.serverStorageKeyFile, 'utf8')).trim();
+  const localDevices = publicMode ? [] : await readPublicPairedDevices(configuration.localPairedDevicesFile);
   const agentCommsIngest = createAgentCommsIngestHandler({
     happyHomeDir: configuration.happyHomeDir,
     localMachineId: machineId,
@@ -222,7 +247,7 @@ export async function onDaemonRun(options: OnDaemonRunOptions): Promise<OnDaemon
     listenerBinding = await bindListenersAndWriteCapability({
       sharedContext: {
         dataDir: configuration.happyHomeDir,
-        machineKey: tofuKeypairs.ed25519PublicKey,
+        machineKey: serverStorageKey,
         localUserId: machineId,
         tofuPublicKeys: tofuPublicKeysConfig,
         // agentCommsIngest is intentionally NOT injected here: ingest is served
@@ -231,8 +256,9 @@ export async function onDaemonRun(options: OnDaemonRunOptions): Promise<OnDaemon
       },
       tunnelProvider,
       paths: {
-        profile: join(configuration.happyHomeDir, 'profile.json'),
+        profile: configuration.localProfileFile,
         accountSettings: join(configuration.happyHomeDir, 'account-settings.json'),
+        githubConnection: configuration.githubConnectionFile,
         loopbackCap: loopbackCapabilityPath(configuration.happyHomeDir),
       },
       machineState: () => machineState,
@@ -240,7 +266,25 @@ export async function onDaemonRun(options: OnDaemonRunOptions): Promise<OnDaemon
         hostname,
         owner: machineId,
       },
-      ...(publicMode ? { publicListener: { auth: 'public' as const, publicAuth: publicMode.publicAuth } } : {}),
+      ...(publicMode
+        ? { publicListener: { auth: 'public' as const, publicAuth: publicMode.publicAuth } }
+        : {
+            localListener: {
+              auth: 'local-device' as const,
+              localAuth: {
+                machineId,
+                serverUrl: `http://127.0.0.1:${machineState.tunnelPort}`,
+                devices: localDevices,
+                onDevicesChanged: async devices => {
+                  const persist = createDeviceEnrollmentPersister(configuration.localPairedDevicesFile);
+                  const newest = devices.at(-1);
+                  if (newest) {
+                    await persist(newest, devices);
+                  }
+                },
+              },
+            },
+          }),
     }, configuration.happyHomeDir);
   } catch (bindError) {
     await ingestServer.stop();
@@ -262,7 +306,7 @@ export async function onDaemonRun(options: OnDaemonRunOptions): Promise<OnDaemon
   const embeddedServerPort = machineState.tunnelPort;
   logger.debug(`[DAEMON RUN] Embedded happy-server tunnel listener started on 127.0.0.1:${machineState.tunnelPort}`);
   logger.debug(`[DAEMON RUN] Embedded happy-server loopback listener started on 127.0.0.1:${machineState.loopbackPort}`);
-  logger.debug(`[DAEMON RUN] Dev Tunnel host started for ${tunnelConfig.tunnelUrl}`);
+  logger.debug(`[DAEMON RUN] Paired-device listener ready at ${tunnelConfig.tunnelUrl}`);
 
   return {
     embeddedServerPort,
@@ -272,6 +316,18 @@ export async function onDaemonRun(options: OnDaemonRunOptions): Promise<OnDaemon
     deliverRemote,
     spawnSessionFromSessionHandlerReady,
     resolveSpawnSessionFromSessionHandler,
+    createPairingInvite(browserOrigin, usePublicMode) {
+      if (usePublicMode) {
+        if (!publicMode) {
+          throw new Error('Public pairing is unavailable because public mode is disabled');
+        }
+        return refreshPublicPairingInvite!();
+      }
+      if (!browserOrigin) {
+        throw new Error('Local pairing requires an exact browser origin');
+      }
+      return encodeLocalPairingInvite(listenerBinding.createLocalPairingInvite(browserOrigin));
+    },
   };
 }
 

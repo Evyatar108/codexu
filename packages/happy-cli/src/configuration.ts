@@ -27,6 +27,10 @@ class Configuration {
   public readonly publicTunnelFile: string
   public readonly publicPairingInviteFile: string
   public readonly publicPairedDevicesFile: string
+  public readonly localProfileFile: string
+  public readonly localPairedDevicesFile: string
+  public readonly serverStorageKeyFile: string
+  public readonly githubConnectionFile: string
   public readonly currentCliVersion: string
 
   public readonly isExperimentalEnabled: boolean
@@ -66,6 +70,10 @@ class Configuration {
     // TOFU-pinned devices enrolled via `/pair/complete`, persisted so they survive a
     // daemon restart (the in-memory verifier is authoritative for the running process).
     this.publicPairedDevicesFile = join(this.happyHomeDir, 'public-paired-devices.json')
+    this.localProfileFile = join(this.happyHomeDir, 'local-profile.json')
+    this.localPairedDevicesFile = join(this.happyHomeDir, 'local-paired-devices.json')
+    this.serverStorageKeyFile = join(this.happyHomeDir, 'server-storage.key')
+    this.githubConnectionFile = join(this.happyHomeDir, 'github-connection.json')
 
     this.isExperimentalEnabled = ['true', '1', 'yes'].includes(process.env.HAPPY_EXPERIMENTAL?.toLowerCase() || '');
     this.disableCaffeinate = ['true', '1', 'yes'].includes(process.env.HAPPY_DISABLE_CAFFEINATE?.toLowerCase() || '');

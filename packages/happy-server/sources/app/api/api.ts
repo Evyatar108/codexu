@@ -13,6 +13,7 @@ import { isLocalStorage, getLocalFilesDir } from "@/storage/files";
 import type { EventRouter } from "@/app/events/eventRouter";
 import { verifyLoopbackCapability, type LoopbackCapabilityPaths } from "./auth/loopbackCapability";
 import { type PublicAuthConfig } from "./auth/remoteDeviceAuth";
+import { type LocalAuthRuntime, type LocalDeviceAuthConfig } from "./auth/localDeviceAuth";
 import { installForkAuthPlane } from "./auth/forkAuthPlane";
 import * as path from "path";
 import * as fs from "fs";
@@ -20,6 +21,7 @@ import * as fs from "fs";
 export interface ApiPaths extends LoopbackCapabilityPaths {
     profile?: string;
     accountSettings?: string;
+    githubConnection?: string;
 }
 
 export type MachineStateGetter = () => MachineSelfState | Promise<MachineSelfState>;
@@ -32,6 +34,7 @@ export interface TofuHandshakeConfig {
         ed25519Fingerprint?: string;
     };
     x25519SecretKey?: Uint8Array;
+    ed25519SecretKey?: Uint8Array;
     publicUrl?: string;
 }
 
@@ -43,11 +46,13 @@ export function createApi() {
 }
 
 export interface ConfigureApiOptions {
-    auth?: "tunnel" | "loopback" | "public";
+    auth?: "tunnel" | "loopback" | "local-device" | "public";
     publicAuth?: PublicAuthConfig;
+    localAuth?: LocalDeviceAuthConfig;
     paths?: ApiPaths;
     machineState?: MachineStateGetter;
     onEventRouter?: (eventRouter: EventRouter) => void;
+    onLocalAuthRuntime?: (runtime: LocalAuthRuntime) => void;
 }
 
 export function configureApi(app: any, tofuConfig: TofuHandshakeConfig = { localUserId: "local-user" }, options: ConfigureApiOptions = {}) {
@@ -68,7 +73,10 @@ export function configureApi(app: any, tofuConfig: TofuHandshakeConfig = { local
     enableErrorHandlers(typed);
     typed.decorate('verifyLoopbackCapability', verifyLoopbackCapability(options.paths));
     // FORK PATCH: [RESTORE-R1a-done] fork single-user + public auth plane wiring — see auth/forkAuthPlane.ts (invariants HS-1, HS-2). Install order (before route/socket registration) is load-bearing for US-005 default-deny.
-    const { publicAuthRuntime } = installForkAuthPlane(fastifyApp, typed, tofuConfig, options);
+    const { publicAuthRuntime, localAuthRuntime } = installForkAuthPlane(fastifyApp, typed, tofuConfig, options);
+    if (localAuthRuntime) {
+        options.onLocalAuthRuntime?.(localAuthRuntime);
+    }
 
     // Serve local files when using local storage
     if (isLocalStorage()) {
@@ -89,11 +97,16 @@ export function configureApi(app: any, tofuConfig: TofuHandshakeConfig = { local
         });
     }
 
-    const eventRouter = startSocket(typed, tofuConfig, { auth: options.auth, paths: options.paths, publicAuthRuntime });
+    const eventRouter = startSocket(typed, tofuConfig, {
+        auth: options.auth,
+        paths: options.paths,
+        publicAuthRuntime,
+        localAuthRuntime,
+    });
     options.onEventRouter?.(eventRouter);
 
     // FORK PATCH: [KEEP-DELETED] fork curated route surface relocated to fork/registerForkRoutes.ts; auth plane installed above still runs BEFORE routes (default-deny) (invariant HS-7)
-    registerForkRoutes(typed, eventRouter, tofuConfig, options, publicAuthRuntime);
+    registerForkRoutes(typed, eventRouter, tofuConfig, options, publicAuthRuntime, localAuthRuntime);
 
     return typed;
 }

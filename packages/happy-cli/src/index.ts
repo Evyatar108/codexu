@@ -33,6 +33,7 @@ import { handleResumeCommand } from '@/resume/handleResumeCommand'
 import { ensureDaemonRunning } from './daemon/ensureDaemonRunning'
 import { handleCodexCommand } from './commands/codexCommand'
 import { runInitCommand } from '@/tunnel/tunnelManager'
+import { handlePairCommand } from '@/commands/pair'
 
 
 (async () => {
@@ -50,7 +51,15 @@ import { runInitCommand } from '@/tunnel/tunnelManager'
   if (!args.includes('--version')) {
   }
 
-  if (subcommand === 'doctor') {
+  if (subcommand === 'pair') {
+    try {
+      await handlePairCommand(args.slice(1));
+    } catch (error) {
+      console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')
+      process.exitCode = 1
+    }
+    return;
+  } else if (subcommand === 'doctor') {
     // Check for clean subcommand
     if (args[1] === 'clean') {
       if (args.slice(2).some(a => a === '--help' || a === '-h')) {

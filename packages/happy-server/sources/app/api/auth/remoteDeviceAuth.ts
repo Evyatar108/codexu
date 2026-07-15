@@ -9,6 +9,7 @@ import {
     isPublicProofFresh,
     verifyPublicRequest,
     type PublicSignedRequestEnvelope,
+    PairCompleteRequestSchema,
 } from "@slopus/happy-wire";
 import {
     createEdgeAssertionVerifier,
@@ -327,7 +328,7 @@ export function createRemoteDeviceVerifier(
     };
 }
 
-export type PublicRoutePolicy = "deviceProof" | "pairComplete";
+export type PublicRoutePolicy = "deviceProof" | "pairComplete" | "oauthCallback";
 
 export interface PublicRoutePolicyEntry {
     method: string;
@@ -355,6 +356,9 @@ export const PUBLIC_ROUTE_POLICY_ALLOWLIST: PublicRoutePolicyEntry[] = [
     { method: "POST", path: "/logs-combined-from-cli-and-mobile-for-simple-ai-debugging", policy: "deviceProof" },
     { method: "POST", path: "/pair/complete", policy: "pairComplete" },
     { method: "POST", path: "/pair/connect", policy: "deviceProof" },
+    { method: "GET", path: "/v1/connect/github/params", policy: "deviceProof" },
+    { method: "GET", path: "/v1/connect/github/callback", policy: "oauthCallback" },
+    { method: "DELETE", path: "/v1/connect/github", policy: "deviceProof" },
     { method: "POST", path: "/push/register", policy: "deviceProof" },
     { method: "POST", path: "/v1/push-tokens", policy: "deviceProof" },
     { method: "GET", path: "/v1/push-tokens", policy: "deviceProof" },
@@ -390,8 +394,12 @@ export interface PairingGateResult {
 }
 
 export interface PairingGate {
-    /** Validates the operator pairing window, pre-shared QR secret, and single-use nonce. */
+    /** Compatibility helper that immediately commits a valid reservation. */
     check(headers: Record<string, unknown>): PairingGateResult;
+    reserve(headers: Record<string, unknown>): PairingGateResult & {
+        commit?: () => void;
+        release?: () => void;
+    };
 }
 
 /**
@@ -405,8 +413,16 @@ export interface PairingGate {
 export function createPairingGate(config: PublicPairingConfig): PairingGate {
     const now = config.now ?? (() => Date.now());
     const consumedNonces = new Set<string>();
+    const reservedNonces = new Set<string>();
     return {
         check(headers) {
+            const reservation = this.reserve(headers);
+            if (reservation.ok) {
+                reservation.commit?.();
+            }
+            return { ok: reservation.ok, reason: reservation.reason };
+        },
+        reserve(headers) {
             const nowMs = now();
             if (nowMs < config.windowOpenedAt) {
                 return { ok: false, reason: "pairing_window_not_open" };
@@ -422,11 +438,20 @@ export function createPairingGate(config: PublicPairingConfig): PairingGate {
             if (!nonce) {
                 return { ok: false, reason: "pairing_nonce_required" };
             }
-            if (consumedNonces.has(nonce)) {
+            if (consumedNonces.has(nonce) || reservedNonces.has(nonce)) {
                 return { ok: false, reason: "pairing_nonce_replayed" };
             }
-            consumedNonces.add(nonce);
-            return { ok: true };
+            reservedNonces.add(nonce);
+            return {
+                ok: true,
+                commit() {
+                    reservedNonces.delete(nonce);
+                    consumedNonces.add(nonce);
+                },
+                release() {
+                    reservedNonces.delete(nonce);
+                },
+            };
         },
     };
 }
@@ -459,6 +484,11 @@ export interface PublicAuthRuntime {
      * instance the HTTP guard + socket handshake read — closing the enroll->verify gap.
      */
     enrollDevice: (record: RemoteDeviceRecord) => Promise<DeviceEnrollResult>;
+    enrollPairingDevice: (input: {
+        headers: Record<string, unknown>;
+        rawBody: Uint8Array | string | undefined;
+        body: unknown;
+    }) => Promise<DeviceEnrollResult>;
 }
 
 /**
@@ -474,6 +504,7 @@ export function createPublicAuthRuntime(config: PublicAuthConfig): PublicAuthRun
     // across every request (never per-call). Undefined when no assertion is
     // configured — the guards then fall back to the legacy service-token check.
     const assertionVerifier = edge?.assertion ? createEdgeAssertionVerifier(edge.assertion) : undefined;
+    let enrollmentQueue = Promise.resolve();
 
     async function httpGuard(request: any, reply: any): Promise<unknown> {
         // CORS preflight is handled by @fastify/cors and must not be blocked here.
@@ -489,11 +520,11 @@ export function createPublicAuthRuntime(config: PublicAuthConfig): PublicAuthRun
         if (policy === null) {
             return reply.code(401).send({ error: "route_not_allowlisted" });
         }
-        if (policy === "pairComplete") {
+        if (policy === "pairComplete" || policy === "oauthCallback") {
             // The route handler enforces the operator window + QR secret + replay.
             return;
         }
-        const urlPath = String(request.url ?? "").split("?")[0];
+        const urlPath = String(request.url ?? "");
         const header = headerString(request.headers[PUBLIC_DEVICE_PROOF_HEADER]);
         const result = await verifier.verify({ method: request.method, path: urlPath, header });
         if (!result.ok) {
@@ -546,17 +577,100 @@ export function createPublicAuthRuntime(config: PublicAuthConfig): PublicAuthRun
      * the route can decide how to surface it.
      */
     async function enrollDevice(record: RemoteDeviceRecord): Promise<DeviceEnrollResult> {
-        const result = verifier.enroll(record);
-        if (result.ok && result.enrolled && config.onDeviceEnrolled) {
-            await config.onDeviceEnrolled(
-                { keyId: record.keyId, publicKey: record.publicKey },
-                verifier.listDevices(),
-            );
-        }
+        let result: DeviceEnrollResult = { ok: false, reason: "enrollment_failed" };
+        const work = enrollmentQueue.then(async () => {
+            if (!isValidDeviceRecordShape(record)) {
+                result = { ok: false, reason: "invalid_device_key" };
+                return;
+            }
+            const existing = verifier.listDevices().find(device => device.keyId === record.keyId);
+            if (existing?.publicKey !== undefined && existing.publicKey !== record.publicKey) {
+                result = { ok: false, reason: "device_key_conflict" };
+                return;
+            }
+            if (existing) {
+                result = { ok: true, enrolled: false };
+                return;
+            }
+            const next = [...verifier.listDevices(), { keyId: record.keyId, publicKey: record.publicKey }];
+            await config.onDeviceEnrolled?.(record, next);
+            result = verifier.enroll(record);
+        });
+        enrollmentQueue = work.catch(() => {});
+        await work;
         return result;
     }
 
-    return { verifier, edge, config, pairingGate, httpGuard, bodyHashGuard, verifySocketHandshake, enrollDevice };
+    async function enrollPairingDevice(input: {
+        headers: Record<string, unknown>;
+        rawBody: Uint8Array | string | undefined;
+        body: unknown;
+    }): Promise<DeviceEnrollResult> {
+        if (!pairingGate) {
+            return { ok: false, reason: "pairing_window_closed" };
+        }
+        const reservation = pairingGate.reserve(input.headers);
+        if (!reservation.ok) {
+            return reservation;
+        }
+        try {
+            const parsedBody = PairCompleteRequestSchema.safeParse(input.body);
+            if (!parsedBody.success) {
+                return { ok: false, reason: "invalid_device_key" };
+            }
+            const record = {
+                keyId: parsedBody.data.deviceKeyId,
+                publicKey: parsedBody.data.deviceEd25519PublicKey,
+            };
+            if (!isValidDeviceRecordShape(record)) {
+                return { ok: false, reason: "invalid_device_key" };
+            }
+            const envelope = decodePublicDeviceProofHeader(
+                headerString(input.headers[PUBLIC_DEVICE_PROOF_HEADER]),
+            );
+            if (
+                !envelope
+                || envelope.keyId !== record.keyId
+                || envelope.publicKey !== record.publicKey
+                || !isPublicProofFresh(
+                    envelope.issuedAt,
+                    config.now?.() ?? Date.now(),
+                    config.freshnessMs ?? PUBLIC_DEVICE_PROOF_FRESHNESS_MS,
+                    config.clockSkewMs ?? PUBLIC_DEVICE_PROOF_CLOCK_SKEW_MS,
+                )
+            ) {
+                return { ok: false, reason: "invalid_device_proof" };
+            }
+            const verification = await verifyPublicRequest(envelope, {
+                method: "POST",
+                path: "/pair/complete",
+                bodyHash: hashRequestBody(input.rawBody ?? null),
+                expectedPublicKey: record.publicKey,
+            });
+            if (!verification.ok) {
+                return { ok: false, reason: verification.reason };
+            }
+            const result = await enrollDevice(record);
+            if (result.ok) {
+                reservation.commit?.();
+            }
+            return result;
+        } finally {
+            reservation.release?.();
+        }
+    }
+
+    return {
+        verifier,
+        edge,
+        config,
+        pairingGate,
+        httpGuard,
+        bodyHashGuard,
+        verifySocketHandshake,
+        enrollDevice,
+        enrollPairingDevice,
+    };
 }
 
 /** Result of the relocated public-mode Socket.IO handshake check. */

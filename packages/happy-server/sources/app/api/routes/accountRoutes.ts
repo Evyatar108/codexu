@@ -5,23 +5,18 @@ import * as path from "path";
 import { writeJsonAtomically } from "@slopus/happy-wire/node";
 import { type Fastify } from "../types";
 import { type ApiPaths } from "../api";
-
-const ProfileSchema = z.object({
-    githubUserId: z.number(),
-    githubLogin: z.string(),
-    name: z.string().nullable(),
-    avatarUrl: z.string().nullable(),
-    updatedAt: z.string(),
-});
+import { CanonicalLocalProfileSchema, type CanonicalLocalProfile } from "@slopus/happy-wire";
+import { readGithubConnection } from "@/app/github/githubConnectionStore";
 
 const SettingsSchema = z.record(z.unknown());
 
 export interface AccountRoutesOptions {
     paths?: ApiPaths;
+    localUserId: string;
 }
 
 function defaultProfilePath(): string {
-    return path.join(os.homedir(), ".happy", "profile.json");
+    return path.join(os.homedir(), ".happy", "local-profile.json");
 }
 
 function defaultAccountSettingsPath(): string {
@@ -42,22 +37,41 @@ async function readJsonFile<T>(filePath: string, schema: z.ZodType<T>): Promise<
 export function accountRoutes(app: Fastify, options: AccountRoutesOptions) {
     const profilePath = options.paths?.profile ?? defaultProfilePath();
     const accountSettingsPath = options.paths?.accountSettings ?? defaultAccountSettingsPath();
+    const githubConnectionPath = options.paths?.githubConnection
+        ?? path.join(path.dirname(profilePath), "github-connection.json");
 
     app.get('/v2/me/profile', {
         preHandler: [app.authenticate],
         schema: {
             response: {
-                200: ProfileSchema,
-                404: z.object({ error: z.literal("profile_not_found") }),
+                200: CanonicalLocalProfileSchema,
                 401: z.object({ error: z.string() }),
             },
         },
     }, async (_request, reply) => {
-        const profile = await readJsonFile(profilePath, ProfileSchema);
-        if (!profile) {
-            return reply.code(404).send({ error: "profile_not_found" });
-        }
-        return reply.send(profile);
+        const profile = await readJsonFile(profilePath, CanonicalLocalProfileSchema)
+            ?? {
+                id: options.localUserId,
+                timestamp: Date.now(),
+                firstName: null,
+                lastName: null,
+                avatar: null,
+                github: null,
+                connectedServices: [],
+            } satisfies CanonicalLocalProfile;
+        const github = await readGithubConnection(githubConnectionPath);
+        return reply.send({
+            ...profile,
+            github: github ? {
+                id: github.profile.id,
+                login: github.profile.login,
+                name: github.profile.name ?? "",
+                avatar_url: github.profile.avatar_url,
+                ...(github.profile.email ? { email: github.profile.email } : {}),
+                bio: github.profile.bio,
+            } : null,
+            connectedServices: github ? ["github"] : [],
+        });
     });
 
     app.get('/v2/me/settings', {

@@ -1,4 +1,5 @@
-import type { CreateAppConfig, HappyServerHandle, HappyServerSharedContext, PublicAuthConfig } from 'happy-server';
+import type { CreateAppConfig, HappyServerHandle, HappyServerSharedContext, LocalDeviceAuthConfig, PublicAuthConfig } from 'happy-server';
+import type { LocalPairingInvite } from '@slopus/happy-wire';
 
 import type { MachineLocallyPersistedState } from '@/persistence';
 import type { DaemonTunnelProvider } from '@/tunnel/provider';
@@ -11,6 +12,7 @@ const importHappyServer = new Function('specifier', 'return import(specifier)') 
 export type DualListenerPaths = {
   profile: string;
   accountSettings: string;
+  githubConnection?: string;
   loopbackCap: string;
 };
 
@@ -35,6 +37,10 @@ export type DualListenerBindingOptions = {
     auth: 'public';
     publicAuth: PublicAuthConfig;
   };
+  localListener?: {
+    auth: 'local-device';
+    localAuth: LocalDeviceAuthConfig;
+  };
   createAppFactory?: CreateAppFactory;
 };
 
@@ -43,6 +49,7 @@ export type DualListenerBindingHandle = {
   loopback: HappyServerHandle;
   tunnelConfig: TunnelConfig;
   stop: () => Promise<void>;
+  createLocalPairingInvite: (browserOrigin: string) => LocalPairingInvite;
 };
 
 export async function dualListenerBinding(options: DualListenerBindingOptions): Promise<DualListenerBindingHandle> {
@@ -73,8 +80,9 @@ export async function dualListenerBinding(options: DualListenerBindingOptions): 
   const tunnel = create({
     ...shared,
     port: state.tunnelPort,
-    auth: options.publicListener?.auth ?? 'tunnel',
+    auth: options.publicListener?.auth ?? options.localListener?.auth ?? 'tunnel',
     ...(options.publicListener ? { publicAuth: options.publicListener.publicAuth } : {}),
+    ...(options.localListener ? { localAuth: options.localListener.localAuth } : {}),
     paths: options.paths,
     machineState,
   });
@@ -99,6 +107,12 @@ export async function dualListenerBinding(options: DualListenerBindingOptions): 
     tunnel,
     loopback,
     tunnelConfig,
+    createLocalPairingInvite(browserOrigin: string) {
+      if (!tunnel.createLocalPairingInvite) {
+        throw new Error('Local paired-device listener is not configured');
+      }
+      return tunnel.createLocalPairingInvite(browserOrigin);
+    },
     async stop() {
       await Promise.allSettled([loopback.stop(), tunnel.stop()]);
       options.tunnelProvider.stop();

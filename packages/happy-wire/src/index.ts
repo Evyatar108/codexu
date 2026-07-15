@@ -11,5 +11,6 @@ export * from './publicDeviceAuth';
 export * from './publicPairingInvite';
 export * from './localPairingInvite';
 export * from './localDeviceAuth';
+export * from './pairingEnrollment';
 export * from './sessionOutputSnapshot';
 export * from './tunnel/types';

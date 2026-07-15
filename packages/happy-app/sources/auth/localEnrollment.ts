@@ -5,6 +5,8 @@ import {
     decodeLocalPairingInvite,
     isLocalPairingInviteValid,
     type LocalPairingInvite,
+    PairCompleteResponseSchema,
+    verifyPairCompleteResponse,
 } from '@slopus/happy-wire';
 
 import { buildLocalDeviceProofHeader } from './localDeviceProof';
@@ -104,15 +106,17 @@ export async function enrollLocalServer(
         throw new LocalEnrollmentError('pair_failed', `status ${response.status}`);
     }
 
-    let payload: unknown;
+    let rawPayload: unknown;
     try {
-        payload = await response.json();
+        rawPayload = await response.json();
     } catch {
         throw new LocalEnrollmentError('invalid_response');
     }
-    if (!isExpectedPairCompleteResponse(payload, invite, keypair)) {
+    const parsedPayload = PairCompleteResponseSchema.safeParse(rawPayload);
+    if (!parsedPayload.success || !await isExpectedPairCompleteResponse(parsedPayload.data, invite, keypair, existing)) {
         throw new LocalEnrollmentError('invalid_response');
     }
+    const payload = parsedPayload.data;
 
     const credentials: AuthCredentials = {
         authMode: 'paired-device',
@@ -124,6 +128,8 @@ export async function enrollLocalServer(
         deviceKeyId: keypair.keyId,
         devicePublicKey: keypair.publicKey,
         deviceSecretKey: keypair.secretKey,
+        serverEd25519PublicKey: payload.machine.ed25519PublicKey,
+        serverEd25519Fingerprint: payload.machine.ed25519Fingerprint,
     };
     return {
         credentials,
@@ -132,36 +138,21 @@ export async function enrollLocalServer(
     };
 }
 
-function isExpectedPairCompleteResponse(
-    value: unknown,
+async function isExpectedPairCompleteResponse(
+    value: import('@slopus/happy-wire').PairCompleteResponse,
     invite: LocalPairingInvite,
     keypair: DeviceKeypair,
-): boolean {
-    if (!hasExactKeys(value, ['machine', 'authMode', 'pairedDevice', 'githubLogin'])) {
+    existing: AuthCredentials | undefined,
+): Promise<boolean> {
+    if (!await verifyPairCompleteResponse(value)) {
         return false;
     }
-    const machine = value.machine;
-    const pairedDevice = value.pairedDevice;
-    return value.authMode === 'paired-device'
-        && value.githubLogin === null
-        && hasExactKeys(machine, ['machineId', 'tunnelUrl'])
-        && machine.machineId === invite.machineId
-        && machine.tunnelUrl === invite.serverUrl
-        && hasExactKeys(pairedDevice, ['keyId', 'publicKey'])
-        && pairedDevice.keyId === keypair.keyId
-        && pairedDevice.publicKey === keypair.publicKey;
-}
-
-function hasExactKeys<const Keys extends readonly string[]>(
-    value: unknown,
-    keys: Keys,
-): value is { [Key in Keys[number]]: unknown } {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) {
-        return false;
-    }
-    const actualKeys = Object.keys(value);
-    return actualKeys.length === keys.length
-        && keys.every(key => Object.prototype.hasOwnProperty.call(value, key));
+    return value.machine.machineId === invite.machineId
+        && value.machine.tunnelUrl === invite.serverUrl
+        && value.pairedDevice.keyId === keypair.keyId
+        && value.pairedDevice.publicKey === keypair.publicKey
+        && (!existing?.serverEd25519PublicKey
+            || existing.serverEd25519PublicKey === value.machine.ed25519PublicKey);
 }
 
 function getReusableKeypair(credentials: AuthCredentials | undefined): DeviceKeypair | null {

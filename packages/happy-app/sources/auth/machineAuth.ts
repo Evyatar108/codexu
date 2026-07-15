@@ -78,7 +78,7 @@ export async function tunnelFetch(
     const parsedUrl = new URL(url);
     const binding: MachineProofBinding = {
         method: (init?.method ?? 'GET').toUpperCase(),
-        path: parsedUrl.pathname,
+        path: `${parsedUrl.pathname}${parsedUrl.search}`,
         target: `${parsedUrl.pathname}${parsedUrl.search}`,
         body: coerceProofBody(init?.body),
     };

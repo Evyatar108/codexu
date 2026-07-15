@@ -30,6 +30,8 @@ export interface AuthCredentials {
     devicePublicKey?: string;
     /** Base64 Ed25519 seed (32 bytes). Sensitive; persisted via SecureStore/localStorage. */
     deviceSecretKey?: string;
+    serverEd25519PublicKey?: string;
+    serverEd25519Fingerprint?: string;
 }
 
 export type AuthCredentialsIssue = 'missing-device-key' | 'incomplete-cloudflare';
@@ -72,6 +74,7 @@ const AUTH_CREDENTIALS_KEYS = new Set<string>([
     'connectToken', 'connectTokenExpiry', 'tunnelId',
     'cloudflareAccessClientId', 'cloudflareAccessClientSecret',
     'deviceKeyId', 'devicePublicKey', 'deviceSecretKey',
+    'serverEd25519PublicKey', 'serverEd25519Fingerprint',
 ]);
 
 function normalizeAuthCredentials(value: unknown): AuthCredentials | null {
@@ -92,6 +95,9 @@ function normalizeAuthCredentials(value: unknown): AuthCredentials | null {
         : hasAnyPairedDeviceField(candidate)
             ? 'paired-device'
             : 'dev-tunnel';
+    if (authMode !== 'paired-device') {
+        return null;
+    }
     if ((candidate.authMode !== undefined && candidate.authMode !== 'dev-tunnel' && candidate.authMode !== 'paired-device')
         || (candidate.login !== undefined && typeof candidate.login !== 'string')
         || (candidate.avatarUrl !== undefined && typeof candidate.avatarUrl !== 'string')
@@ -104,7 +110,9 @@ function normalizeAuthCredentials(value: unknown): AuthCredentials | null {
         || (candidate.cloudflareAccessClientSecret !== undefined && typeof candidate.cloudflareAccessClientSecret !== 'string')
         || (candidate.deviceKeyId !== undefined && typeof candidate.deviceKeyId !== 'string')
         || (candidate.devicePublicKey !== undefined && typeof candidate.devicePublicKey !== 'string')
-        || (candidate.deviceSecretKey !== undefined && typeof candidate.deviceSecretKey !== 'string')) {
+        || (candidate.deviceSecretKey !== undefined && typeof candidate.deviceSecretKey !== 'string')
+        || (candidate.serverEd25519PublicKey !== undefined && typeof candidate.serverEd25519PublicKey !== 'string')
+        || (candidate.serverEd25519Fingerprint !== undefined && typeof candidate.serverEd25519Fingerprint !== 'string')) {
         return null;
     }
     const normalized: Record<string, unknown> = {};
@@ -155,14 +163,29 @@ function serializeCredentials(credentials: StoredMachineCredentials): string {
 }
 
 function filterOldShapeCredentials(credentials: StoredMachineCredentials): StoredMachineCredentials {
-    const machines = credentials.machines.filter(machine => !isOldShape(machine as Partial<AuthCredentials> & Record<string, unknown>));
+    const machines = credentials.machines
+        .filter(machine => !isOldShape(machine as Partial<AuthCredentials> & Record<string, unknown>))
+        .filter(machine => machine.authMode === 'paired-device')
+        .map(machine => ({
+            authMode: 'paired-device' as const,
+            machineId: machine.machineId,
+            tunnelUrl: machine.tunnelUrl,
+            firstSeenAt: machine.firstSeenAt,
+            ...(machine.cloudflareAccessClientId ? { cloudflareAccessClientId: machine.cloudflareAccessClientId } : {}),
+            ...(machine.cloudflareAccessClientSecret ? { cloudflareAccessClientSecret: machine.cloudflareAccessClientSecret } : {}),
+            ...(machine.deviceKeyId ? { deviceKeyId: machine.deviceKeyId } : {}),
+            ...(machine.devicePublicKey ? { devicePublicKey: machine.devicePublicKey } : {}),
+            ...(machine.deviceSecretKey ? { deviceSecretKey: machine.deviceSecretKey } : {}),
+            ...(machine.serverEd25519PublicKey ? { serverEd25519PublicKey: machine.serverEd25519PublicKey } : {}),
+            ...(machine.serverEd25519Fingerprint ? { serverEd25519Fingerprint: machine.serverEd25519Fingerprint } : {}),
+        }));
     const primaryMachineId = credentials.primaryMachineId && machines.some(machine => machine.machineId === credentials.primaryMachineId)
         ? credentials.primaryMachineId
         : machines[0]?.machineId ?? null;
     return {
         primaryMachineId,
         machines,
-        devTunnelsAccess: credentials.devTunnelsAccess,
+        devTunnelsAccess: null,
     };
 }
 
@@ -300,11 +323,12 @@ export const TokenStorage = {
     },
 
     async setDevTunnelsToken(token: string): Promise<void> {
+        void token;
         const existing = await this.getStoredCredentials();
         await this.writeStoredCredentials({
             primaryMachineId: existing?.primaryMachineId ?? null,
             machines: existing?.machines ?? [],
-            devTunnelsAccess: token,
+            devTunnelsAccess: null,
         });
     },
 

@@ -1,11 +1,15 @@
 import {
     decodePublicPairingInvite,
     isPublicPairingInviteValid,
+    PairCompleteResponseSchema,
+    PUBLIC_DEVICE_PROOF_HEADER,
+    verifyPairCompleteResponse,
     type PublicPairingInvite,
 } from '@slopus/happy-wire';
 
 import { generateDeviceKeypair, generateSecureNonce, type DeviceKeypair } from './deviceKeypair';
-import type { AuthCredentials } from './tokenStorage';
+import { buildPublicDeviceProofHeader } from './publicDeviceProof';
+import { TokenStorage, type AuthCredentials } from './tokenStorage';
 
 // Header names the app SENDS. Cloudflare Access service-token headers are
 // case-insensitive on the wire; the happy-server edge check reads them
@@ -44,6 +48,7 @@ export interface PublicEnrollmentDeps {
     generateKeypair?: () => Promise<DeviceKeypair>;
     generateNonce?: () => string;
     now?: () => number;
+    getCredentialsList?: () => Promise<AuthCredentials[]>;
 }
 
 /** Strip a trailing slash so `${serverUrl}/path` never double-slashes. */
@@ -85,9 +90,17 @@ export async function enrollPublicServer(
     const keypair = await genKeypair();
     const serverUrl = normalizeServerUrl(invite.serverUrl);
     const body = JSON.stringify({
+        version: 1,
+        machineId: invite.machineId,
         deviceEd25519PublicKey: keypair.publicKey,
         deviceKeyId: keypair.keyId,
     });
+    const proof = await buildPublicDeviceProofHeader(
+        { keyId: keypair.keyId, secretKey: keypair.secretKey },
+        { method: 'POST', path: '/pair/complete', body },
+        genNonce(),
+        nowMs,
+    );
 
     let response: Response;
     try {
@@ -99,6 +112,7 @@ export async function enrollPublicServer(
                 [CF_ACCESS_CLIENT_SECRET_HEADER]: invite.cloudflareAccess.clientSecret,
                 [PAIRING_SECRET_HEADER]: invite.pairSecret,
                 [PAIRING_NONCE_HEADER]: genNonce(),
+                [PUBLIC_DEVICE_PROOF_HEADER]: proof,
             },
             body,
         });
@@ -120,11 +134,19 @@ export async function enrollPublicServer(
     } catch {
         throw new PublicEnrollmentError('invalid_response');
     }
-    const machine = (payload as { machine?: { machineId?: unknown; tunnelUrl?: unknown } } | null)?.machine;
-    if (!machine || typeof machine.machineId !== 'string') {
+    const parsed = PairCompleteResponseSchema.safeParse(payload);
+    if (!parsed.success || !await verifyPairCompleteResponse(parsed.data)) {
         throw new PublicEnrollmentError('invalid_response');
     }
-    const githubLogin = (payload as { githubLogin?: unknown }).githubLogin;
+    const machine = parsed.data.machine;
+    const existing = (await (deps.getCredentialsList ?? (() => TokenStorage.getCredentialsList()))())
+        .find(credentials => credentials.machineId === invite.machineId);
+    if (
+        existing?.serverEd25519PublicKey
+        && existing.serverEd25519PublicKey !== machine.ed25519PublicKey
+    ) {
+        throw new PublicEnrollmentError('invalid_response', 'server identity changed');
+    }
 
     const credentials: AuthCredentials = {
         authMode: 'paired-device',
@@ -133,13 +155,14 @@ export async function enrollPublicServer(
         // so it is authoritative for later requests (the server-reported
         // tunnelUrl may be a private/loopback fallback).
         tunnelUrl: serverUrl,
-        firstSeenAt: nowMs,
-        login: typeof githubLogin === 'string' ? githubLogin : undefined,
+        firstSeenAt: existing?.firstSeenAt ?? nowMs,
         cloudflareAccessClientId: invite.cloudflareAccess.clientId,
         cloudflareAccessClientSecret: invite.cloudflareAccess.clientSecret,
         deviceKeyId: keypair.keyId,
         devicePublicKey: keypair.publicKey,
         deviceSecretKey: keypair.secretKey,
+        serverEd25519PublicKey: machine.ed25519PublicKey,
+        serverEd25519Fingerprint: machine.ed25519Fingerprint,
     };
 
     return { credentials, invite };

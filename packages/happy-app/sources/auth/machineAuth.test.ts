@@ -155,8 +155,7 @@ describe('public-server machine auth', () => {
         expect(sent[CF_ACCESS_CLIENT_ID_HEADER]).toBe('cf-id.example');
         expect(sent[CF_ACCESS_CLIENT_SECRET_HEADER]).toBe('cf-secret-value');
         const envelope = decodePublicDeviceProofHeader(sent[PUBLIC_DEVICE_PROOF_HEADER]!);
-        // Server strips the query string; the proof path must be the bare pathname.
-        expect(envelope?.path).toBe('/v1/sessions');
+        expect(envelope?.path).toBe('/v1/sessions?cursor=2');
         expect(envelope?.method).toBe('POST');
     });
 });

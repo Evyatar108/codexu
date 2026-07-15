@@ -1,120 +1,68 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-    requestDeviceCode: vi.fn(),
-    pollForToken: vi.fn(),
-    openBrowser: vi.fn(),
     readCredentials: vi.fn(),
     writeCredentialsLegacy: vi.fn(),
     writeCredentialsDataKey: vi.fn(),
-    updateSettings: vi.fn(),
-    writeJsonAtomically: vi.fn(),
-    loggerWarn: vi.fn(),
 }));
-
-vi.mock('@/auth/githubDeviceFlow', () => ({
-    requestDeviceCode: mocks.requestDeviceCode,
-    pollForToken: mocks.pollForToken,
-}));
-
-vi.mock('@/utils/browser', () => ({ openBrowser: mocks.openBrowser }));
 
 vi.mock('@/persistence', () => ({
     readCredentials: mocks.readCredentials,
     writeCredentialsLegacy: mocks.writeCredentialsLegacy,
     writeCredentialsDataKey: mocks.writeCredentialsDataKey,
-    updateSettings: mocks.updateSettings,
 }));
-
-vi.mock('@slopus/happy-wire/node', () => ({ writeJsonAtomically: mocks.writeJsonAtomically }));
-
 vi.mock('@/configuration', () => ({
-    configuration: { happyHomeDir: '/tmp/happy-test' },
+    configuration: {
+        happyHomeDir: 'C:\\happy-test',
+        localProfileFile: 'C:\\happy-test\\local-profile.json',
+        serverStorageKeyFile: 'C:\\happy-test\\server-storage.key',
+    },
 }));
+vi.mock('./logger', () => ({ logger: { debug: vi.fn(), warn: vi.fn() } }));
 
-vi.mock('./logger', () => ({
-    logger: { debug: vi.fn(), warn: mocks.loggerWarn },
-}));
+import { createLocalCompatibilityToken, doAuth, shouldReplaceBootstrapToken } from './auth';
 
-import { doAuth } from './auth';
+describe('offline local bootstrap', () => {
+    afterEach(() => vi.clearAllMocks());
 
-function jsonResponse(body: unknown, status = 200): Response {
-    return new Response(JSON.stringify(body), {
-        status,
-        headers: { 'Content-Type': 'application/json' },
-    });
-}
+    it.each(['ghu_old', 'gho_old', 'ghp_old', 'github_pat_old'])(
+        'recognizes only known GitHub bootstrap token %s',
+        token => expect(shouldReplaceBootstrapToken(token)).toBe(true),
+    );
 
-describe('doAuth', () => {
-    afterEach(() => {
-        vi.clearAllMocks();
-        vi.restoreAllMocks();
-    });
+    it('preserves unknown upstream Happy tokens and encryption keys', async () => {
+        const fetchSpy = vi.spyOn(globalThis, 'fetch');
+        const publicKey = new Uint8Array(32).fill(1);
+        const machineKey = new Uint8Array(32).fill(2);
+        const existing = {
+            token: 'happy-upstream-token',
+            encryption: { type: 'dataKey' as const, publicKey, machineKey },
+        };
+        mocks.readCredentials.mockResolvedValue(existing);
 
-    it('persists new installs as token plus local encryption material and writes profile.json', async () => {
-        vi.spyOn(console, 'clear').mockImplementation(() => undefined);
-        vi.spyOn(console, 'log').mockImplementation(() => undefined);
-        vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
-        vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({
-            id: 123,
-            login: 'octocat',
-            name: 'The Octocat',
-            avatar_url: 'https://avatars.githubusercontent.com/u/123',
-            updated_at: '2026-05-12T00:00:00Z',
-        }));
-        mocks.readCredentials.mockResolvedValue(null);
-        mocks.requestDeviceCode.mockResolvedValue({
-            device_code: 'device-code',
-            user_code: 'ABCD-EFGH',
-            verification_uri: 'https://github.com/login/device',
-            verification_uri_complete: 'https://github.com/login/device?user_code=ABCD-EFGH',
-            expires_in: 900,
-            interval: 1,
-        });
-        mocks.pollForToken.mockResolvedValue('ghu_token');
-
-        const credentials = await doAuth();
-
-        expect(credentials?.encryption.type).toBe('dataKey');
-        expect(mocks.writeCredentialsDataKey).toHaveBeenCalledWith(expect.objectContaining({
-            token: 'ghu_token',
-            publicKey: expect.any(Uint8Array),
-            machineKey: expect.any(Uint8Array),
-        }));
-        expect(mocks.writeCredentialsDataKey.mock.calls[0][0].publicKey).toHaveLength(32);
-        expect(mocks.writeCredentialsDataKey.mock.calls[0][0].machineKey).toHaveLength(32);
-        expect(mocks.writeCredentialsLegacy).not.toHaveBeenCalled();
-        expect(mocks.writeJsonAtomically.mock.calls[0][0]).toMatch(/[\\/]tmp[\\/]happy-test[\\/]profile\.json$/);
-        expect(mocks.writeJsonAtomically.mock.calls[0][1]).toEqual({
-            githubUserId: 123,
-            githubLogin: 'octocat',
-            name: 'The Octocat',
-            avatarUrl: 'https://avatars.githubusercontent.com/u/123',
-            updatedAt: '2026-05-12T00:00:00Z',
-        });
-    });
-
-    it('rotates legacy token while preserving secret and does not block when profile fetch fails', async () => {
-        vi.spyOn(console, 'clear').mockImplementation(() => undefined);
-        vi.spyOn(console, 'log').mockImplementation(() => undefined);
-        vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
-        vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ error: 'bad_gateway' }, 502));
-        const secret = new Uint8Array(32).fill(7);
-        mocks.readCredentials.mockResolvedValue({ token: 'old-token', encryption: { type: 'legacy', secret } });
-        mocks.requestDeviceCode.mockResolvedValue({
-            device_code: 'device-code',
-            user_code: 'ABCD-EFGH',
-            verification_uri: 'https://github.com/login/device',
-            expires_in: 900,
-            interval: 1,
-        });
-        mocks.pollForToken.mockResolvedValue('new-token');
-
-        await expect(doAuth()).resolves.toMatchObject({ token: 'new-token', encryption: { type: 'legacy', secret } });
-
-        expect(mocks.writeCredentialsLegacy).toHaveBeenCalledWith({ secret, token: 'new-token' });
+        await expect(doAuth()).resolves.toBe(existing);
         expect(mocks.writeCredentialsDataKey).not.toHaveBeenCalled();
-        expect(mocks.writeJsonAtomically).not.toHaveBeenCalled();
-        expect(mocks.loggerWarn).toHaveBeenCalledWith(expect.stringContaining('continuing auth without profile.json'));
+        expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('atomically replaces a known GitHub token while preserving encryption keys', async () => {
+        const secret = new Uint8Array(32).fill(7);
+        mocks.readCredentials.mockResolvedValue({
+            token: 'ghu_retired',
+            encryption: { type: 'legacy', secret },
+        });
+
+        const result = await doAuth();
+
+        expect(result?.token).toMatch(/^happy-local-v1_[A-Za-z0-9_-]+$/);
+        expect(result?.encryption).toEqual({ type: 'legacy', secret });
+        expect(mocks.writeCredentialsLegacy).toHaveBeenCalledWith({
+            secret,
+            token: result?.token,
+        });
+    });
+
+    it('creates opaque compatibility tokens without network-shaped prefixes', () => {
+        expect(createLocalCompatibilityToken()).toMatch(/^happy-local-v1_[A-Za-z0-9_-]{40,}$/);
     });
 });

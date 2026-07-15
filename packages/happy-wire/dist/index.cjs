@@ -688,13 +688,45 @@ function canonicalRequestStringToSign(fields) {
   return [
     PUBLIC_DEVICE_PROOF_DOMAIN,
     normalizeMethod(fields.method),
-    fields.path,
+    canonicalizePublicRequestTarget(fields.path),
     fields.keyId,
     fields.publicKey,
     fields.nonce,
     String(fields.issuedAt),
     fields.bodyHash
   ].join("\n");
+}
+function canonicalizePublicRequestTarget(target) {
+  if (!target.startsWith("/") || target.includes("#") || /[\u0000-\u001f\u007f]/.test(target)) {
+    throw new Error("invalid proof target");
+  }
+  for (let index = 0; index < target.length; index += 1) {
+    if (target[index] === "%" && !/^[0-9A-Fa-f]{2}$/.test(target.slice(index + 1, index + 3))) {
+      throw new Error("invalid proof target encoding");
+    }
+  }
+  const parsed = new URL(`http://localhost${target}`);
+  const pairs = Array.from(parsed.searchParams.entries()).sort(([leftKey, leftValue], [rightKey, rightValue]) => {
+    const keyOrder = compareUtf8$1(leftKey, rightKey);
+    return keyOrder !== 0 ? keyOrder : compareUtf8$1(leftValue, rightValue);
+  });
+  const query = new URLSearchParams();
+  for (const [key, value] of pairs) {
+    query.append(key, value);
+  }
+  const encoded = query.toString();
+  return encoded ? `${parsed.pathname}?${encoded}` : parsed.pathname;
+}
+function compareUtf8$1(left, right) {
+  const leftBytes = new TextEncoder().encode(left);
+  const rightBytes = new TextEncoder().encode(right);
+  const length = Math.min(leftBytes.length, rightBytes.length);
+  for (let index = 0; index < length; index += 1) {
+    if (leftBytes[index] !== rightBytes[index]) {
+      return leftBytes[index] - rightBytes[index];
+    }
+  }
+  return leftBytes.length - rightBytes.length;
 }
 function hashRequestBody(body) {
   let bytes;
@@ -721,10 +753,11 @@ function generatePublicRequestNonce(byteLength = 24) {
 }
 async function signPublicRequest(input, secretKey) {
   const method = normalizeMethod(input.method);
+  const path = canonicalizePublicRequestTarget(input.path);
   const publicKey = encodeBase64(await ed__namespace.getPublicKeyAsync(secretKey));
   const canonical = canonicalRequestStringToSign({
     method,
-    path: input.path,
+    path,
     keyId: input.keyId,
     publicKey,
     nonce: input.nonce,
@@ -739,7 +772,7 @@ async function signPublicRequest(input, secretKey) {
     nonce: input.nonce,
     issuedAt: input.issuedAt,
     method,
-    path: input.path,
+    path,
     bodyHash: input.bodyHash,
     signature
   };
@@ -753,7 +786,13 @@ async function verifyPublicRequest(envelope, context) {
   if (normalizeMethod(env.method) !== normalizeMethod(context.method)) {
     return { ok: false, reason: "method_mismatch" };
   }
-  if (env.path !== context.path) {
+  let target;
+  try {
+    target = canonicalizePublicRequestTarget(context.path);
+  } catch {
+    return { ok: false, reason: "path_mismatch" };
+  }
+  if (env.path !== target) {
     return { ok: false, reason: "path_mismatch" };
   }
   if (context.bodyHash !== void 0 && env.bodyHash !== context.bodyHash) {
@@ -1285,6 +1324,100 @@ function isCanonicalBase64UrlBytes(value, byteLength) {
   }
 }
 
+ed__namespace.hashes.sha512 = (message) => sha2_js.sha512(message);
+const PAIR_COMPLETE_REQUEST_VERSION = 1;
+const PAIR_COMPLETE_RESPONSE_VERSION = 2;
+const PAIR_COMPLETE_RESPONSE_DOMAIN = "happy-pair-complete/v2";
+const PairCompleteRequestSchema = z__namespace.object({
+  version: z__namespace.literal(PAIR_COMPLETE_REQUEST_VERSION),
+  machineId: z__namespace.string().min(1).max(256),
+  deviceKeyId: z__namespace.string().min(1).max(128),
+  deviceEd25519PublicKey: z__namespace.string().min(1),
+  mobileEcdhPublicKey: z__namespace.string().optional()
+}).strict();
+const CanonicalLocalProfileSchema = z__namespace.object({
+  id: z__namespace.string().min(1),
+  timestamp: z__namespace.number().int().nonnegative(),
+  firstName: z__namespace.string().nullable(),
+  lastName: z__namespace.string().nullable(),
+  avatar: z__namespace.null(),
+  github: z__namespace.object({
+    id: z__namespace.number(),
+    login: z__namespace.string(),
+    name: z__namespace.string(),
+    avatar_url: z__namespace.string(),
+    email: z__namespace.string().optional(),
+    bio: z__namespace.string().nullable()
+  }).nullable(),
+  connectedServices: z__namespace.array(z__namespace.string())
+}).strict();
+const PairCompleteResponseUnsignedSchema = z__namespace.object({
+  version: z__namespace.literal(PAIR_COMPLETE_RESPONSE_VERSION),
+  authMode: z__namespace.literal("paired-device"),
+  githubLogin: z__namespace.null(),
+  profile: CanonicalLocalProfileSchema,
+  machine: z__namespace.object({
+    machineId: z__namespace.string().min(1),
+    tunnelUrl: z__namespace.string().url(),
+    ed25519PublicKey: z__namespace.string().min(1),
+    x25519PublicKey: z__namespace.string().min(1),
+    ed25519Fingerprint: z__namespace.string().min(1),
+    mobileSharedSecret: z__namespace.string().optional()
+  }).strict(),
+  pairedDevice: z__namespace.object({
+    keyId: z__namespace.string().min(1),
+    publicKey: z__namespace.string().min(1)
+  }).strict(),
+  issuedAt: z__namespace.number().int().nonnegative()
+}).strict();
+const PairCompleteResponseSchema = PairCompleteResponseUnsignedSchema.extend({
+  serverSignature: z__namespace.string().min(1)
+}).strict();
+function canonicalPairCompleteResponse(response) {
+  const value = PairCompleteResponseUnsignedSchema.parse(response);
+  return [
+    PAIR_COMPLETE_RESPONSE_DOMAIN,
+    String(value.version),
+    value.machine.machineId,
+    value.machine.tunnelUrl,
+    value.machine.ed25519PublicKey,
+    value.machine.x25519PublicKey,
+    value.machine.ed25519Fingerprint,
+    value.pairedDevice.keyId,
+    value.pairedDevice.publicKey,
+    String(value.issuedAt),
+    encodeBase64(sha2_js.sha256(new TextEncoder().encode(JSON.stringify(value.profile)))),
+    value.machine.mobileSharedSecret ?? ""
+  ].join("\n");
+}
+async function signPairCompleteResponse(response, serverSecretKey) {
+  const validated = PairCompleteResponseUnsignedSchema.parse(response);
+  const signature = await ed__namespace.signAsync(
+    new TextEncoder().encode(canonicalPairCompleteResponse(validated)),
+    serverSecretKey
+  );
+  return PairCompleteResponseSchema.parse({
+    ...validated,
+    serverSignature: encodeBase64(signature)
+  });
+}
+async function verifyPairCompleteResponse(response) {
+  const parsed = PairCompleteResponseSchema.safeParse(response);
+  if (!parsed.success) {
+    return false;
+  }
+  const { serverSignature, ...unsigned } = parsed.data;
+  try {
+    return await ed__namespace.verifyAsync(
+      decodeBase64(serverSignature),
+      new TextEncoder().encode(canonicalPairCompleteResponse(unsigned)),
+      decodeBase64(unsigned.machine.ed25519PublicKey)
+    );
+  } catch {
+    return false;
+  }
+}
+
 const SESSION_OUTPUT_SNAPSHOT_TYPE = "session-output-snapshot";
 const SESSION_OUTPUT_SNAPSHOT_TEXT_MAX_BYTES = 1024 * 1024;
 const SESSION_OUTPUT_SNAPSHOT_ID_MAX_CHARS = 256;
@@ -1351,6 +1484,7 @@ exports.ApiMessageSchema = ApiMessageSchema;
 exports.ApiUpdateMachineStateSchema = ApiUpdateMachineStateSchema;
 exports.ApiUpdateNewMessageSchema = ApiUpdateNewMessageSchema;
 exports.ApiUpdateSessionStateSchema = ApiUpdateSessionStateSchema;
+exports.CanonicalLocalProfileSchema = CanonicalLocalProfileSchema;
 exports.CloudflareAccessServiceTokenSchema = CloudflareAccessServiceTokenSchema;
 exports.CoreUpdateBodySchema = CoreUpdateBodySchema;
 exports.CoreUpdateContainerSchema = CoreUpdateContainerSchema;
@@ -1383,6 +1517,9 @@ exports.MachineTunnelSchema = MachineTunnelSchema;
 exports.MessageContentSchema = MessageContentSchema;
 exports.MessageMetaSchema = MessageMetaSchema;
 exports.MessageSentLedgerRecordSchema = MessageSentLedgerRecordSchema;
+exports.PAIR_COMPLETE_REQUEST_VERSION = PAIR_COMPLETE_REQUEST_VERSION;
+exports.PAIR_COMPLETE_RESPONSE_DOMAIN = PAIR_COMPLETE_RESPONSE_DOMAIN;
+exports.PAIR_COMPLETE_RESPONSE_VERSION = PAIR_COMPLETE_RESPONSE_VERSION;
 exports.PUBLIC_DEVICE_AUTH_TEST_VECTOR = PUBLIC_DEVICE_AUTH_TEST_VECTOR;
 exports.PUBLIC_DEVICE_PROOF_CLOCK_SKEW_MS = PUBLIC_DEVICE_PROOF_CLOCK_SKEW_MS;
 exports.PUBLIC_DEVICE_PROOF_DOMAIN = PUBLIC_DEVICE_PROOF_DOMAIN;
@@ -1392,6 +1529,9 @@ exports.PUBLIC_DEVICE_PROOF_HEADER = PUBLIC_DEVICE_PROOF_HEADER;
 exports.PUBLIC_PAIRING_INVITE_DEFAULT_TTL_MS = PUBLIC_PAIRING_INVITE_DEFAULT_TTL_MS;
 exports.PUBLIC_PAIRING_INVITE_TEST_VECTOR = PUBLIC_PAIRING_INVITE_TEST_VECTOR;
 exports.PUBLIC_PAIRING_INVITE_VERSION = PUBLIC_PAIRING_INVITE_VERSION;
+exports.PairCompleteRequestSchema = PairCompleteRequestSchema;
+exports.PairCompleteResponseSchema = PairCompleteResponseSchema;
+exports.PairCompleteResponseUnsignedSchema = PairCompleteResponseUnsignedSchema;
 exports.PendingPermissionLedgerRecordSchema = PendingPermissionLedgerRecordSchema;
 exports.PublicPairingInviteSchema = PublicPairingInviteSchema;
 exports.PublicSignedRequestEnvelopeSchema = PublicSignedRequestEnvelopeSchema;
@@ -1428,8 +1568,10 @@ exports.VoiceConversationGrantedSchema = VoiceConversationGrantedSchema;
 exports.VoiceConversationResponseSchema = VoiceConversationResponseSchema;
 exports.VoiceUsageResponseSchema = VoiceUsageResponseSchema;
 exports.canonicalLocalRequestStringToSign = canonicalLocalRequestStringToSign;
+exports.canonicalPairCompleteResponse = canonicalPairCompleteResponse;
 exports.canonicalRequestStringToSign = canonicalRequestStringToSign;
 exports.canonicalizeLocalRequestTarget = canonicalizeLocalRequestTarget;
+exports.canonicalizePublicRequestTarget = canonicalizePublicRequestTarget;
 exports.createEnvelope = createEnvelope;
 exports.createLocalPairingInvite = createLocalPairingInvite;
 exports.createPublicPairingInvite = createPublicPairingInvite;
@@ -1484,8 +1626,10 @@ exports.sessionTurnEndEventSchema = sessionTurnEndEventSchema;
 exports.sessionTurnEndStatusSchema = sessionTurnEndStatusSchema;
 exports.sessionTurnStartEventSchema = sessionTurnStartEventSchema;
 exports.signLocalRequest = signLocalRequest;
+exports.signPairCompleteResponse = signPairCompleteResponse;
 exports.signPublicRequest = signPublicRequest;
 exports.skillBodyEntry = skillBodyEntry;
 exports.systemReminderEntry = systemReminderEntry;
 exports.verifyLocalRequest = verifyLocalRequest;
+exports.verifyPairCompleteResponse = verifyPairCompleteResponse;
 exports.verifyPublicRequest = verifyPublicRequest;

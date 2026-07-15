@@ -129,13 +129,49 @@ export function canonicalRequestStringToSign(fields: CanonicalRequestFields): st
   return [
     PUBLIC_DEVICE_PROOF_DOMAIN,
     normalizeMethod(fields.method),
-    fields.path,
+    canonicalizePublicRequestTarget(fields.path),
     fields.keyId,
     fields.publicKey,
     fields.nonce,
     String(fields.issuedAt),
     fields.bodyHash,
   ].join('\n');
+}
+
+/** Canonical request target shared by public HTTP proofs and local proofs. */
+export function canonicalizePublicRequestTarget(target: string): string {
+  if (!target.startsWith('/') || target.includes('#') || /[\u0000-\u001f\u007f]/.test(target)) {
+    throw new Error('invalid proof target');
+  }
+  for (let index = 0; index < target.length; index += 1) {
+    if (target[index] === '%' && !/^[0-9A-Fa-f]{2}$/.test(target.slice(index + 1, index + 3))) {
+      throw new Error('invalid proof target encoding');
+    }
+  }
+  decodeURIComponent(target);
+  const parsed = new URL(`http://localhost${target}`);
+  const pairs = Array.from(parsed.searchParams.entries()).sort(([leftKey, leftValue], [rightKey, rightValue]) => {
+    const keyOrder = compareUtf8(leftKey, rightKey);
+    return keyOrder !== 0 ? keyOrder : compareUtf8(leftValue, rightValue);
+  });
+  const query = new URLSearchParams();
+  for (const [key, value] of pairs) {
+    query.append(key, value);
+  }
+  const encoded = query.toString();
+  return encoded ? `${parsed.pathname}?${encoded}` : parsed.pathname;
+}
+
+function compareUtf8(left: string, right: string): number {
+  const leftBytes = new TextEncoder().encode(left);
+  const rightBytes = new TextEncoder().encode(right);
+  const length = Math.min(leftBytes.length, rightBytes.length);
+  for (let index = 0; index < length; index += 1) {
+    if (leftBytes[index] !== rightBytes[index]) {
+      return leftBytes[index]! - rightBytes[index]!;
+    }
+  }
+  return leftBytes.length - rightBytes.length;
 }
 
 /** SHA-256 of the raw request body, base64-encoded. Empty body hashes the empty string. */
@@ -181,10 +217,11 @@ export interface SignPublicRequestInput {
  */
 export async function signPublicRequest(input: SignPublicRequestInput, secretKey: Uint8Array): Promise<PublicSignedRequestEnvelope> {
   const method = normalizeMethod(input.method);
+  const path = canonicalizePublicRequestTarget(input.path);
   const publicKey = encodeBase64(await ed.getPublicKeyAsync(secretKey));
   const canonical = canonicalRequestStringToSign({
     method,
-    path: input.path,
+    path,
     keyId: input.keyId,
     publicKey,
     nonce: input.nonce,
@@ -199,7 +236,7 @@ export async function signPublicRequest(input: SignPublicRequestInput, secretKey
     nonce: input.nonce,
     issuedAt: input.issuedAt,
     method,
-    path: input.path,
+    path,
     bodyHash: input.bodyHash,
     signature,
   };
@@ -238,9 +275,16 @@ export async function verifyPublicRequest(envelope: unknown, context: VerifyPubl
   if (normalizeMethod(env.method) !== normalizeMethod(context.method)) {
     return { ok: false, reason: 'method_mismatch' };
   }
-  if (env.path !== context.path) {
+  let target: string;
+  try {
+    target = canonicalizePublicRequestTarget(context.path);
+  } catch {
     return { ok: false, reason: 'path_mismatch' };
   }
+  if (env.path !== target) {
+    return { ok: false, reason: 'path_mismatch' };
+  }
+
   if (context.bodyHash !== undefined && env.bodyHash !== context.bodyHash) {
     return { ok: false, reason: 'body_hash_mismatch' };
   }

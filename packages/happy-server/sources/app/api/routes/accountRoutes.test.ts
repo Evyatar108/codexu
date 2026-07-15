@@ -28,11 +28,13 @@ describe("/v2/me routes", () => {
         const accountSettingsPath = path.join(dir, "account-settings.json");
         const loopbackCap = path.join(dir, "loopback-cap.txt");
         await writeFile(profilePath, JSON.stringify({
-            githubUserId: 42,
-            githubLogin: "octocat",
-            name: "Octo Cat",
-            avatarUrl: "https://example.test/avatar.png",
-            updatedAt: "2026-05-11T12:00:00.000Z",
+            id: "local-user",
+            timestamp: 1,
+            firstName: "Octo",
+            lastName: "Cat",
+            avatar: null,
+            github: null,
+            connectedServices: [],
         }));
         await writeFile(accountSettingsPath, JSON.stringify({ theme: "plain", alerts: true }));
         await writeFile(loopbackCap, "capability-token\n");
@@ -58,11 +60,13 @@ describe("/v2/me routes", () => {
         const loopbackHeaders = { "X-Loopback-Capability": "capability-token" };
 
         await expect(tunnelApp.inject({ method: "GET", url: "/v2/me/profile", headers: tunnelHeaders }).then(r => r.json())).resolves.toEqual({
-            githubUserId: 42,
-            githubLogin: "octocat",
-            name: "Octo Cat",
-            avatarUrl: "https://example.test/avatar.png",
-            updatedAt: "2026-05-11T12:00:00.000Z",
+            id: "local-user",
+            timestamp: 1,
+            firstName: "Octo",
+            lastName: "Cat",
+            avatar: null,
+            github: null,
+            connectedServices: [],
         });
         await expect(tunnelApp.inject({ method: "GET", url: "/v2/me/settings", headers: tunnelHeaders }).then(r => r.json())).resolves.toEqual({ theme: "plain", alerts: true });
         await expect(tunnelApp.inject({ method: "GET", url: "/v2/me/machine", headers: tunnelHeaders }).then(r => r.json())).resolves.toEqual(machineState);
@@ -77,7 +81,7 @@ describe("/v2/me routes", () => {
         expect(settingsUpdate.json()).toEqual({ theme: "contrast", fontScale: 1.2 });
         await expect(readFile(accountSettingsPath, "utf-8").then(JSON.parse)).resolves.toEqual({ theme: "contrast", fontScale: 1.2 });
 
-        await expect(loopbackApp.inject({ method: "GET", url: "/v2/me/profile", headers: loopbackHeaders }).then(r => r.json())).resolves.toEqual(expect.objectContaining({ githubUserId: 42 }));
+        await expect(loopbackApp.inject({ method: "GET", url: "/v2/me/profile", headers: loopbackHeaders }).then(r => r.json())).resolves.toEqual(expect.objectContaining({ id: "local-user", github: null }));
         await expect(loopbackApp.inject({ method: "GET", url: "/v2/me/settings", headers: loopbackHeaders }).then(r => r.json())).resolves.toEqual({ theme: "contrast", fontScale: 1.2 });
         await expect(loopbackApp.inject({ method: "GET", url: "/v2/me/machine", headers: loopbackHeaders }).then(r => r.json())).resolves.toEqual(machineState);
     });
@@ -119,11 +123,13 @@ describe("/v2/me routes", () => {
         const dir = await mkdtemp(path.join(os.tmpdir(), "happy-me-routes-"));
         const loopbackCap = path.join(dir, "loopback-cap.txt");
         await writeFile(path.join(dir, "profile.json"), JSON.stringify({
-            githubUserId: 42,
-            githubLogin: "octocat",
-            name: null,
-            avatarUrl: null,
-            updatedAt: "2026-05-11T12:00:00.000Z",
+            id: "local-user",
+            timestamp: 1,
+            firstName: null,
+            lastName: null,
+            avatar: null,
+            github: null,
+            connectedServices: [],
         }));
         await writeFile(loopbackCap, "capability-token\n");
 
@@ -151,7 +157,7 @@ describe("/v2/me routes", () => {
             url: "/v2/me/profile",
         });
         expect(tunnelResponse.statusCode).toBe(200);
-        expect(tunnelResponse.json()).toEqual(expect.objectContaining({ githubUserId: 42 }));
+        expect(tunnelResponse.json()).toEqual(expect.objectContaining({ id: "local-user", github: null }));
 
         const tunnelAuthOnLoopback = await loopbackApp.inject({
             method: "GET",

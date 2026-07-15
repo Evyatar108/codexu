@@ -7,8 +7,10 @@ import {
     LOCAL_PAIRING_SECRET_HEADER,
     decodeLocalDeviceProofHeader,
     hashLocalRequestBody,
+    signPairCompleteResponse,
     verifyLocalRequest,
 } from '@slopus/happy-wire';
+import * as ed from '@noble/ed25519';
 
 import { encodeBase64 } from '@slopus/happy-wire';
 import type { DeviceKeypair } from './deviceKeypair';
@@ -56,19 +58,36 @@ const keypair: DeviceKeypair = {
     secretKey: encodeBase64(hexToBytes(vectors.proof.seedHex)),
 };
 
-function successResponse() {
-    return new Response(JSON.stringify({
+async function successResponse() {
+    const serverSecret = new Uint8Array(32).fill(31);
+    const serverPublic = encodeBase64(await ed.getPublicKeyAsync(serverSecret));
+    const payload = await signPairCompleteResponse({
+        version: 2,
+        authMode: 'paired-device',
+        githubLogin: null,
+        profile: {
+            id: vectors.invite.payload.machineId,
+            timestamp: Date.parse(vectors.invite.payload.issuedAt),
+            firstName: null,
+            lastName: null,
+            avatar: null,
+            github: null,
+            connectedServices: [],
+        },
         machine: {
             machineId: vectors.invite.payload.machineId,
             tunnelUrl: vectors.invite.payload.serverUrl,
+            ed25519PublicKey: serverPublic,
+            x25519PublicKey: encodeBase64(new Uint8Array(32).fill(32)),
+            ed25519Fingerprint: 'SHA256:local-server',
         },
-        authMode: 'paired-device',
         pairedDevice: {
             keyId: keypair.keyId,
             publicKey: keypair.publicKey,
         },
-        githubLogin: null,
-    }), { status: 200 });
+        issuedAt: Date.parse(vectors.invite.payload.issuedAt),
+    }, serverSecret);
+    return new Response(JSON.stringify(payload), { status: 200 });
 }
 
 describe('local enrollment', () => {
@@ -118,6 +137,8 @@ describe('local enrollment', () => {
             deviceKeyId: keypair.keyId,
             devicePublicKey: keypair.publicKey,
             deviceSecretKey: keypair.secretKey,
+            serverEd25519PublicKey: expect.any(String),
+            serverEd25519Fingerprint: 'SHA256:local-server',
         });
         expect(result.credentials).not.toHaveProperty('pairSecret');
         expect(result.credentials).not.toHaveProperty('pairingNonce');

@@ -15,11 +15,13 @@ import type { TofuHandshakeConfig } from "./api";
 import { makeLoopbackSocketVerifier, type LoopbackCapabilityPaths } from "./auth/loopbackCapability";
 import { verifyPublicSocketHandshake, type PublicAuthRuntime } from "./auth/remoteDeviceAuth";
 import { parseCorsOrigins } from "./utils/parseCorsOrigins";
+import type { LocalAuthRuntime } from "./auth/localDeviceAuth";
 
 export interface StartSocketOptions {
-    auth?: "tunnel" | "loopback" | "public";
+    auth?: "tunnel" | "loopback" | "local-device" | "public";
     paths?: LoopbackCapabilityPaths;
     publicAuthRuntime?: PublicAuthRuntime;
+    localAuthRuntime?: LocalAuthRuntime;
 }
 
 export function configureRedisStreamsAdapter(io: Server): Redis | undefined {
@@ -60,7 +62,7 @@ export function createSocketAuthMiddleware(tofuConfig: TofuHandshakeConfig, sock
     // The loopback capability verifier is built for BOTH the loopback listener
     // (its sole credential) AND the public listener (as a co-resident fast-path
     // credential, checked before device-proof — see the public branch below).
-    const verifyLoopbackHandshake = (socketOptions.auth === 'loopback' || socketOptions.auth === 'public')
+    const verifyLoopbackHandshake = (socketOptions.auth === 'loopback' || socketOptions.auth === 'public' || socketOptions.auth === 'local-device')
         ? makeLoopbackSocketVerifier(socketOptions.paths ?? {})
         : null;
 
@@ -97,6 +99,20 @@ export function createSocketAuthMiddleware(tofuConfig: TofuHandshakeConfig, sock
                 const result = await verifyPublicSocketHandshake(socketOptions.publicAuthRuntime, socket.handshake.headers);
                 if (!result.ok) {
                     log({ module: 'websocket' }, `Public socket handshake rejected: ${result.reason}`);
+                    next(new Error('Unauthorized'));
+                    return;
+                }
+
+            }
+        }
+
+        if (socketOptions.auth === 'local-device') {
+            const presentedCapability = socket.handshake.headers['x-loopback-capability'];
+            const acceptedViaCapability = presentedCapability !== undefined
+                && await verifyLoopbackHandshake!(socket.handshake.headers);
+            if (!acceptedViaCapability) {
+                const result = await socketOptions.localAuthRuntime?.verifySocketHandshake(socket.handshake.headers);
+                if (!result?.ok) {
                     next(new Error('Unauthorized'));
                     return;
                 }
@@ -140,7 +156,7 @@ export function startSocket(app: Fastify, tofuConfig: TofuHandshakeConfig = { lo
             // `Cf-Access-Jwt-Assertion` is intentionally absent: Cloudflare Access
             // injects it origin-side, the browser never sends it. The pairing
             // headers ARE browser-sent (POST /pair/complete).
-            allowedHeaders: ["X-Tunnel-Authorization", "X-Loopback-Capability", "X-Happy-Client", "Content-Type", "X-Happy-Device-Proof", "X-Happy-Pairing-Secret", "X-Happy-Pairing-Nonce", "CF-Access-Client-Id", "CF-Access-Client-Secret"]
+            allowedHeaders: ["X-Tunnel-Authorization", "X-Loopback-Capability", "X-Happy-Client", "Content-Type", "X-Happy-Device-Proof", "X-Happy-Local-Device-Proof", "X-Happy-Pairing-Secret", "X-Happy-Pairing-Nonce", "CF-Access-Client-Id", "CF-Access-Client-Secret"]
         },
         transports: ['websocket', 'polling'],
         pingTimeout: 45000,

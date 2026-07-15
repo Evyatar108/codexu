@@ -8,7 +8,9 @@ import {
     encodePublicDeviceProofHeader,
     generatePublicRequestNonce,
     hashRequestBody,
+    encodeBase64,
 } from "@slopus/happy-wire";
+import * as ed from "@noble/ed25519";
 import {
     PAIRING_NONCE_HEADER,
     PAIRING_SECRET_HEADER,
@@ -55,14 +57,16 @@ const SECRET_SENTINELS = [
     EDGE_CLIENT_SECRET_SENTINEL,
 ];
 
+const serverSeed = new Uint8Array(32).fill(91);
 const tofuConfig: TofuHandshakeConfig = {
     localUserId: "operator-user",
     publicUrl: TUNNEL_URL_SENTINEL,
     tofuPublicKeys: {
-        ed25519PublicKey: TOFU_ED25519_SENTINEL,
-        x25519PublicKey: TOFU_X25519_SENTINEL,
+        ed25519PublicKey: "",
+        x25519PublicKey: encodeBase64(new Uint8Array(32).fill(92)),
         ed25519Fingerprint: TOFU_FINGERPRINT_SENTINEL,
     },
+    ed25519SecretKey: serverSeed,
 };
 
 const deviceSeed = Uint8Array.from({ length: 32 }, (_, i) => (i + 11) & 0xff);
@@ -115,6 +119,7 @@ describe("US-005 public-mode fail-closed route inventory (THE GATE)", () => {
     let routes: DerivedRoute[];
 
     beforeAll(async () => {
+        tofuConfig.tofuPublicKeys!.ed25519PublicKey = encodeBase64(await ed.getPublicKeyAsync(serverSeed));
         // Derive the device public key from the seed (sign a throwaway proof).
         const seedEnvelope = await signPublicRequest({
             method: "GET",
@@ -206,6 +211,10 @@ describe("US-005 public-mode fail-closed route inventory (THE GATE)", () => {
         const failures: string[] = [];
         for (const route of routes) {
             const response = await app.inject(injectOptions(route, edgeHeaders()));
+            if (route.method === "GET" && route.url === "/v1/connect/github/callback") {
+                expect(response.statusCode).toBe(400);
+                continue;
+            }
             if (response.statusCode !== 401) {
                 failures.push(`${route.method} ${route.url} -> ${response.statusCode} (expected 401)`);
                 continue;
@@ -315,7 +324,13 @@ describe("US-005 public-mode fail-closed route inventory (THE GATE)", () => {
     });
 
     it("POSITIVE CONTROL: /pair/complete inside the operator window + valid QR secret + device proof is admitted past the gate", async () => {
-        const proof = await buildProofHeader("POST", "/pair/complete");
+        const body = JSON.stringify({
+            version: 1,
+            machineId: tofuConfig.localUserId,
+            deviceKeyId,
+            deviceEd25519PublicKey: devicePublicKey,
+        });
+        const proof = await buildProofHeader("POST", "/pair/complete", hashRequestBody(body));
         const response = await app.inject({
             method: "POST",
             url: "/pair/complete",
@@ -324,14 +339,15 @@ describe("US-005 public-mode fail-closed route inventory (THE GATE)", () => {
                 [PUBLIC_DEVICE_PROOF_HEADER]: proof,
                 [PAIRING_SECRET_HEADER]: "pairing-qr-secret",
                 [PAIRING_NONCE_HEADER]: generatePublicRequestNonce(),
+                "content-type": "application/json",
             },
-            payload: {},
+            payload: body,
         });
         // Past the auth boundary: the handler now runs. Without a local profile.json
         // it returns 503 (local_profile_unavailable), NOT 401 — proving the gate let
         // an authenticated operator request through rather than blanket-denying.
         expect(response.statusCode).not.toBe(401);
-        expect([200, 503]).toContain(response.statusCode);
+        expect(response.statusCode).toBe(200);
     });
 });
 

@@ -15,6 +15,7 @@ import type { createApi, ConfigureApiOptions, TofuHandshakeConfig } from "@/app/
 import type { Fastify } from "@/app/api/types";
 import type { EventRouter } from "@/app/events/eventRouter";
 import type { PublicAuthRuntime } from "@/app/api/auth/remoteDeviceAuth";
+import type { LocalAuthRuntime } from "@/app/api/auth/localDeviceAuth";
 import { accountRoutes } from "@/app/api/routes/accountRoutes";
 import { machineSelfRoutes } from "@/app/api/routes/machineSelfRoutes";
 import { pairRoutes } from "@/app/api/routes/pairRoutes";
@@ -23,6 +24,7 @@ import { sessionRoutes } from "@/app/api/routes/sessionRoutes";
 import { devRoutes } from "@/app/api/routes/devRoutes";
 import { versionRoutes } from "@/app/api/routes/versionRoutes";
 import { v3SessionRoutes } from "@/app/api/routes/v3SessionRoutes";
+import { githubConnectionRoutes } from "@/app/api/routes/githubConnectionRoutes";
 
 /**
  * Register the fork's curated single-user route surface on the typed app.
@@ -38,18 +40,25 @@ export function registerForkRoutes(
     tofuConfig: TofuHandshakeConfig,
     options: ConfigureApiOptions,
     publicAuthRuntime: PublicAuthRuntime | undefined,
+    localAuthRuntime: LocalAuthRuntime | undefined,
 ) {
     // Routes available on both tunnel and loopback listeners
-    accountRoutes(typed, { paths: options.paths });
+    accountRoutes(typed, { paths: options.paths, localUserId: tofuConfig.localUserId });
+    githubConnectionRoutes(typed, eventRouter, {
+        localUserId: tofuConfig.localUserId,
+        githubConnectionPath: options.paths?.githubConnection,
+    });
     machineSelfRoutes(typed, { machineState: options.machineState });
 
     // Routes only available on the tunnel listener (not loopback)
-    if (options.auth !== "loopback") {
+    if (options.auth === "local-device" || options.auth === "public") {
         pairRoutes(typed, tofuConfig, options.paths, {
-            publicMode: options.auth === "public",
-            pairingGate: publicAuthRuntime?.pairingGate,
-            enrollDevice: publicAuthRuntime?.enrollDevice,
+            mode: options.auth === "public" ? "public" : "local",
+            publicAuthRuntime,
+            localAuthRuntime,
         });
+    }
+    if (options.auth !== "loopback") {
         pushRoutes(typed, tofuConfig);
         sessionRoutes(typed, eventRouter, { localMachineId: tofuConfig.localUserId });
         devRoutes(typed);
