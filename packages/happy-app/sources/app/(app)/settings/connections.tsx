@@ -79,9 +79,8 @@ export default React.memo(function ConnectionsScreen() {
                             ? t('connections.connectedAs', { login: github.connectedLogin })
                             : undefined}
                         icon={<Ionicons name="logo-github" size={29} color={theme.colors.status.connected} />}
-                        detail={disconnecting ? t('connections.connecting') : t('connections.disconnect')}
+                        detail={disconnecting ? t('connections.disconnecting') : t('connections.disconnect')}
                         onPress={busy ? undefined : doDisconnect}
-                        loading={disconnecting}
                         showChevron={false}
                     />
                 );
@@ -93,7 +92,6 @@ export default React.memo(function ConnectionsScreen() {
                         subtitle={connecting ? t('connections.connecting') : t('connections.connect')}
                         icon={<Ionicons name="logo-github" size={29} color="#007AFF" />}
                         onPress={busy ? undefined : doConnect}
-                        loading={connecting}
                         showChevron={false}
                     />
                 );

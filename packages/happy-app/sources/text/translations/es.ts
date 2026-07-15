@@ -463,6 +463,7 @@ export const es: TranslationStructure = {
         githubDescription: 'Connect your GitHub account to show your profile in Happy. This is optional and separate from pairing.',
         connect: 'Connect GitHub',
         connecting: 'Connecting...',
+        disconnecting: 'Disconnecting...',
         disconnect: 'Disconnect',
         disconnectConfirmTitle: 'Disconnect GitHub?',
         disconnectConfirmMessage: 'Your GitHub profile will be removed from Happy. You can reconnect at any time.',
