@@ -197,10 +197,33 @@ foreach ($case in $secondReviewCases) {
     }
 }
 
+$finalReviewCases = @(
+    @{
+        Name = "Tooling checkout is independent from target root"
+        Pass = $bootstrapText -match '\[string\]\$Root' -and
+            $bootstrapText -match '\[string\]\$ManifestPath' -and
+            $bootstrapText -notmatch 'Join-Path \$Root "scripts\\fork-setup\\bootstrap-vm\.ps1"'
+    },
+    @{
+        Name = "Codex ref build uses exact detached worktree and commit provenance"
+        Pass = $bootstrapText -match "New-CodexRefWorktree" -and
+            $bootstrapText -match 'invoke-codex-build\.ps1' -and
+            $bootstrapText -match '-CodexRoot \$worktree' -and
+            $bootstrapText -match 'sourceCommit = \$CodexExpectedCommit' -and
+            $bootstrapText -match "Preserved clean-room worktree for diagnosis"
+    }
+)
+foreach ($case in $finalReviewCases) {
+    if (-not [bool]$case.Pass) {
+        throw "Final-review regression case failed: $($case.Name)"
+    }
+}
+
 $bootstrapPath = Join-Path $PSScriptRoot "bootstrap-vm.ps1"
 & {
     . $bootstrapPath -LibraryOnly
-    $fixtureBase = Join-Path $PSScriptRoot (".vm-bootstrap-fixtures-" + [Guid]::NewGuid().ToString("N"))
+    $fixtureRepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+    $fixtureBase = Join-Path $fixtureRepositoryRoot (".vm-bootstrap-fixtures-" + [Guid]::NewGuid().ToString("N"))
     New-Item -ItemType Directory -Force -Path $fixtureBase | Out-Null
     try {
         $nestedSource = Join-Path $fixtureBase "nested-source"
@@ -276,6 +299,26 @@ $bootstrapPath = Join-Path $PSScriptRoot "bootstrap-vm.ps1"
             throw "Wrong-root preflight fixture mutated repository state."
         }
 
+        $targetRoot = Join-Path $fixtureBase "exact-target"
+        New-Item -ItemType Directory -Force -Path $targetRoot | Out-Null
+        & git -C $targetRoot init --quiet
+        & git -C $targetRoot config user.email "fixture@example.invalid"
+        & git -C $targetRoot config user.name "Fixture"
+        [IO.File]::WriteAllText((Join-Path $targetRoot "target.txt"), "target`n", [Text.Encoding]::ASCII)
+        & git -C $targetRoot add target.txt
+        & git -C $targetRoot commit --quiet -m target
+        & git -C $targetRoot branch -M migration/vm-2026-07-14
+        $targetHead = (& git -C $targetRoot rev-parse HEAD).Trim()
+        $Root = $targetRoot
+        $exactManifest = [pscustomobject]@{
+            snapshotBranch = "migration/vm-2026-07-14"
+            restoreVerification = [pscustomobject]@{ snapshot = $targetHead }
+        }
+        Assert-RootRestorePreflight $exactManifest
+        if ($bootstrapPath.StartsWith($targetRoot, [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Tooling/target separation fixture used target-local tooling."
+        }
+
         $broadRead = [pscustomobject]@{
             AccessControlType = "Allow"
             IdentityReference = "BUILTIN\Users"
@@ -327,6 +370,41 @@ $bootstrapPath = Join-Path $PSScriptRoot "bootstrap-vm.ps1"
             throw "Exact Codex package fixture failed."
         }
 
+        $codexTargetRoot = Join-Path $fixtureBase "codex-ref-target"
+        $codexRepository = Join-Path $codexTargetRoot "codex"
+        New-Item -ItemType Directory -Force -Path $codexRepository | Out-Null
+        & git -C $codexRepository init --quiet
+        & git -C $codexRepository config user.email "fixture@example.invalid"
+        & git -C $codexRepository config user.name "Fixture"
+        $codexModules = @"
+[submodule "external/repos/codex-patched"]
+	path = external/repos/codex-patched
+	url = https://legacy.invalid/codex-patched.git
+"@
+        [IO.File]::WriteAllText((Join-Path $codexRepository ".gitmodules"), $codexModules, [Text.Encoding]::ASCII)
+        & git -C $codexRepository add .gitmodules
+        & git -C $codexRepository update-index --add --cacheinfo "160000,$nestedCommit,external/repos/codex-patched"
+        & git -C $codexRepository commit --quiet -m codex-wrapper
+        $CodexExpectedCommit = (& git -C $codexRepository rev-parse HEAD).Trim()
+        $script:CodexRefInputValid = $true
+        $CodexRefWorktreeRoot = Join-Path $fixtureBase "cwb"
+        $Root = $codexTargetRoot
+        $codexManifest = [pscustomobject]@{
+            repositories = [pscustomobject]@{
+                codexPatched = [pscustomobject]@{ url = $nestedSource }
+            }
+        }
+        $refWorktree = New-CodexRefWorktree $codexManifest
+        if ((& git -C $refWorktree rev-parse HEAD).Trim() -ne $CodexExpectedCommit -or
+            (& git -C $refWorktree branch --show-current | Out-String).Trim()) {
+            throw "Exact Codex ref worktree fixture selected stale source."
+        }
+        $refNested = Join-Path $refWorktree "external\repos\codex-patched"
+        if ((& git -C $refNested rev-parse HEAD).Trim() -ne $nestedCommit) {
+            throw "Exact Codex ref worktree fixture used stale nested source."
+        }
+        & git -C $codexRepository worktree remove --force $refWorktree
+
         $oldPath = $env:Path
         try {
             $env:Path = ""
@@ -344,4 +422,4 @@ $bootstrapPath = Join-Path $PSScriptRoot "bootstrap-vm.ps1"
     }
 }
 
-Write-Host "PASS: scripts parse, are ASCII-only, and all 15 static plus 7 fixture regressions pass."
+Write-Host "PASS: scripts parse, are ASCII-only, and all 17 static plus 9 fixture regressions pass."

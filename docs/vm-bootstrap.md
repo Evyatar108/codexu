@@ -6,6 +6,25 @@ Run the read-only acceptance pass first:
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fork-setup\bootstrap-vm.ps1 -ValidateOnly
 ```
 
+The tooling checkout and target checkout are intentionally separate. The
+published migration snapshot predates this bootstrap script, so a fresh
+machine uses a current tooling checkout to validate/restore the exact target:
+
+```powershell
+git clone --branch <tooling-branch-or-tag-containing-bootstrap> `
+  https://github.com/evmitran_microsoft/codexu.git C:\bootstrap-tools
+git clone --branch migration/vm-2026-07-14 --no-recurse-submodules `
+  https://github.com/evmitran_microsoft/codexu.git C:\codexu-target
+
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File C:\bootstrap-tools\scripts\fork-setup\bootstrap-vm.ps1 `
+  -Root C:\codexu-target `
+  -ManifestPath C:\bootstrap-tools\docs\vm-migration-manifest.json `
+  -ValidateOnly
+```
+
+The script never requires `bootstrap-vm.ps1` to exist inside `-Root`.
+
 It prints `PASS`, `GATED`, and `FAIL` rows. `GATED` means an install action,
 interactive secret, or unpublished source input remains. Only required
 nonsecret `FAIL` rows return a nonzero exit.
@@ -104,6 +123,23 @@ The install writes nonsecret provenance and then checks installed package
 name, version, Windows binary layout, source artifact path, and SHA256.
 Merely validating a ref or observing an already-installed version is not
 release reproducibility evidence.
+
+For source-ref recovery, build in an exact clean detached worktree rather than
+the root Codex checkout:
+
+```powershell
+...\bootstrap-vm.ps1 -BuildCodexRefPackage `
+  -CodexRef <local-ref> -CodexExpectedCommit <40-hex>
+```
+
+This initializes the worktree's manifest-controlled nested source, runs the
+exact Rust 1.95 build wrapper, assembles and validates the Windows release
+bundle, and records source-commit/artifact SHA256 provenance. The temporary
+worktree uses the short `D:\cwb\<commit-prefix>` root and is removed only after
+success; failures preserve it and print its diagnostic path. Override with
+`-CodexRefWorktreeRoot` only when another short real path is required. Add
+`-InstallCodexPackage` in the same invocation to install that produced
+artifact and bind installed provenance to the source commit.
 
 The bootstrap never reconstructs a fix by editing installed npm or plugin
 caches.

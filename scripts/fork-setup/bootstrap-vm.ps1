@@ -21,6 +21,8 @@ param(
     [switch]$InstallCodexPackage,
     [string]$CodexRef,
     [string]$CodexExpectedCommit,
+    [switch]$BuildCodexRefPackage,
+    [string]$CodexRefWorktreeRoot = "D:\cwb",
     [string]$ToolkitRef,
     [string]$ToolkitExpectedCommit,
     [string]$ToolkitSourcePath,
@@ -998,6 +1000,132 @@ function Test-CodexPackageInput {
     return $true
 }
 
+function New-CodexRefWorktree {
+    param([pscustomobject]$Manifest)
+    if (-not $script:CodexRefInputValid) {
+        throw "Codex ref worktree requires an exactly resolved -CodexRef/-CodexExpectedCommit."
+    }
+    $sourceRepository = Join-Path $Root "codex"
+    $worktreeRoot = $CodexRefWorktreeRoot
+    $worktree = Join-Path $worktreeRoot $CodexExpectedCommit.Substring(0, 12)
+    if (Test-Path $worktree) {
+        $head = (& git -C $worktree rev-parse HEAD 2>$null | Out-String).Trim()
+        $branch = (& git -C $worktree branch --show-current 2>$null | Out-String).Trim()
+        $status = @(& git -C $worktree status --porcelain 2>$null)
+        if ($head -ne $CodexExpectedCommit -or $branch -or $status.Count -gt 0) {
+            throw "Existing Codex ref worktree is not clean/detached/exact: $worktree"
+        }
+    } else {
+        New-Item -ItemType Directory -Force -Path $worktreeRoot | Out-Null
+        Invoke-Git $sourceRepository @("worktree", "add", "--detach", $worktree, $CodexExpectedCommit) | Out-Null
+    }
+    $recorded = (& git -C $worktree rev-parse "HEAD:external/repos/codex-patched").Trim()
+    Prepare-NestedSubmodule $worktree "external/repos/codex-patched" $Manifest.repositories.codexPatched.url $recorded $null
+    return $worktree
+}
+
+function Build-CodexRefPackage {
+    param([pscustomobject]$Manifest)
+    $worktree = New-CodexRefWorktree $Manifest
+    $artifactRoot = Join-Path $env:LOCALAPPDATA "codexu-bootstrap\codex-ref-artifacts\$CodexExpectedCommit"
+    try {
+        $buildWrapper = Join-Path $PSScriptRoot "invoke-codex-build.ps1"
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $buildWrapper -CodexRoot $worktree `
+            build --release --bin codex --bin codex-core --bin codex-windows-sandbox-setup --bin codex-command-runner
+        if ($LASTEXITCODE -ne 0) {
+            throw "Exact-ref Codex build failed."
+        }
+        $cargoToml = Get-Content (Join-Path $worktree "external\repos\codex-patched\codex-rs\Cargo.toml")
+        $versionLine = $cargoToml | Where-Object { $_ -match '^version = "([^"]+)"$' } | Select-Object -First 1
+        if (-not $versionLine -or $versionLine -notmatch '^version = "([^"]+)"$') {
+            throw "Could not derive package version from exact-ref Cargo.toml."
+        }
+        $version = $Matches[1]
+        Remove-Item $artifactRoot -Recurse -Force -ErrorAction SilentlyContinue
+        New-Item -ItemType Directory -Force -Path $artifactRoot | Out-Null
+        $vendorRoot = Join-Path $artifactRoot "vendor\x86_64-pc-windows-msvc"
+        $vendorCodex = Join-Path $vendorRoot "codex"
+        $vendorPath = Join-Path $vendorRoot "path"
+        New-Item -ItemType Directory -Force -Path $vendorCodex | Out-Null
+        New-Item -ItemType Directory -Force -Path $vendorPath | Out-Null
+        $release = Join-Path $worktree "external\repos\codex-patched\codex-rs\target\release"
+        foreach ($binary in @("codex.exe", "codex-core.exe", "codex-windows-sandbox-setup.exe", "codex-command-runner.exe")) {
+            Copy-Item (Join-Path $release $binary) (Join-Path $vendorCodex $binary)
+        }
+        $rgVersion = "14.1.1"
+        $rgZipName = "ripgrep-$rgVersion-x86_64-pc-windows-msvc.zip"
+        $rgZip = Join-Path $artifactRoot $rgZipName
+        Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/BurntSushi/ripgrep/releases/download/$rgVersion/$rgZipName" -OutFile $rgZip
+        $checksumContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/BurntSushi/ripgrep/releases/download/$rgVersion/$rgZipName.sha256").Content
+        $checksumText = if ($checksumContent -is [byte[]]) {
+            [Text.Encoding]::UTF8.GetString($checksumContent)
+        } else {
+            [string]$checksumContent
+        }
+        $expectedRgHash = ($checksumText -split "\s+")[0].ToLowerInvariant()
+        if ((Get-FileHash -Algorithm SHA256 $rgZip).Hash.ToLowerInvariant() -ne $expectedRgHash) {
+            throw "ripgrep release SHA256 mismatch."
+        }
+        $rgExtract = Join-Path $artifactRoot "rg-extract"
+        Expand-Archive $rgZip $rgExtract
+        $rgExe = Get-ChildItem $rgExtract -Recurse -Filter "rg.exe" | Select-Object -First 1
+        if (-not $rgExe) {
+            throw "ripgrep archive did not contain rg.exe."
+        }
+        Copy-Item $rgExe.FullName (Join-Path $vendorPath "rg.exe")
+        $builder = Join-Path $worktree "external\repos\codex-patched\codex-cli\scripts\build_npm_package.py"
+        $stagePlatform = Join-Path $artifactRoot "stage-platform"
+        $stageMain = Join-Path $artifactRoot "stage-main"
+        $platformTgz = Join-Path $artifactRoot "platform.tgz"
+        $mainTgz = Join-Path $artifactRoot "main.tgz"
+        Invoke-Native "python" @($builder, "--package", "codex-win32-x64", "--release-version", $version,
+            "--vendor-src", (Join-Path $artifactRoot "vendor"), "--staging-dir", $stagePlatform, "--pack-output", $platformTgz) | Out-Null
+        Invoke-Native "python" @($builder, "--package", "codex", "--release-version", $version,
+            "--staging-dir", $stageMain, "--pack-output", $mainTgz) | Out-Null
+        $bundleExtract = Join-Path $artifactRoot "bundle-extract"
+        New-Item -ItemType Directory -Force -Path $bundleExtract | Out-Null
+        Invoke-Native "tar.exe" @("-xf", $mainTgz, "-C", $bundleExtract) | Out-Null
+        $bundlePackage = Join-Path $bundleExtract "package"
+        Copy-Item (Join-Path $artifactRoot "vendor") (Join-Path $bundlePackage "vendor") -Recurse
+        $bundleJsonPath = Join-Path $bundlePackage "package.json"
+        $bundleJson = Get-Content $bundleJsonPath -Raw | ConvertFrom-Json
+        $bundleJson.files = @("bin", "vendor")
+        $bundleJson | Add-Member NoteProperty os @("win32") -Force
+        $bundleJson | Add-Member NoteProperty cpu @("x64") -Force
+        $bundleJson.PSObject.Properties.Remove("optionalDependencies")
+        [IO.File]::WriteAllText($bundleJsonPath, (($bundleJson | ConvertTo-Json -Depth 20) + "`r`n"), [Text.Encoding]::UTF8)
+        Invoke-Native "npm" @("pack", "--pack-destination", $artifactRoot) $bundlePackage | Out-Null
+        $packed = Get-ChildItem $artifactRoot -Filter "gim-home-codex-*.tgz" | Select-Object -First 1
+        if (-not $packed) {
+            throw "npm pack did not produce the Codex bundle."
+        }
+        $finalArtifact = Join-Path $artifactRoot "codex-$version-win32-x64.tgz"
+        Move-Item $packed.FullName $finalArtifact
+        $script:CodexRefArtifactPath = $finalArtifact
+        $script:CodexRefArtifactCommit = $CodexExpectedCommit
+        $script:CodexRefArtifactVersion = $version
+        $script:CodexRefArtifactSha256 = (Get-FileHash -Algorithm SHA256 $finalArtifact).Hash.ToLowerInvariant()
+        $script:CodexPackageInputValid = $false
+        $script:CodexPackagePath = $finalArtifact
+        $script:CodexPackageSha256 = $script:CodexRefArtifactSha256
+        $script:CodexPackageExpectedVersion = $version
+        if (-not (Test-CodexPackageInput)) {
+            throw "Produced exact-ref package failed package validation."
+        }
+        $provenance = [ordered]@{
+            sourceCommit = $CodexExpectedCommit
+            artifactPath = $finalArtifact
+            artifactSha256 = $script:CodexRefArtifactSha256
+            version = $version
+        } | ConvertTo-Json
+        [IO.File]::WriteAllText((Join-Path $artifactRoot "source-provenance.json"), "$provenance`r`n", [Text.Encoding]::UTF8)
+        Invoke-Git (Join-Path $Root "codex") @("worktree", "remove", $worktree) | Out-Null
+        return $finalArtifact
+    } catch {
+        throw "Codex exact-ref build/package failed. Preserved clean-room worktree for diagnosis at $worktree. $($_.Exception.Message)"
+    }
+}
+
 function Install-ValidatedCodexPackage {
     if (-not $script:CodexPackageInputValid) {
         throw "-InstallCodexPackage requires a package that passed path, metadata, layout, version, and SHA256 validation."
@@ -1009,6 +1137,7 @@ function Install-ValidatedCodexPackage {
         packagePath = (Resolve-Path $CodexPackagePath).Path
         sha256 = $CodexPackageSha256.ToLowerInvariant()
         version = $CodexPackageExpectedVersion
+        sourceCommit = if ($script:CodexRefArtifactCommit) { $script:CodexRefArtifactCommit } else { $null }
         installedAt = [DateTime]::UtcNow.ToString("o")
     } | ConvertTo-Json
     $temporary = "$provenancePath.$PID.tmp"
@@ -1056,6 +1185,7 @@ function Test-InstalledCodexProvenance {
         $provenance.version -ne $CodexPackageExpectedVersion -or
         $provenance.sha256 -ne $CodexPackageSha256.ToLowerInvariant() -or
         $provenance.packagePath -ne $sourcePath -or
+        ($script:CodexRefArtifactCommit -and $provenance.sourceCommit -ne $script:CodexRefArtifactCommit) -or
         (Get-FileHash -Algorithm SHA256 $sourcePath).Hash.ToLowerInvariant() -ne $provenance.sha256) {
         Add-Result "FAIL" "codex:global-package" "Installed Codex metadata/layout/provenance do not match the selected package."
         return
@@ -1137,6 +1267,8 @@ function Test-ReleaseAndRuntimeGates {
     foreach ($entry in $requiredFiles.GetEnumerator()) {
         if (Test-Path $entry.Value) {
             Add-Result "PASS" $entry.Key $entry.Value
+        } elseif ($entry.Key -like "codex:*" -and -not (Test-Path (Join-Path $Root "codex\.git"))) {
+            Add-Result "GATED" $entry.Key "Codex submodule is not initialized in the target clone."
         } else {
             Add-Result "FAIL" $entry.Key "Required gate source is missing: $($entry.Value)"
         }
@@ -1448,6 +1580,7 @@ $mutatingSwitches = @(
     $InstallToolchains,
     $RepairNodeHookShim,
     $InstallCodexPackage,
+    $BuildCodexRefPackage,
     $InstallWorkspaceDependencies,
     $BuildAndLinkHappy,
     $ConfigurePlugins,
@@ -1523,6 +1656,10 @@ if ($CreateShortClone) {
 }
 
 Test-CodexBuildPrerequisites $config $manifest
+if ($BuildCodexRefPackage) {
+    $builtArtifact = Build-CodexRefPackage $manifest
+    Add-Result "PASS" "codex:ref-artifact" "Built and validated exact-ref artifact at $builtArtifact."
+}
 if ($InstallCodexPackage) {
     Install-ValidatedCodexPackage
 }
