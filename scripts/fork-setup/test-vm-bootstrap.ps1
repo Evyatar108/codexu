@@ -44,6 +44,9 @@ if ($config.android.commandLineTools.checksum -notmatch "^[0-9a-f]{40}$") {
 if ($config.android.additionalPackages -notcontains "extras;google;usb_driver") {
     throw "Android Google USB driver package is missing."
 }
+if ($config.android.cmakeApp -ne "cmake;3.22.1" -or $config.android.cmake -ne "cmake;3.30.5") {
+    throw "Android dual-CMake pins are stale."
+}
 if ($config.plugins.enabledAllowlist -contains "crews@ai-developer-toolkit") {
     throw "Crews must not be enabled by bootstrap."
 }

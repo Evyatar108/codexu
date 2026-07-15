@@ -90,8 +90,9 @@ caches.
 - Happy source installation builds happy-wire, happy-server, and happy-cli,
   then runs `npm link` inside `packages\happy-cli`. It does not invoke
   `scripts\install-local.cjs`, start the daemon, or run auth.
-- Android pins platform 36, build-tools 36.0.0, NDK 27.1.12297006, CMake
-  3.30.5, platform-tools, emulator, `extras;google;usb_driver`, and
+- Android pins platform 36, build-tools 36.0.0, NDK 27.1.12297006, both CMake
+  3.22.1 (app external native build) and 3.30.5 (ReactAndroid sources),
+  platform-tools, emulator, `extras;google;usb_driver`, and
   command-line tools 20.0 from Google's archive with its official repository
   checksum. The USB driver package files are noninteractive; BOOX driver
   binding and USB authorization remain operator/device gates. It writes

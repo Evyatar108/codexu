@@ -502,7 +502,13 @@ function Configure-AndroidSdk {
         Move-Item $source $latest
         Remove-Item $staging -Recurse -Force
     }
-    $packages = @($Config.android.platform, $Config.android.buildTools, $Config.android.ndk, $Config.android.cmake) +
+    $packages = @(
+        $Config.android.platform,
+        $Config.android.buildTools,
+        $Config.android.ndk,
+        $Config.android.cmakeApp,
+        $Config.android.cmake
+    ) +
         @($Config.android.additionalPackages)
     if ($AcceptAndroidLicenses) {
         1..100 | ForEach-Object { "y" } | & $sdkManager "--licenses"
@@ -523,6 +529,7 @@ function Test-AndroidSdk {
         $Config.android.platform = "D:\Android\Sdk\platforms\android-36"
         $Config.android.buildTools = "D:\Android\Sdk\build-tools\36.0.0"
         $Config.android.ndk = "D:\Android\Sdk\ndk\27.1.12297006"
+        $Config.android.cmakeApp = "D:\Android\Sdk\cmake\3.22.1"
         $Config.android.cmake = "D:\Android\Sdk\cmake\3.30.5"
         "platform-tools" = "D:\Android\Sdk\platform-tools"
         "emulator" = "D:\Android\Sdk\emulator"
