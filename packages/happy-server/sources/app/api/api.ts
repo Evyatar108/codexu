@@ -57,12 +57,6 @@ export interface ConfigureApiOptions {
 
 export function configureApi(app: any, tofuConfig: TofuHandshakeConfig = { localUserId: "local-user" }, options: ConfigureApiOptions = {}) {
     const fastifyApp = app as ReturnType<typeof createApi>;
-    // FORK PATCH: [KEEP] fork CORS policy relocated to fork/forkCors.ts (invariant HS-7)
-    installForkCors(fastifyApp);
-    fastifyApp.get('/', function (request, reply) {
-        reply.send('Welcome to Happy Server!');
-    });
-
     // Create typed provider
     fastifyApp.setValidatorCompiler(validatorCompiler);
     fastifyApp.setSerializerCompiler(serializerCompiler);
@@ -77,6 +71,10 @@ export function configureApi(app: any, tofuConfig: TofuHandshakeConfig = { local
     if (localAuthRuntime) {
         options.onLocalAuthRuntime?.(localAuthRuntime);
     }
+    installForkCors(fastifyApp, localAuthRuntime);
+    fastifyApp.get('/', function (request, reply) {
+        reply.send('Welcome to Happy Server!');
+    });
 
     // Serve local files when using local storage
     if (isLocalStorage()) {

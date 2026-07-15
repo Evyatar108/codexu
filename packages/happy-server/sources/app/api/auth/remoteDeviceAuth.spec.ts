@@ -514,6 +514,7 @@ describe("createPublicAuthRuntime.enrollDevice — pin into the live verifier + 
                     persisted.push(devices);
                 },
             });
+
             const headers = {
                 [PAIRING_SECRET_HEADER]: "pair-secret",
                 [PAIRING_NONCE_HEADER]: "pairing-nonce",
@@ -524,6 +525,21 @@ describe("createPublicAuthRuntime.enrollDevice — pin into the live verifier + 
                 body: {},
             });
             expect(invalid.ok).toBe(false);
+            expect(persisted).toEqual([]);
+
+            const wrongMachineBody = JSON.stringify({
+                version: 1,
+                machineId: "wrong-machine",
+                deviceKeyId: keyId,
+                deviceEd25519PublicKey: publicKey,
+            });
+            const wrongMachine = await runtime.preparePairingDevice({
+                headers,
+                rawBody: wrongMachineBody,
+                body: JSON.parse(wrongMachineBody),
+                expectedMachineId: "machine-1",
+            });
+            expect(wrongMachine).toEqual({ ok: false, reason: "invalid_machine_id" });
             expect(persisted).toEqual([]);
 
             const body = JSON.stringify({
@@ -550,6 +566,34 @@ describe("createPublicAuthRuntime.enrollDevice — pin into the live verifier + 
             });
             expect(accepted).toEqual({ ok: true, enrolled: true });
             expect(persisted).toEqual([[{ keyId, publicKey }]]);
+        });
+    });
+
+    describe("public proof concurrent replay reservation", () => {
+        it("admits exactly one concurrent verification of an identical proof", async () => {
+            const now = 1_800_000_000_000;
+            const seed = new Uint8Array(32).fill(52);
+            const keyId = "concurrent-device";
+            const publicKey = encodeBase64(await ed.getPublicKeyAsync(seed));
+            const verifier = createRemoteDeviceVerifier({
+                devices: [{ keyId, publicKey }],
+                now: () => now,
+            });
+            const envelope = await signPublicRequest({
+                method: "GET",
+                path: SOCKET_PROOF_PATH,
+                keyId,
+                nonce: generatePublicRequestNonce(),
+                issuedAt: now,
+                bodyHash: hashRequestBody(null),
+            }, seed);
+            const header = encodePublicDeviceProofHeader(envelope);
+            const results = await Promise.all([
+                verifier.verify({ method: "GET", path: SOCKET_PROOF_PATH, header }),
+                verifier.verify({ method: "GET", path: SOCKET_PROOF_PATH, header }),
+            ]);
+            expect(results.filter(result => result.ok)).toHaveLength(1);
+            expect(results.filter(result => result.reason === "replayed_nonce")).toHaveLength(1);
         });
     });
 

@@ -2,7 +2,6 @@ import fs from 'fs/promises';
 import os from 'os';
 import { execFile } from 'node:child_process';
 import * as tmp from 'tmp';
-import axios from 'axios';
 
 import { ApiClient } from '@/api/api';
 import { bootstrapMachineForEmbedded } from 'happy-server';
@@ -39,6 +38,7 @@ import { recoverPending } from './worktreeTransactions';
 import { stopTrackedSession } from './stopTrackedSession';
 import { getLocalMachine } from './getLocalMachine';
 import { buildDaemonSpawnArgs, createSpawnFromSessionMetadataUpdater, daemonSpawnWindowName } from './runSpawnHelpers';
+import * as daemonClient from './daemonClient';
 
 // Prepare initial metadata
 // Suffix host with `-dev` for the HAPPY_VARIANT=dev variant so the dev daemon
@@ -169,7 +169,6 @@ export async function startDaemon(): Promise<void> {
 
     // FORK PATCH: RESTORE-R4-done fork daemon wiring (embed happy-server, select tunnel provider, stand up agent-comms ingest) relocated to fork/forkHooks.onDaemonRun (invariant HC-6)
     const {
-      embeddedServerPort,
       tunnelConfig,
       listenerBinding,
       ingestServer,
@@ -621,10 +620,11 @@ export async function startDaemon(): Promise<void> {
 
     const fetchServerSessionMetadata = async (sessionId: string, encryptionKey: Uint8Array, encryptionVariant: 'legacy' | 'dataKey'): Promise<Metadata | null> => {
       try {
-        const response = await axios.get(`http://127.0.0.1:${embeddedServerPort}/v1/sessions`, {
-          timeout: 10_000,
-        });
-        const sessions = (response.data as { sessions: { id: string; metadata: string }[] }).sessions;
+        const response = await daemonClient.tunnelFetch('/v1/sessions');
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const sessions = ((await response.json()) as { sessions: { id: string; metadata: string }[] }).sessions;
         const matched = sessions.find(s => s.id === sessionId);
         if (!matched) return null;
         const decrypted = decrypt(encryptionKey, encryptionVariant, decodeBase64(matched.metadata));

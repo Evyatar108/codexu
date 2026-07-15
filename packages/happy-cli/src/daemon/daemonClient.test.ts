@@ -88,7 +88,7 @@ describe('daemonClient', () => {
     return dir;
   }
 
-  it('returns tunnel Socket.IO object auth without extraHeaders', async () => {
+  it('attaches the loopback capability to default local-device Socket.IO clients', async () => {
     const client = await loadClient(await makeHome());
 
     const options = await client.tunnelSocketIOOptions();
@@ -97,8 +97,8 @@ describe('daemonClient', () => {
     expect(options).toEqual({
       url: 'http://127.0.0.1:62000',
       auth: {},
+      extraHeaders: { 'X-Loopback-Capability': 'cap-old' },
     });
-    expect('extraHeaders' in options).toBe(false);
   });
 
   it('attaches the loopback capability as extraHeaders in public mode', async () => {
@@ -145,7 +145,7 @@ describe('daemonClient', () => {
     await expect(client.loopbackFetch('/v2/me/settings')).rejects.toThrow('capability refresh');
   });
 
-  it('sends tunnel fetches without the retired Happy claim header', async () => {
+  it('authenticates daemon-owned tunnel fetches with the loopback capability', async () => {
     const client = await loadClient(await makeHome());
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response(200));
 
@@ -154,6 +154,7 @@ describe('daemonClient', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const headers = new Headers(fetchMock.mock.calls[0][1]?.headers);
     expect(headers.get('X-Codexu-Authorization')).toBeNull();
+    expect(headers.get('X-Loopback-Capability')).toBe('cap-old');
   });
 
   it('calls ensureDaemonRunning before polling so cold-start auto-spawns the daemon', async () => {

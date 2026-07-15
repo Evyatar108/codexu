@@ -1351,6 +1351,9 @@ const CanonicalLocalProfileSchema = z__namespace.object({
   }).nullable(),
   connectedServices: z__namespace.array(z__namespace.string())
 }).strict();
+const CanonicalLocalProfileFileSchema = CanonicalLocalProfileSchema.extend({
+  version: z__namespace.literal(1)
+}).strict();
 const PairCompleteResponseUnsignedSchema = z__namespace.object({
   version: z__namespace.literal(PAIR_COMPLETE_RESPONSE_VERSION),
   authMode: z__namespace.literal("paired-device"),
@@ -1484,6 +1487,7 @@ exports.ApiMessageSchema = ApiMessageSchema;
 exports.ApiUpdateMachineStateSchema = ApiUpdateMachineStateSchema;
 exports.ApiUpdateNewMessageSchema = ApiUpdateNewMessageSchema;
 exports.ApiUpdateSessionStateSchema = ApiUpdateSessionStateSchema;
+exports.CanonicalLocalProfileFileSchema = CanonicalLocalProfileFileSchema;
 exports.CanonicalLocalProfileSchema = CanonicalLocalProfileSchema;
 exports.CloudflareAccessServiceTokenSchema = CloudflareAccessServiceTokenSchema;
 exports.CoreUpdateBodySchema = CoreUpdateBodySchema;

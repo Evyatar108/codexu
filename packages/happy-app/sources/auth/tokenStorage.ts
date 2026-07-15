@@ -171,6 +171,8 @@ function filterOldShapeCredentials(credentials: StoredMachineCredentials): Store
             machineId: machine.machineId,
             tunnelUrl: machine.tunnelUrl,
             firstSeenAt: machine.firstSeenAt,
+            ...(machine.login ? { login: machine.login } : {}),
+            ...(machine.avatarUrl ? { avatarUrl: machine.avatarUrl } : {}),
             ...(machine.cloudflareAccessClientId ? { cloudflareAccessClientId: machine.cloudflareAccessClientId } : {}),
             ...(machine.cloudflareAccessClientSecret ? { cloudflareAccessClientSecret: machine.cloudflareAccessClientSecret } : {}),
             ...(machine.deviceKeyId ? { deviceKeyId: machine.deviceKeyId } : {}),

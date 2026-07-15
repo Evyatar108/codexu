@@ -139,6 +139,14 @@ export async function enrollPublicServer(
         throw new PublicEnrollmentError('invalid_response');
     }
     const machine = parsed.data.machine;
+    if (
+        machine.machineId !== invite.machineId
+        || parsed.data.profile.id !== invite.machineId
+        || parsed.data.pairedDevice.keyId !== keypair.keyId
+        || parsed.data.pairedDevice.publicKey !== keypair.publicKey
+    ) {
+        throw new PublicEnrollmentError('invalid_response', 'pairing response identity mismatch');
+    }
     const existing = (await (deps.getCredentialsList ?? (() => TokenStorage.getCredentialsList()))())
         .find(credentials => credentials.machineId === invite.machineId);
     if (

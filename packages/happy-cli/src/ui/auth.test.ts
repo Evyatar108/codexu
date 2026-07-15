@@ -1,9 +1,20 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+import { CanonicalLocalProfileFileSchema } from '@slopus/happy-wire';
 
 const mocks = vi.hoisted(() => ({
     readCredentials: vi.fn(),
     writeCredentialsLegacy: vi.fn(),
     writeCredentialsDataKey: vi.fn(),
+    configuration: {
+        happyHomeDir: 'C:\\happy-test',
+        localProfileFile: 'C:\\happy-test\\local-profile.json',
+        serverStorageKeyFile: 'C:\\happy-test\\server-storage.key',
+        publicPairingInviteFile: 'C:\\happy-test\\public-pairing-invite.json',
+    },
 }));
 
 vi.mock('@/persistence', () => ({
@@ -12,15 +23,16 @@ vi.mock('@/persistence', () => ({
     writeCredentialsDataKey: mocks.writeCredentialsDataKey,
 }));
 vi.mock('@/configuration', () => ({
-    configuration: {
-        happyHomeDir: 'C:\\happy-test',
-        localProfileFile: 'C:\\happy-test\\local-profile.json',
-        serverStorageKeyFile: 'C:\\happy-test\\server-storage.key',
-    },
+    configuration: mocks.configuration,
 }));
 vi.mock('./logger', () => ({ logger: { debug: vi.fn(), warn: vi.fn() } }));
 
-import { createLocalCompatibilityToken, doAuth, shouldReplaceBootstrapToken } from './auth';
+import {
+    createLocalCompatibilityToken,
+    doAuth,
+    migrateLocalProfile,
+    shouldReplaceBootstrapToken,
+} from './auth';
 
 describe('offline local bootstrap', () => {
     afterEach(() => vi.clearAllMocks());
@@ -64,5 +76,44 @@ describe('offline local bootstrap', () => {
 
     it('creates opaque compatibility tokens without network-shaped prefixes', () => {
         expect(createLocalCompatibilityToken()).toMatch(/^happy-local-v1_[A-Za-z0-9_-]{40,}$/);
+    });
+
+    it('migrates the real legacy profile file into the versioned canonical schema', async () => {
+        const root = join(process.cwd(), `.auth-profile-test-${randomUUID()}`);
+        await mkdir(root, { recursive: true });
+        try {
+            mocks.configuration.happyHomeDir = root;
+            mocks.configuration.localProfileFile = join(root, 'local-profile.json');
+            await writeFile(join(root, 'profile.json'), JSON.stringify({
+                githubLogin: 'octocat',
+                name: 'Octo Cat',
+                token: 'ghu_must_not_migrate',
+            }));
+
+            await migrateLocalProfile('machine-1');
+
+            const profile = CanonicalLocalProfileFileSchema.parse(
+                JSON.parse(await readFile(mocks.configuration.localProfileFile, 'utf8')),
+            );
+            expect(profile).toEqual({
+                version: 1,
+                id: 'machine-1',
+                timestamp: expect.any(Number),
+                firstName: 'Octo',
+                lastName: 'Cat',
+                avatar: null,
+                github: null,
+                connectedServices: [],
+            });
+            expect(JSON.stringify(profile)).not.toContain('ghu_must_not_migrate');
+        } finally {
+            if (process.platform === 'win32') {
+                const profilePath = join(root, 'local-profile.json');
+                execFileSync('icacls', [profilePath, '/grant:r', `${process.env.USERNAME}:F`], {
+                    stdio: 'ignore',
+                });
+            }
+            await rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+        }
     });
 });

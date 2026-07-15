@@ -108,4 +108,48 @@ describe("local paired-device auth", () => {
         await runtime.httpGuard(request, reply);
         expect(reply.code).toHaveBeenCalledWith(401);
     });
+
+    it("admits exactly one concurrent use of the same proof nonce", async () => {
+        const now = 1_800_000_000_000;
+        const secretKey = new Uint8Array(32).fill(19);
+        const publicKey = encodeBase64(await ed.getPublicKeyAsync(secretKey));
+        const runtime = createLocalAuthRuntime({
+            machineId: "machine-1",
+            serverUrl: "http://127.0.0.1:4567",
+            devices: [{ keyId: "tablet-1", publicKey }],
+            now: () => now,
+        });
+        const proof = await signLocalRequest({
+            method: "GET",
+            target: "/v1/updates",
+            keyId: "tablet-1",
+            nonce: generateLocalPairingNonce(),
+            issuedAt: now,
+            bodyHash: hashLocalRequestBody(null),
+        }, secretKey);
+        const headers = {
+            [LOCAL_DEVICE_PROOF_HEADER.toLowerCase()]: encodeLocalDeviceProofHeader(proof),
+        };
+        const results = await Promise.all([
+            runtime.verifySocketHandshake(headers),
+            runtime.verifySocketHandshake(headers),
+        ]);
+        expect(results.filter(result => result.ok)).toHaveLength(1);
+        expect(results.filter(result => result.reason === "replayed_nonce")).toHaveLength(1);
+    });
+
+    it("allows only an active invite origin and expires it with the invite", () => {
+        let now = 1_800_000_000_000;
+        const runtime = createLocalAuthRuntime({
+            machineId: "machine-1",
+            serverUrl: "http://127.0.0.1:4567",
+            devices: [],
+            now: () => now,
+        });
+        runtime.createInvite("http://127.0.0.1:8081");
+        expect(runtime.isOriginAllowed("http://127.0.0.1:8081")).toBe(true);
+        expect(runtime.isOriginAllowed("http://127.0.0.1:8082")).toBe(false);
+        now += 120_001;
+        expect(runtime.isOriginAllowed("http://127.0.0.1:8081")).toBe(false);
+    });
 });

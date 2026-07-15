@@ -30,14 +30,19 @@ const keypair: DeviceKeypair = {
     )),
 };
 
-async function serverResponse() {
+async function serverResponse(overrides: {
+    machineId?: string;
+    profileId?: string;
+    pairedKeyId?: string;
+    pairedPublicKey?: string;
+} = {}) {
     const serverSecret = new Uint8Array(32).fill(22);
     const payload = await signPairCompleteResponse({
         version: 2,
         authMode: 'paired-device',
         githubLogin: null,
         profile: {
-            id: invite.machineId,
+            id: overrides.profileId ?? invite.machineId,
             timestamp: withinWindow(),
             firstName: null,
             lastName: null,
@@ -46,13 +51,16 @@ async function serverResponse() {
             connectedServices: [],
         },
         machine: {
-            machineId: 'server-machine-id',
+            machineId: overrides.machineId ?? invite.machineId,
             tunnelUrl: 'http://127.0.0.1:3005',
             ed25519PublicKey: encodeBase64(await ed.getPublicKeyAsync(serverSecret)),
             x25519PublicKey: encodeBase64(new Uint8Array(32).fill(23)),
             ed25519Fingerprint: 'SHA256:server',
         },
-        pairedDevice: { keyId: keypair.keyId, publicKey: keypair.publicKey },
+        pairedDevice: {
+            keyId: overrides.pairedKeyId ?? keypair.keyId,
+            publicKey: overrides.pairedPublicKey ?? keypair.publicKey,
+        },
         issuedAt: withinWindow(),
     }, serverSecret);
     return new Response(JSON.stringify(payload), { status: 200 });
@@ -92,7 +100,7 @@ describe('enrollPublicServer', () => {
         expect(parsed.machineId).toBe(invite.machineId);
         expect(credentials).toEqual({
             authMode: 'paired-device',
-            machineId: 'server-machine-id',
+            machineId: invite.machineId,
             tunnelUrl: 'https://happy.example.com',
             firstSeenAt: withinWindow(),
             cloudflareAccessClientId: invite.cloudflareAccess.clientId,
@@ -151,6 +159,21 @@ describe('enrollPublicServer', () => {
                 firstSeenAt: 1,
                 serverEd25519PublicKey: 'different-server-key',
             }],
+        })).rejects.toMatchObject({ code: 'invalid_response' });
+    });
+
+    it.each([
+        ["machine id", { machineId: "other-machine" }],
+        ["profile id", { profileId: "other-machine" }],
+        ["paired key id", { pairedKeyId: "other-device" }],
+        ["paired public key", { pairedPublicKey: "other-public-key" }],
+    ])("rejects a signed response with mismatched %s", async (_label, overrides) => {
+        await expect(enrollPublicServer(validToken, {
+            fetch: vi.fn(async () => serverResponse(overrides)) as unknown as typeof fetch,
+            generateKeypair: async () => keypair,
+            generateNonce: () => 'fixed-nonce',
+            now: withinWindow,
+            getCredentialsList: async () => [],
         })).rejects.toMatchObject({ code: 'invalid_response' });
     });
 });

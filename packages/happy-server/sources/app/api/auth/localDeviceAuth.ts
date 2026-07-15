@@ -46,11 +46,22 @@ export interface LocalEnrollmentInput {
 
 export interface LocalAuthRuntime {
     createInvite(browserOrigin: string): LocalPairingInvite;
+    isOriginAllowed(browserOrigin: string): boolean;
+    prepareEnrollment(input: LocalEnrollmentInput): Promise<LocalEnrollmentPreparation>;
     enroll(input: LocalEnrollmentInput): Promise<DeviceEnrollResult>;
     httpGuard: (request: any, reply: any) => Promise<unknown>;
     bodyHashGuard: (request: any, reply: any) => Promise<unknown>;
     verifySocketHandshake(headers: Record<string, unknown>): Promise<{ ok: boolean; reason?: string }>;
 }
+
+export type LocalEnrollmentPreparation =
+    | { ok: false; reason?: string }
+    | {
+        ok: true;
+        record: RemoteDeviceRecord;
+        commit(): Promise<DeviceEnrollResult>;
+        cancel(): void;
+    };
 
 function headerString(value: unknown): string | undefined {
     if (typeof value === "string") {
@@ -101,27 +112,36 @@ export function createLocalAuthRuntime(config: LocalDeviceAuthConfig): LocalAuth
         )) {
             return { ok: false, reason: "stale_proof" };
         }
-        if (seenNonces.has(envelope.nonce)) {
-            return { ok: false, reason: "replayed_nonce" };
-        }
-        const result = await verifyLocalRequest(envelope, {
-            method,
-            target,
-            bodyHash,
-            expectedPublicKey: device.publicKey,
-        });
-        if (!result.ok) {
-            return result;
-        }
         for (const [nonce, expiry] of seenNonces) {
             if (expiry <= nowMs) {
                 seenNonces.delete(nonce);
             }
         }
-        seenNonces.set(
-            envelope.nonce,
-            envelope.issuedAt + LOCAL_DEVICE_PROOF_FRESHNESS_MS + LOCAL_DEVICE_PROOF_CLOCK_SKEW_MS,
-        );
+        if (seenNonces.has(envelope.nonce)) {
+            return { ok: false, reason: "replayed_nonce" };
+        }
+        const nonceExpiry = envelope.issuedAt
+            + LOCAL_DEVICE_PROOF_FRESHNESS_MS
+            + LOCAL_DEVICE_PROOF_CLOCK_SKEW_MS;
+        seenNonces.set(envelope.nonce, nonceExpiry);
+        let result;
+        try {
+            result = await verifyLocalRequest(envelope, {
+                method,
+                target,
+                bodyHash,
+                expectedPublicKey: device.publicKey,
+            });
+        } catch {
+            seenNonces.delete(envelope.nonce);
+            return { ok: false, reason: "signature_invalid" };
+        }
+        if (!result.ok) {
+            if (seenNonces.get(envelope.nonce) === nonceExpiry) {
+                seenNonces.delete(envelope.nonce);
+            }
+            return result;
+        }
         return { ok: true, envelope };
     }
 
@@ -136,7 +156,26 @@ export function createLocalAuthRuntime(config: LocalDeviceAuthConfig): LocalAuth
         return invite;
     }
 
-    async function enroll(input: LocalEnrollmentInput): Promise<DeviceEnrollResult> {
+    function pruneInvites(): void {
+        const nowMs = now();
+        for (const [nonce, state] of invites) {
+            if (Date.parse(state.invite.expiresAt) <= nowMs && !state.reserved) {
+                invites.delete(nonce);
+            }
+        }
+    }
+
+    function isOriginAllowed(browserOrigin: string): boolean {
+        pruneInvites();
+        return Array.from(invites.values()).some(state =>
+            !state.reserved
+            && state.invite.browserOrigin === browserOrigin
+            && now() >= Date.parse(state.invite.issuedAt)
+            && now() < Date.parse(state.invite.expiresAt));
+    }
+
+    async function prepareEnrollment(input: LocalEnrollmentInput): Promise<LocalEnrollmentPreparation> {
+        pruneInvites();
         const pairingNonce = headerString(input.headers[LOCAL_PAIRING_NONCE_HEADER.toLowerCase()]);
         const secret = headerString(input.headers[LOCAL_PAIRING_SECRET_HEADER.toLowerCase()]);
         const state = pairingNonce ? invites.get(pairingNonce) : undefined;
@@ -152,10 +191,20 @@ export function createLocalAuthRuntime(config: LocalDeviceAuthConfig): LocalAuth
             return { ok: false, reason: "pairing_denied" };
         }
         state.reserved = true;
+        const cancel = () => {
+            const current = invites.get(state.invite.pairingNonce);
+            if (current) {
+                current.reserved = false;
+            }
+        };
+        const fail = (reason?: string): LocalEnrollmentPreparation => {
+            cancel();
+            return { ok: false, reason };
+        };
         try {
             const parsedBody = PairCompleteRequestSchema.safeParse(input.body);
             if (!parsedBody.success) {
-                return { ok: false, reason: "invalid_device_key" };
+                return fail("invalid_device_key");
             }
             const body = parsedBody.data;
             if (
@@ -165,13 +214,13 @@ export function createLocalAuthRuntime(config: LocalDeviceAuthConfig): LocalAuth
                     publicKey: body.deviceEd25519PublicKey,
                 })
             ) {
-                return { ok: false, reason: "invalid_device_key" };
+                return fail("invalid_device_key");
             }
             const proof = decodeLocalDeviceProofHeader(
                 headerString(input.headers[LOCAL_DEVICE_PROOF_HEADER.toLowerCase()]),
             );
             if (!proof || proof.keyId !== body.deviceKeyId || proof.publicKey !== body.deviceEd25519PublicKey) {
-                return { ok: false, reason: "invalid_device_proof" };
+                return fail("invalid_device_proof");
             }
             if (!isLocalProofFresh(
                 proof.issuedAt,
@@ -179,7 +228,7 @@ export function createLocalAuthRuntime(config: LocalDeviceAuthConfig): LocalAuth
                 LOCAL_DEVICE_PROOF_FRESHNESS_MS,
                 LOCAL_DEVICE_PROOF_CLOCK_SKEW_MS,
             )) {
-                return { ok: false, reason: "stale_proof" };
+                return fail("stale_proof");
             }
             const verification = await verifyLocalRequest(proof, {
                 method: "POST",
@@ -188,40 +237,73 @@ export function createLocalAuthRuntime(config: LocalDeviceAuthConfig): LocalAuth
                 expectedPublicKey: body.deviceEd25519PublicKey,
             });
             if (!verification.ok) {
-                return { ok: false, reason: verification.reason };
+                return fail(verification.reason);
             }
+            const record = {
+                keyId: body.deviceKeyId,
+                publicKey: body.deviceEd25519PublicKey,
+            };
+            let finished = false;
+            return {
+                ok: true,
+                record,
+                async commit() {
+                    if (finished) {
+                        return { ok: false, reason: "enrollment_already_finished" };
+                    }
+                    finished = true;
+                    let result: DeviceEnrollResult = { ok: false, reason: "enrollment_failed" };
+                    const work = enrollmentQueue.then(async () => {
+                        const existing = devices.get(record.keyId);
+                        if (existing && existing.publicKey !== record.publicKey) {
+                            result = { ok: false, reason: "device_key_conflict" };
+                            return;
+                        }
+                        if (existing) {
+                            result = { ok: true, enrolled: false };
+                            return;
+                        }
+                        const next = [...devices.values(), record];
+                        await config.onDevicesChanged?.(next);
+                        devices.set(record.keyId, record);
+                        result = { ok: true, enrolled: true };
+                    });
+                    enrollmentQueue = work.catch(() => {});
+                    try {
+                        await work;
+                        if (result.ok) {
+                            invites.delete(state.invite.pairingNonce);
+                        } else {
+                            cancel();
+                        }
+                        return result;
+                    } catch (error) {
+                        cancel();
+                        throw error;
+                    }
+                },
+                cancel() {
+                    if (!finished) {
+                        finished = true;
+                        cancel();
+                    }
+                },
+            };
+        } catch (error) {
+            cancel();
+            throw error;
+        }
+    }
 
-            let result: DeviceEnrollResult = { ok: false, reason: "enrollment_failed" };
-            const work = enrollmentQueue.then(async () => {
-                const existing = devices.get(body.deviceKeyId);
-                if (existing && existing.publicKey !== body.deviceEd25519PublicKey) {
-                    result = { ok: false, reason: "device_key_conflict" };
-                    return;
-                }
-                if (existing) {
-                    result = { ok: true, enrolled: false };
-                    return;
-                }
-                const record = {
-                    keyId: body.deviceKeyId,
-                    publicKey: body.deviceEd25519PublicKey,
-                };
-                const next = [...devices.values(), record];
-                await config.onDevicesChanged?.(next);
-                devices.set(record.keyId, record);
-                result = { ok: true, enrolled: true };
-            });
-            enrollmentQueue = work.catch(() => {});
-            await work;
-            if (result.ok) {
-                invites.delete(state.invite.pairingNonce);
-            }
-            return result;
+    async function enroll(input: LocalEnrollmentInput): Promise<DeviceEnrollResult> {
+        const prepared = await prepareEnrollment(input);
+        if (!prepared.ok) {
+            return prepared;
+        }
+        try {
+            return await prepared.commit();
         } finally {
-            const current = invites.get(state.invite.pairingNonce);
-            if (current) {
-                current.reserved = false;
-            }
+            prepared.cancel();
         }
     }
 
@@ -263,5 +345,13 @@ export function createLocalAuthRuntime(config: LocalDeviceAuthConfig): LocalAuth
         );
     }
 
-    return { createInvite, enroll, httpGuard, bodyHashGuard, verifySocketHandshake };
+    return {
+        createInvite,
+        isOriginAllowed,
+        prepareEnrollment,
+        enroll,
+        httpGuard,
+        bodyHashGuard,
+        verifySocketHandshake,
+    };
 }

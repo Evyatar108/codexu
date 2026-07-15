@@ -70,7 +70,7 @@ async function persistLocalCredentials(token: string, existingCredentials: Crede
     };
 }
 
-async function migrateLocalProfile(machineId: string): Promise<void> {
+export async function migrateLocalProfile(machineId: string): Promise<void> {
     try {
         const existing = JSON.parse(await readFile(configuration.localProfileFile, 'utf8')) as {
             version?: unknown;

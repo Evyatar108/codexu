@@ -1,5 +1,5 @@
 import {
-    CanonicalLocalProfileSchema,
+    CanonicalLocalProfileFileSchema,
     PairCompleteRequestSchema,
     PairCompleteResponseSchema,
     signPairCompleteResponse,
@@ -45,11 +45,12 @@ function isPairRateLimited(ip: string, now: number): boolean {
 
 async function readCanonicalProfile(profilePath: string, localUserId: string): Promise<CanonicalLocalProfile> {
     try {
-        const parsed = CanonicalLocalProfileSchema.safeParse(
+        const parsed = CanonicalLocalProfileFileSchema.safeParse(
             JSON.parse(await fs.readFile(profilePath, "utf8")),
         );
         if (parsed.success) {
-            return parsed.data;
+            const { version: _version, ...profile } = parsed.data;
+            return profile;
         }
     } catch {
         // Profile display data is optional; local identity is always available.
@@ -90,73 +91,78 @@ export function pairRoutes(
         if (!tofuConfig.tofuPublicKeys || !tofuConfig.ed25519SecretKey) {
             return reply.code(503).send({ error: "tofu_key_material_unavailable" });
         }
-        const enrollment = authOptions.mode === "local"
-            ? await authOptions.localAuthRuntime?.enroll({
+        const prepared = authOptions.mode === "local"
+            ? await authOptions.localAuthRuntime?.prepareEnrollment({
                 headers: request.headers,
                 origin: typeof request.headers.origin === "string" ? request.headers.origin : undefined,
                 rawBody: (request as any).rawBody,
                 body: request.body,
             })
-            : await authOptions.publicAuthRuntime?.enrollPairingDevice({
+            : await authOptions.publicAuthRuntime?.preparePairingDevice({
                 headers: request.headers,
                 rawBody: (request as any).rawBody,
                 body: request.body,
+                expectedMachineId: tofuConfig.localUserId,
             });
-        if (!enrollment?.ok) {
-            if (enrollment?.reason === "device_key_conflict") {
+        if (!prepared?.ok) {
+            if (prepared?.reason === "device_key_conflict") {
                 return reply.code(409).send({ error: "device_key_conflict" });
             }
-            if (enrollment?.reason === "invalid_device_key") {
+            if (prepared?.reason === "invalid_device_key" || prepared?.reason === "invalid_machine_id") {
                 return reply.code(400).send({ error: "invalid_device_key" });
             }
             return reply.code(401).send({ error: "pairing_denied" });
         }
-        const parsedBody = PairCompleteRequestSchema.safeParse(request.body);
-        if (!parsedBody.success || parsedBody.data.machineId !== tofuConfig.localUserId) {
-            return reply.code(400).send({ error: "invalid_device_key" });
-        }
-        const pairRequest = parsedBody.data;
-        const record = {
-            keyId: pairRequest.deviceKeyId,
-            publicKey: pairRequest.deviceEd25519PublicKey,
-        };
-
-        let mobileSharedSecret: string | undefined;
-        if (pairRequest.mobileEcdhPublicKey && tofuConfig.x25519SecretKey) {
-            try {
+        try {
+            const parsedBody = PairCompleteRequestSchema.parse(request.body);
+            let mobileSharedSecret: string | undefined;
+            if (parsedBody.mobileEcdhPublicKey && tofuConfig.x25519SecretKey) {
+                const mobilePublicKey = Buffer.from(parsedBody.mobileEcdhPublicKey, "base64");
+                if (mobilePublicKey.length !== nacl.box.publicKeyLength) {
+                    throw new Error("invalid_mobile_ecdh_key");
+                }
                 const sharedSecret = nacl.box.before(
-                    Buffer.from(pairRequest.mobileEcdhPublicKey, "base64"),
+                    mobilePublicKey,
                     tofuConfig.x25519SecretKey,
                 );
                 mobileSharedSecret = Buffer.from(sharedSecret).toString("base64");
-            } catch {
-                return reply.code(400).send({ error: "invalid_mobile_ecdh_key" });
             }
-        }
 
-        const tunnelUrl = tofuConfig.publicUrl
-            || process.env.PUBLIC_URL
-            || `http://127.0.0.1:${process.env.PORT ?? "3005"}`;
-        const profile = await readCanonicalProfile(
-            paths.profile ?? path.join(os.homedir(), ".happy", "local-profile.json"),
-            tofuConfig.localUserId,
-        );
-        return signPairCompleteResponse({
-            version: 2,
-            authMode: "paired-device",
-            githubLogin: null,
-            profile,
-            machine: {
-                machineId: tofuConfig.localUserId,
-                tunnelUrl,
-                ed25519PublicKey: tofuConfig.tofuPublicKeys.ed25519PublicKey,
-                x25519PublicKey: tofuConfig.tofuPublicKeys.x25519PublicKey,
-                ed25519Fingerprint: tofuConfig.tofuPublicKeys.ed25519Fingerprint ?? "",
-                ...(mobileSharedSecret ? { mobileSharedSecret } : {}),
-            },
-            pairedDevice: record,
-            issuedAt: Date.now(),
-        }, tofuConfig.ed25519SecretKey);
+            const tunnelUrl = tofuConfig.publicUrl
+                || process.env.PUBLIC_URL
+                || `http://127.0.0.1:${process.env.PORT ?? "3005"}`;
+            const profile = await readCanonicalProfile(
+                paths.profile ?? path.join(os.homedir(), ".happy", "local-profile.json"),
+                tofuConfig.localUserId,
+            );
+            const response = await signPairCompleteResponse({
+                version: 2,
+                authMode: "paired-device",
+                githubLogin: null,
+                profile,
+                machine: {
+                    machineId: tofuConfig.localUserId,
+                    tunnelUrl,
+                    ed25519PublicKey: tofuConfig.tofuPublicKeys.ed25519PublicKey,
+                    x25519PublicKey: tofuConfig.tofuPublicKeys.x25519PublicKey,
+                    ed25519Fingerprint: tofuConfig.tofuPublicKeys.ed25519Fingerprint ?? "",
+                    ...(mobileSharedSecret ? { mobileSharedSecret } : {}),
+                },
+                pairedDevice: prepared.record,
+                issuedAt: Date.now(),
+            }, tofuConfig.ed25519SecretKey);
+            const committed = await prepared.commit();
+            if (!committed.ok) {
+                if (committed.reason === "device_key_conflict") {
+                    return reply.code(409).send({ error: "device_key_conflict" });
+                }
+                return reply.code(400).send({ error: "invalid_device_key" });
+            }
+            return response;
+        } catch {
+            prepared.cancel();
+            return reply.code(400).send({ error: "invalid_pairing_payload" });
+        }
     });
 
     app.post("/pair/connect", {

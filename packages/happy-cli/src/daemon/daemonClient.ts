@@ -134,10 +134,19 @@ export async function loopbackFetch(path: string, init: RequestInit = {}): Promi
 export async function tunnelFetch(path: string, init: RequestInit = {}): Promise<Response> {
   await ensureDaemonReady();
   const baseUrl = await getTunnelLocalBaseUrl();
-  return await fetch(appendPath(baseUrl, path), {
-    ...init,
-    signal: init.signal ?? AbortSignal.timeout(FETCH_TIMEOUT_MS),
-  });
+  const makeRequest = async () => await fetch(appendPath(baseUrl, path), {
+      ...init,
+      signal: init.signal ?? AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      headers: mergeHeaders(init, { 'X-Loopback-Capability': await readCapability() }),
+    });
+  let response = await makeRequest();
+  if (response.status !== 401) return response;
+  invalidateCapability();
+  response = await makeRequest();
+  if (response.status === 401) {
+    throw new Error(`Tunnel request failed after capability refresh: ${path}`);
+  }
+  return response;
 }
 
 export interface TunnelSocketIOOptions {
@@ -157,21 +166,10 @@ export interface TunnelSocketIOOptions {
 export async function tunnelSocketIOOptions(): Promise<TunnelSocketIOOptions> {
   await ensureDaemonReady();
   const url = await getTunnelLocalBaseUrl();
-  const state = await machineState();
-  // In public mode the tunnel/public listener gates the handshake with a
-  // device proof; the daemon's own clients present the local loopback
-  // capability instead (accepted co-resident credential). In non-public modes
-  // the tunnel listener has no handshake gate, so the shape stays unchanged.
-  if (state?.publicListener) {
-    return {
-      url,
-      auth: {},
-      extraHeaders: { 'X-Loopback-Capability': await readCapability() },
-    };
-  }
   return {
     url,
     auth: {},
+    extraHeaders: { 'X-Loopback-Capability': await readCapability() },
   };
 }
 

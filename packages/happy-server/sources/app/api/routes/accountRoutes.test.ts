@@ -28,6 +28,7 @@ describe("/v2/me routes", () => {
         const accountSettingsPath = path.join(dir, "account-settings.json");
         const loopbackCap = path.join(dir, "loopback-cap.txt");
         await writeFile(profilePath, JSON.stringify({
+            version: 1,
             id: "local-user",
             timestamp: 1,
             firstName: "Octo",
@@ -123,6 +124,7 @@ describe("/v2/me routes", () => {
         const dir = await mkdtemp(path.join(os.tmpdir(), "happy-me-routes-"));
         const loopbackCap = path.join(dir, "loopback-cap.txt");
         await writeFile(path.join(dir, "profile.json"), JSON.stringify({
+            version: 1,
             id: "local-user",
             timestamp: 1,
             firstName: null,

@@ -35,6 +35,10 @@ export const CanonicalLocalProfileSchema = z.object({
   connectedServices: z.array(z.string()),
 }).strict();
 
+export const CanonicalLocalProfileFileSchema = CanonicalLocalProfileSchema.extend({
+  version: z.literal(1),
+}).strict();
+
 export const PairCompleteResponseUnsignedSchema = z.object({
   version: z.literal(PAIR_COMPLETE_RESPONSE_VERSION),
   authMode: z.literal('paired-device'),
@@ -61,6 +65,7 @@ export const PairCompleteResponseSchema = PairCompleteResponseUnsignedSchema.ext
 
 export type PairCompleteRequest = z.infer<typeof PairCompleteRequestSchema>;
 export type CanonicalLocalProfile = z.infer<typeof CanonicalLocalProfileSchema>;
+export type CanonicalLocalProfileFile = z.infer<typeof CanonicalLocalProfileFileSchema>;
 export type PairCompleteResponseUnsigned = z.infer<typeof PairCompleteResponseUnsignedSchema>;
 export type PairCompleteResponse = z.infer<typeof PairCompleteResponseSchema>;
 

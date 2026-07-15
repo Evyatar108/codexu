@@ -286,19 +286,29 @@ export function createRemoteDeviceVerifier(
         if (!isPublicProofFresh(envelope.issuedAt, nowMs, windowMs, clockSkewMs)) {
             return { ok: false, reason: "stale_proof" };
         }
+        pruneNonces(nowMs);
         if (seenNonces.has(envelope.nonce)) {
             return { ok: false, reason: "replayed_nonce" };
         }
-        const verification = await verifyPublicRequest(envelope, {
-            method,
-            path,
-            expectedPublicKey: device.publicKey,
-        });
+        const nonceExpiry = envelope.issuedAt + windowMs + clockSkewMs;
+        seenNonces.set(envelope.nonce, nonceExpiry);
+        let verification;
+        try {
+            verification = await verifyPublicRequest(envelope, {
+                method,
+                path,
+                expectedPublicKey: device.publicKey,
+            });
+        } catch {
+            seenNonces.delete(envelope.nonce);
+            return { ok: false, reason: "signature_invalid" };
+        }
         if (!verification.ok) {
+            if (seenNonces.get(envelope.nonce) === nonceExpiry) {
+                seenNonces.delete(envelope.nonce);
+            }
             return { ok: false, reason: verification.reason };
         }
-        pruneNonces(nowMs);
-        seenNonces.set(envelope.nonce, envelope.issuedAt + windowMs + clockSkewMs);
         return { ok: true, keyId: envelope.keyId, envelope };
     }
 
@@ -484,12 +494,27 @@ export interface PublicAuthRuntime {
      * instance the HTTP guard + socket handshake read — closing the enroll->verify gap.
      */
     enrollDevice: (record: RemoteDeviceRecord) => Promise<DeviceEnrollResult>;
+    preparePairingDevice: (input: {
+        headers: Record<string, unknown>;
+        rawBody: Uint8Array | string | undefined;
+        body: unknown;
+        expectedMachineId: string;
+    }) => Promise<PublicEnrollmentPreparation>;
     enrollPairingDevice: (input: {
         headers: Record<string, unknown>;
         rawBody: Uint8Array | string | undefined;
         body: unknown;
     }) => Promise<DeviceEnrollResult>;
 }
+
+export type PublicEnrollmentPreparation =
+    | { ok: false; reason?: string }
+    | {
+        ok: true;
+        record: RemoteDeviceRecord;
+        commit(): Promise<DeviceEnrollResult>;
+        cancel(): void;
+    };
 
 /**
  * Assembles the shared public-mode auth runtime. One verifier (one replay cache)
@@ -601,29 +626,44 @@ export function createPublicAuthRuntime(config: PublicAuthConfig): PublicAuthRun
         return result;
     }
 
-    async function enrollPairingDevice(input: {
+    async function preparePairingDevice(input: {
         headers: Record<string, unknown>;
         rawBody: Uint8Array | string | undefined;
         body: unknown;
-    }): Promise<DeviceEnrollResult> {
+        expectedMachineId: string;
+    }): Promise<PublicEnrollmentPreparation> {
         if (!pairingGate) {
             return { ok: false, reason: "pairing_window_closed" };
         }
         const reservation = pairingGate.reserve(input.headers);
         if (!reservation.ok) {
-            return reservation;
+            return { ok: false, reason: reservation.reason };
         }
+        let finished = false;
+        const cancel = () => {
+            if (!finished) {
+                finished = true;
+                reservation.release?.();
+            }
+        };
+        const fail = (reason?: string): PublicEnrollmentPreparation => {
+            cancel();
+            return { ok: false, reason };
+        };
         try {
             const parsedBody = PairCompleteRequestSchema.safeParse(input.body);
             if (!parsedBody.success) {
-                return { ok: false, reason: "invalid_device_key" };
+                return fail("invalid_device_key");
+            }
+            if (parsedBody.data.machineId !== input.expectedMachineId) {
+                return fail("invalid_machine_id");
             }
             const record = {
                 keyId: parsedBody.data.deviceKeyId,
                 publicKey: parsedBody.data.deviceEd25519PublicKey,
             };
             if (!isValidDeviceRecordShape(record)) {
-                return { ok: false, reason: "invalid_device_key" };
+                return fail("invalid_device_key");
             }
             const envelope = decodePublicDeviceProofHeader(
                 headerString(input.headers[PUBLIC_DEVICE_PROOF_HEADER]),
@@ -639,7 +679,7 @@ export function createPublicAuthRuntime(config: PublicAuthConfig): PublicAuthRun
                     config.clockSkewMs ?? PUBLIC_DEVICE_PROOF_CLOCK_SKEW_MS,
                 )
             ) {
-                return { ok: false, reason: "invalid_device_proof" };
+                return fail("invalid_device_proof");
             }
             const verification = await verifyPublicRequest(envelope, {
                 method: "POST",
@@ -648,15 +688,57 @@ export function createPublicAuthRuntime(config: PublicAuthConfig): PublicAuthRun
                 expectedPublicKey: record.publicKey,
             });
             if (!verification.ok) {
-                return { ok: false, reason: verification.reason };
+                return fail(verification.reason);
             }
-            const result = await enrollDevice(record);
-            if (result.ok) {
-                reservation.commit?.();
-            }
-            return result;
+            return {
+                ok: true,
+                record,
+                async commit() {
+                    if (finished) {
+                        return { ok: false, reason: "enrollment_already_finished" };
+                    }
+                    finished = true;
+                    try {
+                        const result = await enrollDevice(record);
+                        if (result.ok) {
+                            reservation.commit?.();
+                        } else {
+                            reservation.release?.();
+                        }
+                        return result;
+                    } catch (error) {
+                        reservation.release?.();
+                        throw error;
+                    }
+                },
+                cancel,
+            };
+        } catch (error) {
+            cancel();
+            throw error;
+        }
+    }
+
+    async function enrollPairingDevice(input: {
+        headers: Record<string, unknown>;
+        rawBody: Uint8Array | string | undefined;
+        body: unknown;
+    }): Promise<DeviceEnrollResult> {
+        const parsed = PairCompleteRequestSchema.safeParse(input.body);
+        if (!parsed.success) {
+            return { ok: false, reason: "invalid_device_key" };
+        }
+        const prepared = await preparePairingDevice({
+            ...input,
+            expectedMachineId: parsed.data.machineId,
+        });
+        if (!prepared.ok) {
+            return prepared;
+        }
+        try {
+            return await prepared.commit();
         } finally {
-            reservation.release?.();
+            prepared.cancel();
         }
     }
 
@@ -669,6 +751,7 @@ export function createPublicAuthRuntime(config: PublicAuthConfig): PublicAuthRun
         bodyHashGuard,
         verifySocketHandshake,
         enrollDevice,
+        preparePairingDevice,
         enrollPairingDevice,
     };
 }

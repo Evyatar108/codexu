@@ -5,7 +5,11 @@ import * as path from "path";
 import { writeJsonAtomically } from "@slopus/happy-wire/node";
 import { type Fastify } from "../types";
 import { type ApiPaths } from "../api";
-import { CanonicalLocalProfileSchema, type CanonicalLocalProfile } from "@slopus/happy-wire";
+import {
+    CanonicalLocalProfileFileSchema,
+    CanonicalLocalProfileSchema,
+    type CanonicalLocalProfile,
+} from "@slopus/happy-wire";
 import { readGithubConnection } from "@/app/github/githubConnectionStore";
 
 const SettingsSchema = z.record(z.unknown());
@@ -49,8 +53,10 @@ export function accountRoutes(app: Fastify, options: AccountRoutesOptions) {
             },
         },
     }, async (_request, reply) => {
-        const profile = await readJsonFile(profilePath, CanonicalLocalProfileSchema)
-            ?? {
+        const profileFile = await readJsonFile(profilePath, CanonicalLocalProfileFileSchema);
+        const profile = profileFile
+            ? (({ version: _version, ...value }) => value)(profileFile)
+            : {
                 id: options.localUserId,
                 timestamp: Date.now(),
                 firstName: null,

@@ -49,19 +49,31 @@ describe('TokenStorage pairing migration', () => {
                     connectToken: 'connect-secret',
                     tunnelId: 'legacy-tunnel',
                 },
-                paired,
+                {
+                    ...paired,
+                    login: 'octocat',
+                    avatarUrl: 'https://avatars.example.test/octocat.png',
+                    connectToken: 'retired-connect-token',
+                    connectTokenExpiry: 456,
+                    tunnelId: 'retired-tunnel',
+                    deviceCode: 'retired-device-code',
+                    deviceCodeExpiresAt: 789,
+                },
             ],
         }));
 
-        await expect(TokenStorage.getCredentialsList()).resolves.toEqual([paired]);
-        expect(secureStore.setItemAsync).toHaveBeenCalledWith(
-            'machine_credentials',
-            JSON.stringify({
-                primaryMachineId: 'machine-1',
-                machines: [paired],
-                devTunnelsAccess: null,
-            }),
-        );
+        const preserved = {
+            ...paired,
+            login: 'octocat',
+            avatarUrl: 'https://avatars.example.test/octocat.png',
+        };
+        await expect(TokenStorage.getCredentialsList()).resolves.toEqual([preserved]);
+        const migrated = JSON.parse(secureStore.setItemAsync.mock.calls[0]![1] as string);
+        expect(migrated).toEqual({
+            primaryMachineId: 'machine-1',
+            machines: [preserved],
+            devTunnelsAccess: null,
+        });
     });
 
     it('does not persist newly supplied Dev-Tunnels credentials or tokens', async () => {

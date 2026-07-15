@@ -150,7 +150,13 @@ export function startSocket(app: Fastify, tofuConfig: TofuHandshakeConfig = { lo
     const allowedOrigins = parseCorsOrigins();
     const io = new Server(app.server, {
         cors: {
-            origin: allowedOrigins.length === 0 ? false : allowedOrigins,
+            origin(origin, callback) {
+                const allowed = origin !== undefined && (
+                    allowedOrigins.includes(origin)
+                    || socketOptions.localAuthRuntime?.isOriginAllowed(origin) === true
+                );
+                callback(null, allowed);
+            },
             methods: ["GET", "POST", "OPTIONS"],
             credentials: true,
             // `Cf-Access-Jwt-Assertion` is intentionally absent: Cloudflare Access

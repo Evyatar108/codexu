@@ -36,6 +36,7 @@ describe("/pair/complete v2 local strategy", () => {
                 ed25519Fingerprint: "SHA256:server",
             },
             ed25519SecretKey: serverSecret,
+            x25519SecretKey: new Uint8Array(32).fill(74),
         }, {
             auth: "local-device",
             localAuth: {
@@ -50,6 +51,32 @@ describe("/pair/complete v2 local strategy", () => {
         });
         await app.ready();
         const invite = runtime!.createInvite("http://127.0.0.1:8081");
+        const allowedPreflight = await app.inject({
+            method: "OPTIONS",
+            url: "/pair/complete",
+            headers: {
+                origin: invite.browserOrigin,
+                "access-control-request-method": "POST",
+                "access-control-request-headers": [
+                    "content-type",
+                    LOCAL_PAIRING_SECRET_HEADER,
+                    LOCAL_PAIRING_NONCE_HEADER,
+                    LOCAL_DEVICE_PROOF_HEADER,
+                ].join(","),
+            },
+        });
+        expect(allowedPreflight.headers["access-control-allow-origin"]).toBe(invite.browserOrigin);
+        const deniedPreflight = await app.inject({
+            method: "OPTIONS",
+            url: "/pair/complete",
+            headers: {
+                origin: "http://127.0.0.1:8082",
+                "access-control-request-method": "POST",
+            },
+        });
+        expect(deniedPreflight.headers["access-control-allow-origin"]).toBeUndefined();
+        expect((await app.inject({ method: "GET", url: "/" })).statusCode).toBe(401);
+
         const body = JSON.stringify({
             version: 1,
             machineId: "machine-1",
@@ -69,6 +96,44 @@ describe("/pair/complete v2 local strategy", () => {
             payload: body,
         });
         expect(rejected.statusCode).toBe(401);
+
+        const invalidEcdhBody = JSON.stringify({
+            ...JSON.parse(body),
+            mobileEcdhPublicKey: encodeBase64(new Uint8Array(31).fill(4)),
+        });
+        const invalidEcdhProof = await signLocalRequest({
+            method: "POST",
+            target: "/pair/complete",
+            keyId: "tablet-1",
+            nonce: generateLocalPairingNonce(),
+            issuedAt: now,
+            bodyHash: hashLocalRequestBody(invalidEcdhBody),
+        }, deviceSecret);
+        const invalidEcdh = await app.inject({
+            method: "POST",
+            url: "/pair/complete",
+            headers: {
+                ...baseHeaders,
+                [LOCAL_DEVICE_PROOF_HEADER]: encodeLocalDeviceProofHeader(invalidEcdhProof),
+            },
+            payload: invalidEcdhBody,
+        });
+        expect(invalidEcdh.statusCode).toBe(400);
+        const unauthorizedDeviceProof = await signLocalRequest({
+            method: "GET",
+            target: "/",
+            keyId: "tablet-1",
+            nonce: generateLocalPairingNonce(),
+            issuedAt: now,
+            bodyHash: hashLocalRequestBody(null),
+        }, deviceSecret);
+        expect((await app.inject({
+            method: "GET",
+            url: "/",
+            headers: {
+                [LOCAL_DEVICE_PROOF_HEADER]: encodeLocalDeviceProofHeader(unauthorizedDeviceProof),
+            },
+        })).statusCode).toBe(401);
 
         const proof = await signLocalRequest({
             method: "POST",
@@ -102,5 +167,14 @@ describe("/pair/complete v2 local strategy", () => {
             },
         });
         await expect(verifyPairCompleteResponse(response)).resolves.toBe(true);
+        const revokedPreflight = await app.inject({
+            method: "OPTIONS",
+            url: "/pair/complete",
+            headers: {
+                origin: invite.browserOrigin,
+                "access-control-request-method": "POST",
+            },
+        });
+        expect(revokedPreflight.headers["access-control-allow-origin"]).toBeUndefined();
     });
 });

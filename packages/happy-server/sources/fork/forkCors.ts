@@ -7,6 +7,7 @@
 // its own parseCorsOrigins()-based CORS config in `app/api/socket.ts`.
 import type { createApi } from "@/app/api/api";
 import { parseCorsOrigins } from "@/app/api/utils/parseCorsOrigins";
+import type { LocalAuthRuntime } from "@/app/api/auth/localDeviceAuth";
 
 /**
  * Register the fork's CORS policy on the raw Fastify app.
@@ -15,10 +16,19 @@ import { parseCorsOrigins } from "@/app/api/utils/parseCorsOrigins";
  * previously lived inline at the top of `configureApi`. Must be called at the
  * same position (before route registration) so preflight behavior is identical.
  */
-export function installForkCors(fastifyApp: ReturnType<typeof createApi>) {
+export function installForkCors(
+    fastifyApp: ReturnType<typeof createApi>,
+    localAuthRuntime?: LocalAuthRuntime,
+) {
     const allowedOrigins = parseCorsOrigins();
     fastifyApp.register(import('@fastify/cors'), {
-        origin: allowedOrigins.length === 0 ? false : allowedOrigins,
+        origin(origin, callback) {
+            const allowed = origin !== undefined && (
+                allowedOrigins.includes(origin)
+                || localAuthRuntime?.isOriginAllowed(origin) === true
+            );
+            callback(null, allowed);
+        },
         // NOTE: `Cf-Access-Jwt-Assertion` is deliberately NOT listed. Cloudflare
         // Access INJECTS that header between its edge and the origin; a browser
         // never sends it, so it must not appear in the preflight allowlist. The

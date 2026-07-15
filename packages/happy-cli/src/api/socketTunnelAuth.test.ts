@@ -258,7 +258,7 @@ describe('Socket.IO tunnel listener reconnect', () => {
     });
 });
 
-describe('Socket.IO public-mode loopback capability header', () => {
+describe('Socket.IO daemon-owned loopback capability header', () => {
     beforeEach(() => {
         vi.useFakeTimers();
         vi.clearAllMocks();
@@ -280,7 +280,7 @@ describe('Socket.IO public-mode loopback capability header', () => {
         return socket;
     }
 
-    it('forwards the loopback capability into the machine socket in public mode', async () => {
+    it('forwards the loopback capability into the machine socket', async () => {
         wireSocket();
         mockTunnelSocketIOOptions.mockResolvedValue({
             url: 'http://127.0.0.1:7010',
@@ -306,9 +306,13 @@ describe('Socket.IO public-mode loopback capability header', () => {
         client.shutdown();
     });
 
-    it('omits extraHeaders from the machine socket in non-public mode', async () => {
+    it('forwards the loopback capability into the machine socket in default local mode', async () => {
         wireSocket();
-        mockTunnelSocketIOOptions.mockResolvedValue({ url: 'http://127.0.0.1:7010', auth: {} });
+        mockTunnelSocketIOOptions.mockResolvedValue({
+            url: 'http://127.0.0.1:7010',
+            auth: {},
+            extraHeaders: { 'X-Loopback-Capability': 'local-cap' },
+        });
         const client = new ApiMachineClient('token', createMachine());
 
         client.connect();
@@ -316,12 +320,12 @@ describe('Socket.IO public-mode loopback capability header', () => {
         await waitFor(() => {
             expect(mockIo).toHaveBeenCalledTimes(1);
         });
-        expect(mockIo.mock.calls[0][1]).not.toHaveProperty('extraHeaders');
+        expect(mockIo.mock.calls[0][1].extraHeaders).toEqual({ 'X-Loopback-Capability': 'local-cap' });
 
         client.shutdown();
     });
 
-    it('forwards the loopback capability into the session socket in public mode', async () => {
+    it('forwards the loopback capability into the session socket', async () => {
         wireSocket();
         mockTunnelSocketIOOptions.mockResolvedValue({
             url: 'http://127.0.0.1:7010',
@@ -344,15 +348,19 @@ describe('Socket.IO public-mode loopback capability header', () => {
         await client.close();
     });
 
-    it('omits extraHeaders from the session socket in non-public mode', async () => {
+    it('forwards the loopback capability into the session socket in default local mode', async () => {
         wireSocket();
-        mockTunnelSocketIOOptions.mockResolvedValue({ url: 'http://127.0.0.1:7010', auth: {} });
+        mockTunnelSocketIOOptions.mockResolvedValue({
+            url: 'http://127.0.0.1:7010',
+            auth: {},
+            extraHeaders: { 'X-Loopback-Capability': 'local-cap' },
+        });
         const client = new ApiSessionClient('token', createSession());
 
         await waitFor(() => {
             expect(mockIo).toHaveBeenCalledTimes(1);
         });
-        expect(mockIo.mock.calls[0][1]).not.toHaveProperty('extraHeaders');
+        expect(mockIo.mock.calls[0][1].extraHeaders).toEqual({ 'X-Loopback-Capability': 'local-cap' });
 
         await client.close();
     });
