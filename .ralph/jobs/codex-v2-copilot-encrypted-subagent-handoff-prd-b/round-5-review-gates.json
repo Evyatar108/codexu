@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "scope": "code",
+  "round": 5,
+  "reReview": true,
+  "targetCommit": "6bfa4ff11c77d7a78fef9c189a87b10bbad3ddae",
+  "requestedBaseBranch": "main",
+  "immutableReviewBase": "89a6cbea7cd382fa4873b259fb996dcf988a5fdc",
+  "reviewedPathCount": 17,
+  "reviewedPaths": [
+    ".claude/commands/publish-sandbox-patch.md",
+    ".claude/commands/rebase-upstream.md",
+    ".claude/commands/verify.md",
+    ".github/workflows/publish-npm.yml",
+    "AGENTS.override.md",
+    "CLAUDE.md",
+    "README.md",
+    "codex-rs-overlay/codex-invariant-tests/tests/multi_agent_v2_handoff.rs",
+    "docs/README.md",
+    "docs/implementation/architecture.md",
+    "docs/implementation/model-endpoint-mapping.md",
+    "docs/implementation/patch-surface.md",
+    "docs/implementation/regression-history.md",
+    "docs/workflows/developer-guide.md",
+    "docs/workflows/install.md",
+    "docs/workflows/repo-topology.md",
+    "docs/workflows/submodule-migration.md"
+  ],
+  "checks": {
+    "expectedHead": true,
+    "exactPrdWriteScope": true,
+    "fencedBashSyntax": true,
+    "workflowYaml": true,
+    "staticPublicationGates": true,
+    "invariantAudit": true,
+    "networkAudit": true,
+    "activePackagePublicationAbsent": true,
+    "packageManifestChangesAbsent": true,
+    "nestedHeadExact": true,
+    "nestedTreeClean": true,
+    "wrapperIndexClean": true,
+    "expectedUnstagedGitlinkOnly": true,
+    "localTagAtReviewedCommitAbsent": true,
+    "publicationOperationsExecuted": false,
+    "freshFocusedInvariantTest": {
+      "passed": false,
+      "environmentFailure": true,
+      "log": "evidence/round-5-focused-invariant-test.log",
+      "failure": "lld-link crashed with exception 0xC000001D; follow-on crate errors were environmental",
+      "priorExactEvidenceApplicable": true,
+      "invariantInputsChangedSincePriorPass": []
+    }
+  },
+  "publicationParity": {
+    "manualFailClosed": false,
+    "workflowFailClosed": false,
+    "candidateEquality": true,
+    "nestedProvenanceEquality": true,
+    "publicTagEquality": true,
+    "retentionTagEquality": true,
+    "retainedUploadedDigestEquality": false,
+    "partialReleaseRepairSafe": false
+  },
+  "findings": {
+    "fixed": [
+      "F-001",
+      "F-002",
+      "F-003",
+      "F-004",
+      "F-005",
+      "F-006",
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-015"
+    ],
+    "open": [
+      "F-013",
+      "F-014"
+    ]
+  },
+  "clean": false,
+  "readyForPublication": false
+}

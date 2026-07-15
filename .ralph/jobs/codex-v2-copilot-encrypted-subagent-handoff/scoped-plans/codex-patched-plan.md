@@ -47,7 +47,7 @@ The installed Ralph workflow has no public `--reuse-existing-worktree`, `--workt
 3. Before implementation, the lead verifies all of the following:
    - `prd.json.repoDir == prd.json.worktree.path ==` the effective nested checkout;
    - `worktree.branch` and `branch.name` are the exact source branch, `worktree.startPoint == job-state.json.startCommit == NESTED_BASE_SHA`, and `worktree.external == true`;
-   - the PRD contains exactly three stories mapping one-to-one to A-001/A-002/A-003, and its `writeScope` is exactly the 16 paths under `Writable Files`, with no wrapper or codexu writable path;
+   - the PRD contains exactly three stories mapping one-to-one to A-001/A-002/A-003, and its `writeScope` is exactly the 17 paths under `Writable Files`, with no wrapper or codexu writable path;
    - `node <plugin_root>\src\model-routing-policy.mjs validate-prd --prd <job_dir>\prd.json` and `node <plugin_root>\src\validate-prd-scope.mjs --prd <job_dir>\prd.json` both exit `0`;
    - the effective nested checkout is still clean at `NESTED_BASE_SHA`, and `<job_dir>\worktree` was not created.
 4. Dispatch implementation with this exact command:
@@ -130,6 +130,7 @@ All paths are relative to the exact target repository.
 
 ### Modify
 
+- `docs/implementation/patch-surface.md`
 - `codex-rs/model-provider/src/provider.rs`
 - `codex-rs/model-provider/src/copilot.rs`
 - `codex-rs/model-provider/src/amazon_bedrock/mod.rs`
@@ -149,6 +150,8 @@ All paths are relative to the exact target repository.
 
 - `codex-rs/core/src/tools/handlers/multi_agents_v2_spec.rs`
 - `codex-rs/core/src/tools/handlers/multi_agents_v2_spec_tests.rs`
+
+The nested patch registry was added to this scope during Phase 5b convergence after review found that extracting the existing V2 spawn-description seam into `multi_agents_v2_spec.rs` made §17b's active surface list stale. This is a nested-source documentation correction, not PRD B wrapper documentation.
 
 ### Read-only references
 

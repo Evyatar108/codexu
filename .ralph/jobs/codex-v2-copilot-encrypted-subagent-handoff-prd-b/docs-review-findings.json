@@ -1,0 +1,499 @@
+{
+  "planFile": "D:\\harness-efforts\\codexu\\.ralph\\jobs\\codex-v2-copilot-encrypted-subagent-handoff-prd-b\\plan.md",
+  "repoDir": "D:\\harness-efforts\\codexu\\codex\\.worktrees\\codex-v2-copilot-encrypted-subagent-handoff",
+  "reviewCycle": 17,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "storyId": "US-001",
+      "scopeStoryIds": [
+        "US-001"
+      ],
+      "uiUxJudgment": "not-required",
+      "description": "docs/implementation/patch-surface.md was updated on 2026-07-14 with the provider-aware handoff and exact-wait invariants for the v0.141.0-copilot-api.4 source candidate, but its active header still says Last Updated 2026-06-19 and both lines 4 and 34 claim the registry applies/is current only through v0.141.0-copilot-api.1.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Updated the patch registry date and current-through language for the .4 source candidate while retaining the .3 workspace-version caveat.",
+      "relevantFiles": [
+        "docs/implementation/patch-surface.md"
+      ],
+      "suggestedFix": "Set Last Updated to 2026-07-14 and change the Applies to/current-through text to identify the v0.141.0-copilot-api.4 source candidate while noting that the workspace version remains .3 until the lead-owned release bump."
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "source": "re-review",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "storyId": "US-002",
+      "scopeStoryIds": [
+        "US-001",
+        "US-002"
+      ],
+      "uiUxJudgment": "not-required",
+      "description": "F-002 regressed when the task correctly restored its fourteen-path write scope: three active docs in the unrelated stacked main...89a6cbea history still contain substantive release-layout, verifier-tier, and submodule-workflow changes from 2026-07-12, but their Last Updated headers report 2026-05-27 or 2026-07-11.",
+      "status": "fixed",
+      "fixedInIteration": 8,
+      "resolution": "Updated the three remaining active Last Updated headers to 2026-07-14.",
+      "relevantFiles": [
+        "docs/README.md",
+        "docs/workflows/repo-topology.md",
+        "docs/workflows/submodule-migration.md"
+      ],
+      "suggestedFix": "In an owner-authorized change outside this task's fourteen-path write scope, bump each listed Last Updated header to 2026-07-14 so the active date claims reflect the content now present in the stacked diff."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "re-review",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "storyId": "US-002",
+      "scopeStoryIds": [
+        "US-002"
+      ],
+      "uiUxJudgment": "not-required",
+      "description": "README.md still tells users to install an unversioned tarball from https://codex.evyatar.dev/releases/latest/codex-win32-x64.tgz. The reviewed release workflow now emits only versioned codex-<version>-win32-x64.tgz assets on gim-home/codex GitHub Releases, the active install guides use gh release download, and patch-surface.md identifies the codex.evyatar.dev installer as an unshipped follow-up.",
+      "status": "fixed",
+      "fixedInIteration": 7,
+      "resolution": "Replaced the retired unversioned installer with the approved versioned GitHub Release flow.",
+      "relevantFiles": [
+        "README.md"
+      ],
+      "suggestedFix": "Replace the Quick start command with the existing direct GitHub Release flow: download an approved v<VERSION> codex-*-win32-x64.tgz asset from gim-home/codex with gh release download, then install that local tarball."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "storyId": "US-001",
+      "scopeStoryIds": [
+        "US-001"
+      ],
+      "uiUxJudgment": "not-required",
+      "description": "docs/implementation/patch-surface.md now says it applies through the 0.141.0-copilot-api.4 source candidate, but its active section 0 heading still calls the registry the \"Current 0.135 patch ledger.\"",
+      "status": "fixed",
+      "fixedInIteration": 2,
+      "resolution": "Renamed the stale version-specific section heading to Current patch ledger.",
+      "relevantFiles": [
+        "docs/implementation/patch-surface.md"
+      ],
+      "suggestedFix": "Rename the section 0 heading to \"Current 0.141 patch ledger\" or use a version-neutral \"Current patch ledger\" heading."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "re-review",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "storyId": "US-001",
+      "scopeStoryIds": [
+        "US-001",
+        "US-002"
+      ],
+      "uiUxJudgment": "not-required",
+      "description": ".claude/commands/rebase-upstream.md has regressed to declaring 0.135.0-copilot-api.10/rust-v0.135.0 as the current divergence and directs conflict resolution to the .6-.10 accumulation and invariants 40-51. The authoritative patch ledger is now the unshipped 0.141.0-copilot-api.4 source candidate on rust-v0.141.0 and reaches invariants 76-77, so this active rebase summary can omit the provider-aware handoff and exact-wait replants.",
+      "status": "fixed",
+      "fixedInIteration": 7,
+      "resolution": "Updated the active rebase baseline and replant inventory through the unshipped .4 source candidate and invariants 76-77.",
+      "relevantFiles": [
+        ".claude/commands/rebase-upstream.md"
+      ],
+      "suggestedFix": "Update the rebase runbook's current-divergence and accumulation summary to the unshipped 0.141.0-copilot-api.4 source candidate on rust-v0.141.0 and invariants through 77, explicitly retaining the provider-aware handoff and exact-wait replant entries."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "storyId": "US-001",
+      "scopeStoryIds": [
+        "US-001"
+      ],
+      "uiUxJudgment": "not-required",
+      "description": "docs/implementation/architecture.md still says the launcher emits `-c model=<default_model>`, and docs/implementation/model-endpoint-mapping.md still tells users to set `default_model` in `~/.codex-copilot/config.toml`. The current launcher deliberately neither reads nor emits that setting, while the developer guide changed in this diff to use `~/.codex/config.toml::model`; the documented launcher setting is therefore silently ineffective.",
+      "status": "fixed",
+      "fixedInIteration": 5,
+      "resolution": "Removed stale default_model launcher behavior and documented standard Codex model selection.",
+      "relevantFiles": [
+        "docs/implementation/architecture.md",
+        "docs/implementation/model-endpoint-mapping.md"
+      ],
+      "suggestedFix": "Remove `-c model=<default_model>` from the architecture traffic flow and replace the launcher-config example in the endpoint mapping with `model` in `~/.codex/config.toml` or the existing `--model` override."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "re-review",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "storyId": "US-001",
+      "scopeStoryIds": [
+        "US-001"
+      ],
+      "uiUxJudgment": "not-required",
+      "description": ".claude/commands/verify.md and docs/workflows/developer-guide.md still describe enable_anthropic as explicitly enabling or disabling Anthropic models. At nested commit 6d73e16c44d65ac243834a942d7fab2c3b279221, is_chat_responses_picker_entry and wire_route_for do not filter the enabled chat-only branch by vendor or slug, so the active config help contradicts the source and each document's vendor-neutral routing text.",
+      "status": "fixed",
+      "fixedInIteration": 16,
+      "resolution": "Documented enable_anthropic as the vendor-neutral chat-only picker gate and kept signed-messages requirements separate.",
+      "relevantFiles": [
+        ".claude/commands/verify.md",
+        "docs/workflows/developer-guide.md"
+      ],
+      "suggestedFix": "Describe enable_anthropic as the source-accurate, vendor-neutral gate for eligible picker-enabled chat-only /chat/completions rows; retain the separate signed-messages requirements without saying the base gate enables only Anthropic models."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "re-review",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "storyId": "US-001",
+      "scopeStoryIds": [
+        "US-001"
+      ],
+      "uiUxJudgment": "not-required",
+      "description": "docs/implementation/patch-surface.md's active launcher-overhaul row still says SandboxConfig carries only `default_shell` plus optional `auto_load_claude_md`, and its retained-flag summary omits the current forced `features.unified_exec=true`. The current SandboxConfig recognizes six keys: `default_shell`, `auto_load_claude_md`, `style_user_messages`, `enable_anthropic`, `enable_remote_session`, and `enable_remote_auto_attach`.",
+      "status": "fixed",
+      "fixedInIteration": 7,
+      "resolution": "Documented all six SandboxConfig keys and the forced unified_exec provider flag in the active patch inventory.",
+      "relevantFiles": [
+        "docs/implementation/patch-surface.md"
+      ],
+      "suggestedFix": "Update the launcher-overhaul row to enumerate all six SandboxConfig keys, their env/config propagation, and the current forced `features.unified_exec=true` provider flag."
+    },
+    {
+      "id": "F-009",
+      "severity": "High",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "storyId": "US-001",
+      "scopeStoryIds": [
+        "US-001"
+      ],
+      "uiUxJudgment": "not-required",
+      "description": ".claude/commands/rebase-upstream.md and docs/implementation/patch-surface.md still instruct maintainers to preserve `models-manager/src/manager.rs::COPILOT_DEFAULT_MODEL` and `copilot_synthetic_model_info`. Neither symbol exists at the reviewed nested commit; unmatched live Copilot rows are now built locally by `model-provider/src/copilot_models_endpoint.rs::synthesize_from_capabilities`, and default selection comes from the live filtered catalog.",
+      "status": "fixed",
+      "fixedInIteration": 7,
+      "resolution": "Removed retired model-selection symbols and documented live-catalog selection plus synthesize_from_capabilities fallback.",
+      "relevantFiles": [
+        ".claude/commands/rebase-upstream.md",
+        "docs/implementation/patch-surface.md"
+      ],
+      "suggestedFix": "Remove the deleted models-manager symbols from the current patch and rebase inventories, and describe the current live-catalog default selection plus `copilot_models_endpoint.rs::synthesize_from_capabilities` fallback."
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "storyId": "US-002",
+      "scopeStoryIds": [
+        "US-002"
+      ],
+      "uiUxJudgment": "not-required",
+      "description": ".claude/commands/publish-sandbox-patch.md section 4c still says a retention-tag failure must stop before committing the wrapper, but the corrected candidate-bound workflow now creates the local wrapper candidate commit in section 4b before approval and retention-tag publication. The failure guidance therefore describes the superseded operation order.",
+      "status": "fixed",
+      "fixedInIteration": 9,
+      "resolution": "Corrected the retention-tag failure guidance to preserve the local candidate commit while blocking all wrapper publication.",
+      "relevantFiles": [
+        ".claude/commands/publish-sandbox-patch.md"
+      ],
+      "suggestedFix": "Replace \"do not proceed to commit or push the wrapper\" with guidance that preserves the already-created local candidate commit and forbids proceeding to wrapper branch/tag/release publication until retention-tag verification succeeds."
+    },
+    {
+      "id": "F-011",
+      "severity": "High",
+      "source": "re-review",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "storyId": "US-002",
+      "scopeStoryIds": [
+        "US-002"
+      ],
+      "uiUxJudgment": "not-required",
+      "description": ".claude/commands/publish-sandbox-patch.md section 0b now checks canonical remotes, derives and checks out the exact wrapper/submodule SHAs, rebuilds in a clean detached worktree, and gates Step 5, but its new all-four verification loop runs `--version` on `codex-windows-sandbox-setup.exe` and `codex-command-runner.exe`. At nested commit 6d73e16c44d65ac243834a942d7fab2c3b279221 those helper binaries do not implement `--version`: the setup helper requires one base64 payload argument and the command runner accepts only `--pipe-in`/`--pipe-out`. The resume block therefore always aborts after the expensive rebuild and cannot reach Step 5, so the attempted F-011 fix is not operational.",
+      "status": "fixed",
+      "fixedInIteration": 12,
+      "resolution": "Replaced unsupported helper --version probes with supported non-destructive artifact verification.",
+      "relevantFiles": [
+        ".claude/commands/publish-sandbox-patch.md"
+      ],
+      "suggestedFix": "Keep the canonical-remote, exact-SHA, clean-worktree, rebuild, and Step 5 gates. Require all four freshly built files to exist, run `--version` only for `codex.exe` and `codex-core.exe`, and verify the two helper binaries through a supported non-destructive provenance check (for example, a fresh-target build plus recorded SHA-256 values) before packaging."
+    },
+    {
+      "id": "F-012",
+      "severity": "High",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "storyId": "US-001",
+      "scopeStoryIds": [
+        "US-001"
+      ],
+      "uiUxJudgment": "not-required",
+      "description": "docs/workflows/developer-guide.md and docs/implementation/model-endpoint-mapping.md claim that the Anthropic opt-in does not enable Gemini and that Gemini remains unsupported. At nested commit 6d73e16c44d65ac243834a942d7fab2c3b279221, is_chat_responses_picker_entry admits any picker-enabled chat row advertising /chat/completions when the Anthropic gate is on, and wire_route_for routes any such row without /responses through ChatCompletions; neither function filters by Anthropic vendor or Claude slug.",
+      "status": "fixed",
+      "fixedInIteration": 10,
+      "resolution": "Documented the actual gated chat-only routing without unsupported vendor-exclusion guarantees.",
+      "relevantFiles": [
+        "docs/workflows/developer-guide.md",
+        "docs/implementation/model-endpoint-mapping.md"
+      ],
+      "suggestedFix": "Remove the unsupported-Gemini guarantee and describe the implemented gate as admitting eligible chat-only /chat/completions rows; do not promise a Gemini exclusion unless the source adds an explicit vendor or slug filter."
+    },
+    {
+      "id": "F-013",
+      "severity": "High",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "storyId": "US-002",
+      "scopeStoryIds": [
+        "US-001",
+        "US-002"
+      ],
+      "uiUxJudgment": "not-required",
+      "description": "docs/implementation/patch-surface.md's Security Posture says Chocolatey LLVM and the unversioned xwin install run only in non-publishing invariant CI and cannot affect shipped binaries. The current .github/workflows/publish-npm.yml runs those same install steps, uses their toolchain to build the four production binaries, and uploads the resulting release bundle, so the documented production supply-chain boundary and risk rationale are false.",
+      "status": "fixed",
+      "fixedInIteration": 11,
+      "resolution": "Corrected the production supply-chain risk statement for Chocolatey LLVM and unversioned xwin inputs.",
+      "relevantFiles": [
+        "docs/implementation/patch-surface.md"
+      ],
+      "suggestedFix": "State that both invariant CI and the tag-triggered production release workflow consume these unverified toolchain inputs, remove the claim that they cannot affect shipped binaries, and update the accepted-risk and hardening text accordingly."
+    },
+    {
+      "id": "F-014",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "storyId": "US-001",
+      "scopeStoryIds": [
+        "US-001"
+      ],
+      "uiUxJudgment": "not-required",
+      "description": "docs/implementation/patch-surface.md still tells maintainers to expect `Patched 19/19` from scripts/audit_network_calls.sh, but the current audit inventory at nested commit 6d73e16c44d65ac243834a942d7fab2c3b279221 reports `Patched: 22 / 22`.",
+      "status": "fixed",
+      "fixedInIteration": 11,
+      "resolution": "Updated the expected network audit summary to Patched 22/22, New sites 0.",
+      "relevantFiles": [
+        "docs/implementation/patch-surface.md"
+      ],
+      "suggestedFix": "Update the expected audit summary to `Patched 22/22, New sites 0` so it matches the current known patch inventory."
+    },
+    {
+      "id": "F-015",
+      "severity": "High",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "storyId": "US-002",
+      "scopeStoryIds": [
+        "US-002"
+      ],
+      "uiUxJudgment": "not-required",
+      "description": ".claude/commands/publish-sandbox-patch.md section 2 still says all four shipped binaries report the release version and invokes `--version` on `codex-windows-sandbox-setup.exe` and `codex-command-runner.exe`. At nested commit 6d73e16c44d65ac243834a942d7fab2c3b279221 those helpers have no version interface, so the normal (non-resume) release path retains the same unsupported, release-blocking probes that section 0b now correctly avoids.",
+      "status": "fixed",
+      "fixedInIteration": 13,
+      "resolution": "Replaced unsupported helper --version probes with fail-closed existence and SHA-256 provenance checks while retaining supported version checks.",
+      "relevantFiles": [
+        ".claude/commands/publish-sandbox-patch.md"
+      ],
+      "suggestedFix": "In section 2, require all four freshly built files to exist, run `--version` only for `codex.exe` and `codex-core.exe`, and verify or record the two helpers through the same supported non-destructive hash/provenance checks used by the corrected resume path."
+    },
+    {
+      "id": "F-016",
+      "severity": "High",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "storyId": "US-002",
+      "scopeStoryIds": [
+        "US-002"
+      ],
+      "uiUxJudgment": "not-required",
+      "description": ".claude/commands/publish-sandbox-patch.md now uses supported checks for all four binaries in both the normal and resume paths, but its claimed SHA-256 provenance is not candidate-bound. Both blocks only print hashes and test that the four hashes are distinct; neither records the wrapper/submodule candidate SHAs alongside those hashes nor rechecks the hashes before Step 5 copies the files. The normal path is weaker still because it builds and hashes before SUBMODULE_SHA and WRAPPER_CANDIDATE_SHA are derived. A stale or replaced helper can therefore pass the exact source-SHA gates and still be packaged.",
+      "status": "fixed",
+      "fixedInIteration": 14,
+      "resolution": "Bound a persisted four-binary hash manifest to exact wrapper and nested candidate SHAs and rechecked packaging inputs before upload.",
+      "relevantFiles": [
+        ".claude/commands/publish-sandbox-patch.md"
+      ],
+      "suggestedFix": "Bind the four-binary hash manifest to WRAPPER_CANDIDATE_SHA and SUBMODULE_SHA after those exact candidates exist, persist it in project-relative release evidence, and fail Step 5 unless all four packaging inputs rehash to that candidate manifest. For the normal path, commit/derive the candidate before the provenance build or rebuild from an exact detached candidate checkout."
+    },
+    {
+      "id": "F-017",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "storyId": "US-002",
+      "scopeStoryIds": [
+        "US-002"
+      ],
+      "uiUxJudgment": "not-required",
+      "description": "AGENTS.override.md, CLAUDE.md, docs/README.md, docs/workflows/install.md, and docs/implementation/architecture.md say packaging/upload is owned only by /publish-sandbox-patch, even though the active tag-triggered .github/workflows/publish-npm.yml also builds the bundle and creates or updates the GitHub Release. Several of these surfaces state both behaviors adjacent to each other, so current release ownership is internally contradictory.",
+      "status": "fixed",
+      "fixedInIteration": 14,
+      "resolution": "Documented the authoritative manual path and tag-triggered Actions path as the two GitHub Release publication mechanisms.",
+      "relevantFiles": [
+        "AGENTS.override.md",
+        "CLAUDE.md",
+        "docs/README.md",
+        "docs/workflows/install.md",
+        "docs/implementation/architecture.md"
+      ],
+      "suggestedFix": "Replace the exclusive-ownership wording with the actual two-path model: /publish-sandbox-patch is the authoritative manual path while publish-npm.yml is the tag-triggered GitHub Release path when Actions policy permits; both publish only the same merged GitHub Release bundle."
+    },
+    {
+      "id": "F-018",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "storyId": "US-002",
+      "scopeStoryIds": [
+        "US-002"
+      ],
+      "uiUxJudgment": "not-required",
+      "description": "docs/implementation/patch-surface.md now scopes its Security Posture to both invariant-check.yml and the tag-triggered production publish-npm.yml and cites third-party action SHA pinning as an existing stronger guarantee. Only invariant-check.yml uses immutable action SHAs; publish-npm.yml still uses floating actions/checkout@v4, actions/cache@v4, Swatinem/rust-cache@v2, and actions/setup-node@v4 refs, so the documented production supply-chain boundary omits mutable action inputs that can affect shipped binaries.",
+      "status": "fixed",
+      "fixedInIteration": 16,
+      "resolution": "Scoped immutable action SHA pinning to invariant-check.yml and identified publish-npm.yml floating action refs as trusted-but-unverified production inputs.",
+      "relevantFiles": [
+        "docs/implementation/patch-surface.md"
+      ],
+      "suggestedFix": "Clarify that action SHA pinning currently applies only to invariant-check.yml and list publish-npm.yml's floating action refs as trusted-but-unverified production inputs unless that workflow is separately pinned."
+    },
+    {
+      "id": "F-019",
+      "severity": "High",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "storyId": "US-002",
+      "scopeStoryIds": [
+        "US-002"
+      ],
+      "uiUxJudgment": "not-required",
+      "description": ".claude/commands/publish-sandbox-patch.md unconditionally continues from pushing the public tag into manual Step 5 upload, while that same tag immediately triggers .github/workflows/publish-npm.yml whenever Actions policy permits. The authoritative manual command has no branch that defers publication to the tag-triggered path, so both owners can concurrently create, replace, verify, and un-draft the same GitHub Release asset against independently built digests; the documented two-path release ownership and sequencing is therefore not operationally consistent.",
+      "status": "fixed",
+      "fixedInIteration": 16,
+      "resolution": "Made exact-tag Actions publication and manual Step 5 mutually exclusive with fail-closed workflow ownership checks.",
+      "relevantFiles": [
+        ".claude/commands/publish-sandbox-patch.md"
+      ],
+      "suggestedFix": "Make publication mutually exclusive in the existing runbook: after the public tag push, stop and wait for the exact tag workflow when Actions can run; execute manual Step 5 only after proving Actions is blocked or no release workflow is running, then use the existing candidate/digest verification path."
+    },
+    {
+      "id": "F-020",
+      "severity": "High",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "storyId": "US-002",
+      "scopeStoryIds": [
+        "US-002"
+      ],
+      "uiUxJudgment": "not-required",
+      "description": ".claude/commands/rebase-upstream.md Phase 5b still says all four release outputs must report NEW_VERSION and runs --version on codex-windows-sandbox-setup.exe and codex-command-runner.exe. At nested commit 6d73e16c44d65ac243834a942d7fab2c3b279221, the setup helper accepts one base64 payload and the command runner accepts only --pipe-in/--pipe-out; neither implements --version. The mandatory rebase closeout therefore aborts before /publish-sandbox-patch Step 4 even though that runbook's normal and resume paths now use supported helper verification.",
+      "status": "fixed",
+      "fixedInIteration": 17,
+      "resolution": "Limited --version checks to codex.exe and codex-core.exe while retaining all-four freshness and SHA-256 provenance checks.",
+      "relevantFiles": [
+        ".claude/commands/rebase-upstream.md"
+      ],
+      "suggestedFix": "In the Phase 5b T4 block, keep existence and freshness checks for all four outputs, run --version only for codex.exe and codex-core.exe, and retain the existing SHA-256 capture/recheck across all four binaries for helper provenance."
+    },
+    {
+      "id": "F-021",
+      "severity": "High",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "storyId": "US-002",
+      "scopeStoryIds": [
+        "US-002"
+      ],
+      "uiUxJudgment": "not-required",
+      "description": "docs/implementation/patch-surface.md still misstates the production toolchain trust boundary: it says the Windows jobs run Chocolatey LLVM 19.1.7 and cargo-installed xwin and that LLVM is constrained to 19.1.7, but both .github/workflows/invariant-check.yml and .github/workflows/publish-npm.yml first reuse any preinstalled clang-cl or xwin from windows-latest without checking its version or hash. Production binaries can therefore be built by runner-image toolchains outside the documented Chocolatey/crates.io inputs.",
+      "status": "open",
+      "relevantFiles": [
+        "docs/implementation/patch-surface.md"
+      ],
+      "suggestedFix": "Describe both install steps as conditional, add preinstalled windows-latest LLVM/xwin to the trusted-but-unverified boundary, and remove the claim that LLVM is constrained to 19.1.7 unless the workflows enforce and verify that version on both branches."
+    },
+    {
+      "id": "F-022",
+      "severity": "High",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "storyId": "US-002",
+      "scopeStoryIds": [
+        "US-002"
+      ],
+      "uiUxJudgment": "not-required",
+      "description": ".claude/commands/rebase-upstream.md, AGENTS.override.md, and CLAUDE.md still describe rebase Phase 5b as unconditionally proceeding through a local /publish-sandbox-patch package/upload/verification path. The corrected release runbook now branches at Step 4f: a successful exact-tag Actions run owns publication and exits before manual Steps 5-6, while those manual steps are permitted only after Actions is proven blocked or inactive. The active rebase summaries can therefore direct an operator past the mutual-exclusion gate that fixed F-019.",
+      "status": "open",
+      "relevantFiles": [
+        ".claude/commands/rebase-upstream.md",
+        "AGENTS.override.md",
+        "CLAUDE.md"
+      ],
+      "suggestedFix": "Make the Phase 5b summaries follow Step 4f explicitly: stop after successful exact-tag Actions publication, and describe manual Steps 5-6 as conditional on the runbook's fail-closed blocked/inactive Actions proof."
+    },
+    {
+      "id": "F-023",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "storyId": "US-002",
+      "scopeStoryIds": [
+        "US-002"
+      ],
+      "uiUxJudgment": "not-required",
+      "description": "docs/workflows/submodule-migration.md says the retention tag is created before the wrapper release commit and lists the wrapper commit after retention-tag verification. The current candidate-bound publish runbook creates the local wrapper candidate commit in Step 4b, rebuilds and records provenance in Step 4c, then publishes the submodule branch and retention tag in Step 4d before pushing the public wrapper tag in Step 4e.",
+      "status": "open",
+      "relevantFiles": [
+        "docs/workflows/submodule-migration.md"
+      ],
+      "suggestedFix": "Update the five-step release summary to place the local wrapper candidate commit and candidate-bound rebuild before retention-tag publication, while retaining the requirement that the retention tag be verified before the public wrapper tag is pushed."
+    }
+  ]
+}

@@ -1,0 +1,280 @@
+{
+  "schemaVersion": 1,
+  "scope": "code",
+  "round": 6,
+  "reReview": true,
+  "targetCommit": "9772564c52651c38a8dc791fc97178b8bb5c1549",
+  "requestedBaseBranch": "main",
+  "immutableReviewBase": "89a6cbea7cd382fa4873b259fb996dcf988a5fdc",
+  "reviewedPathCount": 17,
+  "reviewedPaths": [
+    ".claude/commands/publish-sandbox-patch.md",
+    ".claude/commands/rebase-upstream.md",
+    ".claude/commands/verify.md",
+    ".github/workflows/publish-npm.yml",
+    "AGENTS.override.md",
+    "CLAUDE.md",
+    "README.md",
+    "codex-rs-overlay/codex-invariant-tests/tests/multi_agent_v2_handoff.rs",
+    "docs/README.md",
+    "docs/implementation/architecture.md",
+    "docs/implementation/model-endpoint-mapping.md",
+    "docs/implementation/patch-surface.md",
+    "docs/implementation/regression-history.md",
+    "docs/workflows/developer-guide.md",
+    "docs/workflows/install.md",
+    "docs/workflows/repo-topology.md",
+    "docs/workflows/submodule-migration.md"
+  ],
+  "checks": {
+    "expectedHead": true,
+    "baseIsOriginMain": true,
+    "exactPrdWriteScope": true,
+    "reviewedPathCount": true,
+    "diffCheck": true,
+    "manualNormalizedFencedBashSyntax": true,
+    "manualBashBlockCount": true,
+    "workflowYaml": true,
+    "workflowBashSyntax": true,
+    "workflowBashBlockCount": true,
+    "nestedHeadExact": true,
+    "nestedTreeClean": true,
+    "wrapperIndexClean": true,
+    "expectedUnstagedGitlinkOnly": true,
+    "localTagAtReviewedCommitAbsent": true,
+    "remoteTrackingBranchContainsReviewedCommitAbsent": true,
+    "packageManifestChangesAbsent": true,
+    "activePackagePublicationAbsent": true,
+    "focusedInvariantTest": {
+      "passed": true,
+      "testsPassed": 2,
+      "testsFailed": 0,
+      "log": "evidence/round-6-focused-invariant-test.log"
+    },
+    "invariantAudit": {
+      "passed": true,
+      "log": "evidence/round-6-audit-invariants.log"
+    },
+    "networkAudit": {
+      "passed": true,
+      "log": "evidence/round-6-audit-network-calls.log",
+      "patched": "22/22"
+    },
+    "bashConditionalErrexitReproduction": {
+      "passed": true,
+      "log": "evidence/round-6-bash-errexit-repro.log",
+      "observed": [
+        "stale-check-continued",
+        "conditional-reported-success"
+      ]
+    }
+  },
+  "syntaxDetails": {
+    "manual": [
+      {
+        "block": 1,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 2,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 3,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 4,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 5,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 6,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 7,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 8,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 9,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 10,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 11,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 12,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 13,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 14,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 15,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 16,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 17,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 18,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 19,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 20,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 21,
+        "passed": true,
+        "stderr": ""
+      }
+    ],
+    "workflow": [
+      {
+        "block": 1,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 2,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 3,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 4,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 5,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 6,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 7,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 8,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 9,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 10,
+        "passed": true,
+        "stderr": ""
+      },
+      {
+        "block": 11,
+        "passed": true,
+        "stderr": ""
+      }
+    ]
+  },
+  "publicationParity": {
+    "manualDigestGatedDraftRepairStateMachine": true,
+    "workflowDigestGatedDraftRepairStateMachine": true,
+    "manualExactAssetDigestEquality": true,
+    "workflowExactAssetDigestEquality": true,
+    "manualExactFourBinaryEquality": true,
+    "workflowExactFourBinaryEquality": true,
+    "partialReleaseRepairAvoidsTargetCommitishRejection": true,
+    "manualFinalPublicAndRetentionTagGate": true,
+    "workflowFinalPublicAndRetentionTagGate": true,
+    "manualFreshDownloadFailClosed": false,
+    "workflowFreshDownloadFailClosed": false
+  },
+  "publicationOperationsExecuted": false,
+  "findings": {
+    "fixed": [
+      "F-001",
+      "F-002",
+      "F-003",
+      "F-004",
+      "F-005",
+      "F-006",
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-014",
+      "F-015"
+    ],
+    "open": [
+      "F-013"
+    ]
+  },
+  "clean": false,
+  "readyForPublication": false,
+  "baseResolution": {
+    "reviewBase": "89a6cbea7cd382fa4873b259fb996dcf988a5fdc",
+    "localMainBeforeAndAfter": "3ff55692e7045e85ce78ebe8337ab40b55494c9c",
+    "method": "temporarily fast-forwarded local main to origin/main for exact 17-path review, then restored primary checkout"
+  }
+}

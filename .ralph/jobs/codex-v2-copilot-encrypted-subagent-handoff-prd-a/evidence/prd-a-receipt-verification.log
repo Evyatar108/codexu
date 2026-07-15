@@ -1,0 +1,44 @@
+PASS schemaVersion=1
+PASS executionUnit=PRD-A
+PASS targetRepository matches effective nested checkout
+PASS HEAD equals finalCommitSha
+PASS baseSha resolves to commit
+PASS ordered commitShas match git rev-list
+PASS changedFiles match immutable diff
+PASS every changed file is in corrected PRD writeScope
+PASS receipt scope verdict is fail-closed and clean
+PASS provider marker count matches live tree
+PASS exact-wait marker count matches live tree
+PASS base multi_agents_spec.rs line count matches
+PASS post-extraction line count matches
+PASS final line count matches and is within limit
+PASS validation exit zero: just test -p codex-model-provider
+PASS validation log exists: .ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-a/evidence/us001-just-test-codex-model-provider.log
+PASS validation log hash matches: .ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-a/evidence/us001-just-test-codex-model-provider.log
+PASS validation exit zero: cargo check -p codex-model-provider
+PASS validation log exists: .ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-a/evidence/us001-cargo-check-codex-model-provider.log
+PASS validation log hash matches: .ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-a/evidence/us001-cargo-check-codex-model-provider.log
+PASS validation exit zero: source scripts/iteration-env.sh && cd external/repos/codex-patched && just test -p codex-core -E 'test(/(all_message_tools_use_the_selected_encoding|multi_agent_v2_message_schemas_follow_provider_capability|multi_agent_v2_capable_encoding_is_encrypted_for_all_message_tools|multi_agent_v2_plaintext_encoding_is_truthful_for_all_message_tools)/)'
+PASS validation log exists: .ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-a/evidence/us002-just-test-codex-core-focused-msvc-retry.log
+PASS validation log hash matches: .ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-a/evidence/us002-just-test-codex-core-focused-msvc-retry.log
+PASS validation exit zero: source scripts/iteration-env.sh && bash scripts/verify-core-change.sh targeted --package codex-core
+PASS validation log exists: .ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-a/evidence/us002-verify-core-change-targeted.log
+PASS validation log hash matches: .ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-a/evidence/us002-verify-core-change-targeted.log
+PASS validation exit zero: just test -p codex-core -E 'test(/(wait_agent_tool_adds_optional_exact_task_name|exact_wait_|multi_agent_v2_exact_wait_|multi_agent_v2_wait_agent_|wait_agent_returns_|wait_agent_times_out_|wait_agent_clamps_|subagent_notifications)/)'
+PASS validation log exists: .ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-a/evidence/us003-just-test-codex-core-focused-python3-shim.log
+PASS validation log hash matches: .ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-a/evidence/us003-just-test-codex-core-focused-python3-shim.log
+PASS validation exit zero: just test -p codex-core -E 'test(/(all_message_tools_use_the_selected_encoding|multi_agent_v2_message_schemas_follow_provider_capability|multi_agent_v2_capable_encoding_is_encrypted_for_all_message_tools|multi_agent_v2_plaintext_encoding_is_truthful_for_all_message_tools|wait_agent_tool_adds_optional_exact_task_name|exact_wait_|multi_agent_v2_exact_wait_|multi_agent_v2_wait_agent_|wait_agent_returns_|wait_agent_times_out_|wait_agent_clamps_|subagent_notifications)/)'
+PASS validation log exists: .ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-a/evidence/phase5a-marker-fix-focused-tests.log
+PASS validation log hash matches: .ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-a/evidence/phase5a-marker-fix-focused-tests.log
+PASS validation exit zero: model-routing-policy.mjs validate-prd --prd <prd.json> && validate-prd-scope.mjs --prd <prd.json>
+PASS validation log exists: .ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-a/evidence/final-scope-validation.log
+PASS validation log hash matches: .ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-a/evidence/final-scope-validation.log
+PASS codeEvidence hash matches
+PASS codeEvidence records clean
+PASS docsEvidence hash matches
+PASS docsEvidence records clean
+PASS Phase 5a and 5b are clean
+PASS nested tree is clean
+PASS no fetched remote branch contains finalCommitSha
+PASS pushed=false
+RECEIPT_SHA256 46a311b9c6a46972a06d0eb8d3a51de2b52bb49ac4e9e6c579f620bce5753c70

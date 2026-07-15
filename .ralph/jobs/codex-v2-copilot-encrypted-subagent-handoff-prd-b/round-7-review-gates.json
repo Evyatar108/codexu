@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "scope": "code",
+  "round": 7,
+  "reReview": true,
+  "targetCommit": "f46eecc512de7f8d882346a7b473881c0afc81d1",
+  "requestedBaseBranch": "main",
+  "immutableReviewBase": "89a6cbea7cd382fa4873b259fb996dcf988a5fdc",
+  "reviewedPathCount": 17,
+  "reviewedPaths": [
+    ".claude/commands/publish-sandbox-patch.md",
+    ".claude/commands/rebase-upstream.md",
+    ".claude/commands/verify.md",
+    ".github/workflows/publish-npm.yml",
+    "AGENTS.override.md",
+    "CLAUDE.md",
+    "README.md",
+    "codex-rs-overlay/codex-invariant-tests/tests/multi_agent_v2_handoff.rs",
+    "docs/README.md",
+    "docs/implementation/architecture.md",
+    "docs/implementation/model-endpoint-mapping.md",
+    "docs/implementation/patch-surface.md",
+    "docs/implementation/regression-history.md",
+    "docs/workflows/developer-guide.md",
+    "docs/workflows/install.md",
+    "docs/workflows/repo-topology.md",
+    "docs/workflows/submodule-migration.md"
+  ],
+  "checks": {
+    "expectedHead": true,
+    "exactFinalReviewScope": true,
+    "reviewedPathCount": true,
+    "diffCheck": true,
+    "rustFormatting": true,
+    "manualNormalizedFencedBashSyntax": {
+      "passed": true,
+      "blocks": 19
+    },
+    "workflowYaml": true,
+    "workflowBashSyntax": {
+      "passed": true,
+      "blocks": 11
+    },
+    "activePackagePublicationAbsent": true,
+    "packageManifestChangesAbsent": true,
+    "focusedInvariantTest": {
+      "passed": true,
+      "testsPassed": 2,
+      "testsFailed": 0
+    },
+    "invariantAudit": true,
+    "networkAudit": {
+      "passed": true,
+      "patched": "22/22",
+      "newSites": 0
+    },
+    "nestedHeadExact": true,
+    "nestedTreeClean": true,
+    "wrapperIndexClean": true,
+    "expectedUnstagedGitlinkOnly": true,
+    "localOrRemotePublicationRefContainsTarget": false,
+    "publicationOperationsExecuted": false
+  },
+  "assetVerification": {
+    "manualFailClosedEveryPrerequisite": true,
+    "workflowFailClosedEveryPrerequisite": true,
+    "manualRequiresFreshRegularFileDownload": true,
+    "workflowRequiresFreshRegularFileDownload": true,
+    "conditionalInvocationFailureInjection": true,
+    "andListInvocationFailureInjection": true,
+    "staleEvidenceReuseRejected": true
+  },
+  "publicationParity": {
+    "candidateBinding": true,
+    "digestGatedCreateRepair": true,
+    "manualExactAssetDigestEquality": true,
+    "workflowExactAssetDigestEquality": true,
+    "manualExactFourBinaryEquality": true,
+    "workflowExactFourBinaryEquality": true,
+    "partialReleaseRepairAvoidsTargetCommitishRejection": true,
+    "manualFinalPublicTagEquality": true,
+    "workflowFinalPublicTagEquality": true,
+    "manualFinalRetentionTagEquality": true,
+    "workflowFinalRetentionTagEquality": true
+  },
+  "nestedState": {
+    "head": "6d73e16c44d65ac243834a942d7fab2c3b279221",
+    "clean": true,
+    "gitlinkStaged": false,
+    "gitlinkUnstaged": true
+  },
+  "publication": {
+    "push": false,
+    "tag": false,
+    "releaseCreateOrUpload": false,
+    "install": false,
+    "dogfood": false
+  },
+  "findings": {
+    "fixed": [
+      "F-001",
+      "F-002",
+      "F-003",
+      "F-004",
+      "F-005",
+      "F-006",
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014",
+      "F-015"
+    ],
+    "open": []
+  },
+  "clean": true,
+  "readyForPublication": true,
+  "baseResolution": {
+    "reviewBase": "89a6cbea7cd382fa4873b259fb996dcf988a5fdc",
+    "localMain": "3ff55692e7045e85ce78ebe8337ab40b55494c9c",
+    "method": "Used immutable job base directly to review the requested exact 17-path range; no branch or ref mutation."
+  }
+}

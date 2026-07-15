@@ -1,0 +1,647 @@
+===================================================================
+  FROZEN ITERATION PROFILE ACTIVE
+  LTO=off  codegen-units=16  jobs=8  incremental=0
+  RUSTC_WRAPPER=sccache  SCCACHE_DIR=D:\codex-sccache  size=50G
+  Do NOT change LTO / codegen-units / RUSTFLAGS round-to-round.
+  Runnable iteration is canonical T3 (builds codex-core + launcher):
+    bash scripts/verify-core-change.sh executable --confirm-slow
+===================================================================
+$env:RUST_MIN_STACK = "8388608"; $env:NEXTEST_PROFILE = "local"; cargo nextest run --no-fail-fast @($args | Select-Object -Skip 1)
+   Compiling codex-app-server-protocol v0.141.0-copilot-api.3 (D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\app-server-protocol)
+   Compiling codex-git-utils v0.141.0-copilot-api.3 (D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\git-utils)
+   Compiling winreg v0.10.1
+   Compiling nix v0.28.0
+   Compiling rust-embed v8.11.0
+   Compiling proc-macro-error2 v2.0.1
+   Compiling fluent v0.16.1
+   Compiling i18n-embed v0.15.4
+   Compiling hkdf v0.12.4
+   Compiling cookie-factory v0.3.3
+   Compiling secrecy v0.10.3
+   Compiling base64 v0.21.7
+   Compiling io_tee v0.1.1
+   Compiling age-core v0.11.0
+   Compiling scrypt v0.11.0
+   Compiling filedescriptor v0.8.3
+   Compiling serial2 v0.2.33
+   Compiling keyring v3.6.3
+   Compiling i18n-embed-fl v0.9.4
+   Compiling shared_library v0.1.9
+   Compiling bech32 v0.9.1
+   Compiling downcast-rs v1.2.1
+   Compiling codex-keyring-store v0.141.0-copilot-api.3 (D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\keyring-store)
+   Compiling ed25519 v2.2.3
+   Compiling crypto_secretbox v0.1.1
+   Compiling portable-pty v0.9.0
+   Compiling simple_asn1 v0.6.4
+   Compiling blake2 v0.10.6
+   Compiling writeable v0.6.2
+   Compiling chunked_transfer v1.5.0
+   Compiling litemap v0.8.1
+   Compiling ascii v1.1.0
+   Compiling jsonwebtoken v9.3.1
+   Compiling codex-utils-pty v0.141.0-copilot-api.3 (D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\utils\pty)
+   Compiling crypto_box v0.9.1
+   Compiling age v0.11.2
+   Compiling icu_locale_core v2.2.0
+   Compiling tiny_http v0.12.0
+   Compiling ed25519-dalek v2.2.0
+   Compiling potential_utf v0.1.4
+   Compiling zerotrie v0.2.4
+   Compiling webbrowser v1.0.6
+   Compiling icu_collections v2.2.0
+   Compiling codex-agent-identity v0.141.0-copilot-api.3 (D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\agent-identity)
+   Compiling polyval v0.6.2
+   Compiling aes v0.8.4
+   Compiling codex-terminal-detection v0.141.0-copilot-api.3 (D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\terminal-detection)
+   Compiling ring v0.17.14
+   Compiling keccak v0.1.6
+   Compiling crossbeam-utils v0.8.21
+   Compiling ghash v0.5.1
+   Compiling sha3 v0.10.9
+   Compiling icu_provider v2.2.0
+   Compiling aws-smithy-http v0.62.6
+   Compiling codex-secrets v0.141.0-copilot-api.3 (D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\secrets)
+   Compiling aws-credential-types v1.2.11
+   Compiling ctr v0.9.2
+   Compiling thiserror-impl-no-std v2.0.2
+   Compiling aws-types v1.3.11
+   Compiling num-traits v0.2.19
+   Compiling kem v0.3.0-pre.0
+   Compiling hybrid-array v0.2.3
+   Compiling zeroize v1.8.2
+   Compiling futures-sink v0.3.32
+   Compiling libm v0.2.16
+   Compiling glob v0.3.3
+   Compiling rustls-pki-types v1.14.0
+   Compiling ml-kem v0.2.3
+   Compiling thiserror-no-std v2.0.2
+   Compiling icu_normalizer v2.2.0
+   Compiling icu_properties v2.2.0
+   Compiling aes-gcm v0.10.3
+   Compiling aws-smithy-http-client v1.1.12
+   Compiling aws-smithy-observability v0.1.5
+   Compiling axum-core v0.5.6
+   Compiling debugid v0.8.0
+   Compiling getrandom v0.2.17
+   Compiling once_cell v1.21.4
+   Compiling matchit v0.8.4
+   Compiling sentry-types v0.46.1
+   Compiling idna_adapter v1.2.1
+   Compiling aws-smithy-runtime v1.9.5
+   Compiling clatter v2.2.0
+   Compiling axum v0.8.8
+   Compiling aws-sigv4 v1.3.7
+   Compiling codex-sandboxing v0.141.0-copilot-api.3 (D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\sandboxing)
+   Compiling codex-utils-output-truncation v0.141.0-copilot-api.3 (D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\utils\output-truncation)
+   Compiling libsqlite3-sys v0.37.0
+   Compiling hashlink v0.11.0
+   Compiling socket2 v0.6.3
+   Compiling mio v1.2.0
+   Compiling ff v0.13.1
+   Compiling base16ct v0.2.0
+   Compiling rustls v0.23.36
+   Compiling slab v0.4.12
+   Compiling thiserror v2.0.18
+   Compiling sec1 v0.7.3
+   Compiling futures-util v0.3.32
+   Compiling group v0.13.0
+   Compiling tokio v1.52.3
+   Compiling aws-runtime v1.5.17
+   Compiling core_maths v0.1.1
+   Compiling sentry-core v0.46.1
+   Compiling idna v1.1.0
+   Compiling tracing-core v0.1.36
+   Compiling concurrent-queue v2.5.0
+   Compiling clang-sys v1.8.1
+   Compiling aws-smithy-json v0.61.9
+   Compiling crypto-bigint v0.5.5
+   Compiling prettyplease v0.2.37
+   Compiling rustls-webpki v0.103.13
+   Compiling subtle v2.6.1
+   Compiling libc v0.2.186
+   Compiling event-listener v5.4.1
+   Compiling elliptic-curve v0.13.8
+   Compiling tracing v0.1.44
+   Compiling url v2.5.8
+   Compiling tokio-stream v0.1.18
+   Compiling calendrical_calculations v0.2.4
+   Compiling chrono v0.4.43
+   Compiling crossbeam-queue v0.3.12
+   Compiling webpki-roots v1.0.5
+   Compiling futures-intrusive v0.5.0
+   Compiling spin v0.9.8
+   Compiling time v0.3.47
+   Compiling findshlibs v0.10.2
+   Compiling winapi v0.3.9
+   Compiling base64 v0.22.1
+   Compiling uuid v1.20.0
+   Compiling rustc-demangle v0.1.27
+   Compiling icu_calendar_data v2.2.0
+   Compiling flume v0.12.0
+   Compiling futures-executor v0.3.32
+   Compiling atoi v2.0.0
+   Compiling backtrace v0.3.76
+   Compiling futures-channel v0.3.32
+   Compiling rfc6979 v0.4.0
+   Compiling nom v7.1.3
+   Compiling sentry-contexts v0.46.1
+   Compiling resb v0.1.2
+   Compiling libloading v0.8.9
+   Compiling xmlparser v0.13.6
+   Compiling bindgen v0.72.1
+   Compiling dotenvy v0.15.7
+   Compiling aws-smithy-xml v0.60.13
+   Compiling cexpr v0.6.0
+   Compiling zoneinfo64 v0.3.0
+   Compiling ecdsa v0.16.9
+   Compiling sentry-backtrace v0.46.1
+   Compiling primeorder v0.13.6
+   Compiling aws-smithy-query v0.60.9
+   Compiling itertools v0.13.0
+   Compiling home v0.5.12
+   Compiling sqlx-core v0.9.0
+   Compiling hostname v0.4.2
+   Compiling strck v1.0.0
+   Compiling is_ci v1.2.0
+   Compiling bitflags v2.10.0
+   Compiling which v6.0.3
+   Compiling fslock v0.2.1
+   Compiling diplomat_core v0.15.0
+   Compiling aws-sdk-sts v1.95.0
+   Compiling sqlx-sqlite v0.9.0
+   Compiling p256 v0.13.2
+   Compiling sentry-debug-images v0.46.1
+   Compiling sentry-panic v0.46.1
+   Compiling icu_calendar v2.2.1
+   Compiling timezone_provider v0.2.3
+   Compiling sqlx-macros-core v0.9.0
+   Compiling aws-sdk-signin v1.2.0
+   Compiling aws-sdk-ssooidc v1.93.0
+   Compiling aws-sdk-sso v1.91.0
+   Compiling miniz_oxide v0.8.9
+   Compiling gzip-header v1.0.0
+   Compiling is-terminal v0.4.17
+   Compiling ixdtf v0.6.4
+   Compiling owo-colors v4.3.0
+   Compiling sqlx-macros v0.9.0
+   Compiling aws-config v1.8.12
+   Compiling supports-color v2.1.0
+   Compiling v8 v149.2.0
+   Compiling sentry v0.46.1
+error: linking with `lld-link` failed: exit code: 3
+  |
+  = note: "lld-link" "-flavor" "link" "/NOLOGO" "D:\\harness-efforts\\codexu\\codex\\.worktrees\\codex-v2-copilot-encrypted-subagent-handoff\\external\\repos\\codex-patched\\codex-rs\\target\\debug\\build\\owo-colors-29b5ba5a1ba681aa\\rustc3iujYK\\symbols.o" "<4 object files omitted>" "<sysroot>\\lib\\rustlib\\x86_64-pc-windows-msvc\\lib/{libstd-*,libpanic_unwind-*,libcfg_if-*,libwindows_link-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libunwind-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "kernel32.lib" "kernel32.lib" "kernel32.lib" "ntdll.lib" "userenv.lib" "ws2_32.lib" "dbghelp.lib" "/defaultlib:libcmt" "/NXCOMPAT" "/OUT:D:\\harness-efforts\\codexu\\codex\\.worktrees\\codex-v2-copilot-encrypted-subagent-handoff\\external\\repos\\codex-patched\\codex-rs\\target\\debug\\build\\owo-colors-29b5ba5a1ba681aa\\build_script_build-29b5ba5a1ba681aa.exe" "/OPT:REF,NOICF" "/DEBUG" "/PDBALTPATH:%_PDB%" "/NATVIS:<sysroot>\\lib\\rustlib\\etc\\intrinsic.natvis" "/NATVIS:<sysroot>\\lib\\rustlib\\etc\\liballoc.natvis" "/NATVIS:<sysroot>\\lib\\rustlib\\etc\\libcore.natvis" "/NATVIS:<sysroot>\\lib\\rustlib\\etc\\libstd.natvis" "/STACK:8388608"
+  = note: some arguments are omitted. use `--verbose` to show all linker arguments
+  = note: PLEASE submit a bug report to https://github.com/llvm/llvm-project/issues/ and include the crash backtrace.
+          Exception Code: 0xC000001D
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(std_type_info_static.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(fltused.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(tlssup.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(delete_scalar_size.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(delete_scalar.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(exe_main.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(loadcfg.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(utility.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(gs_support.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(matherr.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(argv_mode.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(commit_mode.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(file_mode.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(new_mode.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(thread_locale.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(tncleanup.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(env_mode.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(invalid_parameter_handler.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(denormal_control.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(default_local_stdio_options.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(matherr_detection.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(dyn_tls_init.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(dyn_tls_dtor.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(utility_desktop.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(initsect.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(initializers.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(guard_support.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(gs_cookie.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(cpu_disp.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(ucrt_detection.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libvcruntime.lib(throw.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libvcruntime.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libvcruntime.lib(riscchandler.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libvcruntime.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libvcruntime.lib(risctrnsctrl.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libvcruntime.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libvcruntime.lib(ehhelpers.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libvcruntime.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libvcruntime.lib(softmemtag.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libvcruntime.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libvcruntime.lib(std_type_info.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libvcruntime.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libvcruntime.lib(initialization.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libvcruntime.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(pesect.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libvcruntime.lib(jbcxrval.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libvcruntime.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libvcruntime.lib(per_thread_data.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libvcruntime.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libvcruntime.lib(ehstate.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libvcruntime.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libvcruntime.lib(frame.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libvcruntime.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libcmt.lib(gshandler.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libcmt.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libvcruntime.lib(undname.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libvcruntime.amd64.pdb': no such file or directory
+          
+          lld-link: warning: Cannot use debug info for 'libvcruntime.lib(locks.obj)' [LNK4099]
+          >>> failed to load reference 'D:\a\_work\1\s\binaries\amd64ret\lib\amd64\libvcruntime.amd64.pdb': no such file or directory
+          LLVM ERROR: out of memory
+          Allocation failed
+          
+
+error: could not compile `owo-colors` (build script) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: only metadata stub found for `rlib` dependency `core` please provide path to the corresponding .rmeta file with full metadata
+
+error: cannot resolve a prelude import
+
+error[E0463]: can't find crate for `std`
+ --> C:\Users\evmitran\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\sentry-0.46.1\src\defaults.rs:1:5
+  |
+1 | use std::env;
+  |     ^^^ can't find crate
+  |
+  = note: the `x86_64-pc-windows-msvc` target may not be installed
+  = help: consider downloading the target with `rustup target add x86_64-pc-windows-msvc`
+
+For more information about this error, try `rustc --explain E0463`.
+error: could not compile `sentry` (lib) due to 3 previous errors
+memory allocation of 2097152 bytes failed
+stack backtrace:
+   0:     0x7fffb34b3d70 - std::backtrace_rs::backtrace::win64::trace
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\..\..\backtrace\src\backtrace\win64.rs:85
+   1:     0x7fffb34b3d70 - std::backtrace_rs::backtrace::trace_unsynchronized
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\..\..\backtrace\src\backtrace\mod.rs:66
+   2:     0x7fffb34b3d70 - std::sys::backtrace::_print_fmt
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\sys\backtrace.rs:74
+   3:     0x7fffb34b3d70 - std::sys::backtrace::impl$0::print::impl$0::fmt
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\sys\backtrace.rs:44
+   4:     0x7fffb34dbc61 - core::fmt::write
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\core\src\fmt\mod.rs:0
+   5:     0x7fffb34c40e4 - std::io::default_write_fmt
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\io\mod.rs:639
+   6:     0x7fffb34c40e4 - std::io::Write::write_fmt<std::sys::stdio::windows::Stderr>
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\io\mod.rs:1994
+   7:     0x7fffb34a6f22 - std::sys::backtrace::BacktraceLock::print
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\sys\backtrace.rs:47
+   8:     0x7fffb34a6f22 - std::alloc::default_alloc_error_hook
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\alloc.rs:397
+   9:     0x7fffb348ca8c - std::alloc::rust_oom::closure$0
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\alloc.rs:428
+  10:     0x7fffb348a14f - std::sys::backtrace::__rust_end_short_backtrace<std::alloc::rust_oom::closure_env$0,never$>
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\sys\backtrace.rs:182
+  11:     0x7fffb34a6fbb - std::alloc::rust_oom
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\alloc.rs:424
+  12:     0x7fffb348d9e8 - std::alloc::_::__rust_alloc_error_handler
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\alloc.rs:423
+  13:     0x7fffb7744a69 - alloc::alloc::handle_alloc_error::rt_error
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\alloc\src\alloc.rs:531
+  14:     0x7fffb7744a69 - alloc::alloc::handle_alloc_error
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\alloc\src\alloc.rs:537
+  15:     0x7fffb7744a83 - alloc::raw_vec::handle_error
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\alloc\src\raw_vec\mod.rs:888
+  16:     0x7fffb4c04b40 - <rustc_arena[fee581958cca9725]::DroplessArena>::grow
+  17:     0x7fffb4ac1669 - <rustc_middle[508bed62f7e3701]::ty::context::CtxtInterners>::intern_predicate
+  18:     0x7fffb4ab8073 - <rustc_middle[508bed62f7e3701]::ty::generics::GenericPredicates>::instantiate
+  19:     0x7fffb4ab7bbf - <rustc_middle[508bed62f7e3701]::ty::generics::GenericPredicates>::instantiate
+  20:     0x7fffb461b69a - <rustc_trait_selection[1efb29698e4eb8c6]::traits::wf::WfPredicates as rustc_type_ir[b983a86ba3b65ef9]::visit::TypeVisitor<rustc_middle[508bed62f7e3701]::ty::context::TyCtxt>>::visit_ty
+  21:     0x7fffb45fea25 - <rustc_trait_selection[1efb29698e4eb8c6]::traits::fulfill::FulfillProcessor as rustc_data_structures[8d4bf3aefba2cb89]::obligation_forest::ObligationProcessor>::process_obligation
+  22:     0x7fffb44831dc - <rustc_data_structures[8d4bf3aefba2cb89]::obligation_forest::ObligationForest<rustc_trait_selection[1efb29698e4eb8c6]::traits::fulfill::PendingPredicateObligation>>::process_obligations::<rustc_trait_selection[1efb29698e4eb8c6]::traits::fulfill::FulfillProcessor>
+  23:     0x7fffb3672958 - rustc_hir_typeck[fee03b798ffaaec5]::typeck
+  24:     0x7fffb36ad07c - rustc_hir_typeck[fee03b798ffaaec5]::typeck
+  25:     0x7fffb36b5c6f - rustc_hir_typeck[fee03b798ffaaec5]::typeck
+  26:     0x7fffb36ad838 - rustc_hir_typeck[fee03b798ffaaec5]::typeck
+  27:     0x7fffb36c44ef - rustc_hir_typeck[fee03b798ffaaec5]::typeck
+  28:     0x7fffb36ad838 - rustc_hir_typeck[fee03b798ffaaec5]::typeck
+  29:     0x7fffb371658a - rustc_hir_typeck[fee03b798ffaaec5]::typeck
+  30:     0x7fffb36ada45 - rustc_hir_typeck[fee03b798ffaaec5]::typeck
+  31:     0x7fffb36b265b - rustc_hir_typeck[fee03b798ffaaec5]::typeck
+  32:     0x7fffb36ae0d1 - rustc_hir_typeck[fee03b798ffaaec5]::typeck
+  33:     0x7fffb36c44ef - rustc_hir_typeck[fee03b798ffaaec5]::typeck
+  34:     0x7fffb36ad838 - rustc_hir_typeck[fee03b798ffaaec5]::typeck
+  35:     0x7fffb37166ab - rustc_hir_typeck[fee03b798ffaaec5]::typeck
+  36:     0x7fffb36ada45 - rustc_hir_typeck[fee03b798ffaaec5]::typeck
+  37:     0x7fffb2b52439 - core[609a1634e86a911f]::slice::sort::unstable::ipnsort::<(rustc_span[92215afca4a084d1]::def_id::DefPathHash, usize), <(rustc_span[92215afca4a084d1]::def_id::DefPathHash, usize) as core[609a1634e86a911f]::cmp::PartialOrd>::lt>
+  38:     0x7fffb36af0c6 - rustc_hir_typeck[fee03b798ffaaec5]::typeck
+  39:     0x7fffb3714ea5 - rustc_hir_typeck[fee03b798ffaaec5]::typeck
+  40:     0x7fffb371639d - rustc_hir_typeck[fee03b798ffaaec5]::typeck
+  41:     0x7fffb36ada45 - rustc_hir_typeck[fee03b798ffaaec5]::typeck
+  42:     0x7fffb364adf5 - RINvMs6_NtCsmxeZUtwRFb_9hashbrown3rawINtB6_8RawTableTNtNtCscxQAcW7hzzx_10rustc_span6symbol5IdentTNtNtNtCskmQQSi7ddyx_9rustc_abi6layout2ty8FieldIdxRNtNtCsqNoC513Zhl_12rustc_middle2ty8FieldDefEEE14reserve_rehashNCINvNtB8_3map11make_hasherBP_B1w_NtCs4ZHkamydD
+  43:     0x7fffb365d9d0 - rustc_hir_typeck[fee03b798ffaaec5]::typeck
+  44:     0x7fffb435596b - rustc_query_impl[92b76e72f256e1cb]::plumbing::query_key_hash_verify_all
+  45:     0x7fffb4264001 - RINvMs6_NtCsmxeZUtwRFb_9hashbrown3rawINtB6_8RawTableTINtNtCsfVugF0hdaZx_13rustc_type_ir14predicate_kind13PredicateKindNtNtNtCsqNoC513Zhl_12rustc_middle2ty7context6TyCtxtEjEE14reserve_rehashNCINvNtB8_3map11make_hasherBP_jNtCs4ZHkamydDb0_10rustc_hash13FxBuil
+  46:     0x7fffb43559e8 - rustc_query_impl[92b76e72f256e1cb]::plumbing::query_key_hash_verify_all
+  47:     0x7fffb3bc477d - rustc_mir_build[e3ee9c25ce08d5dc]::thir::pattern::check_match::check_match
+  48:     0x7fffb43440cb - rustc_query_impl[92b76e72f256e1cb]::plumbing::query_key_hash_verify_all
+  49:     0x7fffb425afd8 - RINvMs6_NtCsmxeZUtwRFb_9hashbrown3rawINtB6_8RawTableTINtNtCsfVugF0hdaZx_13rustc_type_ir14predicate_kind13PredicateKindNtNtNtCsqNoC513Zhl_12rustc_middle2ty7context6TyCtxtEjEE14reserve_rehashNCINvNtB8_3map11make_hasherBP_jNtCs4ZHkamydDb0_10rustc_hash13FxBuil
+  50:     0x7fffb434413b - rustc_query_impl[92b76e72f256e1cb]::plumbing::query_key_hash_verify_all
+  51:     0x7fffb3ba90dd - rustc_mir_build[e3ee9c25ce08d5dc]::builder::build_mir_inner_impl
+  52:     0x7fffb39b7d24 - rustc_mir_transform[c6c7a08a6da9bb4]::mir_built
+  53:     0x7fffb435780b - rustc_query_impl[92b76e72f256e1cb]::plumbing::query_key_hash_verify_all
+  54:     0x7fffb4264001 - RINvMs6_NtCsmxeZUtwRFb_9hashbrown3rawINtB6_8RawTableTINtNtCsfVugF0hdaZx_13rustc_type_ir14predicate_kind13PredicateKindNtNtNtCsqNoC513Zhl_12rustc_middle2ty7context6TyCtxtEjEE14reserve_rehashNCINvNtB8_3map11make_hasherBP_jNtCs4ZHkamydDb0_10rustc_hash13FxBuil
+  55:     0x7fffb4357888 - rustc_query_impl[92b76e72f256e1cb]::plumbing::query_key_hash_verify_all
+  56:     0x7fffb39f82bd - rustc_mir_transform[c6c7a08a6da9bb4]::trivial_const::trivial_const_provider
+  57:     0x7fffb4348bf8 - rustc_query_impl[92b76e72f256e1cb]::plumbing::query_key_hash_verify_all
+  58:     0x7fffb4287fcb - RINvMs6_NtCsmxeZUtwRFb_9hashbrown3rawINtB6_8RawTableTINtNtCsfVugF0hdaZx_13rustc_type_ir14predicate_kind13PredicateKindNtNtNtCsqNoC513Zhl_12rustc_middle2ty7context6TyCtxtEjEE14reserve_rehashNCINvNtB8_3map11make_hasherBP_jNtCs4ZHkamydDb0_10rustc_hash13FxBuil
+  59:     0x7fffb4348c9c - rustc_query_impl[92b76e72f256e1cb]::plumbing::query_key_hash_verify_all
+  60:     0x7fffb3f57a95 - rustc_const_eval[b0cf9864e0718151]::const_eval::eval_queries::eval_to_const_value_raw_provider
+  61:     0x7fffb4352377 - rustc_query_impl[92b76e72f256e1cb]::plumbing::query_key_hash_verify_all
+  62:     0x7fffb42bcffd - RINvMs6_NtCsmxeZUtwRFb_9hashbrown3rawINtB6_8RawTableTINtNtCsfVugF0hdaZx_13rustc_type_ir14predicate_kind13PredicateKindNtNtNtCsqNoC513Zhl_12rustc_middle2ty7context6TyCtxtEjEE14reserve_rehashNCINvNtB8_3map11make_hasherBP_jNtCs4ZHkamydDb0_10rustc_hash13FxBuil
+  63:     0x7fffb4352430 - rustc_query_impl[92b76e72f256e1cb]::plumbing::query_key_hash_verify_all
+  64:     0x7fffb4a78130 - <rustc_middle[508bed62f7e3701]::ty::context::TyCtxt>::const_eval_resolve
+  65:     0x7fffb3f23e0d - <alloc[e793556788e598e]::raw_vec::RawVec<rustc_const_eval[b0cf9864e0718151]::interpret::stack::Frame>>::grow_one
+  66:     0x7fffb3dd9efa - <hashbrown[43bd7235cf0a4df]::raw::RawTable<(rustc_middle[508bed62f7e3701]::mir::interpret::AllocId, ())>>::reserve_rehash::<hashbrown[43bd7235cf0a4df]::map::make_hasher<rustc_middle[508bed62f7e3701]::mir::interpret::AllocId, (), rustc_hash[3a2e7738a48613c0]::FxBuildHasher>::{closure#0}>
+  67:     0x7fffb3f55291 - rustc_const_eval[b0cf9864e0718151]::const_eval::eval_queries::eval_to_allocation_raw_provider
+  68:     0x7fffb43502d7 - rustc_query_impl[92b76e72f256e1cb]::plumbing::query_key_hash_verify_all
+  69:     0x7fffb42bd022 - RINvMs6_NtCsmxeZUtwRFb_9hashbrown3rawINtB6_8RawTableTINtNtCsfVugF0hdaZx_13rustc_type_ir14predicate_kind13PredicateKindNtNtNtCsqNoC513Zhl_12rustc_middle2ty7context6TyCtxtEjEE14reserve_rehashNCINvNtB8_3map11make_hasherBP_jNtCs4ZHkamydDb0_10rustc_hash13FxBuil
+  70:     0x7fffb4350390 - rustc_query_impl[92b76e72f256e1cb]::plumbing::query_key_hash_verify_all
+  71:     0x7fffb3f57c62 - rustc_const_eval[b0cf9864e0718151]::const_eval::eval_queries::eval_to_const_value_raw_provider
+  72:     0x7fffb4352377 - rustc_query_impl[92b76e72f256e1cb]::plumbing::query_key_hash_verify_all
+  73:     0x7fffb42bcffd - RINvMs6_NtCsmxeZUtwRFb_9hashbrown3rawINtB6_8RawTableTINtNtCsfVugF0hdaZx_13rustc_type_ir14predicate_kind13PredicateKindNtNtNtCsqNoC513Zhl_12rustc_middle2ty7context6TyCtxtEjEE14reserve_rehashNCINvNtB8_3map11make_hasherBP_jNtCs4ZHkamydDb0_10rustc_hash13FxBuil
+  74:     0x7fffb4352430 - rustc_query_impl[92b76e72f256e1cb]::plumbing::query_key_hash_verify_all
+  75:     0x7fffb3807a0e - rustc_hir_analysis[d4eaa6b33fb65806]::check_crate
+  76:     0x7fffb350cdd6 - rustc_interface[f424b11e141aa742]::passes::analysis
+  77:     0x7fffb2fc7f9a - rustc_query_impl[92b76e72f256e1cb]::plumbing::encode_all_query_results
+  78:     0x7fffb2e8aaf0 - <<rustc_ty_utils[6b5c08bf4099cddc]::opaque_types::OpaqueTypeCollector>::collect_taits_declared_in_body::TaitInBodyFinder as rustc_hir[2574b6166bceac22]::intravisit::Visitor>::visit_nested_item
+  79:     0x7fffb2fc8000 - rustc_query_impl[92b76e72f256e1cb]::plumbing::encode_all_query_results
+  80:     0x7fffb07cada7 - std[d99d321fffadf0e]::sys::backtrace::__rust_begin_short_backtrace::<std[d99d321fffadf0e]::thread::lifecycle::spawn_unchecked<ctrlc[8d4ba2a38fd62187]::set_handler_inner<rustc_driver_impl[ec820b8c445af180]::install_ctrlc_handler::{closure#0}>::{closure#0}, ()>::{closure#1}::{closure#0}::{closure#0}, ()>
+  81:     0x7fffb07c4cb1 - RINvNtNtCs1aoCESei0z2_3std3sys9backtrace28___rust_begin_short_backtraceNCNCINvNtCskXzi1fhPsgo_15rustc_interface4util26run_in_thread_with_globalsNCINvB1e_31run_in_thread_pool_with_globalsNCINvNtB1g_9interface12run_compileruNCNvCskiVrmKtmSOG_17rustc_driver_i
+  82:     0x7fffb07cfc1a - std[d99d321fffadf0e]::sys::backtrace::__rust_begin_short_backtrace::<std[d99d321fffadf0e]::thread::lifecycle::spawn_unchecked<ctrlc[8d4ba2a38fd62187]::set_handler_inner<rustc_driver_impl[ec820b8c445af180]::install_ctrlc_handler::{closure#0}>::{closure#0}, ()>::{closure#1}::{closure#0}::{closure#0}, ()>
+  83:     0x7fffb34b109c - std::sys::thread::windows::impl$0::new::thread_start
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\sys\thread\windows.rs:58
+  84:     0x7ff8ed40e957 - BaseThreadInitThunk
+  85:     0x7ff8eedc7c1c - RtlUserThreadStart
+error: could not compile `icu_calendar` (lib)
+
+Caused by:
+  process didn't exit successfully: `sccache 'C:\Users\evmitran\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\rustc.exe' --crate-name icu_calendar --edition=2021 'C:\Users\evmitran\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_calendar-2.2.1\src\lib.rs' --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=1 '--warn=clippy::wildcard_dependencies' '--warn=clippy::useless_transmute' --warn=unused_qualifications --warn=unused_macro_rules --warn=unused_lifetimes '--warn=clippy::unnecessary-wraps' --warn=unexpected_cfgs '--deny=clippy::trivially_copy_pass_by_ref' --deny=trivial_numeric_casts '--warn=clippy::transmutes_expressible_as_ptr_casts' '--warn=clippy::transmute_undefined_repr' '--warn=clippy::transmute_ptr_to_ref' '--warn=clippy::transmute_ptr_to_ptr' '--warn=clippy::transmute_int_to_non_zero' '--warn=clippy::transmute_int_to_bool' '--warn=clippy::transmute_bytes_to_str' '--warn=clippy::todo' '--warn=clippy::same_functions_in_if_condition' '--warn=clippy::or-fun-call' '--warn=clippy::negative_feature_names' '--warn=clippy::missing_transmute_annotations' '--warn=clippy::missing_fields_in_debug' --deny=missing_debug_implementations '--warn=clippy::mismatching_type_param_order' '--warn=clippy::large_stack_arrays' '--warn=clippy::infinite_loop' '--warn=clippy::fn_to_numeric_cast_any' '--deny=clippy::exhaustive_structs' '--deny=clippy::exhaustive_enums' '--warn=clippy::doc_markdown' '--warn=clippy::debug_assert_with_mut_call' '--warn=clippy::dbg_macro' '--warn=clippy::crosspointer_transmute' '--warn=clippy::collection_is_never_read' '--warn=clippy::branches-sharing-code' '--warn=clippy::alloc-instead-of-core' --check-cfg 'cfg(icu4c_enable_renaming)' --check-cfg 'cfg(needs_alloc_error_handler)' --check-cfg 'cfg(icu4x_run_size_tests)' --check-cfg 'cfg(icu4x_unstable_fast_trie_only)' --cfg 'feature="compiled_data"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("alloc", "compiled_data", "datagen", "default", "ixdtf", "logging", "serde", "unstable", "unstable_chrono_0_4", "unstable_jiff_0_2", "unstable_time_0_3"))' -C metadata=ed04ea8b6cfb6ef9 -C extra-filename=-b7481c3a30682fde --out-dir 'D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps' -C linker=lld-link -L 'dependency=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps' --extern 'calendrical_calculations=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libcalendrical_calculations-df3eb7e218c69fc7.rmeta' --extern 'displaydoc=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\displaydoc-78c61158f2045e5d.dll' --extern 'icu_calendar_data=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libicu_calendar_data-a7921e2c7100703d.rmeta' --extern 'icu_locale=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libicu_locale-20f6f0098b6ca1a3.rmeta' --extern 'icu_locale_core=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libicu_locale_core-0998affe8ace4754.rmeta' --extern 'icu_provider=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libicu_provider-ac0fc3e4d22a75d1.rmeta' --extern 'tinystr=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libtinystr-4efcb383ec329343.rmeta' --extern 'zerovec=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libzerovec-1bc655ed4489b633.rmeta' --cap-lints allow -C 'link-arg=/STACK:8388608' -C target-feature=+crt-static` (exit code: 0xc0000409, STATUS_STACK_BUFFER_OVERRUN)
+error: crate `itertools` required to be available in rlib format, but was not found in this form
+
+error: crate `regex_automata` required to be available in rlib format, but was not found in this form
+
+error: could not compile `v8` (build script) due to 2 previous errors
+memory allocation of 2097152 bytes failed
+stack backtrace:
+   0:     0x7fffb34b3d70 - std::backtrace_rs::backtrace::win64::trace
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\..\..\backtrace\src\backtrace\win64.rs:85
+   1:     0x7fffb34b3d70 - std::backtrace_rs::backtrace::trace_unsynchronized
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\..\..\backtrace\src\backtrace\mod.rs:66
+   2:     0x7fffb34b3d70 - std::sys::backtrace::_print_fmt
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\sys\backtrace.rs:74
+   3:     0x7fffb34b3d70 - std::sys::backtrace::impl$0::print::impl$0::fmt
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\sys\backtrace.rs:44
+   4:     0x7fffb34dbc61 - core::fmt::write
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\core\src\fmt\mod.rs:0
+   5:     0x7fffb34c40e4 - std::io::default_write_fmt
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\io\mod.rs:639
+   6:     0x7fffb34c40e4 - std::io::Write::write_fmt<std::sys::stdio::windows::Stderr>
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\io\mod.rs:1994
+   7:     0x7fffb34a6f22 - std::sys::backtrace::BacktraceLock::print
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\sys\backtrace.rs:47
+   8:     0x7fffb34a6f22 - std::alloc::default_alloc_error_hook
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\alloc.rs:397
+   9:     0x7fffb348ca8c - std::alloc::rust_oom::closure$0
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\alloc.rs:428
+  10:     0x7fffb348a14f - std::sys::backtrace::__rust_end_short_backtrace<std::alloc::rust_oom::closure_env$0,never$>
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\sys\backtrace.rs:182
+  11:     0x7fffb34a6fbb - std::alloc::rust_oom
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\alloc.rs:424
+  12:     0x7fffb348d9e8 - std::alloc::_::__rust_alloc_error_handler
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\alloc.rs:423
+  13:     0x7fffb7744a69 - alloc::alloc::handle_alloc_error::rt_error
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\alloc\src\alloc.rs:531
+  14:     0x7fffb7744a69 - alloc::alloc::handle_alloc_error
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\alloc\src\alloc.rs:537
+  15:     0x7fffb7744a83 - alloc::raw_vec::handle_error
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\alloc\src\raw_vec\mod.rs:888
+  16:     0x7fffb4c04b40 - <rustc_arena[fee581958cca9725]::DroplessArena>::grow
+  17:     0x7fffb41f8df3 - rustc_ty_utils[6b5c08bf4099cddc]::implied_bounds::assumed_wf_types
+  18:     0x7fffb434ae59 - rustc_query_impl[92b76e72f256e1cb]::plumbing::query_key_hash_verify_all
+  19:     0x7fffb42562d9 - RINvMs6_NtCsmxeZUtwRFb_9hashbrown3rawINtB6_8RawTableTINtNtCsfVugF0hdaZx_13rustc_type_ir14predicate_kind13PredicateKindNtNtNtCsqNoC513Zhl_12rustc_middle2ty7context6TyCtxtEjEE14reserve_rehashNCINvNtB8_3map11make_hasherBP_jNtCs4ZHkamydDb0_10rustc_hash13FxBuil
+  20:     0x7fffb434aee8 - rustc_query_impl[92b76e72f256e1cb]::plumbing::query_key_hash_verify_all
+  21:     0x7fffb45683a5 - <rustc_trait_selection[1efb29698e4eb8c6]::traits::engine::ObligationCtxt<rustc_trait_selection[1efb29698e4eb8c6]::traits::FulfillmentError>>::assumed_wf_types_and_report_errors
+  22:     0x7fffb38a789e - rustc_hir_analysis[d4eaa6b33fb65806]::check::check::check_abi
+  23:     0x7fffb386a42d - rustc_hir_analysis[d4eaa6b33fb65806]::hir_ty_lowering::generics::check_generic_arg_count_for_call
+  24:     0x7fffb389c150 - rustc_hir_analysis[d4eaa6b33fb65806]::check::check::check_abi
+  25:     0x7fffb434bffb - rustc_query_impl[92b76e72f256e1cb]::plumbing::query_key_hash_verify_all
+  26:     0x7fffb425afd8 - RINvMs6_NtCsmxeZUtwRFb_9hashbrown3rawINtB6_8RawTableTINtNtCsfVugF0hdaZx_13rustc_type_ir14predicate_kind13PredicateKindNtNtNtCsqNoC513Zhl_12rustc_middle2ty7context6TyCtxtEjEE14reserve_rehashNCINvNtB8_3map11make_hasherBP_jNtCs4ZHkamydDb0_10rustc_hash13FxBuil
+  27:     0x7fffb434c06b - rustc_query_impl[92b76e72f256e1cb]::plumbing::query_key_hash_verify_all
+  28:     0x7fffb3895e91 - rustc_hir_analysis[d4eaa6b33fb65806]::check::check::check_abi
+  29:     0x7fffb2fa7feb - rustc_query_impl[92b76e72f256e1cb]::plumbing::encode_all_query_results
+  30:     0x7fffb2e946a0 - <<rustc_ty_utils[6b5c08bf4099cddc]::opaque_types::OpaqueTypeCollector>::collect_taits_declared_in_body::TaitInBodyFinder as rustc_hir[2574b6166bceac22]::intravisit::Visitor>::visit_nested_item
+  31:     0x7fffb2fa8050 - rustc_query_impl[92b76e72f256e1cb]::plumbing::encode_all_query_results
+  32:     0x7fffb38070d3 - rustc_hir_analysis[d4eaa6b33fb65806]::check_crate
+  33:     0x7fffb350cdd6 - rustc_interface[f424b11e141aa742]::passes::analysis
+  34:     0x7fffb2fc7f9a - rustc_query_impl[92b76e72f256e1cb]::plumbing::encode_all_query_results
+  35:     0x7fffb2e8aaf0 - <<rustc_ty_utils[6b5c08bf4099cddc]::opaque_types::OpaqueTypeCollector>::collect_taits_declared_in_body::TaitInBodyFinder as rustc_hir[2574b6166bceac22]::intravisit::Visitor>::visit_nested_item
+  36:     0x7fffb2fc8000 - rustc_query_impl[92b76e72f256e1cb]::plumbing::encode_all_query_results
+  37:     0x7fffb07cada7 - std[d99d321fffadf0e]::sys::backtrace::__rust_begin_short_backtrace::<std[d99d321fffadf0e]::thread::lifecycle::spawn_unchecked<ctrlc[8d4ba2a38fd62187]::set_handler_inner<rustc_driver_impl[ec820b8c445af180]::install_ctrlc_handler::{closure#0}>::{closure#0}, ()>::{closure#1}::{closure#0}::{closure#0}, ()>
+  38:     0x7fffb07c4cb1 - RINvNtNtCs1aoCESei0z2_3std3sys9backtrace28___rust_begin_short_backtraceNCNCINvNtCskXzi1fhPsgo_15rustc_interface4util26run_in_thread_with_globalsNCINvB1e_31run_in_thread_pool_with_globalsNCINvNtB1g_9interface12run_compileruNCNvCskiVrmKtmSOG_17rustc_driver_i
+  39:     0x7fffb07cfc1a - std[d99d321fffadf0e]::sys::backtrace::__rust_begin_short_backtrace::<std[d99d321fffadf0e]::thread::lifecycle::spawn_unchecked<ctrlc[8d4ba2a38fd62187]::set_handler_inner<rustc_driver_impl[ec820b8c445af180]::install_ctrlc_handler::{closure#0}>::{closure#0}, ()>::{closure#1}::{closure#0}::{closure#0}, ()>
+  40:     0x7fffb34b109c - std::sys::thread::windows::impl$0::new::thread_start
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\sys\thread\windows.rs:58
+  41:     0x7ff8ed40e957 - BaseThreadInitThunk
+  42:     0x7ff8eedc7c1c - RtlUserThreadStart
+error: could not compile `codex-app-server-protocol` (lib)
+
+Caused by:
+  process didn't exit successfully: `sccache 'C:\Users\evmitran\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\rustc.exe' --crate-name codex_app_server_protocol --edition=2024 'app-server-protocol\src\lib.rs' --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=1 '--deny=clippy::unwrap_used' '--deny=clippy::unnecessary_to_owned' '--deny=clippy::unnecessary_sort_by' '--deny=clippy::unnecessary_lazy_evaluations' '--deny=clippy::unnecessary_filter_map' '--deny=clippy::uninlined_format_args' '--deny=clippy::trivially_copy_pass_by_ref' '--deny=clippy::redundant_static_lifetimes' '--deny=clippy::redundant_closure_for_method_calls' '--deny=clippy::redundant_closure' '--deny=clippy::redundant_clone' '--deny=clippy::needless_update' '--deny=clippy::needless_question_mark' '--deny=clippy::needless_option_as_deref' '--deny=clippy::needless_late_init' '--deny=clippy::needless_collect' '--deny=clippy::needless_borrowed_reference' '--deny=clippy::needless_borrow' '--deny=clippy::manual_unwrap_or' '--deny=clippy::manual_try_fold' '--deny=clippy::manual_strip' '--deny=clippy::manual_retain' '--deny=clippy::manual_range_contains' '--deny=clippy::manual_ok_or' '--deny=clippy::manual_non_exhaustive' '--deny=clippy::manual_memcpy' '--deny=clippy::manual_map' '--deny=clippy::manual_flatten' '--deny=clippy::manual_find' '--deny=clippy::manual_filter' '--deny=clippy::manual_clamp' '--deny=clippy::identity_op' '--deny=clippy::expect_used' '--deny=clippy::await_holding_lock' '--deny=clippy::await_holding_invalid_type' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=f6ffdb295b38b952 -C extra-filename=-66474a74121b6540 --out-dir 'D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps' -C linker=lld-link -L 'dependency=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps' --extern 'anyhow=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libanyhow-907c9cf7b4a6f5ef.rmeta' --extern 'clap=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libclap-7df401e81ff79186.rmeta' --extern 'codex_experimental_api_macros=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\codex_experimental_api_macros-0d88206c7ff32b13.dll' --extern 'codex_protocol=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libcodex_protocol-3ef0a573b51fe939.rmeta' --extern 'codex_shell_command=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libcodex_shell_command-bb607e9f60c3d594.rmeta' --extern 'codex_utils_absolute_path=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libcodex_utils_absolute_path-040611f7a98843a7.rmeta' --extern 'codex_utils_path_uri=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libcodex_utils_path_uri-cc8835db3b9efc8f.rmeta' --extern 'inventory=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libinventory-6d54b6aa1e698975.rmeta' --extern 'rmcp=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\librmcp-0809cf5d164c1992.rmeta' --extern 'schemars=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libschemars-9f06c0ccf2bff1f6.rmeta' --extern 'serde=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libserde-3fe1dc193ca555c0.rmeta' --extern 'serde_json=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libserde_json-8e62aa200b000e6f.rmeta' --extern 'serde_with=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libserde_with-9286c6f0030fd402.rmeta' --extern 'strum_macros=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\strum_macros-46ac99f319662d65.dll' --extern 'thiserror=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libthiserror-d9a3d81502b90766.rmeta' --extern 'tracing=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libtracing-8a8bf7cb5cc71972.rmeta' --extern 'ts_rs=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libts_rs-fa3d7da47da87dff.rmeta' --extern 'uuid=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libuuid-4547175f5fa6e8c4.rmeta' -C 'link-arg=/STACK:8388608' -C target-feature=+crt-static -L 'native=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\build\blake3-6a2bee18da6ef7fe\out' -L 'native=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\build\blake3-6a2bee18da6ef7fe\out' -L 'native=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\build\aws-lc-sys-6e2d078e34125567\out' -L 'native=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\build\ring-0f3bb60557d160b3\out' -L 'native=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\build\libz-sys-489cf931e728ab63\out\lib' -L 'native=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\build\libz-sys-489cf931e728ab63\out\lib' -L 'native=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\build\tree-sitter-47c14b5ced0e76fd\out' -L 'native=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\build\tree-sitter-bash-ec4cceaa788b09d8\out' -L 'native=C:\Users\evmitran\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows_x86_64_msvc-0.53.1\lib' -L 'native=C:\Users\evmitran\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows_x86_64_msvc-0.52.6\lib' -L 'native=C:\Users\evmitran\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows_x86_64_msvc-0.48.5\lib'` (exit code: 0xc0000409, STATUS_STACK_BUFFER_OVERRUN)
+error[E0463]: can't find crate for `aws_smithy_runtime_api`
+   --> C:\Users\evmitran\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\aws-config-1.8.12\src\lib.rs:102:9
+    |
+102 | pub use aws_smithy_runtime_api::client::behavior_version::BehaviorVersion;
+    |         ^^^^^^^^^^^^^^^^^^^^^^ can't find crate
+
+error[E0463]: can't find crate for `aws_types`
+   --> C:\Users\evmitran\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\aws-config-1.8.12\src\lib.rs:104:9
+    |
+104 | pub use aws_types::{
+    |         ^^^^^^^^^ can't find crate
+
+error[E0463]: can't find crate for `aws_smithy_runtime`
+   --> C:\Users\evmitran\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\aws-config-1.8.12\src\lib.rs:114:13
+    |
+114 |     pub use aws_smithy_runtime::client::identity::IdentityCache;
+    |             ^^^^^^^^^^^^^^^^^^ can't find crate
+
+error[E0463]: can't find crate for `aws_runtime`
+ --> C:\Users\evmitran\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\aws-config-1.8.12\src\default_provider\use_fips.rs:8:5
+  |
+8 | use aws_runtime::env_config::EnvConfigValue;
+  |     ^^^^^^^^^^^ can't find crate
+
+error[E0463]: can't find crate for `aws_credential_types`
+ --> C:\Users\evmitran\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\aws-config-1.8.12\src\login\cache.rs:8:5
+  |
+8 | use aws_credential_types::Credentials;
+  |     ^^^^^^^^^^^^^^^^^^^^ can't find crate
+
+error[E0463]: can't find crate for `aws_sdk_sts`
+ --> C:\Users\evmitran\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\aws-config-1.8.12\src\sts\util.rs:9:5
+  |
+9 | use aws_sdk_sts::types::{AssumedRoleUser, Credentials as StsCredentials};
+  |     ^^^^^^^^^^^ can't find crate
+
+error[E0463]: can't find crate for `aws_smithy_http`
+  --> C:\Users\evmitran\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\aws-config-1.8.12\src\ecs.rs:61:5
+   |
+61 | use aws_smithy_http::endpoint::apply_endpoint;
+   |     ^^^^^^^^^^^^^^^ can't find crate
+
+error[E0463]: can't find crate for `aws_smithy_async`
+  --> C:\Users\evmitran\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\aws-config-1.8.12\src\imds\client\token.rs:19:5
+   |
+19 | use aws_smithy_async::time::SharedTimeSource;
+   |     ^^^^^^^^^^^^^^^^ can't find crate
+
+error[E0463]: can't find crate for `aws_sdk_signin`
+ --> C:\Users\evmitran\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\aws-config-1.8.12\src\login\dpop.rs:6:5
+  |
+6 | use aws_sdk_signin::config::auth::Params;
+  |     ^^^^^^^^^^^^^^ can't find crate
+
+error[E0463]: can't find crate for `aws_sdk_sso`
+  --> C:\Users\evmitran\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\aws-config-1.8.12\src\sso\credentials.rs:20:5
+   |
+20 | use aws_sdk_sso::types::RoleCredentials;
+   |     ^^^^^^^^^^^ can't find crate
+
+error[E0463]: can't find crate for `aws_sdk_ssooidc`
+  --> C:\Users\evmitran\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\aws-config-1.8.12\src\sso\token.rs:21:5
+   |
+21 | use aws_sdk_ssooidc::error::DisplayErrorContext;
+   |     ^^^^^^^^^^^^^^^ can't find crate
+
+error[E0432]: unresolved imports `crate::identity::IdentityCache`, `crate::profile::Profile`, `crate::profile::ProfileFileLoadError`, `crate::profile::Profile`, `crate::profile::ProfileSet`, `crate::profile::ProfileSet`, `crate::profile::ProfileSet`, `crate::profile::ProfileFileLoadError`, `crate::profile::ProfileSet`, `crate::identity::IdentityCache`, `crate::identity::IdentityCache`
+  --> C:\Users\evmitran\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\aws-config-1.8.12\src\imds\client\token.rs:17:5
+   |
+17 | use crate::identity::IdentityCache;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+  ::: C:\Users\evmitran\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\aws-config-1.8.12\src\profile\credentials.rs:28:5
+   |
+28 | use crate::profile::Profile;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+29 | use crate::profile::ProfileFileLoadError;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+  ::: C:\Users\evmitran\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\aws-config-1.8.12\src\profile\credentials\repr.rs:16:22
+   |
+16 | use crate::profile::{Profile, ProfileSet};
+   |                      ^^^^^^^  ^^^^^^^^^^
+   |
+  ::: C:\Users\evmitran\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\aws-config-1.8.12\src\profile\region.rs:11:5
+   |
+11 | use crate::profile::ProfileSet;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+  ::: C:\Users\evmitran\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\aws-config-1.8.12\src\profile\token.rs:11:5
+   |
+11 | use crate::profile::ProfileSet;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+  ::: C:\Users\evmitran\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\aws-config-1.8.12\src\provider_config.rs:12:22
+   |
+12 | use crate::profile::{ProfileFileLoadError, ProfileSet};
+   |                      ^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^
+   |
+  ::: C:\Users\evmitran\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\aws-config-1.8.12\src\sso\credentials.rs:14:5
+   |
+14 | use crate::identity::IdentityCache;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+  ::: C:\Users\evmitran\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\aws-config-1.8.12\src\sso\token.rs:13:5
+   |
+13 | use crate::identity::IdentityCache;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Some errors have detailed explanations: E0432, E0463.
+For more information about an error, try `rustc --explain E0432`.
+error: could not compile `aws-config` (lib) due to 12 previous errors
+error: command `'C:\Users\evmitran\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\cargo.exe' test --no-run --message-format json-render-diagnostics --package codex-invariant-tests --test multi_agent_v2_handoff` exited with code 101
+error: recipe `test` failed on line 82 with exit code 1
+EXIT_CODE=1

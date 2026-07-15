@@ -1,0 +1,174 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-14T08:38:53.0441683Z",
+  "result": "pass",
+  "mode": "autonomous",
+  "uiUxJudgment": "not-required",
+  "completedStoryCount": 2,
+  "triggeringStoryIds": [
+    "US-001",
+    "US-002"
+  ],
+  "hardFailures": [],
+  "softIssues": [
+    {
+      "id": "QG-WARN-001",
+      "category": "workflow-validation",
+      "message": "No existing YAML parser/validator was available (actionlint, yq, yamllint, PyYAML, and Node YAML packages absent). Static workflow structure checks passed, and all extracted bash blocks passed bash -n after documentation metavariable substitution."
+    },
+    {
+      "id": "QG-WARN-002",
+      "category": "parity-trigger",
+      "message": "US-002 triggered on mirror wording, but the references are canonical git remotes (origin/work/personal), not an explicit source-surface/mirror-surface pair. Per parity rules this is a warning, not a failure."
+    },
+    {
+      "id": "QG-WARN-003",
+      "category": "diff-baseline",
+      "message": "Local main is 18 commits behind origin/main, so the required main...HEAD stat includes 18 pre-batch commits. Actual batch attribution against origin/main...HEAD is confined to the eight PRD write-scope paths."
+    },
+    {
+      "id": "QG-WARN-004",
+      "category": "environment",
+      "message": "The first just test attempt resolved the WindowsApps python alias used by the justfile shell and failed before Cargo ran. Re-running the same just test command with an existing real Python directory prepended to PATH passed 2/2."
+    },
+    {
+      "id": "QG-WARN-005",
+      "category": "compiler-warnings",
+      "message": "The targeted build emitted existing unused/dead-code warnings from the immutable nested checkout. No warning originated from a current wrapper-batch file, and the focused tests passed."
+    }
+  ],
+  "checks": [
+    {
+      "command": "source scripts/iteration-env.sh && cd external/repos/codex-patched/codex-rs && just test -p codex-invariant-tests --test multi_agent_v2_handoff",
+      "result": "pass",
+      "details": "2 tests run: 2 passed, 0 skipped; test profile compiled successfully in 7.99s",
+      "log": "logs/quality-gate-targeted-test.log"
+    },
+    {
+      "command": "bash scripts/audit_invariants.sh",
+      "result": "pass",
+      "details": "Exit 0; audit is intentionally silent on success",
+      "log": "logs/quality-gate-audit-invariants.log"
+    },
+    {
+      "command": "bash scripts/audit_network_calls.sh",
+      "result": "pass",
+      "details": "22/22 patched; 0 new endpoint sites, public IP literals, IPC primitives, or unreviewed no_proxy call sites",
+      "log": "logs/quality-gate-audit-network.log"
+    },
+    {
+      "command": "Existing YAML validator discovery plus static publish-npm.yml structure assertions",
+      "result": "warning",
+      "details": "No YAML parser available; tag trigger, contents:write, GitHub Release upload, bundle asset, and registry-removal assertions all passed",
+      "log": "logs/quality-gate-yaml-shell-validation.log"
+    },
+    {
+      "command": "bash -n over 19 publish-sandbox-patch.md bash fences (metavariables substituted) and changed shell scripts",
+      "result": "pass",
+      "details": "All 19 fenced bash blocks and scripts/iteration-env.sh, scripts/test_iteration_env_sccache_path.sh, scripts/verify-core-change.sh passed syntax checks",
+      "log": "logs/quality-gate-yaml-shell-validation.log"
+    },
+    {
+      "command": "git diff main...HEAD --stat",
+      "result": "pass",
+      "details": "27 files changed, 5686 insertions, 610 deletions; local main staleness documented separately",
+      "log": "logs/quality-gate-main-head.stat"
+    },
+    {
+      "command": "git diff origin/main...HEAD --name-only compared with prd.json.writeScope",
+      "result": "pass",
+      "details": "All eight changed paths are within the eight-entry write scope",
+      "log": "logs/quality-gate-batch.stat"
+    }
+  ],
+  "diffStat": {
+    "requestedBase": "main",
+    "baseHead": "3ff55692e7045e85ce78ebe8337ab40b55494c9c",
+    "head": "66261138e18b276179b533bf95791dba4dd7e685",
+    "summary": "27 files changed, 5686 insertions(+), 610 deletions(-)",
+    "fullStat": " .claude/commands/publish-sandbox-patch.md          |  316 +++--\r\n .claude/commands/rebase-upstream.md                |  273 ++++-\r\n .claude/commands/sync-upstream.md                  |    2 +-\r\n .claude/commands/verify.md                         |   20 +-\r\n .github/workflows/invariant-check.yml              |    8 +\r\n .github/workflows/publish-npm.yml                  |   96 +-\r\n AGENTS.override.md                                 |   43 +-\r\n CLAUDE.md                                          |   50 +-\r\n .../tests/multi_agent_v2_handoff.rs                |  509 ++++++++\r\n docs/README.md                                     |   13 +-\r\n docs/implementation/architecture.md                |   10 +-\r\n docs/implementation/build-perf-baseline.json       |  149 +++\r\n docs/implementation/build-perf.md                  |  238 +++-\r\n docs/implementation/patch-surface.md               |  175 ++-\r\n docs/implementation/regression-history.md          |   59 +-\r\n .../sandbox-setup-platform-matrix.md               |  107 +-\r\n docs/workflows/developer-guide.md                  |   48 +-\r\n docs/workflows/install.md                          |  113 +-\r\n docs/workflows/repo-topology.md                    |   59 +-\r\n docs/workflows/submodule-migration.md              |   91 +-\r\n scripts/iteration-env.sh                           |   43 +-\r\n scripts/measure-build.ps1                          | 1262 +++++++++++++++++---\r\n scripts/test_iteration_env_sccache_path.sh         |  132 ++\r\n scripts/test_measure_build.ps1                     |  859 +++++++++++++\r\n scripts/test_verify_core_change.mjs                | 1127 +++++++++++++++++\r\n scripts/verify-core-change.mjs                     |  472 ++++++++\r\n scripts/verify-core-change.sh                      |   22 +\r\n 27 files changed, 5686 insertions(+), 610 deletions(-)",
+    "localMainBehindOriginMainCommits": 18,
+    "batchBase": "origin/main",
+    "batchBaseHead": "89a6cbea7cd382fa4873b259fb996dcf988a5fdc",
+    "batchSummary": "8 files changed, 867 insertions(+), 71 deletions(-)",
+    "batchStat": " .claude/commands/publish-sandbox-patch.md          | 205 ++++++---\r\n .github/workflows/publish-npm.yml                  |   6 +-\r\n CLAUDE.md                                          |   8 +-\r\n .../tests/multi_agent_v2_handoff.rs                | 509 +++++++++++++++++++++\r\n docs/implementation/patch-surface.md               |  67 +++\r\n docs/implementation/regression-history.md          |  50 ++\r\n docs/workflows/developer-guide.md                  |  30 +-\r\n docs/workflows/install.md                          |  63 ++-\r\n 8 files changed, 867 insertions(+), 71 deletions(-)",
+    "batchChangedPaths": [
+      ".claude/commands/publish-sandbox-patch.md",
+      ".github/workflows/publish-npm.yml",
+      "CLAUDE.md",
+      "codex-rs-overlay/codex-invariant-tests/tests/multi_agent_v2_handoff.rs",
+      "docs/implementation/patch-surface.md",
+      "docs/implementation/regression-history.md",
+      "docs/workflows/developer-guide.md",
+      "docs/workflows/install.md"
+    ]
+  },
+  "deslopFindings": {
+    "scope": "Full main...HEAD diff scanned, with current-batch attribution checked separately against origin/main...HEAD",
+    "narratingComments": {
+      "result": "none",
+      "note": "Added comments explain structural-test intent or non-obvious release safety gates rather than narrating obvious code."
+    },
+    "passThroughWrappers": {
+      "result": "none",
+      "note": "No unjustified current-batch wrappers; Rust helpers perform repeated boundary, ownership, ordering, or count validation."
+    },
+    "speculativeAbstractions": {
+      "result": "none",
+      "note": "No new production abstraction was introduced; the only code addition is a fork-exclusive structural invariant test."
+    },
+    "deadCode": {
+      "result": "none-in-wrapper-diff",
+      "note": "No current wrapper-batch dead code. Nested compiler warnings are immutable source context and are recorded as a soft issue."
+    },
+    "hedgingTodos": {
+      "result": "none",
+      "note": "No added TODO/FIXME/HACK/XXX or current-batch hedging placeholder was found. Full-diff candidates such as future-final are test terminology, not deferred work."
+    }
+  },
+  "paritySpotCheck": {
+    "triggered": true,
+    "storyId": "US-002",
+    "triggerTerms": [
+      "mirror"
+    ],
+    "sourceSurface": null,
+    "mirrorSurface": null,
+    "pairExtracted": false,
+    "result": "warning",
+    "message": "Mirror refers only to canonical git remotes origin/work/personal; no source/mirror implementation surface pair can be extracted, so the gate continues without failure."
+  },
+  "statePreservation": {
+    "externalWorktreePreserved": true,
+    "worktree": {
+      "path": "D:\\harness-efforts\\codexu\\codex\\.worktrees\\codex-v2-copilot-encrypted-subagent-handoff",
+      "branch": "ralph/codex-v2-copilot-encrypted-subagent-handoff",
+      "head": "66261138e18b276179b533bf95791dba4dd7e685",
+      "expectedOnlyStatus": [
+        " M external/repos/codex-patched"
+      ],
+      "stagedPaths": [],
+      "trackedFilesModifiedByGate": false
+    },
+    "nested": {
+      "path": "D:\\harness-efforts\\codexu\\codex\\.worktrees\\codex-v2-copilot-encrypted-subagent-handoff\\external\\repos\\codex-patched",
+      "branch": "ralph/codex-v2-copilot-encrypted-subagent-handoff-source",
+      "head": "6d73e16c44d65ac243834a942d7fab2c3b279221",
+      "expectedHead": "6d73e16c44d65ac243834a942d7fab2c3b279221",
+      "clean": true
+    },
+    "gitlink": {
+      "path": "external/repos/codex-patched",
+      "indexSha": "587a6a8ab8948ff912b1f24a62833b277934302d",
+      "workingTreeSha": "6d73e16c44d65ac243834a942d7fab2c3b279221",
+      "unstaged": true,
+      "staged": false,
+      "preserved": true
+    },
+    "forbiddenActionsPerformed": []
+  },
+  "logs": {
+    "fullDiff": "logs/quality-gate-main-head.diff",
+    "batchDiff": "logs/quality-gate-batch.diff"
+  }
+}

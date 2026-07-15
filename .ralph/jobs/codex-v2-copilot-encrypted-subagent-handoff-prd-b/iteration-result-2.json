@@ -1,0 +1,50 @@
+{
+  "storyId": "US-002",
+  "verifiedEvidence": [
+    {
+      "criterion": "Update publish-sandbox-patch.md with just test, project-relative scratch/evidence, canonical mirrors, exact candidate approval, and release gates",
+      "evidenceKind": "passed",
+      "command": "PowerShell structural probe plus bash -n over all fenced bash blocks",
+      "result": "JustTest/ProjectScratch/ProjectEvidence/NoTmp/Origin/Work/Personal/ExactApproval/Ancestry/Equality were all True; bash -n accepted all 17 bash blocks"
+    },
+    {
+      "criterion": "Remove package-write permission, registry authentication, and package publication while retaining tag bundle upload",
+      "evidenceKind": "passed",
+      "command": "PyYAML parse and PowerShell workflow structural probe of .github/workflows/publish-npm.yml",
+      "result": "Parsed workflow release-bundle with v* tag trigger, contents: write only, release-bundle concurrency, bundle build, and GitHub Release upload; NoRegistryAuth=True and NoPublish=True"
+    },
+    {
+      "criterion": "Remove active package-registry and split-package guidance without release execution",
+      "evidenceKind": "absent-verified",
+      "command": "Active-surface scan plus git show --name-only HEAD and git tag --points-at HEAD",
+      "result": "0 active banned publication instructions; no Cargo/package manifest changed; no tag points at commit 66261138e18b276179b533bf95791dba4dd7e685"
+    },
+    {
+      "criterion": "Case-insensitive active-surface scan finds no banned publication instructions",
+      "evidenceKind": "absent-verified",
+      "command": "rg -n -i across .github/workflows/**, .claude/commands/**, AGENTS.md, CLAUDE.md, and docs/workflows/** with historical-note filtering",
+      "result": "PASS: 0 active banned publication instructions"
+    },
+    {
+      "criterion": "Structural checks retain tag-triggered GitHub Release behavior and prove command mirror/scratch requirements",
+      "evidenceKind": "passed",
+      "command": "PowerShell structural probes of publish-npm.yml and publish-sandbox-patch.md",
+      "result": "Workflow TagTrigger/ContentsWriteOnly/BundleBuild/ReleaseUpload/NoRegistryAuth/NoPublish all True; command JustTest/ProjectScratch/ProjectEvidence/NoTmp/Origin/Work/Personal/ExactApproval/Ancestry/Equality all True"
+    },
+    {
+      "criterion": "Only allowed wrapper paths change; nested source stays clean and gitlink unstaged",
+      "evidenceKind": "passed",
+      "command": "git show --name-only HEAD; git -C external/repos/codex-patched status --short; git diff --cached/--name-only -- external/repos/codex-patched",
+      "result": "Commit changes only .claude/commands/publish-sandbox-patch.md, .github/workflows/publish-npm.yml, CLAUDE.md, and docs/workflows/install.md; nested tree clean at 6d73e16c44d65ac243834a942d7fab2c3b279221; gitlink only unstaged"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "evidenceKind": "passed",
+      "command": "PyYAML safe_load of publish-npm.yml and bash -n of all publish-sandbox-patch.md bash blocks",
+      "result": "Workflow parsed successfully with expected keys; bash -n accepted all 17 bash blocks"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "66261138e18b276179b533bf95791dba4dd7e685"
+}

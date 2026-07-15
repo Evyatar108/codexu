@@ -1,0 +1,87 @@
+$env:RUST_MIN_STACK = "8388608"; $env:NEXTEST_PROFILE = "local"; cargo nextest run --no-fail-fast @($args | Select-Object -Skip 1)
+   Compiling aws-lc-sys v0.39.0
+   Compiling aws-lc-rs v1.16.2
+   Compiling rustls v0.23.36
+   Compiling rustls-webpki v0.103.13
+   Compiling tokio-rustls v0.26.4
+   Compiling hyper-rustls v0.27.7
+   Compiling reqwest v0.12.28
+   Compiling x509-parser v0.18.1
+   Compiling codex-utils-rustls-provider v0.141.0-copilot-api.3 (D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\utils\rustls-provider)
+   Compiling rcgen v0.14.7
+   Compiling rama-tls-rustls v0.3.0-alpha.4
+   Compiling codex-network-proxy v0.141.0-copilot-api.3 (D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\network-proxy)
+   Compiling codex-protocol v0.141.0-copilot-api.3 (D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\protocol)
+   Compiling tungstenite v0.27.0 (https://github.com/openai-oss-forks/tungstenite-rs?rev=9200079d3b54a1ff51072e24d81fd354f085156f#9200079d)
+   Compiling codex-client v0.141.0-copilot-api.3 (D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\codex-client)
+   Compiling tonic v0.14.3
+   Compiling codex-copilot v0.141.0-copilot-api.3 (D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\codex-rs-overlay\codex-copilot)
+   Compiling tokio-tungstenite v0.28.0 (https://github.com/openai-oss-forks/tokio-tungstenite?rev=132f5b39c862e3a970f731d709608b3e6276d5f6#132f5b39)
+   Compiling codex-api v0.141.0-copilot-api.3 (D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\codex-api)
+   Compiling codex-shell-command v0.141.0-copilot-api.3 (D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\shell-command)
+memory allocation of 2097152 bytes failed
+stack backtrace:
+   0:     0x7fff1a183d70 - std::backtrace_rs::backtrace::win64::trace
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\..\..\backtrace\src\backtrace\win64.rs:85
+   1:     0x7fff1a183d70 - std::backtrace_rs::backtrace::trace_unsynchronized
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\..\..\backtrace\src\backtrace\mod.rs:66
+   2:     0x7fff1a183d70 - std::sys::backtrace::_print_fmt
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\sys\backtrace.rs:74
+   3:     0x7fff1a183d70 - std::sys::backtrace::impl$0::print::impl$0::fmt
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\sys\backtrace.rs:44
+   4:     0x7fff1a1abc61 - core::fmt::write
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\core\src\fmt\mod.rs:0
+   5:     0x7fff1a1940e4 - std::io::default_write_fmt
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\io\mod.rs:639
+   6:     0x7fff1a1940e4 - std::io::Write::write_fmt<std::sys::stdio::windows::Stderr>
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\io\mod.rs:1994
+   7:     0x7fff1a176f22 - std::sys::backtrace::BacktraceLock::print
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\sys\backtrace.rs:47
+   8:     0x7fff1a176f22 - std::alloc::default_alloc_error_hook
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\alloc.rs:397
+   9:     0x7fff1a15ca8c - std::alloc::rust_oom::closure$0
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\alloc.rs:428
+  10:     0x7fff1a15a14f - std::sys::backtrace::__rust_end_short_backtrace<std::alloc::rust_oom::closure_env$0,never$>
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\sys\backtrace.rs:182
+  11:     0x7fff1a176fbb - std::alloc::rust_oom
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\alloc.rs:424
+  12:     0x7fff1a15d9e8 - std::alloc::_::__rust_alloc_error_handler
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\alloc.rs:423
+  13:     0x7fff1e414a69 - alloc::alloc::handle_alloc_error::rt_error
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\alloc\src\alloc.rs:531
+  14:     0x7fff1e414a69 - alloc::alloc::handle_alloc_error
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\alloc\src\alloc.rs:537
+  15:     0x7fff1e414a83 - alloc::raw_vec::handle_error
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\alloc\src\raw_vec\mod.rs:888
+  16:     0x7fff1b8d4b40 - <rustc_arena[fee581958cca9725]::DroplessArena>::grow
+  17:     0x7fff1b791669 - <rustc_middle[508bed62f7e3701]::ty::context::CtxtInterners>::intern_predicate
+  18:     0x7fff1b378b72 - <rustc_infer[b45a7fc8706c17a2]::infer::canonical::instantiate::CanonicalInstantiator as rustc_type_ir[b983a86ba3b65ef9]::fold::TypeFolder<rustc_middle[508bed62f7e3701]::ty::context::TyCtxt>>::fold_predicate
+  19:     0x7fff1aa6ac77 - rustc_traits[e4ff2158e3f6ad4a]::type_op::type_op_prove_predicate
+  20:     0x7fff1b022c1b - rustc_query_impl[92b76e72f256e1cb]::plumbing::query_key_hash_verify_all
+  21:     0x7fff1afaf251 - RINvMs6_NtCsmxeZUtwRFb_9hashbrown3rawINtB6_8RawTableTINtNtCsfVugF0hdaZx_13rustc_type_ir14predicate_kind13PredicateKindNtNtNtCsqNoC513Zhl_12rustc_middle2ty7context6TyCtxtEjEE14reserve_rehashNCINvNtB8_3map11make_hasherBP_jNtCs4ZHkamydDb0_10rustc_hash13FxBuil
+  22:     0x7fff1b022cb8 - rustc_query_impl[92b76e72f256e1cb]::plumbing::query_key_hash_verify_all
+  23:     0x7fff1b2c34c4 - <rustc_middle[508bed62f7e3701]::traits::query::type_op::ProvePredicate as rustc_trait_selection[1efb29698e4eb8c6]::traits::query::type_op::QueryTypeOp>::perform_query
+  24:     0x7fff1a9f009c - <rustc_borrowck[745fff9ea87ff27c]::type_check::TypeChecker as rustc_middle[508bed62f7e3701]::mir::visit::Visitor>::visit_body
+  25:     0x7fff1a9c7d94 - <alloc[e793556788e598e]::rc::Rc<rustc_mir_dataflow[fb2e9352bad58b2e]::points::DenseLocationMap>>::drop_slow
+  26:     0x7fff1a957929 - rustc_borrowck[745fff9ea87ff27c]::mir_borrowck
+  27:     0x7fff1a8f6b13 - rustc_borrowck[745fff9ea87ff27c]::mir_borrowck
+  28:     0x7fff1b01676b - rustc_query_impl[92b76e72f256e1cb]::plumbing::query_key_hash_verify_all
+  29:     0x7fff1af34001 - RINvMs6_NtCsmxeZUtwRFb_9hashbrown3rawINtB6_8RawTableTINtNtCsfVugF0hdaZx_13rustc_type_ir14predicate_kind13PredicateKindNtNtNtCsqNoC513Zhl_12rustc_middle2ty7context6TyCtxtEjEE14reserve_rehashNCINvNtB8_3map11make_hasherBP_jNtCs4ZHkamydDb0_10rustc_hash13FxBuil
+  30:     0x7fff1b0167ef - rustc_query_impl[92b76e72f256e1cb]::plumbing::query_key_hash_verify_all
+  31:     0x7fff1a1dd06b - rustc_interface[f424b11e141aa742]::passes::analysis
+  32:     0x7fff19c97f9a - rustc_query_impl[92b76e72f256e1cb]::plumbing::encode_all_query_results
+  33:     0x7fff19b5aaf0 - <<rustc_ty_utils[6b5c08bf4099cddc]::opaque_types::OpaqueTypeCollector>::collect_taits_declared_in_body::TaitInBodyFinder as rustc_hir[2574b6166bceac22]::intravisit::Visitor>::visit_nested_item
+  34:     0x7fff19c98000 - rustc_query_impl[92b76e72f256e1cb]::plumbing::encode_all_query_results
+  35:     0x7fff1749ada7 - std[d99d321fffadf0e]::sys::backtrace::__rust_begin_short_backtrace::<std[d99d321fffadf0e]::thread::lifecycle::spawn_unchecked<ctrlc[8d4ba2a38fd62187]::set_handler_inner<rustc_driver_impl[ec820b8c445af180]::install_ctrlc_handler::{closure#0}>::{closure#0}, ()>::{closure#1}::{closure#0}::{closure#0}, ()>
+  36:     0x7fff17494cb1 - RINvNtNtCs1aoCESei0z2_3std3sys9backtrace28___rust_begin_short_backtraceNCNCINvNtCskXzi1fhPsgo_15rustc_interface4util26run_in_thread_with_globalsNCINvB1e_31run_in_thread_pool_with_globalsNCINvNtB1g_9interface12run_compileruNCNvCskiVrmKtmSOG_17rustc_driver_i
+  37:     0x7fff1749fc1a - std[d99d321fffadf0e]::sys::backtrace::__rust_begin_short_backtrace::<std[d99d321fffadf0e]::thread::lifecycle::spawn_unchecked<ctrlc[8d4ba2a38fd62187]::set_handler_inner<rustc_driver_impl[ec820b8c445af180]::install_ctrlc_handler::{closure#0}>::{closure#0}, ()>::{closure#1}::{closure#0}::{closure#0}, ()>
+  38:     0x7fff1a18109c - std::sys::thread::windows::impl$0::new::thread_start
+                               at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library\std\src\sys\thread\windows.rs:58
+  39:     0x7ff890c1e957 - BaseThreadInitThunk
+  40:     0x7ff891ba7c1c - RtlUserThreadStart
+error: could not compile `codex-shell-command` (lib)
+
+Caused by:
+  process didn't exit successfully: `sccache 'C:\Users\evmitran\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\rustc.exe' --crate-name codex_shell_command --edition=2024 'shell-command\src\lib.rs' --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=1 '--deny=clippy::unwrap_used' '--deny=clippy::unnecessary_to_owned' '--deny=clippy::unnecessary_sort_by' '--deny=clippy::unnecessary_lazy_evaluations' '--deny=clippy::unnecessary_filter_map' '--deny=clippy::uninlined_format_args' '--deny=clippy::trivially_copy_pass_by_ref' '--deny=clippy::redundant_static_lifetimes' '--deny=clippy::redundant_closure_for_method_calls' '--deny=clippy::redundant_closure' '--deny=clippy::redundant_clone' '--deny=clippy::needless_update' '--deny=clippy::needless_question_mark' '--deny=clippy::needless_option_as_deref' '--deny=clippy::needless_late_init' '--deny=clippy::needless_collect' '--deny=clippy::needless_borrowed_reference' '--deny=clippy::needless_borrow' '--deny=clippy::manual_unwrap_or' '--deny=clippy::manual_try_fold' '--deny=clippy::manual_strip' '--deny=clippy::manual_retain' '--deny=clippy::manual_range_contains' '--deny=clippy::manual_ok_or' '--deny=clippy::manual_non_exhaustive' '--deny=clippy::manual_memcpy' '--deny=clippy::manual_map' '--deny=clippy::manual_flatten' '--deny=clippy::manual_find' '--deny=clippy::manual_filter' '--deny=clippy::manual_clamp' '--deny=clippy::identity_op' '--deny=clippy::expect_used' '--deny=clippy::await_holding_lock' '--deny=clippy::await_holding_invalid_type' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=3976dcf83f13ca15 -C extra-filename=-12c27e2f827a55cf --out-dir 'D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps' -C linker=lld-link -L 'dependency=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps' --extern 'base64=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libbase64-c63d1f88833b1de6.rmeta' --extern 'codex_protocol=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libcodex_protocol-ae0cf3f4d723e266.rmeta' --extern 'codex_utils_absolute_path=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libcodex_utils_absolute_path-9da2a093de8349c1.rmeta' --extern 'libc=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\liblibc-ecc869e9a94fd2ec.rmeta' --extern 'once_cell=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libonce_cell-3b35451c57349edc.rmeta' --extern 'regex=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libregex-02c55e22de66bbdb.rmeta' --extern 'serde=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libserde-3fe1dc193ca555c0.rmeta' --extern 'serde_json=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libserde_json-8e62aa200b000e6f.rmeta' --extern 'shlex=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libshlex-0b4bf16be3e7579d.rmeta' --extern 'tree_sitter=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libtree_sitter-8303ae994f9df6f0.rmeta' --extern 'tree_sitter_bash=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libtree_sitter_bash-c537a652b6037a52.rmeta' --extern 'url=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\liburl-e73281ffde6da94b.rmeta' --extern 'which=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\deps\libwhich-f551a8c9482b44d4.rmeta' -C 'link-arg=/STACK:8388608' -C target-feature=+crt-static -L 'native=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\build\blake3-ea4c91d7366d615c\out' -L 'native=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\build\blake3-ea4c91d7366d615c\out' -L 'native=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\build\aws-lc-sys-8afb8d5fa953d624\out' -L 'native=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\build\ring-d5dd5db951275d20\out' -L 'native=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\build\libz-sys-53e8c20b0d198174\out\lib' -L 'native=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\build\libz-sys-53e8c20b0d198174\out\lib' -L 'native=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\build\tree-sitter-f7d430ff7938ea0e\out' -L 'native=D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\target\debug\build\tree-sitter-bash-f58092e7ea66314e\out' -L 'native=C:\Users\evmitran\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows_x86_64_msvc-0.52.6\lib' -L 'native=C:\Users\evmitran\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows_x86_64_msvc-0.48.5\lib'` (exit code: 0xc0000409, STATUS_STACK_BUFFER_OVERRUN)
+error: command `'C:\Users\evmitran\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\cargo.exe' test --no-run --message-format json-render-diagnostics --package codex-model-provider` exited with code 101
+error: recipe `test` failed on line 82 with exit code 1

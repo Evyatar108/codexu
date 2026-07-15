@@ -9,13 +9,6 @@ Implement only the Codex wrapper-owned surface for parent US-004 and the static 
 
 This execution unit ends with a reviewed local wrapper commit and immutable receipt payload. It does not modify nested Rust source, stage the nested gitlink, bump versions, build/publish a release, push, tag, install, generate release evidence, mutate codexu, or run installed dogfood.
 
-Scope correction (2026-07-14): independent receipt verification proved that
-nine coupled active docs could not remain read-only while also satisfying the
-required clean-docs invariant. The write scope therefore expands from eight to
-seventeen paths to include the architecture, endpoint-mapping, verification,
-root install, active rebase, agent-guidance, and active index/topology
-surfaces. No test, review, publication, or nested-source boundary is relaxed.
-
 ## Execution Contract
 
 - **Exact target repository:** `D:\harness-efforts\codexu\codex`
@@ -105,25 +98,18 @@ All paths are relative to the exact target repository.
 - `CLAUDE.md`
 - `docs/workflows/install.md`
 - `docs/workflows/developer-guide.md`
-- `docs/implementation/architecture.md`
-- `docs/implementation/model-endpoint-mapping.md`
-- `.claude/commands/verify.md`
-- `README.md`
-- `.claude/commands/rebase-upstream.md`
-- `AGENTS.override.md`
-- `docs/README.md`
-- `docs/workflows/repo-topology.md`
-- `docs/workflows/submodule-migration.md`
 - `.claude/commands/publish-sandbox-patch.md`
 - `.github/workflows/publish-npm.yml`
 
 ### Read-only references
 
 - `external/repos/codex-patched/**` at PRD A's exact receipt SHA
+- `.claude/commands/verify.md`
 - `scripts/iteration-env.sh`
 - `scripts/audit_invariants.sh`
 - `scripts/audit_network_calls.sh`
 - `docs/implementation/build-perf.md`
+- `docs/implementation/architecture.md`
 - `docs/workflows/repo-topology.md`
 - `AGENTS.md`
 

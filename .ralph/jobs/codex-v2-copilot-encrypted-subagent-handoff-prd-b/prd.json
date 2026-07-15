@@ -1,0 +1,181 @@
+{
+  "project": "Codex Wrapper Invariants, Documentation, and Release Readiness",
+  "description": "Register and document the provider-aware V2 handoff and exact-wait fork patch, then make the Codex wrapper's release command and GitHub Release workflow statically ready without changing nested source or performing release operations.",
+  "deslop": true,
+  "uiUxJudgment": "not-required",
+  "overviewTaskId": "codex-v2-copilot-encrypted-subagent-handoff",
+  "jobDir": "D:/harness-efforts/codexu/.ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-b",
+  "repoDir": "D:/harness-efforts/codexu/codex",
+  "branch": {
+    "name": "ralph/codex-v2-copilot-encrypted-subagent-handoff",
+    "created": true
+  },
+  "worktree": {
+    "path": "D:/harness-efforts/codexu/codex/.worktrees/codex-v2-copilot-encrypted-subagent-handoff",
+    "branch": "ralph/codex-v2-copilot-encrypted-subagent-handoff",
+    "startPoint": "89a6cbea7cd382fa4873b259fb996dcf988a5fdc",
+    "external": true
+  },
+  "additionalDirs": [
+    "D:/harness-efforts/codexu/codex/.worktrees/codex-v2-copilot-encrypted-subagent-handoff/external/repos/codex-patched"
+  ],
+  "sourcePlan": "D:/harness-efforts/codexu/.ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/scoped-plans/codex-wrapper-plan.md",
+  "writeScope": [
+    "codex-rs-overlay/codex-invariant-tests/tests/multi_agent_v2_handoff.rs",
+    "docs/implementation/patch-surface.md",
+    "docs/implementation/regression-history.md",
+    "CLAUDE.md",
+    "docs/workflows/install.md",
+    "docs/workflows/developer-guide.md",
+    "docs/implementation/architecture.md",
+    "docs/implementation/model-endpoint-mapping.md",
+    ".claude/commands/verify.md",
+    "README.md",
+    ".claude/commands/rebase-upstream.md",
+    "AGENTS.override.md",
+    "docs/README.md",
+    "docs/workflows/repo-topology.md",
+    "docs/workflows/submodule-migration.md",
+    ".claude/commands/publish-sandbox-patch.md",
+    ".github/workflows/publish-npm.yml"
+  ],
+  "readOnlyContext": [
+    "external/repos/codex-patched/**"
+  ],
+  "immutableInputs": {
+    "wrapperStartSha": "89a6cbea7cd382fa4873b259fb996dcf988a5fdc",
+    "predecessorReceiptPath": "D:/harness-efforts/codexu/.ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/receipts/prd-a-nested-source.json",
+    "predecessorReceiptSha256": "46a311b9c6a46972a06d0eb8d3a51de2b52bb49ac4e9e6c579f620bce5753c70",
+    "nestedFinalSha": "6d73e16c44d65ac243834a942d7fab2c3b279221"
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "sourceStoryId": "B-001",
+      "title": "B-001 — Register and document the fork patch",
+      "description": "As a Codex fork maintainer, I want the provider-aware V2 handoff and exact-wait source changes enforced and documented at the wrapper layer so that future rebases and operators preserve the reviewed behavior.",
+      "uiUxJudgment": "not-required",
+      "acceptanceCriteria": [
+        "Create `codex-rs-overlay/codex-invariant-tests/tests/multi_agent_v2_handoff.rs` as one fork-exclusive structural invariant test covering provider capability defaults and the Copilot override, one provider-derived V2 schema/runtime encoding, truthful spawn/send/follow-up communication constructors, the exact subscribe-before-read wait shape, both marker families, and the `multi_agents_spec.rs` maximum of 800 lines.",
+        "The invariant test fails on missing, duplicate, or conflicting logical-block markers and proves every expected PRD A source seam has exactly one applicable `// SANDBOX PATCH: provider-aware-v2-handoff` or `// SANDBOX PATCH: exact-v2-wait` marker.",
+        "Update `docs/implementation/patch-surface.md` section 14 with the two reviewed invariants using IDs 76 and 77 unless a fresh probe proves either ID occupied, and add complete section 15 replant instructions.",
+        "Update `docs/implementation/regression-history.md` with the `.3` opaque Copilot-child and already-final wait failures, `.4` behavior, required evidence, rollback pins, and forward-fix policy.",
+        "Update `CLAUDE.md`, `docs/workflows/install.md`, and `docs/workflows/developer-guide.md` so runtime/build guidance describes direct GitHub Release tarball installation and the four Codex binaries plus `rg.exe` without reviving package-registry guidance.",
+        "`just test -p codex-invariant-tests --test multi_agent_v2_handoff`, `bash scripts/audit_invariants.sh`, and `bash scripts/audit_network_calls.sh` exit 0 against nested commit `6d73e16c44d65ac243834a942d7fab2c3b279221`.",
+        "Only paths in the seventeen-entry top-level `writeScope` change; `external/repos/codex-patched/**` stays read-only, its inner tree stays clean, and the wrapper gitlink advance remains unstaged.",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "blocked": false,
+      "notes": "One-iteration scope for source story B-001. Preserve the verified PRD A receipt and the existing external wrapper worktree.",
+      "verifiedEvidence": [
+        {
+          "criterion": "Create the fork-exclusive structural invariant test covering provider-aware handoff, exact wait, marker families, and the 800-line cap",
+          "command": "source scripts/iteration-env.sh && cd external/repos/codex-patched/codex-rs && just test -p codex-invariant-tests --test multi_agent_v2_handoff",
+          "result": "2 passed, 0 failed; invariant 76 covered provider defaults/Copilot override/schema-runtime encoding/constructors and invariant 77 covered subscribe-before-read exact wait; multi_agents_spec.rs was 629 lines"
+        },
+        {
+          "criterion": "Reject missing, duplicate, or conflicting logical-block markers",
+          "command": "just test -p codex-invariant-tests --test multi_agent_v2_handoff",
+          "result": "2 passed, 0 failed; exact per-file inventory asserted 31 provider-aware markers and 16 exact-wait markers with block ownership and cross-family conflict rejection"
+        },
+        {
+          "criterion": "Register invariants 76 and 77 with complete section 15 replant instructions",
+          "command": "PowerShell structural probe of docs/implementation/patch-surface.md",
+          "result": "Exactly one row each for IDs 76 and 77; both named replant sections present"
+        },
+        {
+          "criterion": "Document .3 regressions, .4 behavior, evidence, rollback pins, and forward-fix policy",
+          "command": "PowerShell structural probe of docs/implementation/regression-history.md",
+          "result": "The v0.141.0-copilot-api.3 regression entry and v0.141.0-copilot-api.4 fix text are present with evidence, immutable pins, containment, rollback, and forward-fix policy"
+        },
+        {
+          "criterion": "Update runtime/install/developer guidance for direct GitHub Release tarball installation and five shipped files",
+          "command": "PowerShell documentation probe across CLAUDE.md and docs/workflows/{install,developer-guide}.md",
+          "result": "GitHub Release guidance present; codex.exe, codex-core.exe, codex-windows-sandbox-setup.exe, codex-command-runner.exe, and rg.exe all documented"
+        },
+        {
+          "criterion": "Focused invariant test and both audits pass at nested commit 6d73e16c44d65ac243834a942d7fab2c3b279221",
+          "command": "just test -p codex-invariant-tests --test multi_agent_v2_handoff; scripts/audit_invariants.sh; scripts/audit_network_calls.sh",
+          "result": "All exited 0; invariant tests 2 passed; network audit patched 22/22 with zero new endpoint/IP/IPC/no_proxy findings"
+        },
+        {
+          "criterion": "Only allowed wrapper paths change; nested tree stays clean and gitlink remains unstaged",
+          "command": "git show --stat HEAD; git -C external/repos/codex-patched status --short; git diff --cached --name-only -- external/repos/codex-patched; git diff --name-only -- external/repos/codex-patched",
+          "result": "Commit 7c0b978f942fac3aa748396d437618eaf321892e contains six allowed wrapper paths; inner status empty; gitlink absent from index and present only as the expected unstaged advance"
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "source scripts/iteration-env.sh && cd external/repos/codex-patched/codex-rs && just test -p codex-invariant-tests --test multi_agent_v2_handoff",
+          "result": "Rust test profile compiled successfully and ran 2 tests: 2 passed, 0 failed"
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-002",
+      "sourceStoryId": "B-002",
+      "title": "B-002 — Make the release workflow statically ready",
+      "description": "As a Codex release maintainer, I want the authoritative release command and workflow to be GitHub-Releases-only and candidate-bound so that later lead-owned publication cannot accidentally use stale package-registry paths.",
+      "uiUxJudgment": "not-required",
+      "acceptanceCriteria": [
+        "Update `.claude/commands/publish-sandbox-patch.md` to use `just test`, project-relative scratch and evidence paths, canonical `origin`, `work`, and `personal` mirror checks, exact candidate approval, and fast-forward, equality, and ancestry gates before release actions.",
+        "Update `.github/workflows/publish-npm.yml` to remove package-write permission, registry authentication, and `npm publish` while retaining tag-triggered bundle construction and GitHub Release upload.",
+        "Remove active GitHub Packages, package-registry alternative, and split-package guidance from active wrapper documentation without performing a version bump, build, push, tag, release upload, installation, or dogfood run.",
+        "A case-insensitive scan across `.github/workflows/**`, `.claude/commands/**`, `AGENTS.md`, `CLAUDE.md`, and `docs/workflows/**` finds no active `npm publish`, `npm.pkg.github.com`, `packages: write`, `GitHub Packages`, `read:packages`, registry-alternative, or split-package instruction.",
+        "Structural checks prove `publish-npm.yml` remains a tag-triggered bundle/GitHub Release workflow and `publish-sandbox-patch.md` contains no `/tmp` path and uses all three canonical wrapper mirrors.",
+        "Only paths in the seventeen-entry top-level `writeScope` change; `external/repos/codex-patched/**` stays read-only, its inner tree stays clean, and the wrapper gitlink advance remains unstaged.",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "blocked": false,
+      "notes": "One-iteration scope for source story B-002. Release execution and publication remain lead/operator-owned.",
+      "verifiedEvidence": [
+        {
+          "criterion": "Update publish-sandbox-patch.md with just test, project-relative scratch/evidence, canonical mirrors, exact candidate approval, and release gates",
+          "command": "PowerShell structural probe plus bash -n over all fenced bash blocks",
+          "result": "JustTest/ProjectScratch/ProjectEvidence/NoTmp/Origin/Work/Personal/ExactApproval/Ancestry/Equality were all True; bash -n accepted all 17 bash blocks"
+        },
+        {
+          "criterion": "Remove package-write permission, registry authentication, and package publication while retaining tag bundle upload",
+          "command": "PyYAML parse and PowerShell workflow structural probe of .github/workflows/publish-npm.yml",
+          "result": "Parsed workflow release-bundle with v* tag trigger, contents: write only, release-bundle concurrency, bundle build, and GitHub Release upload; NoRegistryAuth=True and NoPublish=True"
+        },
+        {
+          "criterion": "Remove active package-registry and split-package guidance without release execution",
+          "command": "Active-surface scan plus git show --name-only HEAD and git tag --points-at HEAD",
+          "result": "0 active banned publication instructions; no Cargo/package manifest changed; no tag points at commit 66261138e18b276179b533bf95791dba4dd7e685"
+        },
+        {
+          "criterion": "Case-insensitive active-surface scan finds no banned publication instructions",
+          "command": "rg -n -i across .github/workflows/**, .claude/commands/**, AGENTS.md, CLAUDE.md, and docs/workflows/** with historical-note filtering",
+          "result": "PASS: 0 active banned publication instructions"
+        },
+        {
+          "criterion": "Structural checks retain tag-triggered GitHub Release behavior and prove command mirror/scratch requirements",
+          "command": "PowerShell structural probes of publish-npm.yml and publish-sandbox-patch.md",
+          "result": "Workflow TagTrigger/ContentsWriteOnly/BundleBuild/ReleaseUpload/NoRegistryAuth/NoPublish all True; command JustTest/ProjectScratch/ProjectEvidence/NoTmp/Origin/Work/Personal/ExactApproval/Ancestry/Equality all True"
+        },
+        {
+          "criterion": "Only allowed wrapper paths change; nested source stays clean and gitlink unstaged",
+          "command": "git show --name-only HEAD; git -C external/repos/codex-patched status --short; git diff --cached/--name-only -- external/repos/codex-patched",
+          "result": "Commit changes only .claude/commands/publish-sandbox-patch.md, .github/workflows/publish-npm.yml, CLAUDE.md, and docs/workflows/install.md; nested tree clean at 6d73e16c44d65ac243834a942d7fab2c3b279221; gitlink only unstaged"
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "PyYAML safe_load of publish-npm.yml and bash -n of all publish-sandbox-patch.md bash blocks",
+          "result": "Workflow parsed successfully with expected keys; bash -n accepted all 17 bash blocks"
+        }
+      ],
+      "dependencies": [
+        "US-001"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    }
+  ]
+}

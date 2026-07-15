@@ -1,0 +1,1207 @@
+diff --git a/.claude/commands/publish-sandbox-patch.md b/.claude/commands/publish-sandbox-patch.md
+index 5aa4ea13f1..41bc4d8550 100644
+--- a/.claude/commands/publish-sandbox-patch.md
++++ b/.claude/commands/publish-sandbox-patch.md
+@@ -11,12 +11,17 @@ For rebasing onto a NEW upstream release tag, use `/rebase-upstream` instead.
+ 
+ No argument. The skill bumps the suffix on the current `[workspace.package] version` in `external/repos/codex-patched/codex-rs/Cargo.toml`, rebuilds the shipped binaries, commits and pushes inside the `external/repos/codex-patched` submodule, commits the wrapper gitlink update, tags, pushes, and uploads a self-contained tarball to a new GitHub Release.
+ 
+-**Distribution model**: GitHub Releases only. We do NOT publish to GitHub Packages (npm) — users install the release-bundle tarball directly via `npm install -g <tarball>`. Don't reintroduce `npm publish` to `npm.pkg.github.com`.
++**Distribution model**: one merged tarball attached to the wrapper's GitHub
++Release. Users download that exact asset and install it with
++`npm install -g <tarball>`; no second publication channel exists.
+ 
+ ## Preconditions
+ 
+ - Local fix is already committed. The wrapper tracked files (other than the expected `external/repos/codex-patched` gitlink advance) and inner submodule working tree must be clean before the version bump/build; Step 0 enforces this.
+-- `gh` is authenticated as an account with `repo` scope and push access to `gim-home/codex` for wrapper pushes and the `codex-patched` remote for archival release tags. Verify: `gh auth status`. Switch with `gh auth switch -u <user>` before each remote family. No `write:packages` scope needed — we don't publish to GitHub Packages.
++- `gh` is authenticated as an account with `repo` scope and push access to
++  `gim-home/codex`, `evmitran_microsoft/codex`, `Evyatar108/codex`, and the
++  `codex-patched` fork. Verify with `gh auth status`; switch accounts before
++  each remote family with `gh auth switch -u <user>`.
+ - `~/.xwin/{crt,sdk}` is populated (`xwin splat --output ~/.xwin`).
+ - `~/.cargo/.rusty_v8/rusty_v8_release_x86_64-pc-windows-msvc_v<V8>.lib` matches the `v8 = "=<V8>"` pin in `codex-rs/Cargo.toml`.
+ - LLVM is at `C:\Program Files\LLVM\bin\` (`clang-cl`, `lld-link`).
+@@ -269,21 +274,21 @@ Launcher tests against the patched workspace:
+ 
+ ```bash
+ cd external/repos/codex-patched/codex-rs
+-cargo test -p codex-copilot-launcher
++just test -p codex-copilot-launcher
+ ```
+ 
+ **Network audits are NOT part of this flow.** Both `scripts/audit_network_calls.sh` (static patch-surface scan) and `scripts/runtime_audit.ps1` (live ETW trace) validate that the patched source still has no unpatched network sites and that the running binary only talks to the expected hosts. Those invariants are upstream-shape concerns — they can only change when the submodule source changes. A sandbox patch release normally modifies only the version files and release-specific overlay or fork code, so the audits would run against seams the previous release already cleared. Run them at `/rebase-upstream` time, when upstream seams may have moved; skip them here unless this release edits upstream-canonical network or auth paths.
+ 
+ If a sandbox patch DOES touch upstream-canonical files (rare — fork-tenet 1 directs every change to overlay crates first), run the audits manually before tagging to confirm the new edit didn't introduce an unpatched call site. The skill default assumes overlay-only or fork-internal edits.
+ 
+-### 4. Commit + tag + push
++### 4. Create, approve, and publish the exact release candidate
+ 
+-The retention tag on `codex-patched` must be created and verified **before** the wrapper tag is
+-pushed to `origin`. Creating it first ensures the referenced `SUBMODULE_SHA` is reachable on
+-`codex-patched` before the public wrapper release advertises it; a failure in the tagging step
+-aborts cleanly without leaving a public wrapper release that is missing its archival anchor.
++All commits are created locally first. No branch, tag, or release write is
++allowed until the candidate SHAs pass the ancestry/equality gates and the
++operator types the exact approval string. The retention tag on
++`codex-patched` is then published and verified before the public wrapper tag.
+ 
+-#### 4a. Commit inside the submodule and derive the paired codex-patched SHA
++#### 4a. Commit inside the submodule and derive its candidate SHA
+ 
+ Release source changes that live under `external/repos/codex-patched/` must be committed inside the
+ submodule first. The wrapper commit comes later and should record only the updated gitlink plus any
+@@ -297,19 +302,75 @@ git commit -m "fix(release): <one-line summary>
+ <body explaining the bug + why the fix works>
+ 
+ Bump workspace version to ${NEW_VERSION}."
+-git push origin HEAD:sandbox-patches
++SUBMODULE_SHA=$(git rev-parse HEAD)
++test -n "$SUBMODULE_SHA" || { echo "ERROR: no submodule candidate SHA found" >&2; exit 1; }
++
++# Fast-forward gate: the local candidate must descend from the published branch.
++git fetch origin sandbox-patches
++SUBMODULE_BASE_SHA=$(git rev-parse refs/remotes/origin/sandbox-patches)
++git merge-base --is-ancestor "$SUBMODULE_BASE_SHA" "$SUBMODULE_SHA" || {
++  echo "ERROR: submodule candidate is not a fast-forward of origin/sandbox-patches" >&2
++  exit 1
++}
+ cd <MAIN_REPO>
+ ```
+ 
+-Stage the wrapper gitlink and derive the archival SHA from the checked-out submodule commit:
++Stage the wrapper gitlink and prove it equals the submodule candidate:
+ 
+ ```bash
+ git add external/repos/codex-patched
+-SUBMODULE_SHA=$(git -C external/repos/codex-patched rev-parse HEAD)
+-test -n "$SUBMODULE_SHA" || { echo "ERROR: no submodule HEAD found"; exit 1; }
++test "$(git -C external/repos/codex-patched rev-parse HEAD)" = "$SUBMODULE_SHA" || {
++  echo "ERROR: checked-out submodule SHA changed after candidate creation" >&2
++  exit 1
++}
+ ```
+ 
+-#### 4b. Create + verify the retention tag on codex-patched
++#### 4b. Commit the wrapper candidate and gate all three mirrors
++
++The wrapper candidate records the exact submodule SHA. Require the canonical
++remote names and URLs, fetch every `main`, and prove every mirror can
++fast-forward to the same candidate before asking for approval.
++
++```bash
++cd <MAIN_REPO>
++git add external/repos/codex-patched <any wrapper-owned changed files>
++git commit -m "fix(release): <one-line summary>
++
++<body explaining the submodule release commit and wrapper gitlink update>"
++
++test "$(git branch --show-current)" = main || {
++  echo "ERROR: wrapper release candidate must be committed on main" >&2
++  exit 1
++}
++WRAPPER_CANDIDATE_SHA=$(git rev-parse HEAD)
++test "$(git rev-parse "${WRAPPER_CANDIDATE_SHA}:external/repos/codex-patched")" = "$SUBMODULE_SHA" || {
++  echo "ERROR: wrapper candidate gitlink does not equal $SUBMODULE_SHA" >&2
++  exit 1
++}
++
++test "$(git remote get-url origin)" = "https://github.com/gim-home/codex.git" || exit 1
++test "$(git remote get-url work)" = "https://github.com/evmitran_microsoft/codex.git" || exit 1
++test "$(git remote get-url personal)" = "https://github.com/Evyatar108/codex.git" || exit 1
++
++for remote in origin work personal; do
++  git fetch "$remote" main
++  REMOTE_MAIN_SHA=$(git rev-parse "refs/remotes/${remote}/main")
++  git merge-base --is-ancestor "$REMOTE_MAIN_SHA" "$WRAPPER_CANDIDATE_SHA" || {
++    echo "ERROR: $remote/main cannot fast-forward to $WRAPPER_CANDIDATE_SHA" >&2
++    exit 1
++  }
++done
++
++EXPECTED_APPROVAL="release v${NEW_VERSION} wrapper=${WRAPPER_CANDIDATE_SHA} submodule=${SUBMODULE_SHA}"
++printf 'Type exactly to approve candidate:\n%s\n> ' "$EXPECTED_APPROVAL"
++IFS= read -r APPROVAL
++test "$APPROVAL" = "$EXPECTED_APPROVAL" || {
++  echo "ERROR: exact candidate approval did not match" >&2
++  exit 1
++}
++```
++
++#### 4c. Publish and verify the submodule branch and retention tag
+ 
+ Tag the fork mirror first. Use an annotated tag so the purpose is visible in `git show`. The
+ verification step must resolve either the direct tag object or peeled `^{}` row to `$SUBMODULE_SHA`.
+@@ -319,6 +380,11 @@ wrapper.**
+ 
+ ```bash
+ gh auth switch --user Evyatar108
++git -C external/repos/codex-patched push origin "${SUBMODULE_SHA}:refs/heads/sandbox-patches"
++test "$(git -C external/repos/codex-patched ls-remote --heads origin refs/heads/sandbox-patches | awk '{print $1}')" = "$SUBMODULE_SHA" || {
++  echo "ERROR: origin/sandbox-patches does not equal the approved submodule SHA" >&2
++  exit 1
++}
+ git fetch codex-patched "$SUBMODULE_SHA"
+ 
+ # Idempotent local tag: create, skip (same SHA), or abort (different SHA).
+@@ -355,31 +421,51 @@ git ls-remote --tags codex-patched "refs/tags/release/${NEW_VERSION}" "refs/tags
+ gh auth switch --user evmitran_microsoft
+ ```
+ 
+-#### 4c. Commit + tag + push the wrapper
++#### 4d. Publish and verify the wrapper mirrors and public tag
+ 
+-Only proceed here after the retention tag in 4b has been confirmed on `codex-patched`.
++Only proceed here after the retention tag in 4c has been confirmed on
++`codex-patched`. Push the approved SHA explicitly, then require equality on
++every mirror before publishing the wrapper tag to `origin`.
+ 
+ ```bash
+ cd <MAIN_REPO>
+-git add external/repos/codex-patched <any wrapper-owned changed files>
+-git commit -m "fix(release): <one-line summary>
++git tag -a "v${NEW_VERSION}" -m "v${NEW_VERSION}: <short summary>"
+ 
+-<body explaining the submodule release commit and wrapper gitlink update>"
++gh auth switch --user evmitran_microsoft
++git push origin "${WRAPPER_CANDIDATE_SHA}:refs/heads/main"
++git push work "${WRAPPER_CANDIDATE_SHA}:refs/heads/main"
+ 
+-git tag -a "v${NEW_VERSION}" -m "v${NEW_VERSION}: <short summary>"
+-git push origin main
++gh auth switch --user Evyatar108
++git push personal "${WRAPPER_CANDIDATE_SHA}:refs/heads/main"
++
++for remote in origin work personal; do
++  test "$(git ls-remote --heads "$remote" refs/heads/main | awk '{print $1}')" = "$WRAPPER_CANDIDATE_SHA" || {
++    echo "ERROR: $remote/main does not equal the approved wrapper SHA" >&2
++    exit 1
++  }
++done
++
++gh auth switch --user evmitran_microsoft
+ git push origin "v${NEW_VERSION}"
++test "$(git ls-remote --tags origin "refs/tags/v${NEW_VERSION}^{}" | awk '{print $1}')" = "$WRAPPER_CANDIDATE_SHA" || {
++  echo "ERROR: public tag does not peel to the approved wrapper SHA" >&2
++  exit 1
++}
+ ```
+ 
+ ### 5. Build and upload the release bundle
+ 
+-CI is blocked by org Actions policy on `gim-home/codex`, so build + upload manually. The bundle is a single self-contained tarball with `bin/` and `vendor/` baked in — users install it directly with `npm install -g <tarball>`. There is NO GitHub Packages publish step.
++CI is blocked by org Actions policy on `gim-home/codex`, so build + upload
++manually. The single self-contained tarball contains both `bin/` and `vendor/`;
++users install that exact asset with `npm install -g <tarball>`.
+ 
+ ```bash
+ cd <MAIN_REPO>
+ TARGET=x86_64-pc-windows-msvc
+-VENDOR="$PWD/vendor/$TARGET"
+-rm -rf vendor stage-platform stage-main stage-bundle platform.tgz main.tgz codex-*.tgz ripgrep-*
++RELEASE_WORK_DIR="$PWD/.release-work/v${NEW_VERSION}"
++rm -rf "$RELEASE_WORK_DIR"
++mkdir -p "$RELEASE_WORK_DIR"
++VENDOR="$RELEASE_WORK_DIR/vendor/$TARGET"
+ mkdir -p "$VENDOR/codex" "$VENDOR/path"
+ 
+ REL=external/repos/codex-patched/codex-rs/target/release
+@@ -393,7 +479,7 @@ cp "$REL/codex.exe" "$REL/codex-core.exe" "$REL/codex-windows-sandbox-setup.exe"
+ 
+ # ripgrep
+ RG_VERSION=14.1.1
+-RG_ZIP="ripgrep-${RG_VERSION}-x86_64-pc-windows-msvc.zip"
++RG_ZIP="$RELEASE_WORK_DIR/ripgrep-${RG_VERSION}-x86_64-pc-windows-msvc.zip"
+ curl -sfL -o "$RG_ZIP" "https://github.com/BurntSushi/ripgrep/releases/download/${RG_VERSION}/${RG_ZIP}"
+ # sha256 pinned in .github/workflows/publish-npm.yml RUSTY_V8_WIN_X64_SHA256 lookalike:
+ #   d0f534024c42afd6cb4d38907c25cd2b249b79bbe6cc1dbee8e3e37c2b6e25a1
+@@ -414,34 +500,43 @@ unzip -j -o "$RG_ZIP" "ripgrep-${RG_VERSION}-x86_64-pc-windows-msvc/rg.exe" -d "
+ # See the "Common failures" section for a ready-to-use wrapper.
+ python external/repos/codex-patched/codex-cli/scripts/build_npm_package.py \
+   --package codex-win32-x64 --release-version "$NEW_VERSION" \
+-  --vendor-src "$PWD/vendor" --staging-dir "$PWD/stage-platform" \
+-  --pack-output "$PWD/platform.tgz"
++  --vendor-src "$RELEASE_WORK_DIR/vendor" \
++  --staging-dir "$RELEASE_WORK_DIR/stage-platform" \
++  --pack-output "$RELEASE_WORK_DIR/platform.tgz"
+ 
+ python external/repos/codex-patched/codex-cli/scripts/build_npm_package.py \
+   --package codex --release-version "$NEW_VERSION" \
+-  --staging-dir "$PWD/stage-main" --pack-output "$PWD/main.tgz"
++  --staging-dir "$RELEASE_WORK_DIR/stage-main" \
++  --pack-output "$RELEASE_WORK_DIR/main.tgz"
+ 
+ # Build bundle tarball (single self-contained artifact)
+-mkdir -p stage-bundle
+-cp -R stage-main/. stage-bundle/
+-cp -R stage-platform/vendor stage-bundle/vendor
+-python -c "
++BUNDLE_STAGE="$RELEASE_WORK_DIR/stage-bundle"
++mkdir -p "$BUNDLE_STAGE"
++cp -R "$RELEASE_WORK_DIR/stage-main/." "$BUNDLE_STAGE/"
++cp -R "$RELEASE_WORK_DIR/stage-platform/vendor" "$BUNDLE_STAGE/vendor"
++python - "$BUNDLE_STAGE/package.json" <<'PY'
+ import json
+-p='stage-bundle/package.json'
+-d=json.load(open(p))
+-d['files']=['bin','vendor']; d['os']=['win32']; d['cpu']=['x64']
+-d.pop('optionalDependencies', None)
+-json.dump(d, open(p,'w'), indent=2)
+-"
+-(cd stage-bundle && npm pack --pack-destination ..)
++import sys
++
++path = sys.argv[1]
++with open(path, encoding="utf-8") as source:
++    package = json.load(source)
++package["files"] = ["bin", "vendor"]
++package["os"] = ["win32"]
++package["cpu"] = ["x64"]
++package.pop("optionalDependencies", None)
++with open(path, "w", encoding="utf-8") as destination:
++    json.dump(package, destination, indent=2)
++PY
++(cd "$BUNDLE_STAGE" && npm pack --pack-destination "$RELEASE_WORK_DIR")
+ # The bundle's package.json::name is `@openai/codex`, so npm pack writes
+ # `openai-codex-${NEW_VERSION}.tgz`. Use a glob so this keeps working if
+ # the name is ever scoped differently again.
+-mv openai-codex-"${NEW_VERSION}".tgz "codex-${NEW_VERSION}-win32-x64.tgz"
++mv "$RELEASE_WORK_DIR/openai-codex-${NEW_VERSION}.tgz" \
++  "$RELEASE_WORK_DIR/codex-${NEW_VERSION}-win32-x64.tgz"
+ 
+-# GitHub Release + upload. Use the release-bundle install (single tarball,
+-# no GitHub Packages registry setup). Always quote the install command and
+-# pin the exact tag the release notes belong to — `latest` rotates.
++# GitHub Release + upload. Always quote the install command and pin the exact
++# tag the release notes belong to — `latest` rotates.
+ RELEASE_NOTES=$(cat <<EOF
+ ## Install / upgrade
+ 
+@@ -458,12 +553,10 @@ EOF
+ gh release create "v${NEW_VERSION}" --repo gim-home/codex \
+   --title "v${NEW_VERSION}" \
+   --notes "$RELEASE_NOTES" \
+-  "codex-${NEW_VERSION}-win32-x64.tgz"
++  "$RELEASE_WORK_DIR/codex-${NEW_VERSION}-win32-x64.tgz"
+ 
+ # Cleanup
+-rm -rf vendor stage-platform stage-main stage-bundle \
+-  platform.tgz main.tgz "codex-${NEW_VERSION}-win32-x64.tgz" \
+-  "ripgrep-${RG_VERSION}-x86_64-pc-windows-msvc.zip"
++rm -rf "$RELEASE_WORK_DIR"
+ ```
+ 
+ ### 6. Verify the published artifacts (non-destructive)
+@@ -480,27 +573,29 @@ gh release view "v${NEW_VERSION}" --repo gim-home/codex --json assets,publishedA
+   --jq '.assets[] | {name, size, digest, downloadCount, updatedAt}'
+ # Expected: one row for codex-${NEW_VERSION}-win32-x64.tgz with a non-zero size.
+ 
+-# Optional deeper check: download the asset to a tmp path, peek inside,
++# Optional deeper check: download the asset to project-relative evidence,
+ # confirm the bundled binary reports the new version. This does NOT touch
+ # $(npm root -g) or modify any global state.
+-TMP_DIR=$(mktemp -d)
++EVIDENCE_DIR="$PWD/.release-evidence/v${NEW_VERSION}"
++rm -rf "$EVIDENCE_DIR"
++mkdir -p "$EVIDENCE_DIR"
+ gh release download "v${NEW_VERSION}" --repo gim-home/codex \
+-  --pattern 'codex-*-win32-x64.tgz' --dir "$TMP_DIR" --clobber
++  --pattern 'codex-*-win32-x64.tgz' --dir "$EVIDENCE_DIR" --clobber
+ # Confirm all FOUR codex bins are vendored under the target triple. This is the
+ # check that would have caught the codex-windows-sandbox-setup.exe /
+ # codex-command-runner.exe omission — keep all four names here in lockstep with
+ # Step 5's cp and docs/workflows/install.md.
+-BUNDLE="$TMP_DIR/codex-${NEW_VERSION}-win32-x64.tgz"
++BUNDLE="$EVIDENCE_DIR/codex-${NEW_VERSION}-win32-x64.tgz"
+ for b in codex.exe codex-core.exe codex-windows-sandbox-setup.exe codex-command-runner.exe; do
+   tar -tzf "$BUNDLE" | grep -q "package/vendor/x86_64-pc-windows-msvc/codex/$b" \
+     || { echo "MISSING vendored bin: $b" >&2; exit 1; }
+ done
+ echo "All four codex bins present under vendor/x86_64-pc-windows-msvc/codex/."
+-tar -xzf "$TMP_DIR/codex-${NEW_VERSION}-win32-x64.tgz" -C "$TMP_DIR" \
++tar -xzf "$BUNDLE" -C "$EVIDENCE_DIR" \
+   package/vendor/x86_64-pc-windows-msvc/codex/codex.exe
+-"$TMP_DIR/package/vendor/x86_64-pc-windows-msvc/codex/codex.exe" --version
++"$EVIDENCE_DIR/package/vendor/x86_64-pc-windows-msvc/codex/codex.exe" --version
+ # Expected: codex-cli ${NEW_VERSION}
+-rm -rf "$TMP_DIR"
++sha256sum "$BUNDLE" > "$EVIDENCE_DIR/bundle.sha256"
+ ```
+ 
+ Then print (do NOT execute) the install command the operator can run when they're ready to upgrade their own environment:
+@@ -529,7 +624,7 @@ After the operator has installed and is back at a shell, they can run `/verify`
+ - `codex login --provider copilot` still launches an older install after publish: confirm `where codex` / `Get-Command codex` points at the refreshed vendor bundle and reinstall if PATH still resolves a stale global package.
+ - `cargo build` → `link.exe extra operand ...`: Git Bash's `/usr/bin/link.exe` shadowed LLVM's `lld-link`. Ensure `export PATH="/c/Program Files/LLVM/bin:$PATH"` precedes everything.
+ - `cargo build --release` → `error: failed to remove file ... codex.exe // Caused by: Access is denied. (os error 5)`: Windows file lock — a running `codex.exe` / `codex-core.exe`, File Explorer thumbnail cache, or Defender scan is holding the binary. Close any codex terminals, then `rm -f <path>/target/release/codex.exe <path>/target/release/codex-core.exe` to confirm the lock has cleared. If `rm` succeeds the retry will succeed; if `rm` also fails, find the holder (`powershell.exe -Command "Get-Process | Where-Object { $_.ProcessName -match 'codex' }"`) or wait for Defender to finish.
+-- `python build_npm_package.py ...` → `FileNotFoundError: [WinError 2] The system cannot find the file specified`: the script invokes `subprocess.run(["npm"|"pnpm", ...])` without `shell=True`, and Python's CreateProcess on Windows does not honor PATHEXT for stem-name lookups when called from Git Bash. Workaround — wrap the python invocation with a `shutil.which` pre-resolver. Save this to a temp file and call `python /path/to/wrapper.py external/repos/codex-patched/codex-cli/scripts/build_npm_package.py <args>`:
++- `python build_npm_package.py ...` → `FileNotFoundError: [WinError 2] The system cannot find the file specified`: the script invokes `subprocess.run(["npm"|"pnpm", ...])` without `shell=True`, and Python's CreateProcess on Windows does not honor PATHEXT for stem-name lookups when called from Git Bash. Workaround — wrap the python invocation with a `shutil.which` pre-resolver. Save it under `.release-evidence/tools/command_resolver.py` and call `python .release-evidence/tools/command_resolver.py external/repos/codex-patched/codex-cli/scripts/build_npm_package.py <args>`:
+   ```python
+   """Pre-resolves bare command names (npm/pnpm/node) via shutil.which so
+   Python's subprocess can find their .cmd shims on Windows."""
+diff --git a/.github/workflows/publish-npm.yml b/.github/workflows/publish-npm.yml
+index 2d177cbed9..42ca3e5a5a 100644
+--- a/.github/workflows/publish-npm.yml
++++ b/.github/workflows/publish-npm.yml
+@@ -8,6 +8,10 @@ on:
+ permissions:
+   contents: write
+ 
++concurrency:
++  group: release-bundle-${{ github.ref }}
++  cancel-in-progress: false
++
+ env:
+   RELEASE_TARGET: x86_64-pc-windows-msvc
+   RIPGREP_VERSION: "14.1.1"
+@@ -103,7 +107,7 @@ jobs:
+         uses: Swatinem/rust-cache@v2
+         with:
+           workspaces: external/repos/codex-patched/codex-rs -> target
+-          shared-key: publish-npm
++          shared-key: release-bundle
+ 
+       - name: Build Windows binaries (thin LTO)
+         env:
+diff --git a/CLAUDE.md b/CLAUDE.md
+index cf81a3beb1..15b9194f91 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -147,9 +147,9 @@ On first interactive run it:
+ - `codex-windows-sandbox-setup.exe`
+ - `codex-command-runner.exe`
+ 
+-It stages npm-format tarballs and uploads the merged release bundle to a
+-GitHub Release. GitHub Packages publishing is retired. Packaging/upload is
+-owned only by `/publish-sandbox-patch`; routine verification uses the named
++It stages npm-format tarballs and uploads the single merged bundle directly to
++a GitHub Release. Packaging/upload is owned only by
++`/publish-sandbox-patch`; routine verification uses the named
+ T1-T4 tiers, and only T4
+ `bash scripts/verify-core-change.sh publish --confirm-slow` is the
+ release-equivalent build (it does not publish by itself).
+@@ -166,6 +166,8 @@ Verify spike results before assuming upstream paths or merge behavior. If a futu
+ 
+ ## Confusion points and common mistakes
+ 
++- **MultiAgentV2 handoff is provider-aware; Copilot is plaintext.** `ProviderCapabilities::encrypted_inter_agent_messages` defaults to `true`, while `CopilotModelProvider::capabilities()` explicitly returns `false`. `core/src/tools/spec_plan.rs::add_collaboration_tools` derives one `V2MessageEncoding` and passes it to the spawn/send/follow-up schemas and handlers, so Copilot exposes ordinary string messages and constructs truthful `InterAgentCommunication::new(...)` input; encryption-capable providers retain `encrypted_content` plus `new_encrypted(...)`. Do not special-case only the schema or only runtime — they must use the same encoding. V2 `wait_agent(task_name=...)` subscribes to the exact target status before its first `borrow_and_update()` read, so an already-final child returns immediately without a race; omitted `task_name` keeps mailbox-wide behavior. The rebase guard is `just test -p codex-invariant-tests --test multi_agent_v2_handoff`; see patch-surface invariants 76–77 and their §15 replant recipes.
++
+ - `CopilotHeaderSource::inject()` is the session-header seam. If Copilot headers are missing, start there.
+ - `ResponsesClient::pre_send_hook` is the per-request mutation seam. `core::copilot_transport::build_copilot_client(...)` owns the shared Copilot hook.
+ - `supports_websockets=false` on the built-in Copilot provider is intentional in v6.
+diff --git a/codex-rs-overlay/codex-invariant-tests/tests/multi_agent_v2_handoff.rs b/codex-rs-overlay/codex-invariant-tests/tests/multi_agent_v2_handoff.rs
+new file mode 100644
+index 0000000000..a232355a8d
+--- /dev/null
++++ b/codex-rs-overlay/codex-invariant-tests/tests/multi_agent_v2_handoff.rs
+@@ -0,0 +1,509 @@
++// STRUCTURAL-ONLY INVARIANT TEST.
++//
++// The behavioral tests live beside the patched codex-core and model-provider
++// code. This overlay guard makes the fork-owned marker inventory and reviewed
++// source shape fail closed during an upstream rebase.
++
++const PROVIDER_MARKER: &str = "// SANDBOX PATCH: provider-aware-v2-handoff";
++const WAIT_MARKER: &str = "// SANDBOX PATCH: exact-v2-wait";
++
++const PROVIDER_RS: &str =
++    include_str!("../../../external/repos/codex-patched/codex-rs/model-provider/src/provider.rs");
++const COPILOT_RS: &str =
++    include_str!("../../../external/repos/codex-patched/codex-rs/model-provider/src/copilot.rs");
++const BEDROCK_RS: &str = include_str!(
++    "../../../external/repos/codex-patched/codex-rs/model-provider/src/amazon_bedrock/mod.rs"
++);
++const SPEC_PLAN_RS: &str =
++    include_str!("../../../external/repos/codex-patched/codex-rs/core/src/tools/spec_plan.rs");
++const SPEC_PLAN_TESTS_RS: &str = include_str!(
++    "../../../external/repos/codex-patched/codex-rs/core/src/tools/spec_plan_tests.rs"
++);
++const MULTI_AGENTS_SPEC_RS: &str = include_str!(
++    "../../../external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_spec.rs"
++);
++const MULTI_AGENTS_TESTS_RS: &str = include_str!(
++    "../../../external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_tests.rs"
++);
++const MULTI_AGENTS_V2_RS: &str = include_str!(
++    "../../../external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_v2.rs"
++);
++const MULTI_AGENTS_V2_SPEC_RS: &str = include_str!(
++    "../../../external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_v2_spec.rs"
++);
++const MULTI_AGENTS_V2_SPEC_TESTS_RS: &str = include_str!(
++    "../../../external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_v2_spec_tests.rs"
++);
++const SPAWN_RS: &str = include_str!(
++    "../../../external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_v2/spawn.rs"
++);
++const SEND_MESSAGE_RS: &str = include_str!(
++    "../../../external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_v2/send_message.rs"
++);
++const FOLLOWUP_TASK_RS: &str = include_str!(
++    "../../../external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_v2/followup_task.rs"
++);
++const MESSAGE_TOOL_RS: &str = include_str!(
++    "../../../external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_v2/message_tool.rs"
++);
++const WAIT_RS: &str = include_str!(
++    "../../../external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_v2/wait.rs"
++);
++
++struct MarkerInventory<'a> {
++    path: &'a str,
++    source: &'a str,
++    provider_markers: usize,
++    wait_markers: usize,
++}
++
++const MARKER_INVENTORY: &[MarkerInventory<'_>] = &[
++    MarkerInventory {
++        path: "core/src/tools/handlers/multi_agents_spec.rs",
++        source: MULTI_AGENTS_SPEC_RS,
++        provider_markers: 3,
++        wait_markers: 1,
++    },
++    MarkerInventory {
++        path: "core/src/tools/handlers/multi_agents_tests.rs",
++        source: MULTI_AGENTS_TESTS_RS,
++        provider_markers: 2,
++        wait_markers: 7,
++    },
++    MarkerInventory {
++        path: "core/src/tools/handlers/multi_agents_v2_spec_tests.rs",
++        source: MULTI_AGENTS_V2_SPEC_TESTS_RS,
++        provider_markers: 4,
++        wait_markers: 1,
++    },
++    MarkerInventory {
++        path: "core/src/tools/handlers/multi_agents_v2_spec.rs",
++        source: MULTI_AGENTS_V2_SPEC_RS,
++        provider_markers: 4,
++        wait_markers: 3,
++    },
++    MarkerInventory {
++        path: "core/src/tools/handlers/multi_agents_v2.rs",
++        source: MULTI_AGENTS_V2_RS,
++        provider_markers: 2,
++        wait_markers: 0,
++    },
++    MarkerInventory {
++        path: "core/src/tools/handlers/multi_agents_v2/followup_task.rs",
++        source: FOLLOWUP_TASK_RS,
++        provider_markers: 2,
++        wait_markers: 0,
++    },
++    MarkerInventory {
++        path: "core/src/tools/handlers/multi_agents_v2/message_tool.rs",
++        source: MESSAGE_TOOL_RS,
++        provider_markers: 1,
++        wait_markers: 0,
++    },
++    MarkerInventory {
++        path: "core/src/tools/handlers/multi_agents_v2/send_message.rs",
++        source: SEND_MESSAGE_RS,
++        provider_markers: 2,
++        wait_markers: 0,
++    },
++    MarkerInventory {
++        path: "core/src/tools/handlers/multi_agents_v2/spawn.rs",
++        source: SPAWN_RS,
++        provider_markers: 2,
++        wait_markers: 0,
++    },
++    MarkerInventory {
++        path: "core/src/tools/handlers/multi_agents_v2/wait.rs",
++        source: WAIT_RS,
++        provider_markers: 0,
++        wait_markers: 4,
++    },
++    MarkerInventory {
++        path: "core/src/tools/spec_plan_tests.rs",
++        source: SPEC_PLAN_TESTS_RS,
++        provider_markers: 1,
++        wait_markers: 0,
++    },
++    MarkerInventory {
++        path: "core/src/tools/spec_plan.rs",
++        source: SPEC_PLAN_RS,
++        provider_markers: 1,
++        wait_markers: 0,
++    },
++    MarkerInventory {
++        path: "model-provider/src/amazon_bedrock/mod.rs",
++        source: BEDROCK_RS,
++        provider_markers: 2,
++        wait_markers: 0,
++    },
++    MarkerInventory {
++        path: "model-provider/src/copilot.rs",
++        source: COPILOT_RS,
++        provider_markers: 2,
++        wait_markers: 0,
++    },
++    MarkerInventory {
++        path: "model-provider/src/provider.rs",
++        source: PROVIDER_RS,
++        provider_markers: 3,
++        wait_markers: 0,
++    },
++];
++
++fn count(source: &str, needle: &str) -> usize {
++    source.match_indices(needle).count()
++}
++
++fn section_between<'a>(source: &'a str, start: &str, end: &str) -> &'a str {
++    assert_eq!(
++        count(source, start),
++        1,
++        "expected one start boundary `{start}`"
++    );
++    let start_index = source.find(start).expect("start boundary checked above");
++    let tail = &source[start_index..];
++    let end_index = tail.find(end).unwrap_or_else(|| {
++        panic!("missing end boundary `{end}` after `{start}`");
++    });
++    &tail[..end_index]
++}
++
++fn section_with_leading_marker<'a>(
++    source: &'a str,
++    start: &str,
++    end: &str,
++    marker: &str,
++) -> &'a str {
++    assert_eq!(
++        count(source, start),
++        1,
++        "expected one start boundary `{start}`"
++    );
++    let start_index = source.find(start).expect("start boundary checked above");
++    let marker_index = source[..start_index]
++        .rfind(marker)
++        .unwrap_or_else(|| panic!("missing leading marker `{marker}` for `{start}`"));
++    let marker_gap = &source[marker_index + marker.len()..start_index];
++    assert!(
++        marker_gap
++            .lines()
++            .all(|line| line.trim().is_empty() || line.trim().starts_with("#[")),
++        "`{marker}` must directly own `{start}` except for attributes"
++    );
++    let tail = &source[marker_index..];
++    let end_index = marker.len()
++        + tail[marker.len()..].find(end).unwrap_or_else(|| {
++            panic!("missing end boundary `{end}` after `{start}`");
++        });
++    &tail[..end_index]
++}
++
++fn assert_ordered(section: &str, first: &str, second: &str) {
++    let first_index = section
++        .find(first)
++        .unwrap_or_else(|| panic!("missing `{first}`"));
++    let second_index = section
++        .find(second)
++        .unwrap_or_else(|| panic!("missing `{second}`"));
++    assert!(
++        first_index < second_index,
++        "expected `{first}` before `{second}`"
++    );
++}
++
++fn assert_owned_block(label: &str, section: &str, expected: &str, conflicting: &str) {
++    assert_eq!(
++        count(section, expected),
++        1,
++        "{label} must contain exactly one `{expected}` marker"
++    );
++    assert_eq!(
++        count(section, conflicting),
++        0,
++        "{label} must not contain conflicting `{conflicting}` markers"
++    );
++}
++
++#[test]
++fn invariant_76_provider_aware_v2_handoff_has_exact_markers_and_truthful_encoding() {
++    let mut provider_total = 0;
++    let mut wait_total = 0;
++    for inventory in MARKER_INVENTORY {
++        let provider_count = count(inventory.source, PROVIDER_MARKER);
++        let wait_count = count(inventory.source, WAIT_MARKER);
++        assert_eq!(
++            provider_count, inventory.provider_markers,
++            "unexpected provider-aware marker count in {}",
++            inventory.path
++        );
++        assert_eq!(
++            wait_count, inventory.wait_markers,
++            "unexpected exact-wait marker count in {}",
++            inventory.path
++        );
++        assert!(
++            inventory
++                .source
++                .lines()
++                .all(|line| !(line.contains(PROVIDER_MARKER) && line.contains(WAIT_MARKER))),
++            "{} contains a conflicting dual-family marker line",
++            inventory.path
++        );
++        provider_total += provider_count;
++        wait_total += wait_count;
++    }
++    assert_eq!(provider_total, 31, "reviewed provider marker total drifted");
++    assert_eq!(wait_total, 16, "reviewed wait marker total drifted");
++
++    let capabilities = section_between(
++        PROVIDER_RS,
++        "pub struct ProviderCapabilities {",
++        "/// Current app-visible account state",
++    );
++    assert_eq!(count(capabilities, PROVIDER_MARKER), 2);
++    assert!(capabilities.contains("pub encrypted_inter_agent_messages: bool"));
++    assert!(capabilities.contains("encrypted_inter_agent_messages: true"));
++
++    let copilot_capabilities = section_between(
++        COPILOT_RS,
++        "fn capabilities(&self) -> ProviderCapabilities {",
++        "fn auth_manager(&self)",
++    );
++    assert_owned_block(
++        "Copilot capability override",
++        copilot_capabilities,
++        PROVIDER_MARKER,
++        WAIT_MARKER,
++    );
++    assert!(copilot_capabilities.contains("encrypted_inter_agent_messages: false"));
++
++    let bedrock_capabilities = section_between(
++        BEDROCK_RS,
++        "fn capabilities(&self) -> ProviderCapabilities {",
++        "fn approval_review_preferred_model",
++    );
++    assert_owned_block(
++        "Bedrock capability declaration",
++        bedrock_capabilities,
++        PROVIDER_MARKER,
++        WAIT_MARKER,
++    );
++    assert!(bedrock_capabilities.contains("encrypted_inter_agent_messages: true"));
++
++    let encoding = section_with_leading_marker(
++        MULTI_AGENTS_V2_RS,
++        "#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]",
++        "mod followup_task;",
++        PROVIDER_MARKER,
++    );
++    assert_owned_block(
++        "V2 encoding selection",
++        encoding,
++        PROVIDER_MARKER,
++        WAIT_MARKER,
++    );
++    assert!(encoding.contains("Encrypted"));
++    assert!(encoding.contains("Plaintext"));
++    assert!(encoding.contains("capabilities.encrypted_inter_agent_messages"));
++
++    let communication = section_between(
++        MULTI_AGENTS_V2_RS,
++        "pub(super) fn communication_from_tool_message(",
++        "\n}",
++    );
++    assert_owned_block(
++        "runtime communication constructor",
++        communication,
++        PROVIDER_MARKER,
++        WAIT_MARKER,
++    );
++    assert!(communication.contains("V2MessageEncoding::Encrypted"));
++    assert!(communication.contains("InterAgentCommunication::new_encrypted"));
++    assert!(communication.contains("V2MessageEncoding::Plaintext"));
++    assert!(communication.contains("InterAgentCommunication::new("));
++
++    let plan = section_between(
++        SPEC_PLAN_RS,
++        "fn add_collaboration_tools(",
++        "fn add_mcp_runtime_tools",
++    );
++    assert_owned_block(
++        "provider-derived schema/runtime plan",
++        plan,
++        PROVIDER_MARKER,
++        WAIT_MARKER,
++    );
++    assert!(plan.contains("V2MessageEncoding::from_provider_capabilities("));
++    assert!(plan.contains("turn_context.provider.capabilities()"));
++    for constructor in [
++        "SpawnAgentHandlerV2::new(",
++        "SendMessageHandlerV2::new(message_encoding)",
++        "FollowupTaskHandlerV2::new(message_encoding)",
++    ] {
++        assert!(plan.contains(constructor), "missing `{constructor}`");
++    }
++
++    for (label, start, end) in [
++        (
++            "spawn schema",
++            "pub(super) fn create_spawn_agent_tool(",
++            PROVIDER_MARKER,
++        ),
++        (
++            "send schema",
++            "pub(super) fn create_send_message_tool(",
++            PROVIDER_MARKER,
++        ),
++        (
++            "follow-up schema",
++            "pub(super) fn create_followup_task_tool(",
++            WAIT_MARKER,
++        ),
++        (
++            "message schema encoding",
++            "fn message_schema(",
++            "fn spawn_agent_common_properties",
++        ),
++    ] {
++        assert_owned_block(
++            label,
++            section_with_leading_marker(MULTI_AGENTS_V2_SPEC_RS, start, end, PROVIDER_MARKER),
++            PROVIDER_MARKER,
++            WAIT_MARKER,
++        );
++    }
++
++    let spawn_runtime = section_between(
++        SPAWN_RS,
++        "async fn handle_spawn_agent(",
++        "#[derive(Debug, Deserialize)]",
++    );
++    assert_owned_block(
++        "spawn runtime handoff",
++        spawn_runtime,
++        PROVIDER_MARKER,
++        WAIT_MARKER,
++    );
++    assert!(spawn_runtime.contains("communication_from_tool_message("));
++    assert!(spawn_runtime.contains("message_encoding"));
++
++    assert_eq!(count(SEND_MESSAGE_RS, PROVIDER_MARKER), 2);
++    assert_eq!(count(SEND_MESSAGE_RS, WAIT_MARKER), 0);
++    assert!(SEND_MESSAGE_RS.contains("MessageDeliveryMode::QueueOnly"));
++    assert!(SEND_MESSAGE_RS.contains("self.message_encoding"));
++
++    assert_eq!(count(FOLLOWUP_TASK_RS, PROVIDER_MARKER), 2);
++    assert_eq!(count(FOLLOWUP_TASK_RS, WAIT_MARKER), 0);
++    assert!(FOLLOWUP_TASK_RS.contains("MessageDeliveryMode::TriggerTurn"));
++    assert!(FOLLOWUP_TASK_RS.contains("self.message_encoding"));
++
++    assert_owned_block(
++        "shared send/follow-up constructor",
++        MESSAGE_TOOL_RS,
++        PROVIDER_MARKER,
++        WAIT_MARKER,
++    );
++    assert!(MESSAGE_TOOL_RS.contains("pub(crate) async fn handle_message_string_tool("));
++    assert!(MESSAGE_TOOL_RS.contains("communication_from_tool_message("));
++
++    assert!(
++        MULTI_AGENTS_SPEC_RS.lines().count() <= 800,
++        "multi_agents_spec.rs must remain at most 800 lines"
++    );
++}
++
++#[test]
++fn invariant_77_exact_v2_wait_subscribes_before_reading_final_status() {
++    let wait_schema = section_with_leading_marker(
++        MULTI_AGENTS_V2_SPEC_RS,
++        "pub(super) fn create_wait_agent_tool(",
++        PROVIDER_MARKER,
++        WAIT_MARKER,
++    );
++    assert_owned_block(
++        "exact wait tool schema",
++        wait_schema,
++        WAIT_MARKER,
++        PROVIDER_MARKER,
++    );
++    assert!(wait_schema.contains("task_name"));
++
++    let wait_parameters = section_with_leading_marker(
++        MULTI_AGENTS_V2_SPEC_RS,
++        "fn wait_agent_tool_parameters(",
++        WAIT_MARKER,
++        WAIT_MARKER,
++    );
++    assert_owned_block(
++        "exact wait parameters",
++        wait_parameters,
++        WAIT_MARKER,
++        PROVIDER_MARKER,
++    );
++    assert!(wait_parameters.contains("\"task_name\".to_string()"));
++    assert!(wait_parameters.contains("JsonSchema::object(properties, /*required*/ None"));
++
++    let targeted_handler = section_with_leading_marker(
++        WAIT_RS,
++        "if let Some(task_name) = args.task_name {",
++        "let (mut activity_rx, pending_activity) = session",
++        WAIT_MARKER,
++    );
++    assert_owned_block(
++        "targeted wait handler",
++        targeted_handler,
++        WAIT_MARKER,
++        PROVIDER_MARKER,
++    );
++    assert_ordered(
++        targeted_handler,
++        ".subscribe_status(receiver_thread_id)",
++        "wait_for_targeted_status(",
++    );
++    assert!(!targeted_handler.contains("get_status(receiver_thread_id).await"));
++
++    let wait_loop = section_between(
++        WAIT_RS,
++        "pub(in crate::tools::handlers) async fn wait_for_targeted_status",
++        "async fn wait_for_activity",
++    );
++    assert_ordered(
++        wait_loop,
++        "let mut status_rx = match status_subscription",
++        "let current_status = status_rx.borrow_and_update().clone();",
++    );
++    assert_ordered(
++        wait_loop,
++        "let current_status = status_rx.borrow_and_update().clone();",
++        "if is_final(&current_status)",
++    );
++    assert!(wait_loop.contains("return TargetedWaitOutcome::Final(current_status);"));
++
++    let wait_args = section_between(
++        WAIT_RS,
++        "struct WaitArgs {",
++        "pub(crate) struct WaitAgentResult",
++    );
++    assert_owned_block(
++        "exact wait arguments",
++        wait_args,
++        WAIT_MARKER,
++        PROVIDER_MARKER,
++    );
++    assert!(wait_args.contains("task_name: Option<String>"));
++
++    let outcomes = section_with_leading_marker(
++        WAIT_RS,
++        "pub(in crate::tools::handlers) enum TargetedWaitOutcome",
++        "impl TargetedWaitOutcome",
++        WAIT_MARKER,
++    );
++    assert_owned_block(
++        "exact wait outcomes",
++        outcomes,
++        WAIT_MARKER,
++        PROVIDER_MARKER,
++    );
++    assert!(outcomes.contains("Final(AgentStatus)"));
++    assert!(outcomes.contains("TimedOut(AgentStatus)"));
++}
+diff --git a/docs/implementation/patch-surface.md b/docs/implementation/patch-surface.md
+index 015632acfe..a4a4453617 100644
+--- a/docs/implementation/patch-surface.md
++++ b/docs/implementation/patch-surface.md
+@@ -913,6 +913,8 @@ workspace unless this decision is explicitly reopened after measuring real pull
+ | 73 | `remote_auto_attach` Q1 status coherence (M-C). The shared enable path `apply_remote_session_toggle` (`tui/src/app/event_dispatch.rs`), reached by BOTH `/remote on` and the auto-attach flow (via `AppEvent::SetRemoteSession`), flips the ChatWidget's `RemoteSession` feature ON (`self.chat_widget.set_feature_enabled(Feature::RemoteSession, true)`) so a bare `/remote` reports "on" for the auto path too. The flip is on the ChatWidget's config (the config `/remote` status reads), NOT the App config, and carries `// SANDBOX PATCH: remote_auto_attach`. | overlay-test + in-tree-test | `codex-rs-overlay/codex-invariant-tests/tests/happy_seam_invariants.rs::invariant_73_remote_auto_attach_toggle_flips_feature_for_status_coherence` via `cargo test -p codex-invariant-tests --test happy_seam_invariants`; `cargo test -p codex-tui remote_session_toggle_attaches_then_detaches_without_killing_session` (asserts the ChatWidget's RemoteSession feature is on after the enable toggle). | Drop the `set_feature_enabled(Feature::RemoteSession, true)` flip, move it to the App config, or drop a `// SANDBOX PATCH: remote_auto_attach` marker; run the tests; revert. |
+ | 74 | `Feature::RemoteSubagentSessions` (`remote_subagent_sessions`) is registered as an Experimental feature, default-OFF, in `features/src/lib.rs` (enum variant + `FEATURES` spec), so strict config accepts `-c features.remote_subagent_sessions=...` (via `is_known_feature_key`) and the feature surfaces in `/experimental` while staying inert by default. It gates the codex sub-agent (`spawn_agent` child) → Happy nested-Agent-sidechain nesting: the upstream-canonical surface is the gate read that lowers the feature bit into the overlay's `codex_happy::inbound::SubagentSessions` gate via the `.with_subagent_sessions(...)` builder (marked `// SANDBOX PATCH: remote_subagent_sessions`), threaded at BOTH attach seams: the boot constructor in `tui/src/app.rs` AND the runtime `SetRemoteSession` toggle (`apply_remote_session_toggle` in `tui/src/app/event_dispatch.rs`, reached by both `/remote on` and the auto-attach flow — so auto-attached sessions, the primary path now, nest subagents too, not just at the next process start). ALL registry/mapping/synthetic-parent logic lives in the fork-authored `codex-happy` overlay (`src/{inbound,mapping,attach}.rs`, ZERO upstream surface). Default-OFF = SUPPRESS: non-primary (child) thread events are dropped entirely and the primary transcript stays byte-identical to plain remote-session output. | in-tree-test + overlay-test | `cargo test -p codex-features fork_visibility_features_are_experimental_and_disabled_by_default` (asserts `remote_subagent_sessions` is Experimental + default-off with its menu name/description); `cargo test -p codex-tui remote_session_toggle_attach_params_carry_subagent_gate_from_feature` (asserts the runtime `SetRemoteSession` attach threads the gate from the feature); `codex-rs-overlay/codex-invariant-tests/tests/happy_seam_invariants.rs::{invariant_74_remote_subagent_sessions_feature_is_experimental_and_default_off, invariant_74_remote_subagent_sessions_attach_seam_gate_carries_marker}` via `cargo test -p codex-invariant-tests --test happy_seam_invariants`; overlay unit tests `cargo test -p codex-happy` (thread-aware mapping tagging + gate-off suppression in `mapping_tests.rs`; child-registry cuid2 determinism + synthetic-parent announcement in `inbound_tests.rs`). | Flip `default_enabled` to `true`, drop the `FeatureSpec`, change the stage away from `Experimental`, drop the `.with_subagent_sessions(...)` gate read at EITHER attach seam (`app.rs` boot constructor or `event_dispatch.rs` runtime toggle), or drop a `// SANDBOX PATCH: remote_subagent_sessions` marker; run the focused tests; revert. See §15 "remote_subagent_sessions seam replant". |
+ | 75 | `Feature::RemotePublicServer` (`remote_public_server`) is registered as an Experimental feature, default-OFF, in `features/src/lib.rs` (enum variant + `FEATURES` spec), so strict config accepts `-c features.remote_public_server=...` (via `is_known_feature_key`) and the feature surfaces in `/experimental` while staying inert by default. It is the codex-layer opt-in marker for the single-user PUBLIC happy-server variant (embedded per-daemon happy-server fronted by a Cloudflare Access edge). Codex is UNAFFECTED at the transport level — the public exposure is owned entirely by the CLI/daemon (`HAPPY_TUNNEL_PROVIDER=cloudflare`, US-006); codex only observes it indirectly through the persisted machine-state contract. `/remote on` (and every attach path) KEEPS attaching to the LOCAL `http://127.0.0.1:<tunnelPort>` daemon listener from persisted machine state via `MachineListenerState::{tunnel,loopback}_base_url` in the fork-authored `codex-happy` overlay `auth.rs` — it must NOT target the public URL. There is ZERO runtime gate read in codex (the marker declares opt-in only); the loopback seam it must not regress lives in the ZERO-upstream-surface overlay. | in-tree-test + overlay-test | `cargo test -p codex-features fork_visibility_features_are_experimental_and_disabled_by_default` (asserts `remote_public_server` is Experimental + default-off with its menu name/description); `codex-rs-overlay/codex-invariant-tests/tests/happy_seam_invariants.rs::{invariant_75_remote_public_server_feature_is_experimental_and_default_off, invariant_75_remote_on_attach_stays_loopback_only}` via `cargo test -p codex-invariant-tests --test happy_seam_invariants` (the second asserts `codex-happy` `auth.rs` keeps the `http://127.0.0.1:{tunnel,loopback}_port` base URLs and bakes in NO external HTTPS/evyatar host). | Flip `default_enabled` to `true`, drop the `FeatureSpec`, change the stage away from `Experimental`, or re-point the `codex-happy` `auth.rs` base URLs away from `http://127.0.0.1:...` toward the public URL; run the focused tests; revert. See §15 "remote_public_server gate replant". |
++| 76 | MultiAgentV2 message handoff is provider-aware and truthful. `ProviderCapabilities::default()` advertises encrypted inter-agent messages; Copilot explicitly disables that capability; `spec_plan` derives one `V2MessageEncoding` and passes it to the spawn/send/follow-up schemas and handlers; runtime construction uses `InterAgentCommunication::new_encrypted` only for encrypted providers and `InterAgentCommunication::new` for Copilot plaintext. The extracted `multi_agents_v2_spec.rs` owns the V2 schema and `multi_agents_spec.rs` stays at most 800 lines. Every reviewed logical block carries exactly one applicable `// SANDBOX PATCH: provider-aware-v2-handoff` marker and no `exact-v2-wait` marker. | in-tree-test + overlay-test | Nested behavioral tests `all_message_tools_use_the_selected_encoding`, `multi_agent_v2_message_schemas_follow_provider_capability`, `multi_agent_v2_capable_encoding_is_encrypted_for_all_message_tools`, and `multi_agent_v2_plaintext_encoding_is_truthful_for_all_message_tools`; overlay structural guard `codex-rs-overlay/codex-invariant-tests/tests/multi_agent_v2_handoff.rs::invariant_76_provider_aware_v2_handoff_has_exact_markers_and_truthful_encoding` via `just test -p codex-invariant-tests --test multi_agent_v2_handoff`. | Remove the Copilot override, hard-code encrypted schemas/runtime, route any message tool around the shared constructor, duplicate/drop/conflict a marker, or grow `multi_agents_spec.rs` past 800 lines; run the focused overlay test; revert. See §15 "Provider-aware MultiAgentV2 handoff replant". |
++| 77 | MultiAgentV2 `wait_agent` accepts optional `task_name` for an exact target and closes the already-final race by subscribing to the target status before the first final-status read. The targeted wait preserves steer interruption, timeout bounds, unavailable/status-lost errors, begin/end events, and the mailbox-wide fallback when `task_name` is absent. Every reviewed logical block carries exactly one applicable `// SANDBOX PATCH: exact-v2-wait` marker and no provider-aware marker. | in-tree-test + overlay-test | Nested focused tests matching `wait_agent_tool_adds_optional_exact_task_name`, `exact_wait_`, `multi_agent_v2_exact_wait_`, `multi_agent_v2_wait_agent_`, `wait_agent_returns_`, `wait_agent_times_out_`, `wait_agent_clamps_`, and `subagent_notifications`; overlay structural guard `codex-rs-overlay/codex-invariant-tests/tests/multi_agent_v2_handoff.rs::invariant_77_exact_v2_wait_subscribes_before_reading_final_status` via `just test -p codex-invariant-tests --test multi_agent_v2_handoff`. | Read status before `subscribe_status`, remove exact `task_name`, regress the already-final fast path, duplicate/drop/conflict a marker, or route targeted waits through mailbox-wide activity only; run the focused overlay test; revert. See §15 "Exact MultiAgentV2 wait replant". |
+ 
+ CI mapping: `.github/workflows/invariant-check.yml` is a non-publishing audit-and-test workflow on
+ both `ubuntu-latest` and `windows-latest`. From the wrapper root it runs the static invariant audits
+@@ -1327,6 +1329,71 @@ Bazel `compile_data` update is needed because the `codex-invariant-tests` crate
+ Default-OFF: a brand-new user gets plain vanilla codex with no public-server behavior until
+ they opt in, and even when opted in codex's attach transport is unchanged.
+ 
++### Provider-aware MultiAgentV2 handoff replant (Invariant 76)
++
++This patch necessarily touches upstream-owned provider, tool-planning, schema, and handler
++seams: the capability is a provider trait contract and the runtime must construct the protocol
++type where codex-core owns delivery. The conflict-minimizing placement is the new
++`core/src/tools/handlers/multi_agents_v2_spec.rs` module plus 1–3 line delegating seams in
++`multi_agents_spec.rs`; moving the provider field or handler state into the wrapper overlay
++would not affect upstream runtime behavior. Replant probability is medium because provider
++capabilities and collaboration-tool registration move during upstream refactors; the overlay
++test itself is zero-conflict wrapper code.
++
++Replant the following as one unit, preserving one
++`// SANDBOX PATCH: provider-aware-v2-handoff` marker per logical block:
++
++1. Add `ProviderCapabilities::encrypted_inter_agent_messages`, defaulting to `true`, in
++   `model-provider/src/provider.rs`; keep explicit `true` construction in Amazon Bedrock and
++   override Copilot to `false` in `model-provider/src/copilot.rs`.
++2. Preserve `V2MessageEncoding::{Encrypted,Plaintext}` and
++   `from_provider_capabilities` in `multi_agents_v2.rs`. Its shared
++   `communication_from_tool_message` must map encrypted to
++   `InterAgentCommunication::new_encrypted` and plaintext to
++   `InterAgentCommunication::new` without changing `trigger_turn` semantics.
++3. Keep `multi_agents_v2_spec.rs` as the fork-authored schema module. Spawn, send, and
++   follow-up message fields must select `encrypted_content` versus plaintext `string` from the
++   same encoding that runtime receives. Keep the small delegators in `multi_agents_spec.rs` and
++   keep that upstream file at no more than 800 lines.
++4. In `spec_plan.rs::add_collaboration_tools`, derive one encoding from
++   `turn_context.provider.capabilities()` and pass it to `SpawnAgentHandlerV2`,
++   `SendMessageHandlerV2`, and `FollowupTaskHandlerV2`. Preserve the encoding fields and shared
++   constructor calls in `multi_agents_v2/{spawn,send_message,followup_task,message_tool}.rs`.
++5. Replant the adjacent behavioral tests in `spec_plan_tests.rs`,
++   `multi_agents_v2_spec_tests.rs`, and `multi_agents_tests.rs`. Then update the exact marker
++   inventory in `codex-rs-overlay/codex-invariant-tests/tests/multi_agent_v2_handoff.rs` only
++   when a reviewed new logical block is intentionally added or removed.
++
++Verify with `just test -p codex-invariant-tests --test multi_agent_v2_handoff`, the focused
++codex-core message-encoding tests listed in Invariant 76, `bash scripts/audit_invariants.sh`,
++and `bash scripts/audit_network_calls.sh`.
++
++### Exact MultiAgentV2 wait replant (Invariant 77)
++
++The schema is kept in the fork-authored `multi_agents_v2_spec.rs` module; the irreducible
++upstream seam is the V2 wait handler because it owns target resolution, status subscriptions,
++steer activity, and collaboration wait events. Re-conflict probability is medium-high around
++`wait.rs` because upstream collaboration control evolves, so re-probe method names before
++reapplying text.
++
++1. Preserve optional `task_name` in the V2 wait schema and runtime `WaitArgs`; only
++   `timeout_ms` remains required so the mailbox-wide wait stays backward compatible.
++2. In `multi_agents_v2/wait.rs`, resolve the exact target, emit the waiting-begin event, call
++   `subscribe_status(receiver_thread_id)` first, then pass that receiver into
++   `wait_for_targeted_status`. Do not insert a `get_status` read between resolution and the
++   subscription: that recreates the already-final race.
++3. Inside `wait_for_targeted_status`, read the subscribed receiver with
++   `borrow_and_update()` and immediately return `TargetedWaitOutcome::Final` when the current
++   status is already final. Preserve the status-change loop, steer interruption, deadline,
++   unavailable/status-lost fallbacks, and waiting-end event.
++4. Preserve exactly one `// SANDBOX PATCH: exact-v2-wait` marker on the tool delegator, schema,
++   parameters, targeted handler, `WaitArgs`, and targeted outcome blocks. Replant the focused
++   nested tests before changing the overlay marker inventory.
++
++Verify with `just test -p codex-invariant-tests --test multi_agent_v2_handoff`, the focused
++exact-wait codex-core tests listed in Invariant 77, `bash scripts/audit_invariants.sh`, and
++`bash scripts/audit_network_calls.sh`.
++
+ ### Plugin scope-axis replant
+ 
+ The `plugin-scope-axis` patch family is deliberately split between one overlay crate and small
+diff --git a/docs/implementation/regression-history.md b/docs/implementation/regression-history.md
+index 8b04bd8460..534889c253 100644
+--- a/docs/implementation/regression-history.md
++++ b/docs/implementation/regression-history.md
+@@ -6,6 +6,56 @@ when bisecting a future bug — start here before `git log -G`.
+ Each entry: date, release that introduced the bug, release that fixed
+ it, root-cause commit, user-visible symptom, and a one-liner on the fix.
+ 
++## v0.141.0-copilot-api.3 V2 handoff and exact-wait regressions (2026-07-14)
++
++Introduced in `v0.141.0-copilot-api.3`; fixed in the
++`v0.141.0-copilot-api.4` source candidate. Publication and installation of
++`.4` remain lead/operator-owned.
++
++- **Opaque Copilot child handoff:** MultiAgentV2 exposed `encrypted_content`
++  schemas and always constructed encrypted `agent_message` payloads even though
++  the Copilot Responses transport cannot supply the provider-native encrypted
++  handoff token. Copilot children therefore received opaque/unusable handoff
++  input. `.4` adds the general
++  `ProviderCapabilities::encrypted_inter_agent_messages` capability, defaults
++  capable providers to encrypted behavior, explicitly marks Copilot plaintext,
++  and derives one encoding for spawn/send/follow-up schema plus runtime
++  construction. V1 and encryption-capable providers remain unchanged.
++- **Already-final exact wait:** V2 `wait_agent` only waited on aggregate mailbox
++  activity and had no exact target. A child that reached a final state before
++  the wait started could leave the parent waiting until timeout. `.4` adds the
++  optional `task_name` branch and subscribes to the target's Tokio status watch
++  before reading its current value, covering completion before setup, during
++  setup, and afterward without a check/subscribe gap. Targetless V2 behavior is
++  unchanged.
++- **Required evidence:** retain the focused provider-schema/runtime tests, the
++  focused exact-wait tests (already-final, future final, unrelated completion,
++  steering, timeout, invalid target, and closed status),
++  `just test -p codex-invariant-tests --test multi_agent_v2_handoff`,
++  `bash scripts/audit_invariants.sh`, and
++  `bash scripts/audit_network_calls.sh`. Release acceptance additionally needs
++  the installed `.4` four-role Ralph 5.64 dogfood; source/unit evidence alone
++  is not permission to declare the rollout complete.
++- **Immutable `.3` rollback pins:** GitHub Release/tag
++  `v0.141.0-copilot-api.3`; asset
++  `codex-0.141.0-copilot-api.3-win32-x64.tgz`, byte length `124405641`, SHA-256
++  `29bd5320fac1c2025cffdc85cedaadb6a7f21a93f42ae93dd95e1a1460c5cfbc`;
++  wrapper annotated-tag object `4519c324b1eda33c72bc87e85f76fda01664b14b`
++  peeled to `05e19f09b62a23c382cf564c05ab56cd4d5f3ef2`; nested retention-tag object
++  `0f3d96993cc032c49973114dca0de6c94941dcff` peeled to
++  `35e64ccd74d60c69fd79756d8d6a6c13e3a78254`. Never move either immutable tag.
++- **Containment and rollback:** before `.4`, or if `.4` must be withdrawn,
++  disable V2 per invocation with `-c features.multi_agent_v2=false` or
++  persist `[features] multi_agent = true` and `multi_agent_v2 = false` in
++  `~/.codex/config.toml`. A reinstall of `.3` is permitted only after the exact
++  asset byte length and SHA-256 above verify; then confirm the four Codex
++  binaries plus `rg.exe`, exact `.3` version, path resolution, and a V1
++  spawn/wait/close canary.
++- **Forward-fix policy:** do not delete, overwrite, or relabel `.3` failure
++  evidence and do not move `.3` tags. Before release, revert the candidate
++  commits normally. After release, publish a new `.5` (or later) forward fix;
++  never rebuild `.4` or mutate its release asset in place.
++
+ ## Windows plugin hooks routed to the native shell (2026-06-25)
+ 
+ Fork fix (release pending — lead-owned codex overlay pin). Unblocks the
+diff --git a/docs/workflows/developer-guide.md b/docs/workflows/developer-guide.md
+index 25429d3589..3ebfc6eaf1 100644
+--- a/docs/workflows/developer-guide.md
++++ b/docs/workflows/developer-guide.md
+@@ -1,8 +1,9 @@
+ # Developer Guide: Setup and Daily Usage
+ 
+-**Last Updated**: 2026-04-20
++**Last Updated**: 2026-07-14
+ 
+-Setup, daily usage, and troubleshooting for the `@openai/codex` GitHub Release bundle with the v6 direct Copilot transport.
++Setup, daily usage, and troubleshooting for the merged Windows x64 tarball
++downloaded directly from a `gim-home/codex` GitHub Release.
+ 
+ **Related documentation:**
+ - [Architecture](../implementation/architecture.md)
+@@ -29,7 +30,11 @@ gh release download v<VERSION> --repo gim-home/codex --pattern 'codex-*-win32-x6
+ npm install -g "$env:TEMP\codex.tgz"
+ ```
+ 
+-Replace `<VERSION>` with the latest tag from <https://github.com/gim-home/codex/releases>. See [Install Guide](install.md) for layout and upgrade details.
++Replace `<VERSION>` with the approved tag from <https://github.com/gim-home/codex/releases>.
++The local tarball install supplies four Codex executables (`codex.exe`,
++`codex-core.exe`, `codex-windows-sandbox-setup.exe`, and
++`codex-command-runner.exe`) plus `rg.exe`. See [Install Guide](install.md) for
++layout, verification, upgrade, and rollback details.
+ 
+ ### First interactive run
+ 
+@@ -42,7 +47,8 @@ The launcher:
+ 1. Prompts for the default shell.
+ 2. Writes `~/.codex-copilot/config.toml`.
+ 3. Runs `codex login --provider copilot`.
+-4. Starts `codex-core.exe` with the built-in Copilot provider and the configured default model.
++4. Starts `codex-core.exe` with the built-in Copilot provider; normal Codex
++   model selection comes from `~/.codex/config.toml::model` or the live picker.
+ 
+ If stdin is not a TTY, run the auth step manually:
+ 
+@@ -63,13 +69,27 @@ codex --approval-mode full-auto
+ The launcher applies:
+ 
+ - `model_provider=copilot`
+-- `model=<default_model>`
+ - `sandbox_mode="danger-full-access"`
+ - curated plugin disables
+ - `features.unified_exec=true` (always, defeats Windows feature-gate downgrade — see CLAUDE.md and [`docs/implementation/architecture.md` §Traffic flow](../implementation/architecture.md). Kill switch: edit `codex-rs-overlay/codex-copilot-launcher/src/config.rs::provider_config_flags` and rebuild.)
+ 
+ There is no long-running local model service in v6. Each session talks directly from `codex-core` to GitHub Copilot.
+ 
++### MultiAgentV2 behavior
++
++Copilot does not provide the encrypted inter-agent handoff token expected by
++other providers. The fork therefore derives one provider capability while
++planning V2 tools: Copilot spawn/send/follow-up schemas use plaintext strings
++and runtime constructs plaintext `agent_message/input_text`; capable providers
++keep `encrypted_content`. Schema and runtime must never be changed separately.
++
++For an exact child completion, call V2 `wait_agent` with `task_name`. The wait
++subscribes to that target before reading its current status, so already-final
++and future-final children use the same race-free path. Leave `task_name` absent
++for the existing mailbox-wide wait. Operational containment is
++`-c features.multi_agent_v2=false`; the immutable `.3` rollback procedure and
++pins are in [Install Guide](install.md#roll-back-from-the-4-v2-change).
++
+ ## Sandbox configuration
+ 
+ `~/.codex-copilot/config.toml` controls the launcher:
+diff --git a/docs/workflows/install.md b/docs/workflows/install.md
+index 3eda936c4e..96c4daa7a2 100644
+--- a/docs/workflows/install.md
++++ b/docs/workflows/install.md
+@@ -1,8 +1,9 @@
+ # Install Guide
+ 
+-**Last Updated**: 2026-05-27
++**Last Updated**: 2026-07-14
+ 
+-Standalone walkthrough for installing the `@openai/codex` GitHub Release bundle on Windows x64.
++Standalone walkthrough for downloading the merged Windows x64 tarball directly from a
++`gim-home/codex` GitHub Release and installing that verified local asset.
+ 
+ **Related documentation:**
+ - [Developer Guide](developer-guide.md)
+@@ -50,11 +51,36 @@ $(npm root -g)/@openai/codex/vendor/x86_64-pc-windows-msvc/codex/codex-command-r
+ $(npm root -g)/@openai/codex/vendor/x86_64-pc-windows-msvc/path/rg.exe
+ ```
+ 
+-GitHub Packages publishing is retired; there is no registry-install
+-alternative and no `npm update -g` channel. The T1-T4 verifier invocations only
+-build/check and never publish. `/publish-sandbox-patch` owns tagging, packaging,
+-and uploading. `/rebase-upstream` invokes that publish runbook during its Phase
+-5b closeout, so the overall rebase workflow can publish artifacts.
++The GitHub Release asset is the only installation channel; there is no second
++publication path and no `npm update -g` channel. The T1-T4 verifier invocations
++only build/check and never publish. `/publish-sandbox-patch` owns tagging,
++packaging, and uploading. `/rebase-upstream` invokes that publish runbook during
++its Phase 5b closeout, so the overall rebase workflow can publish artifacts.
++
++The release asset contains exactly four Codex executables — `codex.exe`,
++`codex-core.exe`, `codex-windows-sandbox-setup.exe`, and
++`codex-command-runner.exe` — plus the bundled search helper `rg.exe`.
++
++## MultiAgentV2 provider compatibility
++
++Starting with `v0.141.0-copilot-api.4`, MultiAgentV2 message schemas and runtime
++handoff use the same provider capability. Copilot exposes plaintext message
++fields for `spawn_agent`, `send_message`, and `followup_task`; providers that
++support encrypted inter-agent messages retain `encrypted_content`. Exact
++`wait_agent` calls may include `task_name`; codex subscribes before reading the
++target status, so a child that is already final returns immediately. Omitting
++`task_name` retains the mailbox-wide wait.
++
++To contain a V2 regression without replacing the installation, use
++`codex -c features.multi_agent_v2=false ...` once, or persist:
++
++```toml
++[features]
++multi_agent = true
++multi_agent_v2 = false
++```
++
++in `~/.codex/config.toml`.
+ 
+ ## First run
+ 
+@@ -122,6 +148,29 @@ Re-check the vendor layout above. If `codex.exe`, `codex-core.exe`, `codex-windo
+ 
+ Earlier releases used `~/.codex-sandbox/bin`. Remove that old directory from PATH if `where codex` resolves there instead of the npm shim.
+ 
++### Roll back from the `.4` V2 change
++
++Prefer the V2-disable containment above. If the operator directs an executable
++rollback, download the immutable `.3` GitHub Release asset to a project-relative
++scratch directory and verify it before installation:
++
++```powershell
++New-Item -ItemType Directory -Force .release-scratch | Out-Null
++$asset = Join-Path $PWD '.release-scratch\codex-0.141.0-copilot-api.3-win32-x64.tgz'
++gh release download v0.141.0-copilot-api.3 --repo gim-home/codex --pattern 'codex-0.141.0-copilot-api.3-win32-x64.tgz' --output $asset --clobber
++if ((Get-Item $asset).Length -ne 124405641) { throw 'unexpected .3 asset length' }
++if ((Get-FileHash -Algorithm SHA256 $asset).Hash.ToLower() -ne '29bd5320fac1c2025cffdc85cedaadb6a7f21a93f42ae93dd95e1a1460c5cfbc') { throw 'unexpected .3 asset hash' }
++npm install -g $asset
++codex --version
++```
++
++The expected version is `codex-cli 0.141.0-copilot-api.3`. Re-run the vendor
++inventory check for the four Codex executables plus `rg.exe`, and verify
++`where.exe codex`, `Get-Command codex -All`, and a non-secret V1
++spawn/wait/close canary with `features.multi_agent_v2=false`. Never move or
++replace the `.3` release/tag; post-release corrections use a new forward-fix
++version.
++
+ ## Uninstall
+ 
+ ```bash

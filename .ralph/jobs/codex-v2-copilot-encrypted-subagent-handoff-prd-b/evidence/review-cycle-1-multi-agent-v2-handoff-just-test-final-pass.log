@@ -1,0 +1,25 @@
+**********************
+PowerShell transcript start
+Start time: 20260714030240
+Username: MIDDLEEAST\evmitran
+RunAs User: MIDDLEEAST\evmitran
+Configuration Name: 
+Machine: DESKTOP-212EVNK (Microsoft Windows NT 10.0.26200.0)
+Host Application: C:\Program Files\PowerShell\7\pwsh.dll -NoProfile -NoLogo -NonInteractive -Command try { [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false) } catch {}; try { if (Get-Variable -Name PSStyle -ErrorAction SilentlyContinue) { $PSStyle.OutputRendering = 'PlainText' } } catch {}; $global:LASTEXITCODE = 0; try { $repo='D:\harness-efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff'; $evidence='D:\harness-efforts\codexu\.ralph\jobs\codex-v2-copilot-encrypted-subagent-handoff-prd-b\evidence'; $env:Path='C:\Users\evmitran\AppData\Local\Programs\Python\Python313;'+$env:Path; $env:RUSTUP_TOOLCHAIN='1.95.0-x86_64-pc-windows-gnu'; $env:RUSTFLAGS='-C link-self-contained=yes'; $env:CARGO_BUILD_JOBS='2'; Start-Transcript -Path (Join-Path $evidence 'review-cycle-1-multi-agent-v2-handoff-just-test-final-pass.log') -Force; Set-Location (Join-Path $repo 'external\repos\codex-patched'); just test -p codex-invariant-tests --test multi_agent_v2_handoff; $code=$LASTEXITCODE; Stop-Transcript; exit $code } finally { $__copilotSuccess = $?; if (-not $__copilotSuccess -and $LASTEXITCODE -is [int] -and $LASTEXITCODE -ne 0) { $host.SetShouldExit($LASTEXITCODE) } elseif (-not $__copilotSuccess) { $host.SetShouldExit(1) } else { $host.SetShouldExit(0) } }
+Process ID: 110632
+PSVersion: 7.6.3
+PSEdition: Core
+GitCommitId: 7.6.3
+OS: Microsoft Windows 10.0.26200
+Platform: Win32NT
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1, 6.0, 7.0
+PSRemotingProtocolVersion: 2.4
+SerializationVersion: 1.1.0.1
+WSManStackVersion: 3.0
+**********************
+Transcript started, output file is D:\harness-efforts\codexu\.ralph\jobs\codex-v2-copilot-encrypted-subagent-handoff-prd-b\evidence\review-cycle-1-multi-agent-v2-handoff-just-test-final-pass.log
+
+**********************
+PowerShell transcript end
+End time: 20260714030304
+**********************

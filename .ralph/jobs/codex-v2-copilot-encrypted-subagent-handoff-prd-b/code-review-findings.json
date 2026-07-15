@@ -1,0 +1,344 @@
+{
+  "planFile": "D:\\harness-efforts\\codexu\\.ralph\\jobs\\codex-v2-copilot-encrypted-subagent-handoff-prd-b\\plan.md",
+  "repoDir": "D:\\harness-efforts\\codexu\\codex\\.worktrees\\codex-v2-copilot-encrypted-subagent-handoff",
+  "reviewCycle": 7,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "copilot",
+      "classification": "fixable",
+      "phase": "code",
+      "storyId": "US-001",
+      "scopeStoryIds": [
+        "US-001"
+      ],
+      "uiUxJudgment": "not-required",
+      "category": "policy-consistency",
+      "sectionRef": "Logical-block marker ownership",
+      "description": "The invariant did not bind every marker to its expected logical block.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Every provider-aware and exact-wait marker is bound to an explicit logical owner with aggregate drift and conflicting-marker checks.",
+      "relevantFiles": [
+        "codex-rs-overlay/codex-invariant-tests/tests/multi_agent_v2_handoff.rs:227-469"
+      ],
+      "suggestedFix": "Retain explicit marker ownership and aggregate inventory checks."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "copilot",
+      "classification": "fixable",
+      "phase": "code",
+      "storyId": "US-001",
+      "scopeStoryIds": [
+        "US-001"
+      ],
+      "uiUxJudgment": "not-required",
+      "category": "Correctness",
+      "sectionRef": "Provider-aware schema/runtime invariant",
+      "description": "The invariant did not originally enforce capability-to-encoding and encoding-to-constructor relationships.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Exact capability-to-encoding, encoding-to-schema, and encoding-to-constructor relationships are asserted.",
+      "relevantFiles": [
+        "codex-rs-overlay/codex-invariant-tests/tests/multi_agent_v2_handoff.rs:471-677"
+      ],
+      "suggestedFix": "Retain the exact normalized relationship assertions."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "copilot",
+      "classification": "fixable",
+      "phase": "code",
+      "storyId": "US-001",
+      "scopeStoryIds": [
+        "US-001"
+      ],
+      "uiUxJudgment": "not-required",
+      "category": "Correctness",
+      "sectionRef": "Exact subscribe-before-read invariant",
+      "description": "The original status-read check was not whitespace tolerant.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Whitespace-normalized checks prove subscription precedes every status read and the receiver reaches the targeted wait.",
+      "relevantFiles": [
+        "codex-rs-overlay/codex-invariant-tests/tests/multi_agent_v2_handoff.rs:685-800"
+      ],
+      "suggestedFix": "Retain normalized ordering and receiver-handoff assertions."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "copilot",
+      "classification": "fixable",
+      "phase": "code",
+      "storyId": "US-002",
+      "scopeStoryIds": [
+        "US-002"
+      ],
+      "uiUxJudgment": "not-required",
+      "category": "Correctness",
+      "sectionRef": "Release bundle ripgrep download",
+      "description": "The ripgrep URL originally interpolated a project-relative output path.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Release tag, archive basename, and project-relative destination are separate variables in both publication paths.",
+      "relevantFiles": [
+        ".claude/commands/publish-sandbox-patch.md:848-859",
+        ".github/workflows/publish-npm.yml:159-171"
+      ],
+      "suggestedFix": "Keep URL basenames separate from local destination paths."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "consensus",
+      "classification": "fixable",
+      "phase": "code",
+      "storyId": "US-001",
+      "scopeStoryIds": [
+        "US-001"
+      ],
+      "uiUxJudgment": "not-required",
+      "category": "Completeness",
+      "sectionRef": "Send and follow-up marker ownership",
+      "description": "Send and follow-up marker checks originally used only aggregate counts.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Send and follow-up state and delivery blocks are independently bound to exact marker owners.",
+      "relevantFiles": [
+        "codex-rs-overlay/codex-invariant-tests/tests/multi_agent_v2_handoff.rs:400-419"
+      ],
+      "suggestedFix": "Retain per-block ownership assertions."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "codex",
+      "classification": "fixable",
+      "phase": "code",
+      "storyId": "US-001",
+      "scopeStoryIds": [
+        "US-001"
+      ],
+      "uiUxJudgment": "not-required",
+      "category": "Completeness",
+      "sectionRef": "Runnable invariant command",
+      "description": "The documented invariant command originally ran from a directory without the applicable justfile.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Active commands change into the nested workspace before invoking just.",
+      "relevantFiles": [
+        "CLAUDE.md:205",
+        "docs/implementation/patch-surface.md:916"
+      ],
+      "suggestedFix": "Keep the required working directory explicit."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "consensus",
+      "classification": "fixable",
+      "phase": "code",
+      "storyId": "US-002",
+      "scopeStoryIds": [
+        "US-002"
+      ],
+      "uiUxJudgment": "not-required",
+      "category": "Correctness",
+      "sectionRef": "Ripgrep archive URL",
+      "description": "The release URL originally used the local archive path instead of its basename.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Both publication paths use an archive basename in the URL and a separate local path.",
+      "relevantFiles": [
+        ".claude/commands/publish-sandbox-patch.md:848-859",
+        ".github/workflows/publish-npm.yml:159-171"
+      ],
+      "suggestedFix": "Retain separate URL and destination variables."
+    },
+    {
+      "id": "F-008",
+      "severity": "High",
+      "source": "copilot",
+      "classification": "fixable",
+      "phase": "code",
+      "storyId": "US-002",
+      "scopeStoryIds": [
+        "US-002"
+      ],
+      "uiUxJudgment": "not-required",
+      "category": "Correctness",
+      "sectionRef": "Public tag candidate binding",
+      "description": "The public tag was originally created from ambient HEAD.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "The public tag is created from and verified against WRAPPER_CANDIDATE_SHA.",
+      "relevantFiles": [
+        ".claude/commands/publish-sandbox-patch.md:764-793"
+      ],
+      "suggestedFix": "Keep public tag creation explicitly SHA-bound."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "copilot",
+      "classification": "fixable",
+      "phase": "code",
+      "storyId": "US-002",
+      "scopeStoryIds": [
+        "US-002"
+      ],
+      "uiUxJudgment": "not-required",
+      "category": "Security",
+      "sectionRef": "Release destination push URLs",
+      "description": "The release preflight originally validated fetch URLs but not push URLs.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Every configured fetch and push URL is validated before publication.",
+      "relevantFiles": [
+        ".claude/commands/publish-sandbox-patch.md:568-577"
+      ],
+      "suggestedFix": "Retain exact fetch- and push-URL checks."
+    },
+    {
+      "id": "F-010",
+      "severity": "High",
+      "source": "copilot",
+      "classification": "fixable",
+      "phase": "code",
+      "storyId": "US-001",
+      "scopeStoryIds": [
+        "US-001"
+      ],
+      "uiUxJudgment": "not-required",
+      "category": "policy-consistency",
+      "sectionRef": "Provider-derived V2 schema/runtime propagation",
+      "description": "The invariant originally omitted five downstream provider-derived encoding hops.",
+      "status": "fixed",
+      "fixedInIteration": 2,
+      "resolution": "All handler-to-schema and final communication-constructor hops are asserted.",
+      "relevantFiles": [
+        "codex-rs-overlay/codex-invariant-tests/tests/multi_agent_v2_handoff.rs:579-677"
+      ],
+      "suggestedFix": "Retain all downstream propagation assertions."
+    },
+    {
+      "id": "F-011",
+      "severity": "High",
+      "source": "copilot",
+      "classification": "fixable",
+      "phase": "code",
+      "storyId": "US-002",
+      "scopeStoryIds": [
+        "US-002"
+      ],
+      "uiUxJudgment": "not-required",
+      "category": "policy-consistency",
+      "sectionRef": "Retention-tag publication gate",
+      "description": "A newly pushed retention tag originally was not resolved and checked before wrapper publication.",
+      "status": "fixed",
+      "fixedInIteration": 2,
+      "resolution": "The remote direct or peeled retention tag must equal SUBMODULE_SHA after push.",
+      "relevantFiles": [
+        ".claude/commands/publish-sandbox-patch.md:707-754"
+      ],
+      "suggestedFix": "Retain post-push exact remote tag verification."
+    },
+    {
+      "id": "F-012",
+      "severity": "High",
+      "source": "copilot",
+      "classification": "fixable",
+      "phase": "code",
+      "storyId": "US-002",
+      "scopeStoryIds": [
+        "US-002"
+      ],
+      "uiUxJudgment": "not-required",
+      "category": "Correctness",
+      "sectionRef": "Fail-closed Bash release sequencing",
+      "description": "Consequential Bash fences originally could continue after failed release operations.",
+      "status": "fixed",
+      "fixedInIteration": 4,
+      "resolution": "All consequential Bash fences use fail-fast settings and explicit guards; the only fence without them is a non-mutating process-list example.",
+      "relevantFiles": [
+        ".claude/commands/publish-sandbox-patch.md:62-1040"
+      ],
+      "suggestedFix": "Keep every mutating release fence fail closed."
+    },
+    {
+      "id": "F-013",
+      "severity": "High",
+      "source": "re-review",
+      "classification": "fixable",
+      "phase": "code",
+      "storyId": "US-002",
+      "scopeStoryIds": [
+        "US-002"
+      ],
+      "uiUxJudgment": "not-required",
+      "category": "Correctness",
+      "sectionRef": "Candidate and published-artifact provenance",
+      "description": "Both verify_release_asset functions are invoked as an if-condition or an AND-list operand, which makes Bash ignore errexit throughout the function. Their unguarded cleanup, directory creation, and gh release download commands can therefore fail and continue; on the persistent manual evidence path, a stale candidate bundle can then satisfy the SHA-256 and four-binary comparisons even when the live release asset was not downloaded, allowing an incorrect digest-less existing asset to be accepted as exact.",
+      "status": "fixed",
+      "fixedInIteration": 7,
+      "resolution": "Made both release asset verifiers fail closed and require a fresh regular-file download before digest and binary comparison.",
+      "relevantFiles": [
+        ".claude/commands/publish-sandbox-patch.md:950-965",
+        ".claude/commands/publish-sandbox-patch.md:997",
+        ".github/workflows/publish-npm.yml:300-315",
+        ".github/workflows/publish-npm.yml:347"
+      ],
+      "suggestedFix": "In both verify_release_asset functions, append `|| return 1` to cleanup, directory creation, and `gh release download`, then require the downloaded path to be a fresh regular file before hashing or extracting it. Keep the existing digest and embedded-binary comparisons."
+    },
+    {
+      "id": "F-014",
+      "severity": "High",
+      "source": "re-review",
+      "classification": "fixable",
+      "phase": "code",
+      "storyId": "US-002",
+      "scopeStoryIds": [
+        "US-002"
+      ],
+      "uiUxJudgment": "not-required",
+      "category": "Correctness",
+      "sectionRef": "Partial GitHub Release resume state",
+      "description": "The workflow rejects an existing release unless targetCommitish is the literal GITHUB_SHA. GitHub documents target_commitish as defaulting to the default branch and being unused when the Git tag already exists; releases created by the previous workflow omitted --target. A failed old upload can therefore leave a partial release whose live tag is exactly candidate-bound but whose retry always aborts at this raw metadata comparison instead of repairing the missing asset.",
+      "status": "fixed",
+      "fixedInIteration": 6,
+      "resolution": "Used enforced live-tag provenance for existing releases and repaired assets without targetCommitish rejection.",
+      "relevantFiles": [
+        ".github/workflows/publish-npm.yml:285-290"
+      ],
+      "suggestedFix": "Use the already-enforced live tag equality as existing-release commit provenance. Do not require raw targetCommitish to equal GITHUB_SHA when the tag exists; retain --target for new releases, then branch on the expected asset's retained digest to skip an exact asset or safely repair only a missing/incorrect one."
+    },
+    {
+      "id": "F-015",
+      "severity": "High",
+      "source": "re-review",
+      "classification": "fixable",
+      "phase": "code",
+      "storyId": "US-002",
+      "scopeStoryIds": [
+        "US-002"
+      ],
+      "uiUxJudgment": "not-required",
+      "category": "policy-consistency",
+      "sectionRef": "Final public-tag and retention-tag publication gate",
+      "description": "The workflow originally omitted the manual path's final live nested retention-tag equality gate.",
+      "status": "fixed",
+      "fixedInIteration": 5,
+      "resolution": "The workflow now resolves direct and peeled release/${RELEASE_VERSION} refs immediately before upload and requires the live SHA to equal SUBMODULE_CANDIDATE_SHA.",
+      "relevantFiles": [
+        ".github/workflows/publish-npm.yml:268-283",
+        ".claude/commands/publish-sandbox-patch.md:926-966"
+      ],
+      "suggestedFix": "Retain final live retention-tag parity in both publication paths."
+    }
+  ]
+}

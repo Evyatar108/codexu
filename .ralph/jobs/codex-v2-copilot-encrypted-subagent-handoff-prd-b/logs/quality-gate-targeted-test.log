@@ -1,0 +1,1288 @@
+===================================================================
+  FROZEN ITERATION PROFILE ACTIVE
+  LTO=off  codegen-units=16  jobs=8  incremental=0
+  RUSTC_WRAPPER=sccache  SCCACHE_DIR=D:\codex-sccache  size=50G
+  Do NOT change LTO / codegen-units / RUSTFLAGS round-to-round.
+  Runnable iteration is canonical T3 (builds codex-core + launcher):
+    bash scripts/verify-core-change.sh executable --confirm-slow
+===================================================================
+$env:RUST_MIN_STACK = "8388608"; $env:NEXTEST_PROFILE = "local"; cargo nextest run --no-fail-fast @($args | Select-Object -Skip 1)
+warning: field `refresh_lock` is never read
+    --> login\src\auth\manager.rs:1490:5
+     |
+1481 | pub struct AuthManager {
+     |            ----------- field in this struct
+...
+1490 |     refresh_lock: Semaphore,
+     |     ^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `codex-login` (lib) generated 1 warning
+warning: unexpected `cfg` condition value: `test-support`
+   --> model-provider\src\copilot.rs:190:21
+    |
+190 |     #[cfg(any(test, feature = "test-support"))]
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^ help: remove the condition
+    |
+    = note: no expected values for `feature`
+    = help: consider adding `test-support` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unexpected `cfg` condition value: `test-support`
+   --> model-provider\src\provider.rs:189:21
+    |
+189 |     #[cfg(any(test, feature = "test-support"))]
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^ help: remove the condition
+    |
+    = note: no expected values for `feature`
+    = help: consider adding `test-support` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: `codex-model-provider` (lib) generated 2 warnings
+warning: function `serialize_enum_as_string` is never used
+  --> analytics\src\lib.rs:78:15
+   |
+78 | pub(crate) fn serialize_enum_as_string<T: serde::Serialize>(value: &T) -> Option<String> {
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `usize_to_u64` is never used
+  --> analytics\src\lib.rs:84:15
+   |
+84 | pub(crate) fn usize_to_u64(value: usize) -> u64 {
+   |               ^^^^^^^^^^^^
+
+warning: function `option_i64_to_u64` is never used
+  --> analytics\src\lib.rs:88:15
+   |
+88 | pub(crate) fn option_i64_to_u64(value: Option<i64>) -> Option<u64> {
+   |               ^^^^^^^^^^^^^^^^^
+
+warning: struct `AcceptedLineFingerprintEventInput` is never constructed
+  --> analytics\src\accepted_lines.rs:17:19
+   |
+17 | pub(crate) struct AcceptedLineFingerprintEventInput {
+   |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `accepted_line_fingerprint_event_requests` is never used
+  --> analytics\src\accepted_lines.rs:94:15
+   |
+94 | pub(crate) fn accepted_line_fingerprint_event_requests(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `accepted_line_repo_hash_for_cwd` is never used
+   --> analytics\src\accepted_lines.rs:131:14
+    |
+131 | pub async fn accepted_line_repo_hash_for_cwd(cwd: &Path) -> Option<String> {
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: multiple variants are never constructed
+  --> analytics\src\events.rs:61:5
+   |
+60 | pub(crate) enum TrackEventRequest {
+   |                 ----------------- variants in this enum
+61 |     SkillInvocation(SkillInvocationEventRequest),
+   |     ^^^^^^^^^^^^^^^
+62 |     ThreadInitialized(ThreadInitializedEvent),
+   |     ^^^^^^^^^^^^^^^^^
+63 |     GuardianReview(Box<GuardianReviewEventRequest>),
+   |     ^^^^^^^^^^^^^^
+64 |     AppMentioned(CodexAppMentionedEventRequest),
+   |     ^^^^^^^^^^^^
+65 |     AppUsed(CodexAppUsedEventRequest),
+   |     ^^^^^^^
+66 |     HookRun(CodexHookRunEventRequest),
+   |     ^^^^^^^
+67 |     Compaction(Box<CodexCompactionEventRequest>),
+   |     ^^^^^^^^^^
+68 |     Goal(Box<CodexGoalEventRequest>),
+   |     ^^^^
+69 |     TurnEvent(Box<CodexTurnEventRequest>),
+   |     ^^^^^^^^^
+70 |     TurnSteer(CodexTurnSteerEventRequest),
+   |     ^^^^^^^^^
+71 |     CommandExecution(CodexCommandExecutionEventRequest),
+   |     ^^^^^^^^^^^^^^^^
+72 |     FileChange(CodexFileChangeEventRequest),
+   |     ^^^^^^^^^^
+73 |     McpToolCall(CodexMcpToolCallEventRequest),
+   |     ^^^^^^^^^^^
+74 |     DynamicToolCall(CodexDynamicToolCallEventRequest),
+   |     ^^^^^^^^^^^^^^^
+75 |     CollabAgentToolCall(CodexCollabAgentToolCallEventRequest),
+   |     ^^^^^^^^^^^^^^^^^^^
+76 |     WebSearch(CodexWebSearchEventRequest),
+   |     ^^^^^^^^^
+77 |     ImageGeneration(CodexImageGenerationEventRequest),
+   |     ^^^^^^^^^^^^^^^
+78 |     AcceptedLineFingerprints(Box<CodexAcceptedLineFingerprintsEventRequest>),
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+81 |     PluginUsed(CodexPluginUsedEventRequest),
+   |     ^^^^^^^^^^
+82 |     PluginInstalled(CodexPluginEventRequest),
+   |     ^^^^^^^^^^^^^^^
+83 |     PluginUninstalled(CodexPluginEventRequest),
+   |     ^^^^^^^^^^^^^^^^^
+84 |     PluginEnabled(CodexPluginEventRequest),
+   |     ^^^^^^^^^^^^^
+85 |     PluginDisabled(CodexPluginEventRequest),
+   |     ^^^^^^^^^^^^^^
+
+warning: function `plugin_state_event_type` is never used
+   --> analytics\src\events.rs:963:15
+    |
+963 | pub(crate) fn plugin_state_event_type(state: PluginState) -> &'static str {
+    |               ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `codex_app_metadata` is never used
+   --> analytics\src\events.rs:972:15
+    |
+972 | pub(crate) fn codex_app_metadata(
+    |               ^^^^^^^^^^^^^^^^^^
+
+warning: function `codex_plugin_metadata` is never used
+   --> analytics\src\events.rs:987:15
+    |
+987 | pub(crate) fn codex_plugin_metadata(plugin: PluginTelemetryMetadata) -> CodexPluginMetadata {
+    |               ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `codex_compaction_event_params` is never used
+    --> analytics\src\events.rs:1015:15
+     |
+1015 | pub(crate) fn codex_compaction_event_params(
+     |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `codex_goal_event_params` is never used
+    --> analytics\src\events.rs:1052:15
+     |
+1052 | pub(crate) fn codex_goal_event_params(
+     |               ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `codex_plugin_used_metadata` is never used
+    --> analytics\src\events.rs:1079:15
+     |
+1079 | pub(crate) fn codex_plugin_used_metadata(
+     |               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `codex_hook_run_metadata` is never used
+    --> analytics\src\events.rs:1096:15
+     |
+1096 | pub(crate) fn codex_hook_run_metadata(
+     |               ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `analytics_hook_event_name` is never used
+    --> analytics\src\events.rs:1110:4
+     |
+1110 | fn analytics_hook_event_name(event_name: HookEventName) -> &'static str {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `analytics_hook_source` is never used
+    --> analytics\src\events.rs:1125:4
+     |
+1125 | fn analytics_hook_source(source: HookSource) -> &'static str {
+     |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `subagent_thread_started_event_request` is never used
+    --> analytics\src\events.rs:1151:15
+     |
+1151 | pub(crate) fn subagent_thread_started_event_request(
+     |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `subagent_source_name` is never used
+    --> analytics\src\events.rs:1180:15
+     |
+1180 | pub(crate) fn subagent_source_name(subagent_source: &SubAgentSource) -> String {
+     |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `analytics_hook_status` is never used
+    --> analytics\src\events.rs:1184:4
+     |
+1184 | fn analytics_hook_status(status: HookRunStatus) -> HookRunStatus {
+     |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: fields `turn_id`, `thread_id`, and `error` are never read
+   --> analytics\src\facts.rs:123:16
+    |
+122 | pub struct TurnCodexErrorFact {
+    |            ------------------ fields in this struct
+123 |     pub(crate) turn_id: String,
+    |                ^^^^^^^
+124 |     pub(crate) thread_id: String,
+    |                ^^^^^^^^^
+125 |     pub(crate) error: TurnCodexError,
+    |                ^^^^^
+    |
+    = note: `TurnCodexErrorFact` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: fields `kind` and `http_status_code` are never read
+   --> analytics\src\facts.rs:181:16
+    |
+180 | pub(crate) struct TurnCodexError {
+    |                   -------------- fields in this struct
+181 |     pub(crate) kind: CodexErrKind,
+    |                ^^^^
+182 |     pub(crate) http_status_code: Option<u16>,
+    |                ^^^^^^^^^^^^^^^^
+    |
+    = note: `TurnCodexError` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: field `0` is never read
+   --> analytics\src\facts.rs:493:27
+    |
+493 |     SubAgentThreadStarted(SubAgentThreadStartedInput),
+    |     --------------------- ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+493 -     SubAgentThreadStarted(SubAgentThreadStartedInput),
+493 +     SubAgentThreadStarted(()),
+    |
+
+warning: field `0` is never read
+   --> analytics\src\facts.rs:494:16
+    |
+494 |     Compaction(Box<CodexCompactionEvent>),
+    |     ---------- ^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+494 -     Compaction(Box<CodexCompactionEvent>),
+494 +     Compaction(()),
+    |
+
+warning: field `0` is never read
+   --> analytics\src\facts.rs:495:10
+    |
+495 |     Goal(Box<CodexGoalEvent>),
+    |     ---- ^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+495 -     Goal(Box<CodexGoalEvent>),
+495 +     Goal(()),
+    |
+
+warning: field `0` is never read
+   --> analytics\src\facts.rs:496:20
+    |
+496 |     GuardianReview(Box<GuardianReviewEventParams>),
+    |     -------------- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+496 -     GuardianReview(Box<GuardianReviewEventParams>),
+496 +     GuardianReview(()),
+    |
+
+warning: field `0` is never read
+   --> analytics\src\facts.rs:497:24
+    |
+497 |     TurnResolvedConfig(Box<TurnResolvedConfigFact>),
+    |     ------------------ ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+497 -     TurnResolvedConfig(Box<TurnResolvedConfigFact>),
+497 +     TurnResolvedConfig(()),
+    |
+
+warning: field `0` is never read
+   --> analytics\src\facts.rs:498:20
+    |
+498 |     TurnTokenUsage(Box<TurnTokenUsageFact>),
+    |     -------------- ^^^^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+498 -     TurnTokenUsage(Box<TurnTokenUsageFact>),
+498 +     TurnTokenUsage(()),
+    |
+
+warning: field `0` is never read
+   --> analytics\src\facts.rs:499:17
+    |
+499 |     TurnProfile(Box<TurnProfileFact>),
+    |     ----------- ^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+499 -     TurnProfile(Box<TurnProfileFact>),
+499 +     TurnProfile(()),
+    |
+
+warning: field `0` is never read
+   --> analytics\src\facts.rs:500:20
+    |
+500 |     TurnCodexError(Box<TurnCodexErrorFact>),
+    |     -------------- ^^^^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+500 -     TurnCodexError(Box<TurnCodexErrorFact>),
+500 +     TurnCodexError(()),
+    |
+
+warning: field `0` is never read
+   --> analytics\src\facts.rs:501:18
+    |
+501 |     SkillInvoked(SkillInvokedInput),
+    |     ------------ ^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+501 -     SkillInvoked(SkillInvokedInput),
+501 +     SkillInvoked(()),
+    |
+
+warning: field `0` is never read
+   --> analytics\src\facts.rs:502:18
+    |
+502 |     AppMentioned(AppMentionedInput),
+    |     ------------ ^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+502 -     AppMentioned(AppMentionedInput),
+502 +     AppMentioned(()),
+    |
+
+warning: field `0` is never read
+   --> analytics\src\facts.rs:503:13
+    |
+503 |     AppUsed(AppUsedInput),
+    |     ------- ^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+503 -     AppUsed(AppUsedInput),
+503 +     AppUsed(()),
+    |
+
+warning: field `0` is never read
+   --> analytics\src\facts.rs:504:13
+    |
+504 |     HookRun(HookRunInput),
+    |     ------- ^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+504 -     HookRun(HookRunInput),
+504 +     HookRun(()),
+    |
+
+warning: field `0` is never read
+   --> analytics\src\facts.rs:505:16
+    |
+505 |     PluginUsed(PluginUsedInput),
+    |     ---------- ^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+505 -     PluginUsed(PluginUsedInput),
+505 +     PluginUsed(()),
+    |
+
+warning: field `0` is never read
+   --> analytics\src\facts.rs:506:24
+    |
+506 |     PluginStateChanged(PluginStateChangedInput),
+    |     ------------------ ^^^^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+506 -     PluginStateChanged(PluginStateChangedInput),
+506 +     PluginStateChanged(()),
+    |
+
+warning: fields `tracking` and `invocations` are never read
+   --> analytics\src\facts.rs:510:9
+    |
+509 | pub(crate) struct SkillInvokedInput {
+    |                   ----------------- fields in this struct
+510 |     pub tracking: TrackEventsContext,
+    |         ^^^^^^^^
+511 |     pub invocations: Vec<SkillInvocation>,
+    |         ^^^^^^^^^^^
+
+warning: fields `tracking` and `mentions` are never read
+   --> analytics\src\facts.rs:515:9
+    |
+514 | pub(crate) struct AppMentionedInput {
+    |                   ----------------- fields in this struct
+515 |     pub tracking: TrackEventsContext,
+    |         ^^^^^^^^
+516 |     pub mentions: Vec<AppInvocation>,
+    |         ^^^^^^^^
+
+warning: fields `tracking` and `app` are never read
+   --> analytics\src\facts.rs:520:9
+    |
+519 | pub(crate) struct AppUsedInput {
+    |                   ------------ fields in this struct
+520 |     pub tracking: TrackEventsContext,
+    |         ^^^^^^^^
+521 |     pub app: AppInvocation,
+    |         ^^^
+
+warning: fields `tracking` and `hook` are never read
+   --> analytics\src\facts.rs:525:9
+    |
+524 | pub(crate) struct HookRunInput {
+    |                   ------------ fields in this struct
+525 |     pub tracking: TrackEventsContext,
+    |         ^^^^^^^^
+526 |     pub hook: HookRunFact,
+    |         ^^^^
+
+warning: fields `tracking` and `plugin` are never read
+   --> analytics\src\facts.rs:536:9
+    |
+535 | pub(crate) struct PluginUsedInput {
+    |                   --------------- fields in this struct
+536 |     pub tracking: TrackEventsContext,
+    |         ^^^^^^^^
+537 |     pub plugin: PluginTelemetryMetadata,
+    |         ^^^^^^
+
+warning: fields `plugin` and `state` are never read
+   --> analytics\src\facts.rs:541:9
+    |
+540 | pub(crate) struct PluginStateChangedInput {
+    |                   ----------------------- fields in this struct
+541 |     pub plugin: PluginTelemetryMetadata,
+    |         ^^^^^^
+542 |     pub state: PluginState,
+    |         ^^^^^
+
+warning: struct `AnalyticsReducer` is never constructed
+   --> analytics\src\reducer.rs:137:19
+    |
+137 | pub(crate) struct AnalyticsReducer {
+    |                   ^^^^^^^^^^^^^^^^
+
+warning: struct `ConnectionState` is never constructed
+   --> analytics\src\reducer.rs:147:8
+    |
+147 | struct ConnectionState {
+    |        ^^^^^^^^^^^^^^^
+
+warning: struct `ThreadAnalyticsState` is never constructed
+   --> analytics\src\reducer.rs:153:8
+    |
+153 | struct ThreadAnalyticsState {
+    |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `AnalyticsDropSite` is never constructed
+   --> analytics\src\reducer.rs:159:8
+    |
+159 | struct AnalyticsDropSite<'a> {
+    |        ^^^^^^^^^^^^^^^^^
+
+warning: multiple associated functions are never used
+   --> analytics\src\reducer.rs:168:8
+    |
+167 | impl<'a> AnalyticsDropSite<'a> {
+    | ------------------------------ associated functions in this implementation
+168 |     fn guardian(input: &'a GuardianReviewEventParams) -> Self {
+    |        ^^^^^^^^
+...
+178 |     fn review(input: &'a PendingReviewState) -> Self {
+    |        ^^^^^^
+...
+188 |     fn compaction(input: &'a CodexCompactionEvent) -> Self {
+    |        ^^^^^^^^^^
+...
+198 |     fn goal(input: &'a CodexGoalEvent) -> Self {
+    |        ^^^^
+...
+208 |     fn tool_item(
+    |        ^^^^^^^^^
+...
+221 |     fn turn_steer(thread_id: &'a str) -> Self {
+    |        ^^^^^^^^^^
+...
+231 |     fn turn(thread_id: &'a str, turn_id: &'a str) -> Self {
+    |        ^^^^
+
+warning: enum `MissingAnalyticsContext` is never used
+   --> analytics\src\reducer.rs:242:6
+    |
+242 | enum MissingAnalyticsContext {
+    |      ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `PendingReviewState` is never constructed
+   --> analytics\src\reducer.rs:249:8
+    |
+249 | struct PendingReviewState {
+    |        ^^^^^^^^^^^^^^^^^^
+
+warning: struct `ItemReviewSummary` is never constructed
+   --> analytics\src\reducer.rs:263:8
+    |
+263 | struct ItemReviewSummary {
+    |        ^^^^^^^^^^^^^^^^^
+
+warning: struct `ThreadMetadataState` is never constructed
+   --> analytics\src\reducer.rs:273:8
+    |
+273 | struct ThreadMetadataState {
+    |        ^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `from_thread_metadata` is never used
+   --> analytics\src\reducer.rs:282:8
+    |
+281 | impl ThreadMetadataState {
+    | ------------------------ associated function in this implementation
+282 |     fn from_thread_metadata(
+    |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: enum `RequestState` is never used
+   --> analytics\src\reducer.rs:309:6
+    |
+309 | enum RequestState {
+    |      ^^^^^^^^^^^^
+
+warning: struct `PendingTurnStartState` is never constructed
+   --> analytics\src\reducer.rs:314:8
+    |
+314 | struct PendingTurnStartState {
+    |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `PendingTurnSteerState` is never constructed
+   --> analytics\src\reducer.rs:319:8
+    |
+319 | struct PendingTurnSteerState {
+    |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `CompletedTurnState` is never constructed
+   --> analytics\src\reducer.rs:327:8
+    |
+327 | struct CompletedTurnState {
+    |        ^^^^^^^^^^^^^^^^^^
+
+warning: struct `TurnState` is never constructed
+   --> analytics\src\reducer.rs:335:8
+    |
+335 | struct TurnState {
+    |        ^^^^^^^^^
+
+warning: struct `ToolItemKey` is never constructed
+   --> analytics\src\reducer.rs:351:8
+    |
+351 | struct ToolItemKey {
+    |        ^^^^^^^^^^^
+
+warning: struct `TurnToolCounts` is never constructed
+   --> analytics\src\reducer.rs:358:8
+    |
+358 | struct TurnToolCounts {
+    |        ^^^^^^^^^^^^^^
+
+warning: method `record` is never used
+   --> analytics\src\reducer.rs:370:8
+    |
+369 | impl TurnToolCounts {
+    | ------------------- method in this implementation
+370 |     fn record(&mut self, item: &ThreadItem) {
+    |        ^^^^^^
+
+warning: multiple methods are never used
+    --> analytics\src\reducer.rs:397:25
+     |
+ 396 | impl AnalyticsReducer {
+     | --------------------- methods in this implementation
+ 397 |     pub(crate) async fn ingest(&mut self, input: AnalyticsFact, out: &mut Vec<TrackEventRequest>) {
+     |                         ^^^^^^
+...
+ 518 |     fn ingest_initialize(
+     |        ^^^^^^^^^^^^^^^^^
+...
+ 543 |     fn ingest_subagent_thread_started(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 571 |     fn ingest_guardian_review(
+     |        ^^^^^^^^^^^^^^^^^^^^^^
+...
+ 594 |     fn ingest_request(
+     |        ^^^^^^^^^^^^^^
+...
+ 625 |     async fn ingest_turn_resolved_config(
+     |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 640 |     async fn ingest_turn_token_usage(
+     |              ^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 652 |     async fn ingest_turn_profile(
+     |              ^^^^^^^^^^^^^^^^^^^
+...
+ 663 |     fn ingest_turn_codex_error(&mut self, input: TurnCodexErrorFact) {
+     |        ^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 674 |     async fn ingest_skill_invoked(
+     |              ^^^^^^^^^^^^^^^^^^^^
+...
+ 724 |     fn ingest_app_mentioned(&mut self, input: AppMentionedInput, out: &mut Vec<TrackEventRequest>) {
+     |        ^^^^^^^^^^^^^^^^^^^^
+...
+ 735 |     fn ingest_app_used(&mut self, input: AppUsedInput, out: &mut Vec<TrackEventRequest>) {
+     |        ^^^^^^^^^^^^^^^
+...
+ 744 |     fn ingest_hook_run(&mut self, input: HookRunInput, out: &mut Vec<TrackEventRequest>) {
+     |        ^^^^^^^^^^^^^^^
+...
+ 752 |     fn ingest_plugin_used(&mut self, input: PluginUsedInput, out: &mut Vec<TrackEventRequest>) {
+     |        ^^^^^^^^^^^^^^^^^^
+...
+ 760 |     fn ingest_plugin_state_changed(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 778 |     async fn ingest_response(
+     |              ^^^^^^^^^^^^^^^
+...
+ 838 |     fn ingest_server_request(&mut self, _connection_id: u64, request: ServerRequest) {
+     |        ^^^^^^^^^^^^^^^^^^^^^
+...
+ 954 |     fn ingest_server_response(
+     |        ^^^^^^^^^^^^^^^^^^^^^^
+...
+ 999 |     fn ingest_effective_permissions_approval_response(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1020 |     fn ingest_server_request_aborted(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1039 |     fn ingest_error_response(
+     |        ^^^^^^^^^^^^^^^^^^^^^
+...
+1052 |     fn ingest_request_error_response(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1072 |     fn ingest_turn_steer_error_response(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1089 |     async fn ingest_notification(
+     |              ^^^^^^^^^^^^^^^^^^^
+...
+1218 |     fn emit_thread_initialized(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^
+...
+1269 |     fn ingest_compaction(&mut self, input: CodexCompactionEvent, out: &mut Vec<TrackEventRequest>) {
+     |        ^^^^^^^^^^^^^^^^^
+...
+1291 |     fn ingest_goal(&mut self, input: CodexGoalEvent, out: &mut Vec<TrackEventRequest>) {
+     |        ^^^^^^^^^^^
+...
+1311 |     fn ingest_guardian_review_completed(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1353 |     fn ingest_turn_steer_response(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1378 |     fn emit_turn_steer_event(
+     |        ^^^^^^^^^^^^^^^^^^^^^
+...
+1419 |     fn emit_review_event(
+     |        ^^^^^^^^^^^^^^^^^
+...
+1467 |     fn record_item_review_summary(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1486 |     async fn maybe_emit_turn_event(&mut self, turn_id: &str, out: &mut Vec<TrackEventRequest>) {
+     |              ^^^^^^^^^^^^^^^^^^^^^
+...
+1546 |     fn thread_connection_or_warn(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1568 |     fn thread_context_or_warn(
+     |        ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `warn_missing_analytics_context` is never used
+    --> analytics\src\reducer.rs:1585:4
+     |
+1585 | fn warn_missing_analytics_context(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `tracked_tool_item_id` is never used
+    --> analytics\src\reducer.rs:1608:4
+     |
+1608 | fn tracked_tool_item_id(item: &ThreadItem) -> Option<&str> {
+     |    ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `item_review_summary_key` is never used
+    --> analytics\src\reducer.rs:1631:4
+     |
+1631 | fn item_review_summary_key(pending_review: &PendingReviewState) -> Option<ToolItemKey> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `ToolItemEventInput` is never constructed
+    --> analytics\src\reducer.rs:1644:8
+     |
+1644 | struct ToolItemEventInput<'a> {
+     |        ^^^^^^^^^^^^^^^^^^
+
+warning: function `tool_item_event` is never used
+    --> analytics\src\reducer.rs:1655:4
+     |
+1655 | fn tool_item_event(input: ToolItemEventInput<'_>) -> Option<TrackEventRequest> {
+     |    ^^^^^^^^^^^^^^^
+
+warning: struct `ToolItemOutcome` is never constructed
+    --> analytics\src\reducer.rs:1972:8
+     |
+1972 | struct ToolItemOutcome {
+     |        ^^^^^^^^^^^^^^^
+
+warning: struct `CommandActionCounts` is never constructed
+    --> analytics\src\reducer.rs:1979:8
+     |
+1979 | struct CommandActionCounts {
+     |        ^^^^^^^^^^^^^^^^^^^
+
+warning: function `command_action_counts` is never used
+    --> analytics\src\reducer.rs:1987:4
+     |
+1987 | fn command_action_counts(command_actions: &[CommandAction]) -> CommandActionCounts {
+     |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `ToolItemContext` is never constructed
+    --> analytics\src\reducer.rs:2004:8
+     |
+2004 | struct ToolItemContext<'a> {
+     |        ^^^^^^^^^^^^^^^
+
+warning: function `tool_item_base` is never used
+    --> analytics\src\reducer.rs:2012:4
+     |
+2012 | fn tool_item_base(
+     |    ^^^^^^^^^^^^^^
+
+warning: function `observed_duration_ms` is never used
+    --> analytics\src\reducer.rs:2052:4
+     |
+2052 | fn observed_duration_ms(started_at_ms: u64, completed_at_ms: u64) -> Option<u64> {
+     |    ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `user_review_id` is never used
+    --> analytics\src\reducer.rs:2056:4
+     |
+2056 | fn user_review_id(request_id: &RequestId) -> String {
+     |    ^^^^^^^^^^^^^^
+
+warning: function `command_execution_review_result` is never used
+    --> analytics\src\reducer.rs:2060:4
+     |
+2060 | fn command_execution_review_result(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `file_change_review_result` is never used
+    --> analytics\src\reducer.rs:2091:4
+     |
+2091 | fn file_change_review_result(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `effective_permissions_review_result` is never used
+    --> analytics\src\reducer.rs:2104:4
+     |
+2104 | fn effective_permissions_review_result(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `guardian_review_result` is never used
+    --> analytics\src\reducer.rs:2119:4
+     |
+2119 | fn guardian_review_result(
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `guardian_review_subject_metadata` is never used
+    --> analytics\src\reducer.rs:2139:4
+     |
+2139 | fn guardian_review_subject_metadata(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `guardian_review_requested_additional_permissions` is never used
+    --> analytics\src\reducer.rs:2190:4
+     |
+2190 | fn guardian_review_requested_additional_permissions(action: &GuardianApprovalReviewAction) -> bool {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `guardian_review_requested_network_access` is never used
+    --> analytics\src\reducer.rs:2204:4
+     |
+2204 | fn guardian_review_requested_network_access(action: &GuardianApprovalReviewAction) -> bool {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `guardian_review_request_permissions_network_enabled` is never used
+    --> analytics\src\reducer.rs:2217:4
+     |
+2217 | fn guardian_review_request_permissions_network_enabled(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `final_approval_outcome` is never used
+    --> analytics\src\reducer.rs:2227:4
+     |
+2227 | fn final_approval_outcome(
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `command_execution_tool_name` is never used
+    --> analytics\src\reducer.rs:2245:4
+     |
+2245 | fn command_execution_tool_name(source: CommandExecutionSource) -> &'static str {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `command_execution_outcome` is never used
+    --> analytics\src\reducer.rs:2254:4
+     |
+2254 | fn command_execution_outcome(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `patch_apply_outcome` is never used
+    --> analytics\src\reducer.rs:2271:4
+     |
+2271 | fn patch_apply_outcome(
+     |    ^^^^^^^^^^^^^^^^^^^
+
+warning: function `mcp_tool_call_outcome` is never used
+    --> analytics\src\reducer.rs:2288:4
+     |
+2288 | fn mcp_tool_call_outcome(
+     |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `dynamic_tool_call_outcome` is never used
+    --> analytics\src\reducer.rs:2301:4
+     |
+2301 | fn dynamic_tool_call_outcome(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `collab_tool_call_outcome` is never used
+    --> analytics\src\reducer.rs:2314:4
+     |
+2314 | fn collab_tool_call_outcome(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `image_generation_outcome` is never used
+    --> analytics\src\reducer.rs:2327:4
+     |
+2327 | fn image_generation_outcome(status: &str) -> (ToolItemTerminalStatus, Option<ToolItemFailureKind>) {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `collab_agent_tool_name` is never used
+    --> analytics\src\reducer.rs:2337:4
+     |
+2337 | fn collab_agent_tool_name(tool: &CollabAgentTool) -> &'static str {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `FileChangeCounts` is never constructed
+    --> analytics\src\reducer.rs:2348:8
+     |
+2348 | struct FileChangeCounts {
+     |        ^^^^^^^^^^^^^^^^
+
+warning: function `file_change_counts` is never used
+    --> analytics\src\reducer.rs:2355:4
+     |
+2355 | fn file_change_counts(changes: &[codex_app_server_protocol::FileUpdateChange]) -> FileChangeCounts {
+     |    ^^^^^^^^^^^^^^^^^^
+
+warning: struct `DynamicContentCounts` is never constructed
+    --> analytics\src\reducer.rs:2369:8
+     |
+2369 | struct DynamicContentCounts {
+     |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `dynamic_content_counts` is never used
+    --> analytics\src\reducer.rs:2375:4
+     |
+2375 | fn dynamic_content_counts(items: &[DynamicToolCallOutputContentItem]) -> DynamicContentCounts {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `web_search_action_kind` is never used
+    --> analytics\src\reducer.rs:2391:4
+     |
+2391 | fn web_search_action_kind(action: &WebSearchAction) -> WebSearchActionKind {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `web_search_query_count` is never used
+    --> analytics\src\reducer.rs:2400:4
+     |
+2400 | fn web_search_query_count(query: &str, action: Option<&WebSearchAction>) -> Option<u64> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `accepted_line_event_input` is never used
+    --> analytics\src\reducer.rs:2413:4
+     |
+2413 | fn accepted_line_event_input(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `codex_turn_event_params` is never used
+    --> analytics\src\reducer.rs:2443:4
+     |
+2443 | fn codex_turn_event_params(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `sandbox_policy_mode` is never used
+    --> analytics\src\reducer.rs:2572:4
+     |
+2572 | fn sandbox_policy_mode(permission_profile: &PermissionProfile, cwd: &Path) -> &'static str {
+     |    ^^^^^^^^^^^^^^^^^^^
+
+warning: function `collaboration_mode_mode` is never used
+    --> analytics\src\reducer.rs:2596:4
+     |
+2596 | fn collaboration_mode_mode(mode: ModeKind) -> &'static str {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `reasoning_summary_mode` is never used
+    --> analytics\src\reducer.rs:2603:4
+     |
+2603 | fn reasoning_summary_mode(summary: Option<ReasoningSummary>) -> Option<String> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `personality_mode` is never used
+    --> analytics\src\reducer.rs:2610:4
+     |
+2610 | fn personality_mode(personality: Option<Personality>) -> Option<String> {
+     |    ^^^^^^^^^^^^^^^^
+
+warning: function `analytics_turn_status` is never used
+    --> analytics\src\reducer.rs:2617:4
+     |
+2617 | fn analytics_turn_status(status: codex_app_server_protocol::TurnStatus) -> Option<TurnStatus> {
+     |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `num_input_images` is never used
+    --> analytics\src\reducer.rs:2626:4
+     |
+2626 | fn num_input_images(input: &[UserInput]) -> usize {
+     |    ^^^^^^^^^^^^^^^^
+
+warning: function `rejection_reason_from_error_type` is never used
+    --> analytics\src\reducer.rs:2633:4
+     |
+2633 | fn rejection_reason_from_error_type(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `skill_id_for_local_skill` is never used
+    --> analytics\src\reducer.rs:2642:15
+     |
+2642 | pub(crate) fn skill_id_for_local_skill(
+     |               ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `normalize_path_for_skill_id` is never used
+    --> analytics\src\reducer.rs:2664:15
+     |
+2664 | pub(crate) fn normalize_path_for_skill_id(
+     |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `codex-analytics` (lib) generated 106 warnings
+warning: struct `ToolsConfig` is never constructed
+   --> tools\src\tool_config.rs:180:12
+    |
+180 | pub struct ToolsConfig {
+    |            ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `ToolsConfigParams` is never constructed
+   --> tools\src\tool_config.rs:219:12
+    |
+219 | pub struct ToolsConfigParams<'a> {
+    |            ^^^^^^^^^^^^^^^^^
+
+warning: multiple associated items are never used
+   --> tools\src\tool_config.rs:252:12
+    |
+251 | impl ToolsConfig {
+    | ---------------- associated items in this implementation
+252 |     pub fn new(params: &ToolsConfigParams<'_>) -> Self {
+    |            ^^^
+...
+376 |     pub fn with_agent_type_description(mut self, agent_type_description: String) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+381 |     pub fn with_namespace_tools_capability(mut self, namespace_tools: bool) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+388 |     pub fn with_image_generation_capability(mut self, image_generation: bool) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+395 |     pub fn with_web_search_capability(mut self, web_search: bool) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+402 |     pub fn with_spawn_agent_usage_hint(mut self, spawn_agent_usage_hint: bool) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+407 |     pub fn with_spawn_agent_usage_hint_text(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+415 |     pub fn with_hide_spawn_agent_metadata(mut self, hide_spawn_agent_metadata: bool) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+420 |     pub fn with_goal_tools_allowed(mut self, allowed: bool) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^
+...
+425 |     pub fn with_max_concurrent_threads_per_session(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+433 |     pub fn with_wait_agent_min_timeout_ms(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+441 |     pub fn with_allow_login_shell(mut self, allow_login_shell: bool) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^
+...
+446 |     pub fn with_environment_mode(mut self, environment_mode: ToolEnvironmentMode) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^
+...
+451 |     pub fn with_unified_exec_shell_mode(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+459 |     pub fn with_unified_exec_shell_mode_for_session(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+474 |     pub fn with_web_search_config(mut self, web_search_config: Option<WebSearchConfig>) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^
+...
+479 |     pub fn for_code_mode_nested_tools(&self) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `supports_image_generation` is never used
+   --> tools\src\tool_config.rs:487:4
+    |
+487 | fn supports_image_generation(model_info: &ModelInfo) -> bool {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `codex-tools` (lib) generated 4 warnings
+warning: unused import: `std::collections::BTreeSet`
+  --> core-plugins\src\remote.rs:23:5
+   |
+23 | use std::collections::BTreeSet;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `REMOTE_INSTALLED_MARKETPLACE_DISPLAY_ORDER` is never used
+  --> core-plugins\src\remote.rs:86:7
+   |
+86 | const REMOTE_INSTALLED_MARKETPLACE_DISPLAY_ORDER: [(&str, &str); 6] = [
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated items `marketplace_name`, `marketplace_display_name`, and `from_marketplace_name` are never used
+   --> core-plugins\src\remote.rs:373:8
+    |
+364 | impl RemotePluginScope {
+    | ---------------------- associated items in this implementation
+...
+373 |     fn marketplace_name(self) -> &'static str {
+    |        ^^^^^^^^^^^^^^^^
+...
+381 |     fn marketplace_display_name(self) -> &'static str {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+389 |     fn from_marketplace_name(name: &str) -> Option<Self> {
+    |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `RemotePluginSkillDetailResponse` is never constructed
+   --> core-plugins\src\remote.rs:425:8
+    |
+425 | struct RemotePluginSkillDetailResponse {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `fetch_remote_plugin_detail_with_download_url_option` is never used
+   --> core-plugins\src\remote.rs:776:10
+    |
+776 | async fn fetch_remote_plugin_detail_with_download_url_option(
+    |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `build_remote_plugin_detail` is never used
+   --> core-plugins\src\remote.rs:794:10
+    |
+794 | async fn build_remote_plugin_detail(
+    |          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `app_declarations_from_remote_app_ids` is never used
+   --> core-plugins\src\remote.rs:888:4
+    |
+888 | fn app_declarations_from_remote_app_ids(app_ids: &[String]) -> Vec<AppDeclaration> {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `remove_remote_plugin_cache` is never used
+   --> core-plugins\src\remote.rs:948:4
+    |
+948 | fn remove_remote_plugin_cache(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `remote_installed_plugin_to_cache_entry` is never used
+    --> core-plugins\src\remote.rs:1077:4
+     |
+1077 | fn remote_installed_plugin_to_cache_entry(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `remote_skill_interface_to_info` is never used
+    --> core-plugins\src\remote.rs:1147:4
+     |
+1147 | fn remote_skill_interface_to_info(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `remote_plugin_display_name` is never used
+    --> core-plugins\src\remote.rs:1167:4
+     |
+1167 | fn remote_plugin_display_name(plugin: &RemotePluginSummary) -> &str {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `sort_remote_plugin_summaries_by_display_name` is never used
+    --> core-plugins\src\remote.rs:1175:4
+     |
+1175 | fn sort_remote_plugin_summaries_by_display_name(plugins: &mut [RemotePluginSummary]) {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `fetch_shared_workspace_plugins` is never used
+    --> core-plugins\src\remote.rs:1258:10
+     |
+1258 | async fn fetch_shared_workspace_plugins(
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `get_remote_shared_workspace_plugins_page` is never used
+    --> core-plugins\src\remote.rs:1335:10
+     |
+1335 | async fn get_remote_shared_workspace_plugins_page(
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `fetch_plugin_detail` is never used
+    --> core-plugins\src\remote.rs:1372:10
+     |
+1372 | async fn fetch_plugin_detail(
+     |          ^^^^^^^^^^^^^^^^^^^
+
+warning: function `remote_plugin_skill_detail_url` is never used
+    --> core-plugins\src\remote.rs:1388:4
+     |
+1388 | fn remote_plugin_skill_detail_url(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `REMOTE_FEATURED_PLUGIN_FETCH_TIMEOUT` is never used
+ --> core-plugins\src\remote_legacy.rs:9:7
+  |
+9 | const REMOTE_FEATURED_PLUGIN_FETCH_TIMEOUT: Duration = Duration::from_secs(10);
+  |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `REMOTE_PLUGIN_MUTATION_TIMEOUT` is never used
+  --> core-plugins\src\remote_legacy.rs:10:7
+   |
+10 | const REMOTE_PLUGIN_MUTATION_TIMEOUT: Duration = Duration::from_secs(30);
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `RemotePluginMutationResponse` is never constructed
+  --> core-plugins\src\remote_legacy.rs:14:8
+   |
+14 | struct RemotePluginMutationResponse {
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ensure_codex_backend_auth` is never used
+   --> core-plugins\src\remote_legacy.rs:125:4
+    |
+125 | fn ensure_codex_backend_auth(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `post_remote_plugin_mutation` is never used
+   --> core-plugins\src\remote_legacy.rs:137:10
+    |
+137 | async fn post_remote_plugin_mutation(
+    |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `remote_plugin_mutation_url` is never used
+   --> core-plugins\src\remote_legacy.rs:187:4
+    |
+187 | fn remote_plugin_mutation_url(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `codex-core-plugins` (lib) generated 22 warnings (run `cargo fix --lib -p codex-core-plugins` to apply 1 suggestion)
+warning: unused import: `codex_features::Feature`
+  --> core\src\tools\handlers\multi_agents_common.rs:15:5
+   |
+15 | use codex_features::Feature;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `index` is never read
+  --> core\src\chat_transport\anthropic_sse.rs:54:9
+   |
+53 |     SignedThinkingStart {
+   |     ------------------- field in this variant
+54 |         index: i64,
+   |         ^^^^^
+   |
+   = note: `TranslatedSseEvent` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `index` is never read
+  --> core\src\chat_transport\anthropic_sse.rs:58:9
+   |
+57 |     SignedThinkingDelta {
+   |     ------------------- field in this variant
+58 |         index: i64,
+   |         ^^^^^
+   |
+   = note: `TranslatedSseEvent` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `index` is never read
+  --> core\src\chat_transport\anthropic_sse.rs:63:9
+   |
+62 |     SignedThinkingSignature {
+   |     ----------------------- field in this variant
+63 |         index: i64,
+   |         ^^^^^
+   |
+   = note: `TranslatedSseEvent` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `index` is never read
+  --> core\src\chat_transport\anthropic_sse.rs:68:9
+   |
+67 |     SignedThinkingStop {
+   |     ------------------ field in this variant
+68 |         index: i64,
+   |         ^^^^^
+   |
+   = note: `TranslatedSseEvent` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: `codex-core` (lib) generated 5 warnings (run `cargo fix --lib -p codex-core` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.99s
+────────────
+ Nextest run ID a476ec3d-f92e-4f88-82c8-71c6e9a22d37 with nextest profile: local
+    Starting 2 tests across 1 binary
+        PASS [   0.026s] (1/2) codex-invariant-tests::multi_agent_v2_handoff invariant_77_exact_v2_wait_subscribes_before_reading_final_status
+        PASS [   0.038s] (2/2) codex-invariant-tests::multi_agent_v2_handoff invariant_76_provider_aware_v2_handoff_has_exact_markers_and_truthful_encoding
+────────────
+     Summary [   0.039s] 2 tests run: 2 passed, 0 skipped

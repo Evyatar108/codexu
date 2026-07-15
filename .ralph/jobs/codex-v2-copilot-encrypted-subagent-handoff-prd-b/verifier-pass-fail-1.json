@@ -1,0 +1,48 @@
+{
+  "manifestPath": "D:\\harness-efforts\\codexu\\.ralph\\jobs\\codex-v2-copilot-encrypted-subagent-handoff-prd-b\\iteration-result-1.json",
+  "iterationSHA": "7c0b978f942fac3aa748396d437618eaf321892e",
+  "storyId": "US-001",
+  "verdicts": [
+    {
+      "criterion": "Create `codex-rs-overlay/codex-invariant-tests/tests/multi_agent_v2_handoff.rs` as one fork-exclusive structural invariant test covering provider capability defaults and the Copilot override, one provider-derived V2 schema/runtime encoding, truthful spawn/send/follow-up communication constructors, the exact subscribe-before-read wait shape, both marker families, and the `multi_agents_spec.rs` maximum of 800 lines.",
+      "verdict": "disagree-pass-but-fail",
+      "reason": "The diff adds the test and most required checks, but its schema-block loop only checks marker ownership. It never asserts that message encoding selects plaintext versus encrypted schema fields, so a hard-coded schema could still pass."
+    },
+    {
+      "criterion": "The invariant test fails on missing, duplicate, or conflicting logical-block markers and proves every expected PRD A source seam has exactly one applicable `// SANDBOX PATCH: provider-aware-v2-handoff` or `// SANDBOX PATCH: exact-v2-wait` marker.",
+      "verdict": "disagree-pass-but-fail",
+      "reason": "The diff enforces per-file totals and ownership for selected blocks, but several files, especially the included test sources, have only aggregate counts. A missing marker and an extra marker at another unbound block in the same file could preserve the count and pass."
+    },
+    {
+      "criterion": "Update `docs/implementation/patch-surface.md` section 14 with the two reviewed invariants using IDs 76 and 77 unless a fresh probe proves either ID occupied, and add complete section 15 replant instructions.",
+      "verdict": "agree",
+      "reason": "The diff adds invariant rows 76 and 77 and dedicated provider-handoff and exact-wait replant sections with implementation and verification steps."
+    },
+    {
+      "criterion": "Update `docs/implementation/regression-history.md` with the `.3` opaque Copilot-child and already-final wait failures, `.4` behavior, required evidence, rollback pins, and forward-fix policy.",
+      "verdict": "agree",
+      "reason": "The supplied diff explicitly adds both regressions, the `.4` behavior, required tests and audits, immutable rollback pins, containment, and forward-fix policy."
+    },
+    {
+      "criterion": "Update `CLAUDE.md`, `docs/workflows/install.md`, and `docs/workflows/developer-guide.md` so runtime/build guidance describes direct GitHub Release tarball installation and the four Codex binaries plus `rg.exe` without reviving package-registry guidance.",
+      "verdict": "agree",
+      "reason": "All three files change; the workflow docs specify the direct GitHub Release tarball and enumerate the four Codex executables plus `rg.exe`, while CLAUDE.md adds the matching runtime guidance."
+    },
+    {
+      "criterion": "`just test -p codex-invariant-tests --test multi_agent_v2_handoff`, `bash scripts/audit_invariants.sh`, and `bash scripts/audit_network_calls.sh` exit 0 against nested commit `6d73e16c44d65ac243834a942d7fab2c3b279221`.",
+      "verdict": "disagree-pass-but-fail",
+      "reason": "The manifest records successful test and audit results, but neither its command nor result verifies the nested HEAD SHA. The supplied diff also does not establish that these commands ran against the required nested commit."
+    },
+    {
+      "criterion": "Only paths in the eight-entry top-level `writeScope` change; `external/repos/codex-patched/**` stays read-only, its inner tree stays clean, and the wrapper gitlink advance remains unstaged.",
+      "verdict": "agree",
+      "reason": "The supplied diff contains only six wrapper paths, and the manifest records targeted inner-status, cached-gitlink, and unstaged-gitlink checks with a clean inner tree and no staged gitlink."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "verdict": "agree",
+      "reason": "The recorded focused Rust test command compiled the test profile successfully and completed with 2 passed and 0 failed."
+    }
+  ],
+  "warnings": []
+}

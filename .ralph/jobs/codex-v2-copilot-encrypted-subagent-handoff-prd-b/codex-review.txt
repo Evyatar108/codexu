@@ -1,0 +1,21 @@
+### Completeness
+
+- [High] `codex-rs-overlay/codex-invariant-tests/tests/multi_agent_v2_handoff.rs:390` and `:395` only check total marker counts in `send_message.rs` and `followup_task.rs`. They do not prove that each expected logical block owns exactly one marker. Moving both markers onto one block while leaving the other unmarked would still pass, violating acceptance criterion 1. Validate the handler state and delivery-call blocks separately with `section_with_leading_marker`/`assert_owned_block`.
+
+- [High] The new documented invariant command is not runnable from the wrapper root because its `justfile` is under `external/repos/codex-patched`. This affects `CLAUDE.md:169` and `docs/implementation/patch-surface.md:916`. Running the command from the target repository exits with `error: no justfile found`. Specify the required working directory, for example `cd external/repos/codex-patched/codex-rs && just test ...`, so the required verification and replant guidance are executable.
+
+### Correctness
+
+- [High] `.claude/commands/publish-sandbox-patch.md:482` changes `RG_ZIP` from a filename to a full project-relative path, but line 483 still interpolates it into the download URL. This produces a URL such as `.../14.1.1/<absolute-path>/ripgrep-...zip`, so `curl` fails and the release bundle cannot be built. Keep a separate `RG_ZIP_NAME` for the URL and use `RG_ZIP="$RELEASE_WORK_DIR/$RG_ZIP_NAME"` for output.
+
+### Quality
+
+No issues found.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+Not ready for use. The release runbook currently fails while downloading ripgrep, and the structural invariant does not fully enforce its claimed marker-ownership acceptance criterion.

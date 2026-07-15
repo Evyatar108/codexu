@@ -1,0 +1,54 @@
+{
+  "candidates": [
+    {
+      "name": "fork-structural-invariant-authoring",
+      "description": "Author and review wrapper-owned structural tests that bind every fork marker to its logical owner and prove exact capability, schema, constructor, and ordering relationships in an immutable nested checkout.",
+      "triggers": [
+        "Adding or revising a fork-exclusive invariant test for marker-based patches.",
+        "Reviewing source-shape assertions over a nested Rust workspace.",
+        "Replanting provider-aware or ordering-sensitive patches."
+      ],
+      "targetLocation": ".claude/skills/fork-structural-invariant-authoring/SKILL.md",
+      "evidence": [
+        "progress.txt lines 7-18 records the nested-workspace test procedure and lessons about logical-block boundaries.",
+        "code-review-findings.json F-001/F-002/F-003/F-005/F-006/F-010 found six related weaknesses after the initial invariant passed.",
+        "Scoped commits 8d89fb8, 57f395f, and 8e2b1af hardened ownership, whitespace-tolerant ordering, runnable working-directory guidance, and all downstream encoding hops.",
+        "quality-gate-result.json checks 1-3 reran the focused test and both audits."
+      ],
+      "rationale": "The generic shipped review-changes and implement-with-ralph skills cover orchestration and review, but not this repo-specific method for testing structural fork seams. Six findings across multiple reviewers show that a reusable relationship-first checklist would prevent token-presence tests from giving false confidence."
+    },
+    {
+      "name": "candidate-bound-release-audit",
+      "description": "Audit release commands and workflows for SHA-bound, fail-closed wrapper/submodule publication without performing release operations.",
+      "triggers": [
+        "Editing or reviewing .claude/commands/publish-sandbox-patch.md.",
+        "Changing the tag-triggered GitHub Release workflow.",
+        "Validating a wrapper candidate, retention tag, mirror, or downloadable bundle."
+      ],
+      "targetLocation": ".claude/skills/candidate-bound-release-audit/SKILL.md",
+      "evidence": [
+        "progress.txt lines 5-6 and 25-34 records the ancestry/equality/approval sequence, project-relative evidence paths, and repeated YAML, shell-fence, and banned-guidance scans.",
+        "code-review-findings.json F-004/F-007/F-008/F-009/F-011 exposed URL path interpolation, ambient-HEAD tagging, unchecked push URLs, and missing post-push retention-tag equality.",
+        "Scoped commits 982a4fdb and afff83ea implement those fail-closed corrections.",
+        "Commit 66261138 carries the procedural trailer Constraint: release execution remains lead/operator-owned."
+      ],
+      "rationale": "The repository has an authoritative publication runbook, while the shipped skills are generic and do not provide a static audit mode. A dedicated reviewer skill would complement rather than duplicate the runbook by checking recurring high-risk failure modes without pushing, tagging, or releasing."
+    },
+    {
+      "name": "wrapper-submodule-state-verifier",
+      "description": "Prove an externally managed wrapper worktree preserved its immutable nested checkout, unstaged gitlink advance, and declared write scope before accepting changes.",
+      "triggers": [
+        "A PRD declares worktree.external, readOnlyContext, immutableInputs.nestedFinalSha, or a wrapper write scope.",
+        "A job must leave a submodule clean while preserving an unstaged gitlink."
+      ],
+      "targetLocation": ".claude/skills/wrapper-submodule-state-verifier/SKILL.md",
+      "evidence": [
+        "Both story evidence sets in prd.json repeat the wrapper commit-path, nested status --short, cached gitlink, and unstaged gitlink checks.",
+        "progress.txt lines 14 and 30 and notepad.md lines 15-16 and 25 repeat the same state proof.",
+        "quality-gate-result.json lines 141-168 records wrapper, nested HEAD, index SHA, working-tree SHA, and forbidden-action state.",
+        "Scoped commit f993d077 restored six out-of-scope documentation edits, while the two story commits repeat Constraint: and Rejected: trailers that preserve nested source and scope boundaries."
+      ],
+      "rationale": "implement-with-ralph already handles general worktree lifecycle and single-repo scope validation, so this candidate should target the materially different wrapper-plus-nested-checkout verification case. The repeated four-part command chain and an actual out-of-scope restoration demonstrate that ordinary documentation is not enough to enforce this state contract."
+    }
+  ]
+}

@@ -1,0 +1,353 @@
+{
+  "schemaVersion": 1,
+  "executionUnit": "PRD-B",
+  "targetRepository": "D:/harness-efforts/codexu/codex/.worktrees/codex-v2-copilot-encrypted-subagent-handoff",
+  "baseBranch": "origin/main",
+  "branch": "ralph/codex-v2-copilot-encrypted-subagent-handoff",
+  "baseSha": "89a6cbea7cd382fa4873b259fb996dcf988a5fdc",
+  "startPointSha": "89a6cbea7cd382fa4873b259fb996dcf988a5fdc",
+  "commitShas": [
+    "7c0b978f942fac3aa748396d437618eaf321892e",
+    "66261138e18b276179b533bf95791dba4dd7e685",
+    "982a4fdb8586c90b7b54d4edd38d3bab747e8e53",
+    "57f395f1e3919ae7af2f2b71ff672dcf7cd63e13",
+    "8d89fb8da3dd1e457102f3ad2bf4ef43c5f8580e",
+    "8e2b1af42f82f9ab434e9e9ad410e771e2db7d6e",
+    "afff83eaa2b02e22d70571ed7169987de09d3a9b",
+    "df469cf24abf9c8e7dd281c180bf6ccf7df6e519",
+    "fb6fe91fc7534312ebb6722df4adaff4af6fce5c",
+    "4026207180923435f9a6b3618f4eef957ff108ab",
+    "5a36c886f78fee1954e4a4d0cbb8f717a624095a",
+    "4c8e771d47e1cd12430335b61f0671e2d1b2e07b",
+    "f993d0770f89040d9dad10f227267d3743de8390",
+    "a692d24e4f07dfa09e3519fca7e691c2af4744bb"
+  ],
+  "finalCommitSha": "a692d24e4f07dfa09e3519fca7e691c2af4744bb",
+  "predecessorReceiptPath": "D:/harness-efforts/codexu/.ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/receipts/prd-a-nested-source.json",
+  "predecessorReceiptSha256": "46a311b9c6a46972a06d0eb8d3a51de2b52bb49ac4e9e6c579f620bce5753c70",
+  "predecessorFinalCommitSha": "6d73e16c44d65ac243834a942d7fab2c3b279221",
+  "predecessorVerification": {
+    "schemaVersion": 1,
+    "executionUnit": "PRD-A",
+    "targetRepository": "D:/harness-efforts/codexu/codex/.worktrees/codex-v2-copilot-encrypted-subagent-handoff/external/repos/codex-patched",
+    "review": {
+      "code": "clean",
+      "docs": "clean"
+    },
+    "allValidationsExitZero": true,
+    "changedFilesAllWithinWriteScope": true,
+    "pushed": false,
+    "passed": true,
+    "retainedLog": {
+      "path": ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-b/evidence/final-state-invariant-review-gates.json",
+      "sha256": "3f2be7c29e47f26372463e4eff222a47c14a90c11821d70c28c75c5463d27f02"
+    }
+  },
+  "changedFiles": {
+    "paths": [
+      ".claude/commands/publish-sandbox-patch.md",
+      ".github/workflows/publish-npm.yml",
+      "CLAUDE.md",
+      "codex-rs-overlay/codex-invariant-tests/tests/multi_agent_v2_handoff.rs",
+      "docs/implementation/patch-surface.md",
+      "docs/implementation/regression-history.md",
+      "docs/workflows/developer-guide.md",
+      "docs/workflows/install.md"
+    ],
+    "writeScopePaths": [
+      ".claude/commands/publish-sandbox-patch.md",
+      ".github/workflows/publish-npm.yml",
+      "CLAUDE.md",
+      "codex-rs-overlay/codex-invariant-tests/tests/multi_agent_v2_handoff.rs",
+      "docs/implementation/patch-surface.md",
+      "docs/implementation/regression-history.md",
+      "docs/workflows/developer-guide.md",
+      "docs/workflows/install.md"
+    ],
+    "allWithinWriteScope": true,
+    "exactWriteScopeMatch": true,
+    "unexpectedPaths": [],
+    "missingPaths": []
+  },
+  "invariants": {
+    "ids": [
+      76,
+      77
+    ],
+    "markerInventory": {
+      "providerAwareV2Handoff": {
+        "marker": "// SANDBOX PATCH: provider-aware-v2-handoff",
+        "count": 31,
+        "expectedCount": 31,
+        "perFileCounts": {
+          "codex-rs/core/src/tools/spec_plan_tests.rs": 1,
+          "codex-rs/core/src/tools/spec_plan.rs": 1,
+          "codex-rs/core/src/tools/handlers/multi_agents_v2_spec_tests.rs": 4,
+          "codex-rs/core/src/tools/handlers/multi_agents_v2_spec.rs": 4,
+          "codex-rs/core/src/tools/handlers/multi_agents_v2.rs": 2,
+          "codex-rs/core/src/tools/handlers/multi_agents_v2/spawn.rs": 2,
+          "codex-rs/core/src/tools/handlers/multi_agents_v2/send_message.rs": 2,
+          "codex-rs/core/src/tools/handlers/multi_agents_v2/message_tool.rs": 1,
+          "codex-rs/core/src/tools/handlers/multi_agents_v2/followup_task.rs": 2,
+          "codex-rs/core/src/tools/handlers/multi_agents_tests.rs": 2,
+          "codex-rs/core/src/tools/handlers/multi_agents_spec.rs": 3,
+          "codex-rs/model-provider/src/provider.rs": 3,
+          "codex-rs/model-provider/src/copilot.rs": 2,
+          "codex-rs/model-provider/src/amazon_bedrock/mod.rs": 2
+        },
+        "exactFiles": true
+      },
+      "exactV2Wait": {
+        "marker": "// SANDBOX PATCH: exact-v2-wait",
+        "count": 16,
+        "expectedCount": 16,
+        "perFileCounts": {
+          "codex-rs/core/src/tools/handlers/multi_agents_v2_spec.rs": 3,
+          "codex-rs/core/src/tools/handlers/multi_agents_v2/wait.rs": 4,
+          "codex-rs/core/src/tools/handlers/multi_agents_tests.rs": 7,
+          "codex-rs/core/src/tools/handlers/multi_agents_spec.rs": 1,
+          "codex-rs/core/src/tools/handlers/multi_agents_v2_spec_tests.rs": 1
+        },
+        "exactFiles": true
+      }
+    },
+    "seamValidation": {
+      "allExpectedMarkerFilesNamedByInvariantTest": true,
+      "logicalBlockOwnershipAndConflictRejectionEnforced": true,
+      "focusedTestPassed": true
+    },
+    "lineCap": {
+      "path": "external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_spec.rs",
+      "actual": 629,
+      "maximum": 800,
+      "passed": true
+    },
+    "replantDocumentation": {
+      "invariant76RowCount": 1,
+      "invariant77RowCount": 1,
+      "replant76HeadingCount": 1,
+      "replant77HeadingCount": 1,
+      "currentCandidateAndCommand": true,
+      "passed": true
+    },
+    "retainedLog": {
+      "path": ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-b/evidence/final-state-invariant-review-gates.json",
+      "sha256": "3f2be7c29e47f26372463e4eff222a47c14a90c11821d70c28c75c5463d27f02"
+    }
+  },
+  "validations": [
+    {
+      "command": "Python 3.13 final state/predecessor/scope/invariant/review gate",
+      "exitCode": 0,
+      "validatedHeadSha": "a692d24e4f07dfa09e3519fca7e691c2af4744bb",
+      "result": "candidate identity, exact eight-path scope, predecessor receipt, nested/wrapper proof, invariants 76/77, marker inventory, line cap, replant docs, and review states passed",
+      "log": {
+        "path": ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-b/evidence/final-state-invariant-review-gates.json",
+        "sha256": "3f2be7c29e47f26372463e4eff222a47c14a90c11821d70c28c75c5463d27f02"
+      }
+    },
+    {
+      "command": "export PATH=/c/Users/evmitran/AppData/Local/Programs/Python/Python313:$PATH; export CARGO_BUILD_JOBS=1; source scripts/iteration-env.sh; cd external/repos/codex-patched/codex-rs; just test -p codex-invariant-tests --test multi_agent_v2_handoff",
+      "exitCode": 0,
+      "validatedHeadSha": "a692d24e4f07dfa09e3519fca7e691c2af4744bb",
+      "validatedNestedSha": "6d73e16c44d65ac243834a942d7fab2c3b279221",
+      "result": "Python 3.13.14; CARGO_BUILD_JOBS=1; 2 tests passed, 0 skipped; no age retry required",
+      "log": {
+        "path": ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-b/evidence/final-focused-invariant-test.log",
+        "sha256": "c734c7cffb6eadf232cee6e3dedabf66b70ece1d3201d6c57085d12d55a53d9e"
+      }
+    },
+    {
+      "command": "bash scripts/audit_invariants.sh",
+      "exitCode": 0,
+      "validatedHeadSha": "a692d24e4f07dfa09e3519fca7e691c2af4744bb",
+      "result": "passed (silent success)",
+      "log": {
+        "path": ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-b/evidence/final-audit-invariants.log",
+        "sha256": "ac9865da7ca5384f4bcab444de2e0a17c0387494d06e491c36eff5c0699efe3d"
+      }
+    },
+    {
+      "command": "bash scripts/audit_network_calls.sh",
+      "exitCode": 0,
+      "validatedHeadSha": "a692d24e4f07dfa09e3519fca7e691c2af4744bb",
+      "result": "22/22 patched; zero new endpoint, IP, IPC, or unreviewed no_proxy findings",
+      "log": {
+        "path": ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-b/evidence/final-audit-network-calls.log",
+        "sha256": "416e8eedfead490dbbfc4180aa56780d344b664954f193e6c931b2d799880219"
+      }
+    },
+    {
+      "command": "Python 3.13 publication/static gates using existing YAML 1.2 parser and Git Bash bash -n",
+      "exitCode": 0,
+      "validatedHeadSha": "a692d24e4f07dfa09e3519fca7e691c2af4744bb",
+      "result": "17 fenced Bash blocks passed syntax; workflow YAML parsed; legacy-publication scan, candidate/provenance gates, target scope, and no-package-publication checks passed",
+      "log": {
+        "path": ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-b/evidence/final-publication-static-gates.json",
+        "sha256": "b1d087ccd5b6db48a3def47cf2406c1030a8494bd81f10e69e03f2d61b934ab1"
+      }
+    },
+    {
+      "command": "fetch canonical wrapper refs into temporary proof refs; ancestry/tag checks; gh release inventory",
+      "exitCode": 0,
+      "validatedHeadSha": "a692d24e4f07dfa09e3519fca7e691c2af4744bb",
+      "result": "candidate absent from every branch/tag ancestry across origin/work/personal; no local tag and no release target match",
+      "log": {
+        "path": ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-b/evidence/final-remote-publication-proof.log",
+        "sha256": "7504330d1ab13fd9910c889f9a11354a9caf61a5e42ab88d8e98fc71ef1d717d"
+      }
+    }
+  ],
+  "publicationStaticGates": {
+    "fencedBashSyntax": {
+      "count": 17,
+      "passed": true
+    },
+    "workflowYamlParse": {
+      "parser": "yaml npm dependency already installed under @azure/static-web-apps-cli",
+      "parseExitCode": 0,
+      "parseError": "",
+      "checks": {
+        "nameReleaseBundle": true,
+        "tagTrigger": true,
+        "contentsWriteOnly": true,
+        "releaseJobPresent": true,
+        "bundleBuild": true,
+        "githubReleaseUpload": true,
+        "noPackageWrite": true,
+        "noRegistryAuth": true,
+        "noNpmPublish": true,
+        "npmPackOnly": true
+      },
+      "passed": true
+    },
+    "activeLegacyPublicationScan": {
+      "filesScanned": 16,
+      "matches": [
+        {
+          "path": ".claude/commands/verify.md",
+          "line": 18,
+          "pattern": "GitHub Packages",
+          "text": "Historical migration note: GitHub Packages publishing and the platform-package layout are retired. Do not check the legacy registry configuration or package paths.",
+          "historicalOrExplicitlyRetired": true
+        }
+      ],
+      "activeMatches": [],
+      "passed": true
+    },
+    "candidateBoundReleaseAndProvenance": {
+      "checks": {
+        "usesJustTest": true,
+        "projectRelativeReleaseWork": true,
+        "projectRelativeEvidence": true,
+        "noTmpPath": true,
+        "originUrl": true,
+        "workUrl": true,
+        "personalUrl": true,
+        "candidateVariable": true,
+        "exactCandidateApproval": true,
+        "fastForwardGate": true,
+        "gitlinkEqualityGate": true,
+        "tagBoundToCandidate": true,
+        "pushesBoundToCandidate": true,
+        "mirrorEqualityAfterPush": true,
+        "publicTagVerified": true,
+        "retentionTagVerified": true,
+        "noNpmPublish": true,
+        "singleReleaseChannel": true
+      },
+      "passed": true
+    },
+    "noPackagePublicationBehavior": true,
+    "retainedLog": {
+      "path": ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-b/evidence/final-publication-static-gates.json",
+      "sha256": "b1d087ccd5b6db48a3def47cf2406c1030a8494bd81f10e69e03f2d61b934ab1"
+    }
+  },
+  "review": {
+    "code": "clean",
+    "docs": "clean",
+    "codeOpenMediumPlus": [],
+    "docsOpenMediumPlus": [],
+    "docsF006": {
+      "status": "wont_fix",
+      "resolution": "Both cited files are unchanged, pre-existing documentation outside PRD B's immutable eight-path writeScope; changing them would violate the receipt's scope invariant."
+    },
+    "jobStateReview": {
+      "code": "clean",
+      "docs": "clean"
+    },
+    "codeEvidence": {
+      "path": ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-b/code-review-findings.json",
+      "sha256": "5b0e4ff1c10530aa82c85003d63abd1ad197475d25742a502744e0d838393112"
+    },
+    "docsEvidence": {
+      "path": ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-b/docs-review-findings.json",
+      "sha256": "04ce8ebc819275e57e836478a04be058f34562c882342aba624f264312720696"
+    },
+    "jobStateEvidence": {
+      "path": ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-b/job-state.json",
+      "sha256": "6d900619deea346b8375608eb32f061a71c9d3e1ed74d5a394922a79907b0f76"
+    }
+  },
+  "innerTreeProof": {
+    "path": "D:/harness-efforts/codexu/codex/.worktrees/codex-v2-copilot-encrypted-subagent-handoff/external/repos/codex-patched",
+    "branch": "ralph/codex-v2-copilot-encrypted-subagent-handoff-source",
+    "headSha": "6d73e16c44d65ac243834a942d7fab2c3b279221",
+    "expectedHeadSha": "6d73e16c44d65ac243834a942d7fab2c3b279221",
+    "statusPorcelain": "",
+    "clean": true,
+    "retainedLog": {
+      "path": ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-b/evidence/final-state-invariant-review-gates.json",
+      "sha256": "3f2be7c29e47f26372463e4eff222a47c14a90c11821d70c28c75c5463d27f02"
+    }
+  },
+  "wrapperStatusProof": {
+    "statusPorcelain": " M external/repos/codex-patched",
+    "expectedOnlyStatus": " M external/repos/codex-patched",
+    "stagedPaths": [],
+    "unstagedPaths": [
+      "external/repos/codex-patched"
+    ],
+    "gitlinkIndexSha": "587a6a8ab8948ff912b1f24a62833b277934302d",
+    "gitlinkWorkingTreeSha": "6d73e16c44d65ac243834a942d7fab2c3b279221",
+    "onlyAllowedUnstagedGitlinkAdvance": true,
+    "retainedLog": {
+      "path": ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-b/evidence/final-state-invariant-review-gates.json",
+      "sha256": "3f2be7c29e47f26372463e4eff222a47c14a90c11821d70c28c75c5463d27f02"
+    }
+  },
+  "publicationProof": {
+    "canonicalRepositories": [
+      "gim-home/codex",
+      "evmitran_microsoft/codex",
+      "Evyatar108/codex"
+    ],
+    "remoteRefsExactlyCandidate": 0,
+    "remoteBranchesOrTagsContainingCandidate": 0,
+    "localTagsAtCandidate": 0,
+    "releaseTargetMatches": 0,
+    "retainedLog": {
+      "path": ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-b/evidence/final-remote-publication-proof.log",
+      "sha256": "7504330d1ab13fd9910c889f9a11354a9caf61a5e42ab88d8e98fc71ef1d717d"
+    }
+  },
+  "forbiddenActionsPerformed": {
+    "nestedSourceModified": false,
+    "gitlinkStagedOrCommitted": false,
+    "versionBump": false,
+    "releaseBuild": false,
+    "push": false,
+    "tag": false,
+    "release": false,
+    "install": false,
+    "publication": false,
+    "dogfood": false
+  },
+  "evidenceManifest": {
+    "path": ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-b/evidence/final-evidence-manifest.json",
+    "sha256": "18e5cce561e8ff606767cf2e43e011cafd37ea6ea96461a3c3c56a1e6604d53f"
+  },
+  "pushed": false,
+  "completedAt": "2026-07-14T15:37:51.529Z"
+}

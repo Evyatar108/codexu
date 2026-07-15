@@ -1,0 +1,43 @@
+{
+  "manifestPath": "D:\\harness-efforts\\codexu\\.ralph\\jobs\\codex-v2-copilot-encrypted-subagent-handoff-prd-b\\iteration-result-2.json",
+  "iterationSHA": "66261138e18b276179b533bf95791dba4dd7e685",
+  "storyId": "US-002",
+  "verdicts": [
+    {
+      "criterion": "Update `.claude/commands/publish-sandbox-patch.md` to use `just test`, project-relative scratch and evidence paths, canonical `origin`, `work`, and `personal` mirror checks, exact candidate approval, and fast-forward, equality, and ancestry gates before release actions.",
+      "verdict": "agree",
+      "reason": "The manifest records successful structural and shell-syntax probes, and the diff directly shows `just test`, project-relative release directories, all three canonical mirrors, exact approval, and the stated release gates."
+    },
+    {
+      "criterion": "Update `.github/workflows/publish-npm.yml` to remove package-write permission, registry authentication, and `npm publish` while retaining tag-triggered bundle construction and GitHub Release upload.",
+      "verdict": "agree",
+      "reason": "The recorded workflow parse and structural probe reports tag triggering, contents-only write permission, bundle construction, Release upload, no registry authentication, and no publication; the diff is consistent with contents-only permission and release-bundle behavior."
+    },
+    {
+      "criterion": "Remove active GitHub Packages, package-registry alternative, and split-package guidance from active wrapper documentation without performing a version bump, build, push, tag, release upload, installation, or dogfood run.",
+      "verdict": "disagree-pass-but-fail",
+      "reason": "The scan and diff support removal of active publication guidance, and the result addresses package-manifest changes and tags, but no recorded evidence proves that no build, push, release upload, installation, or dogfood run occurred."
+    },
+    {
+      "criterion": "A case-insensitive scan across `.github/workflows/**`, `.claude/commands/**`, `AGENTS.md`, `CLAUDE.md`, and `docs/workflows/**` finds no active `npm publish`, `npm.pkg.github.com`, `packages: write`, `GitHub Packages`, `read:packages`, registry-alternative, or split-package instruction.",
+      "verdict": "agree",
+      "reason": "The manifest records a targeted case-insensitive `rg` negation scan over the required active surfaces with zero active matches, and the supplied diff is consistent with that result."
+    },
+    {
+      "criterion": "Structural checks prove `publish-npm.yml` remains a tag-triggered bundle/GitHub Release workflow and `publish-sandbox-patch.md` contains no `/tmp` path and uses all three canonical wrapper mirrors.",
+      "verdict": "agree",
+      "reason": "The manifest reports all relevant workflow and command structural checks as true; the diff also shows project-relative paths and the canonical `origin`, `work`, and `personal` mirrors."
+    },
+    {
+      "criterion": "Only paths in the eight-entry top-level `writeScope` change; `external/repos/codex-patched/**` stays read-only, its inner tree stays clean, and the wrapper gitlink advance remains unstaged.",
+      "verdict": "agree",
+      "reason": "The supplied diff changes eight wrapper paths and no `external/repos/codex-patched/**` path, while the recorded status and cached-diff checks report the inner tree clean and the gitlink advance unstaged."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "verdict": "disagree-pass-but-fail",
+      "reason": "The cited evidence only parses YAML and runs `bash -n` on documentation blocks; it records no typecheck command or typecheck result."
+    }
+  ],
+  "warnings": []
+}

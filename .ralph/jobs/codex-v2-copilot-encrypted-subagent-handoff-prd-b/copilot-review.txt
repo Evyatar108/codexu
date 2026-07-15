@@ -1,0 +1,20 @@
+### Completeness
+
+- [Medium] `codex-rs-overlay/codex-invariant-tests/tests/multi_agent_v2_handoff.rs:390-398` checks only file-wide marker counts for send/follow-up handlers. Markers can be duplicated on one logical block and omitted from another without failing. Assert ownership separately for each field and dispatch block.
+
+### Correctness
+
+- [High] `.claude/commands/publish-sandbox-patch.md:481-483` changes `RG_ZIP` from a filename to a local path, then interpolates that path into the download URL. `curl` will request an invalid URL containing `.release-work/...`, blocking release packaging. Use separate archive-name and destination-path variables.
+- [High] `.claude/commands/publish-sandbox-patch.md:432,449-453` creates the public tag from current `HEAD`, not the approved `WRAPPER_CANDIDATE_SHA`. If HEAD drifts, the wrong immutable tag is published before the mismatch is detected. Tag the explicit candidate and verify locally before pushing.
+
+### Quality
+
+No issues found.
+
+### Security
+
+- [Medium] `.claude/commands/publish-sandbox-patch.md:351-353,435-442` validates only fetch URLs, while `git push` honors configured `pushurl` values. A stale or malicious push URL can redirect the approved commit before verification fails. Validate the complete push-URL set for every destination.
+
+### Overall Assessment
+
+- [High] The release runbook is not ready: its ripgrep download is guaranteed to fail, and its candidate-binding safeguards can publish the wrong tag.

@@ -1,0 +1,11 @@
+# Code Review Context
+
+- Round 7 reviewed the immutable seventeen-path range `89a6cbea7cd382fa4873b259fb996dcf988a5fdc..f46eecc512de7f8d882346a7b473881c0afc81d1`; stale local `main` at `3ff55692e7045e85ce78ebe8337ab40b55494c9c` was not used.
+- The Phase 5 routing map represents only `US-001` and `US-002`; both have durable `uiUxJudgment: not-required`. Neither story is blocked, and the deferred-questions table is empty.
+- F-001 through F-015 are fixed. The invariant directly binds all reviewed marker owners, provider-derived schema/runtime propagation, truthful constructors, exact subscribe-before-read behavior, and the 800-line cap.
+- F-013 was verified in both exact `verify_release_asset` implementations. Cleanup, directory creation, exact-path removal, download, fresh regular-file existence, digest comparison, extraction, and four-binary comparison fail closed even when the functions run in Bash conditional or AND-list contexts. Fresh failure-injection probes covered cleanup, directory creation, download, absent files, digest mismatch, and extraction failure in both paths.
+- The manual command and workflow are symmetric on candidate binding, digest-gated create/repair behavior, exact four-binary comparison, public-tag provenance, nested retention-tag equality, final live provenance, and the absence of raw `targetCommitish` rejection for existing releases.
+- Fresh checks passed: focused `just test` (2/2), invariant audit, network audit (22/22 patched; no new sites), Rust formatting, `git diff --check`, exact write scope, normalized manual Bash syntax (19 blocks), workflow YAML and Bash syntax (11 run blocks), fail-fast mutation scan, active-publication scan, and release-policy structural/failure-injection probes.
+- Nested source is clean at `6d73e16c44d65ac243834a942d7fab2c3b279221`; the wrapper index is clean and its only worktree change is the expected unstaged `external/repos/codex-patched` gitlink advance.
+- Only the local Ralph branch contains the target commit. No local tag, remote-tracking ref, queried remote branch/tag, or queried GitHub Release in `gim-home/codex`, `evmitran_microsoft/codex`, or `Evyatar108/codex` contains or targets it.
+- No push, tag, release create/upload/edit, install, or dogfood command was executed during this review.

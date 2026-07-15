@@ -1,0 +1,200 @@
+{
+  "schemaVersion": 1,
+  "executionUnit": "PRD-A",
+  "targetRepository": "D:/harness-efforts/codexu/codex/.worktrees/codex-v2-copilot-encrypted-subagent-handoff/external/repos/codex-patched",
+  "wrapperContextSha": "89a6cbea7cd382fa4873b259fb996dcf988a5fdc",
+  "baseBranch": "sandbox-patches",
+  "baseSha": "587a6a8ab8948ff912b1f24a62833b277934302d",
+  "commitShas": [
+    "d1bc81c41d20717f14b77e69e2b306f557bc12b1",
+    "d0294b86fe8e9b88a6e9c9a99e698a7517e63478",
+    "d0fa361aff699ed325450d1708a0fff24fd9b210",
+    "6d73e16c44d65ac243834a942d7fab2c3b279221"
+  ],
+  "finalCommitSha": "6d73e16c44d65ac243834a942d7fab2c3b279221",
+  "changedFiles": {
+    "paths": [
+      "codex-rs/core/src/tools/handlers/multi_agents_spec.rs",
+      "codex-rs/core/src/tools/handlers/multi_agents_spec_tests.rs",
+      "codex-rs/core/src/tools/handlers/multi_agents_tests.rs",
+      "codex-rs/core/src/tools/handlers/multi_agents_v2.rs",
+      "codex-rs/core/src/tools/handlers/multi_agents_v2/followup_task.rs",
+      "codex-rs/core/src/tools/handlers/multi_agents_v2/message_tool.rs",
+      "codex-rs/core/src/tools/handlers/multi_agents_v2/send_message.rs",
+      "codex-rs/core/src/tools/handlers/multi_agents_v2/spawn.rs",
+      "codex-rs/core/src/tools/handlers/multi_agents_v2/wait.rs",
+      "codex-rs/core/src/tools/handlers/multi_agents_v2_spec.rs",
+      "codex-rs/core/src/tools/handlers/multi_agents_v2_spec_tests.rs",
+      "codex-rs/core/src/tools/spec_plan.rs",
+      "codex-rs/core/src/tools/spec_plan_tests.rs",
+      "codex-rs/model-provider/src/amazon_bedrock/mod.rs",
+      "codex-rs/model-provider/src/copilot.rs",
+      "codex-rs/model-provider/src/provider.rs",
+      "docs/implementation/patch-surface.md"
+    ],
+    "writeScopePaths": [
+      "docs/implementation/patch-surface.md",
+      "codex-rs/model-provider/src/provider.rs",
+      "codex-rs/model-provider/src/copilot.rs",
+      "codex-rs/model-provider/src/amazon_bedrock/mod.rs",
+      "codex-rs/core/src/tools/spec_plan.rs",
+      "codex-rs/core/src/tools/handlers/multi_agents_spec.rs",
+      "codex-rs/core/src/tools/handlers/multi_agents_v2.rs",
+      "codex-rs/core/src/tools/handlers/multi_agents_v2/spawn.rs",
+      "codex-rs/core/src/tools/handlers/multi_agents_v2/send_message.rs",
+      "codex-rs/core/src/tools/handlers/multi_agents_v2/followup_task.rs",
+      "codex-rs/core/src/tools/handlers/multi_agents_v2/message_tool.rs",
+      "codex-rs/core/src/tools/handlers/multi_agents_v2/wait.rs",
+      "codex-rs/core/src/tools/handlers/multi_agents_spec_tests.rs",
+      "codex-rs/core/src/tools/spec_plan_tests.rs",
+      "codex-rs/core/src/tools/handlers/multi_agents_tests.rs",
+      "codex-rs/core/src/tools/handlers/multi_agents_v2_spec.rs",
+      "codex-rs/core/src/tools/handlers/multi_agents_v2_spec_tests.rs"
+    ],
+    "allWithinWriteScope": true,
+    "unexpectedPaths": []
+  },
+  "markerInventory": {
+    "providerAwareV2Handoff": {
+      "marker": "// SANDBOX PATCH: provider-aware-v2-handoff",
+      "count": 31,
+      "files": [
+        "codex-rs/core/src/tools/spec_plan_tests.rs",
+        "codex-rs/core/src/tools/spec_plan.rs",
+        "codex-rs/core/src/tools/handlers/multi_agents_v2_spec_tests.rs",
+        "codex-rs/core/src/tools/handlers/multi_agents_v2_spec.rs",
+        "codex-rs/core/src/tools/handlers/multi_agents_v2.rs",
+        "codex-rs/core/src/tools/handlers/multi_agents_v2/spawn.rs",
+        "codex-rs/core/src/tools/handlers/multi_agents_v2/send_message.rs",
+        "codex-rs/core/src/tools/handlers/multi_agents_v2/message_tool.rs",
+        "codex-rs/core/src/tools/handlers/multi_agents_v2/followup_task.rs",
+        "codex-rs/core/src/tools/handlers/multi_agents_tests.rs",
+        "codex-rs/core/src/tools/handlers/multi_agents_spec.rs",
+        "codex-rs/model-provider/src/provider.rs",
+        "codex-rs/model-provider/src/copilot.rs",
+        "codex-rs/model-provider/src/amazon_bedrock/mod.rs"
+      ]
+    },
+    "exactV2Wait": {
+      "marker": "// SANDBOX PATCH: exact-v2-wait",
+      "count": 16,
+      "files": [
+        "codex-rs/core/src/tools/handlers/multi_agents_v2_spec.rs",
+        "codex-rs/core/src/tools/handlers/multi_agents_v2/wait.rs",
+        "codex-rs/core/src/tools/handlers/multi_agents_tests.rs",
+        "codex-rs/core/src/tools/handlers/multi_agents_spec.rs",
+        "codex-rs/core/src/tools/handlers/multi_agents_v2_spec_tests.rs"
+      ]
+    },
+    "retainedLog": {
+      "path": ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-a/evidence/final-marker-inventory.txt",
+      "sha256": "f8e8ddb95a55ef2db8e36a440325c503196ddc43d2b6738bae4bb6f07c9d1862"
+    }
+  },
+  "lineCounts": {
+    "multiAgentsSpecRs": {
+      "base": 854,
+      "afterProviderHandoffCommit": 628,
+      "final": 629,
+      "maximumAllowed": 800
+    }
+  },
+  "validations": [
+    {
+      "command": "just test -p codex-model-provider",
+      "exitCode": 0,
+      "validatedHeadSha": "d0294b86fe8e9b88a6e9c9a99e698a7517e63478",
+      "result": "78 passed, 0 failed",
+      "log": {
+        "path": ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-a/evidence/us001-just-test-codex-model-provider.log",
+        "sha256": "db4c509fc79f329925931aa74dd80e7ef74f709bbfdab4da69cdb04225de0d2a"
+      }
+    },
+    {
+      "command": "cargo check -p codex-model-provider",
+      "exitCode": 0,
+      "validatedHeadSha": "d0294b86fe8e9b88a6e9c9a99e698a7517e63478",
+      "result": "typecheck passed",
+      "log": {
+        "path": ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-a/evidence/us001-cargo-check-codex-model-provider.log",
+        "sha256": "01925824c77fa5d828dc20437713352f1cf701d63de802799219b6da5ae56fe2"
+      }
+    },
+    {
+      "command": "source scripts/iteration-env.sh && cd external/repos/codex-patched && just test -p codex-core -E 'test(/(all_message_tools_use_the_selected_encoding|multi_agent_v2_message_schemas_follow_provider_capability|multi_agent_v2_capable_encoding_is_encrypted_for_all_message_tools|multi_agent_v2_plaintext_encoding_is_truthful_for_all_message_tools)/)'",
+      "exitCode": 0,
+      "validatedHeadSha": "d0294b86fe8e9b88a6e9c9a99e698a7517e63478",
+      "result": "4 passed, 0 failed",
+      "log": {
+        "path": ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-a/evidence/us002-just-test-codex-core-focused-msvc-retry.log",
+        "sha256": "acd65295ced7c2765698f21ba3404a8ecbe02b16544d63627d6b26fe4ec7d16e"
+      }
+    },
+    {
+      "command": "source scripts/iteration-env.sh && bash scripts/verify-core-change.sh targeted --package codex-core",
+      "exitCode": 0,
+      "validatedHeadSha": "d0294b86fe8e9b88a6e9c9a99e698a7517e63478",
+      "result": "canonical T1 targeted codex-core compile passed",
+      "log": {
+        "path": ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-a/evidence/us002-verify-core-change-targeted.log",
+        "sha256": "94e6ae8a98748764c4b8f5c9b55239ee2c37f016ae91f613e544274e05268594"
+      }
+    },
+    {
+      "command": "just test -p codex-core -E 'test(/(wait_agent_tool_adds_optional_exact_task_name|exact_wait_|multi_agent_v2_exact_wait_|multi_agent_v2_wait_agent_|wait_agent_returns_|wait_agent_times_out_|wait_agent_clamps_|subagent_notifications)/)'",
+      "exitCode": 0,
+      "validatedHeadSha": "d0294b86fe8e9b88a6e9c9a99e698a7517e63478",
+      "result": "34 passed, 0 failed",
+      "log": {
+        "path": ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-a/evidence/us003-just-test-codex-core-focused-python3-shim.log",
+        "sha256": "4f4091a4b3cca62d8092c29dc9546fcaec86abe8ee9f7ba4a88a85dc5c5e7fd3"
+      }
+    },
+    {
+      "command": "just test -p codex-core -E 'test(/(all_message_tools_use_the_selected_encoding|multi_agent_v2_message_schemas_follow_provider_capability|multi_agent_v2_capable_encoding_is_encrypted_for_all_message_tools|multi_agent_v2_plaintext_encoding_is_truthful_for_all_message_tools|wait_agent_tool_adds_optional_exact_task_name|exact_wait_|multi_agent_v2_exact_wait_|multi_agent_v2_wait_agent_|wait_agent_returns_|wait_agent_times_out_|wait_agent_clamps_|subagent_notifications)/)'",
+      "exitCode": 0,
+      "validatedHeadSha": "d0fa361aff699ed325450d1708a0fff24fd9b210",
+      "result": "38 passed, 0 failed, 1 passed on nextest retry",
+      "log": {
+        "path": ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-a/evidence/phase5a-marker-fix-focused-tests.log",
+        "sha256": "afb11cf24547ba69ce4bfccf4d0f6090e08985f4e377683c834869c0f11c3208"
+      }
+    },
+    {
+      "command": "model-routing-policy.mjs validate-prd --prd <prd.json> && validate-prd-scope.mjs --prd <prd.json>",
+      "exitCode": 0,
+      "validatedHeadSha": "6d73e16c44d65ac243834a942d7fab2c3b279221",
+      "result": "model routing and corrected 17-path write scope passed",
+      "log": {
+        "path": ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-a/evidence/final-scope-validation.log",
+        "sha256": "ece6ded0125f9b3e19d3c96e506d112c59045ef5027dd7cbe473753cbac6cf2b"
+      }
+    }
+  ],
+  "review": {
+    "code": "clean",
+    "docs": "clean",
+    "codeEvidence": {
+      "path": ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-a/evidence/phase5a-code-review.json",
+      "sha256": "07f77bb9b56159e92c3601824f980d557f373c0608253e6f704f32e4d773867c"
+    },
+    "docsEvidence": {
+      "path": ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-a/evidence/phase5b-docs-review.json",
+      "sha256": "a85e6fd778bcb92145a199ac6ce5099d3ba7de465074eaf14496392e150c8b70"
+    }
+  },
+  "cleanTreeProof": {
+    "statusPorcelain": "",
+    "branch": "ralph/codex-v2-copilot-encrypted-subagent-handoff-source",
+    "branchTipSha": "6d73e16c44d65ac243834a942d7fab2c3b279221",
+    "upstream": "origin/sandbox-patches",
+    "aheadBy": 4,
+    "remoteBranchesContainingFinalCommit": [],
+    "retainedLog": {
+      "path": ".ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-a/evidence/final-receipt-facts.log",
+      "sha256": "0ca82843ed2e4e24f8fbc9b4d1e77cb39a5006f55cbbfedb5312fae5916beb7d"
+    }
+  },
+  "pushed": false,
+  "completedAt": "2026-07-14T06:45:47.4060311Z"
+}

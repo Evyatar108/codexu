@@ -1,0 +1,45 @@
+{
+  "generatedAt": "2026-07-14T07:59:47.641-07:00",
+  "jobSlug": "codex-v2-copilot-encrypted-subagent-handoff-prd-b",
+  "mode": "single",
+  "suggestions": [
+    {
+      "id": "codex-reconcile-launcher-config-docs",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "rationale": "A high-severity docs finding confirms that active guidance still directs users to an ignored default_model setting. The independently recorded rejection of an out-of-scope verify.md edit corroborates that adjacent launcher-config documentation was intentionally left behind; reconcile the architecture, endpoint mapping, and verifier inventory with the six-field launcher configuration now documented in the warm developer-guide surface.",
+      "sourceFinding": {
+        "type": "wont_fix_finding",
+        "reference": "F-006 (docs-review-findings.json)",
+        "memberJobSlug": null,
+        "excerpt": "docs/implementation/architecture.md still says the launcher emits `-c model=<default_model>`, and docs/implementation/model-endpoint-mapping.md still tells users to set `default_model` in `~/.codex-copilot/config.toml`. The current launcher deliberately neither reads nor emits that setting, while the developer guide changed in this diff to use `~/.codex/config.toml::model`; the documented launcher setting is therefore silently ineffective."
+      },
+      "suggestedPrompts": {
+        "brainstorm": null,
+        "plan": "Update docs/implementation/architecture.md, docs/implementation/model-endpoint-mapping.md, and .claude/commands/verify.md to match current launcher behavior. Remove claims that default_model is read or emitted, direct model selection to ~/.codex/config.toml::model or --model, and reconcile each SandboxConfig inventory with the six fields already documented in docs/workflows/developer-guide.md. Add focused documentation scans or checks that prevent these inventories from drifting again."
+      },
+      "recommendedPhase": "plan",
+      "estimatedSize": "S",
+      "dependencies": null
+    },
+    {
+      "id": "codex-evaluate-inline-v2-handoff-invariants",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "rationale": "The implementation deliberately kept the V2 handoff invariant in the wrapper overlay to reduce upstream conflict surface. Revisit whether a nested or upstreamable counterpart could improve ownership and rebase diagnostics without sacrificing that isolation; if not, make the rejection and maintenance boundary explicit.",
+      "sourceFinding": {
+        "type": "rejected_trailer",
+        "reference": "commit 7c0b978f942fac3aa748396d437618eaf321892e trailer Rejected",
+        "memberJobSlug": null,
+        "excerpt": "Rejected: inline nested invariant | wrapper overlay avoids upstream conflict surface"
+      },
+      "suggestedPrompts": {
+        "brainstorm": "Evaluate the long-term home for provider-aware V2 handoff and exact-wait invariants. Compare the current wrapper-overlay test with an inline nested-source test, an upstreamable behavioral test, or a hybrid. Optimize for rebase conflict avoidance, local ownership, failure diagnostics, and preservation of the read-only nested-source workflow; conclude with a recommended boundary and migration trigger.",
+        "plan": null
+      },
+      "recommendedPhase": "brainstorm",
+      "estimatedSize": "M",
+      "dependencies": null
+    }
+  ]
+}

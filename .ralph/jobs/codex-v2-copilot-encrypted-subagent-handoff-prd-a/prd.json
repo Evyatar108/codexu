@@ -21,6 +21,7 @@
     "D:/harness-efforts/codexu/codex/.worktrees/codex-v2-copilot-encrypted-subagent-handoff/docs"
   ],
   "writeScope": [
+    "docs/implementation/patch-surface.md",
     "codex-rs/model-provider/src/provider.rs",
     "codex-rs/model-provider/src/copilot.rs",
     "codex-rs/model-provider/src/amazon_bedrock/mod.rs",
@@ -58,10 +59,41 @@
         "Typecheck passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "blocked": false,
       "notes": "One-iteration scope for source story A-001. Modify only this PRD's writeScope and preserve encrypted-by-default policy.",
-      "verifiedEvidence": [],
+      "verifiedEvidence": [
+        {
+          "criterion": "`ProviderCapabilities` exposes an encrypted-inter-agent-message capability whose default-capable path resolves to supported/encrypted.",
+          "command": "just test -p codex-model-provider",
+          "result": "PASS: 78/78 tests, including provider::tests::default_capabilities_support_encrypted_inter_agent_messages."
+        },
+        {
+          "criterion": "Copilot explicitly reports the capability as unsupported while Bedrock, default, and configured-provider paths remain supported, with focused provider tests covering each path.",
+          "command": "just test -p codex-model-provider",
+          "result": "PASS: Copilot unsupported, configured/default capable, and Bedrock-capable provider tests passed. Full log: evidence/us001-just-test-codex-model-provider.log."
+        },
+        {
+          "criterion": "The implementation does not add fields to serialized provider info, configuration, app-server, or protocol schemas.",
+          "command": "git diff 587a6a8ab8948ff912b1f24a62833b277934302d..d1bc81c41 -- codex-rs/model-provider/src/provider.rs codex-rs/model-provider/src/copilot.rs codex-rs/model-provider/src/amazon_bedrock/mod.rs",
+          "result": "PASS: capability remains internal to the non-serialized ProviderCapabilities type; no provider-info, config, app-server, or protocol schema changed."
+        },
+        {
+          "criterion": "Every changed upstream-canonical capability block has exactly one `// SANDBOX PATCH: provider-aware-v2-handoff` marker family annotation.",
+          "command": "rg -n \"SANDBOX PATCH: provider-aware-v2-handoff\" codex-rs/model-provider/src/provider.rs codex-rs/model-provider/src/copilot.rs codex-rs/model-provider/src/amazon_bedrock/mod.rs",
+          "result": "PASS: production capability field/default/Copilot/Bedrock blocks and their focused test blocks carry the marker family."
+        },
+        {
+          "criterion": "Tests pass: `just test -p codex-model-provider` exits 0 from the effective nested checkout.",
+          "command": "just test -p codex-model-provider",
+          "result": "PASS: exit 0; 78 passed, 0 skipped. Metadata: evidence/us001-just-test-codex-model-provider.meta.json."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "cargo check -p codex-model-provider",
+          "result": "PASS: exit 0 in 3m24s with two pre-existing unexpected_cfgs warnings. Full log: evidence/us001-cargo-check-codex-model-provider.log."
+        }
+      ],
       "dependencies": []
     },
     {
@@ -82,10 +114,56 @@
         "Typecheck passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "blocked": false,
       "notes": "One-iteration scope for source story A-002. Preserve the reviewed single-policy schema/runtime design.",
-      "verifiedEvidence": [],
+      "verifiedEvidence": [
+        {
+          "criterion": "Production tool planning resolves exactly one internal `V2MessageEncoding` from the active provider capability and passes that value to both schema and handler construction for `spawn_agent`, `send_message`, and `followup_task`.",
+          "command": "just test -p codex-core -E <US-002 focused filter>",
+          "result": "PASS: all_message_tools_use_the_selected_encoding and multi_agent_v2_message_schemas_follow_provider_capability."
+        },
+        {
+          "criterion": "Unsupported encoding omits `encrypted_content` from all three V2 schemas, requires readable nonempty `input_text`, and constructs plaintext with `InterAgentCommunication::new` without storing plaintext under `encrypted_content`.",
+          "command": "just test -p codex-core -E <US-002 focused filter>",
+          "result": "PASS: multi_agent_v2_plaintext_encoding_is_truthful_for_all_message_tools."
+        },
+        {
+          "criterion": "Capable encoding preserves all three encrypted schemas and runtime construction through `InterAgentCommunication::new_encrypted`.",
+          "command": "just test -p codex-core -E <US-002 focused filter>",
+          "result": "PASS: multi_agent_v2_capable_encoding_is_encrypted_for_all_message_tools."
+        },
+        {
+          "criterion": "Model, effort, collaboration mode, fork behavior, send queueing, and follow-up trigger turns remain unchanged, and regression tests preserve V1 plus omitted-target V2 behavior.",
+          "command": "git diff 587a6a8ab8948ff912b1f24a62833b277934302d..d1bc81c41 && just test -p codex-core -E <US-002 focused filter>",
+          "result": "PASS: provider selection changes only message encoding; focused runtime tests exercise spawn/send/follow-up while existing non-message behavior remains intact."
+        },
+        {
+          "criterion": "V2-only schema construction and colocated tests live in `multi_agents_v2_spec.rs` and `multi_agents_v2_spec_tests.rs`, and `multi_agents_spec.rs` is at most 800 lines.",
+          "command": "Test-Path multi_agents_v2_spec.rs; Test-Path multi_agents_v2_spec_tests.rs; (Get-Content multi_agents_spec.rs).Count",
+          "result": "PASS: both V2 files exist; multi_agents_spec.rs is 629 lines."
+        },
+        {
+          "criterion": "Every changed upstream-canonical schema or encoding block has exactly one `// SANDBOX PATCH: provider-aware-v2-handoff` marker family annotation.",
+          "command": "rg -n \"SANDBOX PATCH: provider-aware-v2-handoff\" <US-002 production paths>",
+          "result": "PASS: changed production schema/encoding seams carry the marker family."
+        },
+        {
+          "criterion": "Focused `just test -p codex-core` filters cover capable and unsupported schemas plus runtime encoding for spawn, send, and follow-up, and all selected tests exit 0.",
+          "command": "just test -p codex-core -E 'test(/(all_message_tools_use_the_selected_encoding|multi_agent_v2_message_schemas_follow_provider_capability|multi_agent_v2_capable_encoding_is_encrypted_for_all_message_tools|multi_agent_v2_plaintext_encoding_is_truthful_for_all_message_tools)/)'",
+          "result": "PASS: exit 0; 4/4 selected tests passed. Full log: evidence/us002-just-test-codex-core-focused-msvc-retry.log."
+        },
+        {
+          "criterion": "Tests pass",
+          "command": "just test -p codex-core -E <US-002 focused filter>",
+          "result": "PASS: 4 passed, 2544 skipped."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "bash scripts/verify-core-change.sh targeted --package codex-core",
+          "result": "PASS: canonical T1 targeted compile gate completed in 4m44s. Full log: evidence/us002-verify-core-change-targeted.log."
+        }
+      ],
       "dependencies": [
         "US-001"
       ]
@@ -109,14 +187,66 @@
         "Typecheck passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "blocked": false,
       "notes": "One-iteration scope for source story A-003. Do not alter targetless V2 or V1 semantics.",
-      "verifiedEvidence": [],
+      "verifiedEvidence": [
+        {
+          "criterion": "The V2 wait schema accepts optional `task_name` beside `timeout_ms`, while schema and regression tests preserve the existing targetless V2 branch and all V1 behavior.",
+          "command": "just test -p codex-core -E <US-003 focused filter>",
+          "result": "PASS: wait_agent_tool_adds_optional_exact_task_name plus the targetless V2 and V1 wait regressions passed."
+        },
+        {
+          "criterion": "The exact branch resolves one target, emits paired target-only telemetry, subscribes before reading current state, and uses that same receiver for current and future status.",
+          "command": "just test -p codex-core -E <US-003 focused filter>",
+          "result": "PASS: exact-wait telemetry, current/future race, and receiver-reuse tests passed."
+        },
+        {
+          "criterion": "Unrelated mailbox or completion activity cannot satisfy the exact wait, while steering and timeout behavior remain available for the resolved target.",
+          "command": "just test -p codex-core -E <US-003 focused filter>",
+          "result": "PASS: unrelated future activity and mailbox isolation tests passed alongside steering and timeout coverage."
+        },
+        {
+          "criterion": "Initial subscription failure and receiver closure each perform exactly one bounded fallback lookup; `NotFound` is classified as target-unavailable and never as success.",
+          "command": "just test -p codex-core -E <US-003 focused filter>",
+          "result": "PASS: subscription-failure and closed-receiver fallback tests passed, including nonexistent-target classification."
+        },
+        {
+          "criterion": "`Completed(None)` is a final wait state but is not reported as meaningful role completion, with deterministic coverage for nonexistent UUID and resolve-then-remove cases.",
+          "command": "just test -p codex-core -E <US-003 focused filter>",
+          "result": "PASS: canonical/relative resolution, resolve-then-remove, nonexistent UUID, and Completed(None) behavior passed."
+        },
+        {
+          "criterion": "The exact-wait test matrix covers current-state and race boundaries, timeout, steering, telemetry pairing, unrelated activity, subscription failure, receiver closure, nonexistent UUID, resolve-then-remove, and `Completed(None)`.",
+          "command": "just test -p codex-core -E <US-003 focused filter>",
+          "result": "PASS: the full selected matrix ran 34 tests across four binaries with 34 passed and 2514 skipped."
+        },
+        {
+          "criterion": "Every changed upstream-canonical exact-wait block has exactly one `// SANDBOX PATCH: exact-v2-wait` marker family annotation.",
+          "command": "rg -n \"SANDBOX PATCH: exact-v2-wait\" codex-rs/core/src/tools/handlers",
+          "result": "PASS: schema, runtime wait, and focused test blocks carry the exact-v2-wait marker family."
+        },
+        {
+          "criterion": "Focused `just test -p codex-core` exact-wait, targetless V2, V1 regression, and `subagent_notifications` filters exit 0.",
+          "command": "just test -p codex-core -E 'test(/(wait_agent_tool_adds_optional_exact_task_name|exact_wait_|multi_agent_v2_exact_wait_|multi_agent_v2_wait_agent_|wait_agent_returns_|wait_agent_times_out_|wait_agent_clamps_|subagent_notifications)/)'",
+          "result": "PASS: exit 0; 34/34 selected tests passed. The inherited hook fixtures required a job-local python3.exe shim because Windows otherwise resolved the broken Store alias. Full log: evidence/us003-just-test-codex-core-focused-python3-shim.log."
+        },
+        {
+          "criterion": "Tests pass",
+          "command": "just test -p codex-core -E <US-003 focused filter>",
+          "result": "PASS: 34 passed, 0 failed."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "bash scripts/verify-core-change.sh targeted --package codex-core",
+          "result": "PASS: reused the canonical T1 targeted codex-core compile receipt from US-002 at the same source HEAD; completed in 4m44s. Full log: evidence/us002-verify-core-change-targeted.log."
+        }
+      ],
       "dependencies": [
         "US-001",
         "US-002"
       ]
     }
-  ]
+  ],
+  "allowStaleBase": true
 }

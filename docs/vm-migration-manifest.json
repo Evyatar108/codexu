@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-07-14T16:00:00Z",
+  "snapshotBranch": "migration/vm-2026-07-14",
+  "repositories": {
+    "codexu": {
+      "url": "https://github.com/evmitran_microsoft/codexu.git",
+      "mainCommit": "2e7da83ee25158cab751f9706bc577f8707b84ba",
+      "snapshotBranch": "migration/vm-2026-07-14",
+      "role": "Happy workspace, Ralph state, plans, receipts, and VM restore tooling"
+    },
+    "codex": {
+      "url": "https://github.com/evmitran_microsoft/codexu-codex.git",
+      "activeBranch": "ralph/codex-v2-copilot-encrypted-subagent-handoff",
+      "activeCommit": "67e888f058ec3fc585f759bc39ca8278f0a2b2ba",
+      "buildTierBranch": "ralph/codex-rs-core-change-incremental-build-over-30m",
+      "buildTierCommit": "89a6cbea7cd382fa4873b259fb996dcf988a5fdc",
+      "role": "Codex wrapper and release/documentation surface"
+    },
+    "codexPatched": {
+      "url": "https://github.com/evmitran_microsoft/codexu-codex-patched.git",
+      "activeBranch": "ralph/codex-v2-copilot-encrypted-subagent-handoff-source",
+      "activeCommit": "6d73e16c44d65ac243834a942d7fab2c3b279221",
+      "role": "Nested Codex Rust source candidate; checked out without staging the wrapper gitlink"
+    },
+    "aiDeveloperToolkit": {
+      "url": "https://github.com/evmitran_microsoft/ai-developer-toolkit.git",
+      "hardeningBranch": "ralph/ralph-v2-encrypted-role-wait-terminal-hardening",
+      "hardeningCommit": "421741001a9be54ecc40c9cba2d454874c92ec57",
+      "releaseBranch": "release/ralph-564-publish",
+      "releaseCommit": "4100a48dfd676793bee6d4273c68c81662520b4d",
+      "routingBranch": "ralph/ralph-model-routing-v564-hybrid",
+      "routingCommit": "981300cf00ce2e0620683c9fc1fb779e9a85e2a7",
+      "role": "Ralph, crews, and overview plugin sources"
+    }
+  },
+  "activeTask": {
+    "id": "codex-v2-copilot-encrypted-subagent-handoff-prd-b",
+    "phase": "5b",
+    "codeReview": "clean",
+    "docsReview": "pending",
+    "docsRound": 17,
+    "openFindings": ["F-021", "F-022", "F-023"],
+    "publicationPerformed": false
+  },
+  "preservation": {
+    "rootBranchesPushed": true,
+    "codexBranchesPushed": true,
+    "codexPatchedBranchesPushed": true,
+    "toolkitWorkBranchesPushed": true,
+    "tagsPushed": false,
+    "releasesCreated": false,
+    "excludedTransientPaths": ["**/lenses/**", "**/worktree/**", "**/staging/**", "**/evidence/bin/**"]
+  }
+}
