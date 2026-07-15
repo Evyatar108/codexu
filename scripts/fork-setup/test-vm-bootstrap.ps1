@@ -258,25 +258,48 @@ $bootstrapPath = Join-Path $PSScriptRoot "bootstrap-vm.ps1"
         & git -C $nestedSource commit --quiet -m seed
         $nestedCommit = (& git -C $nestedSource rev-parse HEAD).Trim()
 
+        $mcporterSource = Join-Path $fixtureBase "mcporter-source"
+        New-Item -ItemType Directory -Force -Path $mcporterSource | Out-Null
+        & git -C $mcporterSource init --quiet
+        & git -C $mcporterSource config user.email "fixture@example.invalid"
+        & git -C $mcporterSource config user.name "Fixture"
+        New-Item -ItemType Directory -Force -Path (Join-Path $mcporterSource "dist-bun") | Out-Null
+        [IO.File]::WriteAllText((Join-Path $mcporterSource "seed.txt"), "seed`n", [Text.Encoding]::ASCII)
+        [IO.File]::WriteAllBytes(
+            (Join-Path $mcporterSource "dist-bun\mcporter-macos-arm64-v0.6.2.tar.gz"),
+            [byte[]](0x1f, 0x8b, 0x0d, 0x0a, 0x00)
+        )
+        & git -C $mcporterSource add seed.txt dist-bun/mcporter-macos-arm64-v0.6.2.tar.gz
+        & git -C $mcporterSource commit --quiet -m seed
+        [IO.File]::WriteAllText(
+            (Join-Path $mcporterSource ".gitattributes"),
+            "dist-bun/mcporter-macos-arm64-v0.6.2.tar.gz text eol=lf`n",
+            [Text.Encoding]::ASCII
+        )
+        & git -C $mcporterSource add .gitattributes
+        & git -C $mcporterSource commit --quiet -m attributes
+        $mcporterCommit = (& git -C $mcporterSource rev-parse HEAD).Trim()
+
         $wrapper = Join-Path $fixtureBase "wrapper"
         New-Item -ItemType Directory -Force -Path $wrapper | Out-Null
         & git -C $wrapper init --quiet
         & git -C $wrapper config user.email "fixture@example.invalid"
         & git -C $wrapper config user.name "Fixture"
         $modules = @"
-[submodule "external/repos/dependency"]
-	path = external/repos/dependency
+[submodule "external/repos/mcporter"]
+	path = external/repos/mcporter
 	url = https://legacy.invalid/dependency.git
 "@
         [IO.File]::WriteAllText((Join-Path $wrapper ".gitmodules"), $modules, [Text.Encoding]::ASCII)
         & git -C $wrapper add .gitmodules
-        & git -C $wrapper update-index --add --cacheinfo "160000,$nestedCommit,external/repos/dependency"
+        & git -C $wrapper update-index --add --cacheinfo "160000,$mcporterCommit,external/repos/mcporter"
         & git -C $wrapper commit --quiet -m wrapper
         $Root = $wrapper
-        Prepare-NestedSubmodule $wrapper "external/repos/dependency" $nestedSource $nestedCommit "active"
-        $nestedCheckout = Join-Path $wrapper "external\repos\dependency"
+        Prepare-NestedSubmodule $wrapper "external/repos/mcporter" $mcporterSource $mcporterCommit "active"
+        $nestedCheckout = Join-Path $wrapper "external\repos\mcporter"
         if ((& git -C $nestedCheckout branch --show-current).Trim() -ne "active" -or
-            (& git -C $nestedCheckout rev-parse HEAD).Trim() -ne $nestedCommit) {
+            (& git -C $nestedCheckout rev-parse HEAD).Trim() -ne $mcporterCommit -or
+            @(& git -C $nestedCheckout status --porcelain).Count -ne 0) {
             throw "Fresh-uninitialized nested fixture failed."
         }
         [IO.File]::WriteAllText((Join-Path $nestedCheckout "resumed.txt"), "resumed`n", [Text.Encoding]::ASCII)
@@ -285,7 +308,7 @@ $bootstrapPath = Join-Path $PSScriptRoot "bootstrap-vm.ps1"
         $resumedCommit = (& git -C $nestedCheckout rev-parse HEAD).Trim()
         $blocked = $false
         try {
-            Prepare-NestedSubmodule $wrapper "external/repos/dependency" $nestedSource $nestedCommit "active"
+            Prepare-NestedSubmodule $wrapper "external/repos/mcporter" $mcporterSource $mcporterCommit "active"
         } catch {
             $blocked = $true
         }

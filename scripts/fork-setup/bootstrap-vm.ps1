@@ -457,6 +457,43 @@ function Ensure-ExistingBranchAtCommit {
     Invoke-Git $Repository @("switch", "--create", $Branch, $Commit) | Out-Null
 }
 
+function Set-McporterBinaryCheckoutOverride {
+    param([string]$Repository, [string]$SubmodulePath)
+    if ($SubmodulePath -ne "external/repos/mcporter") {
+        return
+    }
+
+    $binaryPath = "dist-bun/mcporter-macos-arm64-v0.6.2.tar.gz"
+    Invoke-Git $Repository @("config", "core.autocrlf", "false") | Out-Null
+    $attributesPath = (& git -C $Repository rev-parse --git-path info/attributes).Trim()
+    if (-not [IO.Path]::IsPathRooted($attributesPath)) {
+        $attributesPath = Join-Path $Repository $attributesPath
+    }
+    New-Item -ItemType Directory -Force -Path (Split-Path $attributesPath) | Out-Null
+    $override = "$binaryPath -text"
+    $lines = if (Test-Path $attributesPath) { @([IO.File]::ReadAllLines($attributesPath)) } else { @() }
+    if ($lines -notcontains $override) {
+        [IO.File]::AppendAllText(
+            $attributesPath,
+            $(if ($lines.Count -gt 0) { [Environment]::NewLine } else { "" }) + $override + [Environment]::NewLine,
+            [Text.Encoding]::ASCII
+        )
+    }
+}
+
+function Repair-McporterBinaryCheckoutArtifact {
+    param([string]$Repository, [string]$SubmodulePath)
+    if ($SubmodulePath -ne "external/repos/mcporter") {
+        return
+    }
+
+    $binaryPath = "dist-bun/mcporter-macos-arm64-v0.6.2.tar.gz"
+    $status = @(& git -C $Repository status --porcelain -- $binaryPath)
+    if ($status.Count -eq 1 -and $status[0] -eq " M $binaryPath") {
+        Invoke-Git $Repository @("restore", "--source=HEAD", "--worktree", "--", $binaryPath) | Out-Null
+    }
+}
+
 function Prepare-NestedSubmodule {
     param(
         [string]$Wrapper,
@@ -471,6 +508,10 @@ function Prepare-NestedSubmodule {
     if ($isInitialized) {
         $head = (& git -C $nested rev-parse HEAD).Trim()
         $branch = (& git -C $nested branch --show-current | Out-String).Trim()
+        Set-McporterBinaryCheckoutOverride $nested $SubmodulePath
+        if (-not $branch -and $head -eq $ExpectedCommit) {
+            Repair-McporterBinaryCheckoutArtifact $nested $SubmodulePath
+        }
         $status = @(& git -C $nested status --porcelain)
         if ($branch) {
             if ($status.Count -gt 0 -or $head -ne $ExpectedCommit -or
@@ -499,6 +540,7 @@ function Prepare-NestedSubmodule {
         Invoke-Git $Wrapper @("submodule", "absorbgitdirs", "--", $SubmodulePath) | Out-Null
         $freshClone = $true
     }
+    Set-McporterBinaryCheckoutOverride $nested $SubmodulePath
     $remotes = @(& git -C $nested remote)
     if ($remotes -contains "origin") {
         Invoke-Git $nested @("remote", "set-url", "origin", $Url) | Out-Null
