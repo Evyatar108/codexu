@@ -159,7 +159,7 @@ describe('enrollPublicServer', () => {
                 firstSeenAt: 1,
                 serverEd25519PublicKey: 'different-server-key',
             }],
-        })).rejects.toMatchObject({ code: 'invalid_response' });
+        })).rejects.toMatchObject({ code: 'server_identity_changed' });
     });
 
     it.each([

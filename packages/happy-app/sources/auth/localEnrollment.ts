@@ -20,7 +20,8 @@ export type LocalEnrollmentErrorCode =
     | 'network_error'
     | 'pairing_denied'
     | 'pair_failed'
-    | 'invalid_response';
+    | 'invalid_response'
+    | 'server_identity_changed';
 
 export class LocalEnrollmentError extends Error {
     readonly code: LocalEnrollmentErrorCode;
@@ -113,10 +114,16 @@ export async function enrollLocalServer(
         throw new LocalEnrollmentError('invalid_response');
     }
     const parsedPayload = PairCompleteResponseSchema.safeParse(rawPayload);
-    if (!parsedPayload.success || !await isExpectedPairCompleteResponse(parsedPayload.data, invite, keypair, existing)) {
+    if (!parsedPayload.success || !await isExpectedPairCompleteResponse(parsedPayload.data, invite, keypair)) {
         throw new LocalEnrollmentError('invalid_response');
     }
     const payload = parsedPayload.data;
+    if (
+        existing?.serverEd25519PublicKey
+        && existing.serverEd25519PublicKey !== payload.machine.ed25519PublicKey
+    ) {
+        throw new LocalEnrollmentError('server_identity_changed', 'server identity changed');
+    }
 
     const credentials: AuthCredentials = {
         authMode: 'paired-device',
@@ -142,7 +149,6 @@ async function isExpectedPairCompleteResponse(
     value: import('@slopus/happy-wire').PairCompleteResponse,
     invite: LocalPairingInvite,
     keypair: DeviceKeypair,
-    existing: AuthCredentials | undefined,
 ): Promise<boolean> {
     if (!await verifyPairCompleteResponse(value)) {
         return false;
@@ -150,9 +156,7 @@ async function isExpectedPairCompleteResponse(
     return value.machine.machineId === invite.machineId
         && value.machine.tunnelUrl === invite.serverUrl
         && value.pairedDevice.keyId === keypair.keyId
-        && value.pairedDevice.publicKey === keypair.publicKey
-        && (!existing?.serverEd25519PublicKey
-            || existing.serverEd25519PublicKey === value.machine.ed25519PublicKey);
+        && value.pairedDevice.publicKey === keypair.publicKey;
 }
 
 function getReusableKeypair(credentials: AuthCredentials | undefined): DeviceKeypair | null {

@@ -170,6 +170,8 @@ export const en: TranslationStructure = {
     },
 
     settings: {
+        connectedServices: 'Connected Services',
+        connectedServicesSubtitle: 'Optional GitHub connection',
         title: 'Settings',
         connectedAccounts: 'Connected Accounts',
         connectAccount: 'Connect account',
@@ -188,7 +190,7 @@ export const en: TranslationStructure = {
         developer: 'Developer',
         developerTools: 'Developer Tools',
         about: 'About',
-        aboutFooter: 'Happy Coder is a Codex and Claude Code mobile client that connects through your paired Dev Tunnels machines. Not affiliated with Anthropic.',
+        aboutFooter: 'Happy Coder is a Codex and Claude Code mobile client that connects to your paired machines. Not affiliated with Anthropic.',
         whatsNew: 'What\'s New',
         whatsNewSubtitle: 'See the latest updates and improvements',
         reportIssue: 'Report an Issue',
@@ -469,8 +471,35 @@ export const en: TranslationStructure = {
         },
     },
 
+    connections: {
+        title: 'Connected Services',
+        githubTitle: 'GitHub',
+        githubDescription: 'Connect your GitHub account to show your profile in Happy. This is optional and separate from pairing.',
+        connect: 'Connect GitHub',
+        connecting: 'Connecting...',
+        disconnect: 'Disconnect',
+        disconnectConfirmTitle: 'Disconnect GitHub?',
+        disconnectConfirmMessage: 'Your GitHub profile will be removed from Happy. You can reconnect at any time.',
+        connectedAs: ({ login }: { login: string }) => `Connected as @${login}`,
+        unavailable: 'GitHub connection is not configured on this server.',
+        error: 'Something went wrong. Please try again.',
+    },
     server: {
         publicPairing: {
+            confirmTitle: 'Confirm pairing',
+            confirmLocal: ({ host }: { host: string }) => `Pair with local server ${host}?`,
+            confirmPublic: ({ host }: { host: string }) => `Pair with public server ${host}?`,
+            expiresInSeconds: ({ seconds }: { seconds: number }) => `Invite expires in ${seconds}s`,
+            expired: 'This pairing invite has expired. Ask for a fresh invite.',
+            unsupportedPlatform: 'Local pairing invites can only be used from the web app.',
+            networkError: 'Could not reach the server. Check the address and try again.',
+            denied: 'The server rejected this pairing attempt.',
+            identityChangedTitle: 'Server identity changed',
+            identityChangedMessage: 'This machine already trusts a different server key. Pairing was blocked to protect you. Remove the saved machine and pair again only if you trust this server.',
+            removeAndRepair: 'Remove & pair again',
+            identityRepaired: 'Saved machine removed. Paste a fresh invite to pair this device again.',
+            confirmButton: 'Pair',
+            success: 'Machine paired',
             sectionTitle: 'Pair with a Server',
             sectionFooter: 'Paste a pairing invite from the Happy server you want to connect to. Local and public invites are validated separately.',
             invitePlaceholder: 'Paste pairing invite',
@@ -930,7 +959,7 @@ export const en: TranslationStructure = {
     welcome: {
         // Main welcome screen for unauthenticated users
         title: 'Codex and Claude Code mobile client',
-        subtitle: 'Connect to your paired Dev Tunnels machines and keep your account on this device.',
+        subtitle: 'Pair this device with your machine using a one-time invite.',
         createAccount: 'Create account',
         linkOrRestoreAccount: 'Link or restore account',
         loginWithMobileApp: 'Login with mobile app',

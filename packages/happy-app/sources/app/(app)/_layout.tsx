@@ -136,6 +136,12 @@ export default function RootLayout() {
                 }}
             />
             <Stack.Screen
+                name="settings/connections"
+                options={{
+                    headerTitle: t('connections.title'),
+                }}
+            />
+            <Stack.Screen
                 name="changelog"
                 options={{
                     headerShown: true,

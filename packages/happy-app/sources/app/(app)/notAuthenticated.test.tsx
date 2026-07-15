@@ -6,13 +6,20 @@ function source(path: string): string {
     return readFileSync(resolve(__dirname, '..', '..', path), 'utf8');
 }
 
-describe('NotAuthenticated private tunnel pairing', () => {
-    it('threads the acquired connect token through pairing and credentials', () => {
-        const home = source('app/(app)/index.tsx');
+describe('NotAuthenticated landing (invite-only pairing)', () => {
+    const home = source('app/(app)/index.tsx');
 
-        expect(home).toContain('acquireConnectTokenForPair(machine)');
-        expect(home).toContain('completePair(machine, connectToken)');
-        expect(home).toContain('connectTokenExpiry');
-        expect(home).not.toContain('.getConnectToken(');
+    it('routes the first-machine action to the invite import surface', () => {
+        expect(home).toContain("router.push('/server')");
+        expect(home).toContain("t('welcome.pairMachine')");
+    });
+
+    it('does not run any GitHub device-code or Dev Tunnels discovery during pairing', () => {
+        expect(home).not.toContain('DevTunnelsClientProvider');
+        expect(home).not.toContain('fetchGitHubUserProfile');
+        expect(home).not.toContain('openGitHubDeviceFlow');
+        expect(home).not.toContain('getDevTunnelsToken');
+        expect(home).not.toContain('deviceFlowInfo');
+        expect(home).not.toContain('@/auth/pairing');
     });
 });

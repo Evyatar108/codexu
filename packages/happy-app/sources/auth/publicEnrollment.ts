@@ -27,7 +27,8 @@ export type PublicEnrollmentErrorCode =
     | 'network_error'
     | 'pairing_denied'
     | 'pair_failed'
-    | 'invalid_response';
+    | 'invalid_response'
+    | 'server_identity_changed';
 
 export class PublicEnrollmentError extends Error {
     code: PublicEnrollmentErrorCode;
@@ -153,7 +154,7 @@ export async function enrollPublicServer(
         existing?.serverEd25519PublicKey
         && existing.serverEd25519PublicKey !== machine.ed25519PublicKey
     ) {
-        throw new PublicEnrollmentError('invalid_response', 'server identity changed');
+        throw new PublicEnrollmentError('server_identity_changed', 'server identity changed');
     }
 
     const credentials: AuthCredentials = {

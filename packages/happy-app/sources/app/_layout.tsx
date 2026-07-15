@@ -169,13 +169,22 @@ function getDevEnvironmentCredentials(): AuthCredentials | null {
 
     const machineId = process.env.EXPO_PUBLIC_DEV_MACHINE_ID;
     const tunnelUrl = process.env.EXPO_PUBLIC_DEV_TUNNEL_URL;
-    const deviceCode = process.env.EXPO_PUBLIC_DEV_DEVICE_CODE;
-    const deviceCodeExpiresAt = Number(process.env.EXPO_PUBLIC_DEV_DEVICE_CODE_EXPIRES_AT ?? 0);
-    if (!machineId || !tunnelUrl || !deviceCode || !deviceCodeExpiresAt) {
+    const deviceKeyId = process.env.EXPO_PUBLIC_DEV_DEVICE_KEY_ID;
+    const devicePublicKey = process.env.EXPO_PUBLIC_DEV_DEVICE_PUBLIC_KEY;
+    const deviceSecretKey = process.env.EXPO_PUBLIC_DEV_DEVICE_SECRET_KEY;
+    if (!machineId || !tunnelUrl || !deviceKeyId || !devicePublicKey || !deviceSecretKey) {
         return null;
     }
 
-    return { authMode: 'dev-tunnel', machineId, tunnelUrl, deviceCode, deviceCodeExpiresAt, firstSeenAt: Date.now() };
+    return {
+        authMode: 'paired-device',
+        machineId,
+        tunnelUrl,
+        deviceKeyId,
+        devicePublicKey,
+        deviceSecretKey,
+        firstSeenAt: Date.now(),
+    };
 }
 
 function getDevWebQueryCredentials(): AuthCredentials | null {
@@ -186,13 +195,22 @@ function getDevWebQueryCredentials(): AuthCredentials | null {
     const params = new URLSearchParams(window.location.search);
     const machineId = params.get('dev_machine_id');
     const tunnelUrl = params.get('dev_tunnel_url');
-    const deviceCode = params.get('dev_device_code');
-    const deviceCodeExpiresAt = Number(params.get('dev_device_code_expires_at') ?? 0);
-    if (!machineId || !tunnelUrl || !deviceCode || !deviceCodeExpiresAt) {
+    const deviceKeyId = params.get('dev_device_key_id');
+    const devicePublicKey = params.get('dev_device_public_key');
+    const deviceSecretKey = params.get('dev_device_secret_key');
+    if (!machineId || !tunnelUrl || !deviceKeyId || !devicePublicKey || !deviceSecretKey) {
         return null;
     }
 
-    return { authMode: 'dev-tunnel', machineId, tunnelUrl, deviceCode, deviceCodeExpiresAt, firstSeenAt: Date.now() };
+    return {
+        authMode: 'paired-device',
+        machineId,
+        tunnelUrl,
+        deviceKeyId,
+        devicePublicKey,
+        deviceSecretKey,
+        firstSeenAt: Date.now(),
+    };
 }
 
 export default function RootLayout() {

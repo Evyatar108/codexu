@@ -5,16 +5,6 @@ import { Text } from '@/components/StyledText';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
-import { useAuth } from '@/auth/AuthContext';
-import {
-    credentialsFromPairMachine,
-    acquireConnectTokenForPair,
-    completePair,
-    fetchGitHubUserProfile,
-    loginInteractive,
-} from '@/auth/pairing';
-import { deriveConnectTokenExpiry } from '@/auth/connectTokenRefresh';
-import { TokenStorage } from '@/auth/tokenStorage';
 import { Typography } from "@/constants/Typography";
 import { Item } from '@/components/Item';
 import { ItemGroup } from '@/components/ItemGroup';
@@ -29,8 +19,6 @@ import { useAllMachines } from '@/sync/storage';
 import { isMachineOnline } from '@/utils/machineUtils';
 import { useUnistyles } from 'react-native-unistyles';
 import { layout } from '@/components/layout';
-import { useHappyAction } from '@/hooks/useHappyAction';
-import { DevTunnelsClientProvider, type MachineTunnel } from '@/sync/tunnelProvider';
 import { useProfile } from '@/sync/storage';
 import { getDisplayName, getAvatarUrl, getBio } from '@/sync/profile';
 import { Avatar } from '@/components/Avatar';
@@ -40,7 +28,6 @@ export const SettingsView = React.memo(function SettingsView() {
     const { theme } = useUnistyles();
     const router = useRouter();
     const appVersion = Constants.expoConfig?.version || '1.0.0';
-    const auth = useAuth();
     const [devModeEnabled, setDevModeEnabled] = useLocalSettingMutable('devModeEnabled');
     const isPro = __DEV__ || useEntitlement('pro');
     const isCustomServer = isUsingCustomServer();
@@ -101,54 +88,6 @@ export const SettingsView = React.memo(function SettingsView() {
         resetTimeout: 2000
     });
 
-    const [pairingMachine, handleAddMachine] = useHappyAction(async () => {
-        const provider = new DevTunnelsClientProvider({
-            credentials: TokenStorage,
-            loginInteractive,
-        });
-        if (!(await provider.isLoggedIn())) {
-            await provider.loginInteractive();
-        }
-
-        const githubToken = await TokenStorage.getDevTunnelsToken();
-        const githubProfile = githubToken
-            ? await fetchGitHubUserProfile(githubToken)
-            : { login: '', avatarUrl: '' };
-        const pairedMachineIds = new Set(allMachinesWithOffline.map(machine => machine.id));
-        const availableMachines = (await provider.listMachineTunnels())
-            .filter(machine => !pairedMachineIds.has(machine.machineId));
-        if (availableMachines.length === 0) {
-            throw new Error(t('welcome.noMachinesForIdentity'));
-        }
-
-        let selectedMachine: MachineTunnel | undefined = availableMachines[0];
-        if (availableMachines.length > 1) {
-            const selection = await Modal.prompt(
-                t('welcome.pairMachine'),
-                availableMachines.map(machine => machine.machineId).join('\n'),
-                { placeholder: availableMachines[0].machineId, confirmText: t('common.continue') }
-            );
-            if (!selection?.trim()) {
-                return;
-            }
-            selectedMachine = availableMachines.find(machine => machine.machineId === selection.trim());
-            if (!selectedMachine) {
-                throw new Error(t('welcome.pairingFailed'));
-            }
-        }
-
-        const { connectToken } = await acquireConnectTokenForPair(selectedMachine);
-        const { machine: paired } = await completePair(selectedMachine, connectToken);
-        const connectTokenExpiry = deriveConnectTokenExpiry();
-
-        await auth.login(credentialsFromPairMachine(selectedMachine, paired, {
-            login: githubProfile.login,
-            avatarUrl: githubProfile.avatarUrl,
-            connectToken,
-            connectTokenExpiry,
-        }));
-    });
-
 
     return (
 
@@ -206,8 +145,7 @@ export const SettingsView = React.memo(function SettingsView() {
                     <Item
                         title={t('welcome.pairMachine')}
                         icon={<Ionicons name="add-circle-outline" size={29} color="#007AFF" />}
-                        onPress={handleAddMachine}
-                        loading={pairingMachine}
+                        onPress={() => router.push('/server')}
                         showChevron={false}
                     />
                     {visibleMachines.map((machine) => {
@@ -274,6 +212,16 @@ export const SettingsView = React.memo(function SettingsView() {
                     subtitle={t('settings.featuresSubtitle')}
                     icon={<Ionicons name="flask-outline" size={29} color="#FF9500" />}
                     onPress={() => router.push('/settings/features')}
+                />
+            </ItemGroup>
+
+            {/* Connected Services (optional GitHub connection) */}
+            <ItemGroup title={t('settings.connectedServices')}>
+                <Item
+                    title={t('connections.githubTitle')}
+                    subtitle={t('settings.connectedServicesSubtitle')}
+                    icon={<Ionicons name="link-outline" size={29} color="#34C759" />}
+                    onPress={() => router.push('/settings/connections')}
                 />
             </ItemGroup>
 

@@ -11,9 +11,9 @@ import { layout } from '@/components/layout';
 import { t } from '@/text';
 import { getServerUrl, setServerUrl, validateServerUrl, getServerInfo } from '@/sync/serverConfig';
 import { useAuth } from '@/auth/AuthContext';
-import { enrollPublicServer, PublicEnrollmentError } from '@/auth/publicEnrollment';
-import { enrollLocalServer, LocalEnrollmentError } from '@/auth/localEnrollment';
-import { selectPairingEnrollment } from '@/auth/pairingInviteDispatch';
+import { previewPairingInvite, type PairingInvitePreviewError } from '@/auth/pairingInvitePreview';
+import { enrollFromInvite, PairingInviteError, type PairingInviteErrorCode } from '@/auth/pairingInviteFlow';
+import { machineDelete } from '@/sync/ops';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 const stylesheet = StyleSheet.create((theme) => ({
@@ -164,32 +164,109 @@ export default function ServerConfigScreen() {
         }
     };
 
+    const finishSuccess = () => {
+        setInviteToken('');
+        if (router.canGoBack()) {
+            router.back();
+        } else {
+            router.replace('/');
+        }
+    };
+
+    const previewErrorMessage = (error: PairingInvitePreviewError): string => {
+        switch (error) {
+            case 'invite_expired':
+                return t('server.publicPairing.expired');
+            case 'unsupported_platform':
+                return t('server.publicPairing.unsupportedPlatform');
+            case 'invalid_invite':
+            default:
+                return t('server.publicPairing.invalidInvite');
+        }
+    };
+
+    const enrollErrorMessage = (code: PairingInviteErrorCode): string => {
+        switch (code) {
+            case 'invite_expired':
+                return t('server.publicPairing.expired');
+            case 'unsupported_platform':
+                return t('server.publicPairing.unsupportedPlatform');
+            case 'network_error':
+                return t('server.publicPairing.networkError');
+            case 'pairing_denied':
+                return t('server.publicPairing.denied');
+            case 'invalid_invite':
+                return t('server.publicPairing.invalidInvite');
+            case 'pair_failed':
+            case 'invalid_response':
+            default:
+                return t('server.publicPairing.failed');
+        }
+    };
+
     const handleImportInvite = async () => {
         const token = inviteToken.trim();
         if (!token) {
             Modal.alert(t('common.error'), t('server.publicPairing.invalidInvite'));
             return;
         }
+
+        // Decode + validate locally first so we can show the exact target host
+        // and expiry, and fail closed on malformed / expired / wrong-origin
+        // invites before any network call.
+        const preview = previewPairingInvite(token);
+        if (!preview.ok) {
+            Modal.alert(t('common.error'), previewErrorMessage(preview.error));
+            return;
+        }
+
+        const secondsLeft = Math.max(0, Math.round((preview.preview.expiresAt - Date.now()) / 1000));
+        const headline = preview.preview.kind === 'local'
+            ? t('server.publicPairing.confirmLocal', { host: preview.preview.host })
+            : t('server.publicPairing.confirmPublic', { host: preview.preview.host });
+        const confirmed = await Modal.confirm(
+            t('server.publicPairing.confirmTitle'),
+            `${headline}\n${t('server.publicPairing.expiresInSeconds', { seconds: secondsLeft })}`,
+            { cancelText: t('common.cancel'), confirmText: t('server.publicPairing.confirmButton') },
+        );
+        if (!confirmed) {
+            return;
+        }
+
         try {
-            const result = selectPairingEnrollment(token) === 'local'
-                ? await enrollLocalServer(token)
-                : await enrollPublicServer(token);
+            const result = await enrollFromInvite(token);
             await auth.login(result.credentials);
-            setInviteToken('');
-            if (router.canGoBack()) {
-                router.back();
-            } else {
-                router.replace('/');
-            }
+            finishSuccess();
         } catch (err) {
-            const isInviteProblem = (
-                err instanceof PublicEnrollmentError
-                || err instanceof LocalEnrollmentError
-            ) && (err.code === 'invalid_invite' || err.code === 'invite_expired');
+            // TOFU: a known machine now presents a different server identity. Never
+            // silently overwrite — block, and offer the explicit remove-and-repair
+            // path consistent with the existing machine removal UX.
+            if (err instanceof PairingInviteError && err.code === 'server_identity_changed') {
+                const repair = await Modal.confirm(
+                    t('server.publicPairing.identityChangedTitle'),
+                    t('server.publicPairing.identityChangedMessage'),
+                    {
+                        cancelText: t('common.cancel'),
+                        confirmText: t('server.publicPairing.removeAndRepair'),
+                        destructive: true,
+                    },
+                );
+                if (repair) {
+                    await machineDelete(preview.preview.machineId);
+                    setInviteToken('');
+                    // The one-time invite was consumed by the blocked attempt; a
+                    // fresh invite is required to complete re-pairing.
+                    Modal.alert(
+                        t('server.publicPairing.identityChangedTitle'),
+                        t('server.publicPairing.identityRepaired'),
+                    );
+                }
+                return;
+            }
             Modal.alert(
                 t('common.error'),
-                isInviteProblem
-                    ? t('server.publicPairing.invalidInvite')
+                err instanceof PairingInviteError
+                    ? enrollErrorMessage(err.code)
                     : t('server.publicPairing.failed'),
             );
         }
