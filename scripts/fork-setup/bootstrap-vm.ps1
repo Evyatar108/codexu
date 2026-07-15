@@ -1573,7 +1573,8 @@ function Test-ShortClone {
         Add-Result "GATED" "android:short-clone" "Optional real short clone is absent; use -CreateShortClone."
         return
     }
-    if ((Invoke-Git $ShortClonePath @("rev-parse", "--is-inside-work-tree") -AllowFailure) -ne 0) {
+    & git -C $ShortClonePath rev-parse --git-dir 1>$null 2>$null
+    if ($LASTEXITCODE -ne 0) {
         Add-Result "FAIL" "android:short-clone" "$ShortClonePath exists but is not a git repository."
         return
     }

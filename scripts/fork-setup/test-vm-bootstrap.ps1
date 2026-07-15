@@ -100,6 +100,8 @@ foreach ($required in @('"happy-wire", "build"', '"happy-server", "build"', '"ha
         @{
             Name = "Short clone validates identity and exact snapshot"
             Pass = $bootstrapText -match "Normalize-GitUrl" -and
+                $bootstrapText -match '& git -C \$ShortClonePath rev-parse --git-dir' -and
+                $bootstrapText -notmatch 'Invoke-Git \$ShortClonePath @\("rev-parse", "--is-inside-work-tree"\)' -and
                 $bootstrapText -match "restoreVerification\.snapshot" -and
                 $bootstrapText -match "Short clone is dirty or has missing/mismatched recursive submodules"
         },
