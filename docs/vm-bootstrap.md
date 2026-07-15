@@ -18,6 +18,10 @@ Stages are explicit and idempotent:
 # User-scoped tools plus verified portable JDK and cloudflared.
 ...\bootstrap-vm.ps1 -InstallToolchains
 
+# Repair the hook-safe Node copy from the selected NVM Node, if validation
+# reports a mismatch. The replacement is staged, hash-checked, and atomic.
+...\bootstrap-vm.ps1 -RepairNodeHookShim
+
 # Exact migration branches, commits, worktrees, and recursive submodules.
 ...\bootstrap-vm.ps1 -RestoreWorkspace
 
@@ -69,6 +73,13 @@ caches.
   `D:\codex-sccache`, `D:\cxb`, and `D:\Android\Sdk` are durable roots.
 - Git Bash `usr\bin` is never globally added to `PATH`; narrow wrappers cover
   bash, Python, CMake, Perl, rm, and cp.
+- The machine currently resolves `C:\.tools\.npm-global` before
+  `%NVM_SYMLINK%`, and Copilot hooks call its `node.exe`. Validation compares
+  that executable's version and SHA256 with the selected NVM Node. Repair uses
+  a same-volume staged copy plus atomic replace, never delete/rename-first.
+  If Windows denies replacement, leave the live executable intact and either
+  rerun elevated or move `%NVM_SYMLINK%` ahead of the shadow directory in
+  Machine PATH. Never remove the hook Node during an active session.
 - Codex iteration uses `codex\scripts\iteration-env.sh`, sccache, xwin, and
   the verified rusty_v8 v149.2.0 archive. `RUSTC_WRAPPER` is not global.
   Release/publish keeps its separate profile.

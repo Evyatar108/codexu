@@ -45,6 +45,15 @@ foreach ($forbidden in @("happy auth status", "install-local.cjs", "pnpm prebuil
     if ($bootstrapText -match [regex]::Escape($forbidden)) {
         throw "Bootstrap contains forbidden operation: $forbidden"
     }
+    foreach ($requiredNodeSafetyText in @(
+        "[IO.File]::Replace",
+        "node:hook-shadow",
+        "Never delete/rename the live shim"
+    )) {
+        if ($bootstrapText -notmatch [regex]::Escape($requiredNodeSafetyText)) {
+            throw "Node hook-shim safety invariant is missing: $requiredNodeSafetyText"
+        }
+    }
 }
 foreach ($required in @('"happy-wire", "build"', '"happy-server", "build"', '"happy", "build"', '"npm" @("link")')) {
     if ($bootstrapText -notmatch [regex]::Escape($required)) {

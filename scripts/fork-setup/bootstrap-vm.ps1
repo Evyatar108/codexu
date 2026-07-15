@@ -6,6 +6,7 @@ param(
     [switch]$ValidateOnly,
     [switch]$RestoreWorkspace,
     [switch]$InstallToolchains,
+    [switch]$RepairNodeHookShim,
     [switch]$InstallWorkspaceDependencies,
     [switch]$BuildAndLinkHappy,
     [switch]$ConfigurePlugins,
@@ -85,6 +86,21 @@ function Get-CommandText {
 
 function Test-Version {
     param([string]$Name, [pscustomobject]$Spec, [string[]]$Arguments = @("--version"))
+    if ($Spec.packageName) {
+        $resolved = Get-Command $Spec.command -ErrorAction SilentlyContinue
+        if ($resolved) {
+            $packagePath = Join-Path (Split-Path $resolved.Source) "node_modules\$($Spec.packageName)\package.json"
+            if (Test-Path $packagePath) {
+                $package = Get-Content $packagePath -Raw | ConvertFrom-Json
+                if ($package.version -eq $Spec.version) {
+                    Add-Result "PASS" "tool:$Name" "$($Spec.packageName) package reports $($Spec.version)."
+                } else {
+                    Add-Result "GATED" "tool:$Name" "Expected $($Spec.version); package reports $($package.version)."
+                }
+                return
+            }
+        }
+    }
     $text = Get-CommandText $Spec.command $Arguments
     if (-not $text) {
         Add-Result "GATED" "tool:$Name" "$($Spec.command) is missing; use -InstallToolchains."
@@ -118,6 +134,114 @@ function Refresh-ProcessPath {
     $machine = [Environment]::GetEnvironmentVariable("Path", "Machine")
     $user = [Environment]::GetEnvironmentVariable("Path", "User")
     $env:Path = "$user;$machine"
+}
+
+function Get-NvmSymlink {
+    $value = $env:NVM_SYMLINK
+    if (-not $value) {
+        $value = [Environment]::GetEnvironmentVariable("NVM_SYMLINK", "User")
+    }
+    if (-not $value) {
+        $value = [Environment]::GetEnvironmentVariable("NVM_SYMLINK", "Machine")
+    }
+    return $value
+}
+
+function Repair-NodeHookShim {
+    param([pscustomobject]$NodeConfig)
+    $nvmSymlink = Get-NvmSymlink
+    if (-not $nvmSymlink) {
+        throw "NVM_SYMLINK is not configured. Install/select the pinned NVM Node before repairing the hook shim."
+    }
+    $source = Join-Path $nvmSymlink "node.exe"
+    $destination = [string]$NodeConfig.hookShim
+    if (-not (Test-Path $source)) {
+        throw "Selected NVM Node is missing at $source."
+    }
+    $sourceVersion = (& $source --version 2>&1 | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or $sourceVersion -notmatch [regex]::Escape([string]$NodeConfig.version)) {
+        throw "Selected NVM Node must be version $($NodeConfig.version); found $sourceVersion."
+    }
+    $sourceHash = (Get-FileHash -Algorithm SHA256 $source).Hash
+    $destinationDirectory = Split-Path $destination
+    New-Item -ItemType Directory -Force -Path $destinationDirectory | Out-Null
+    $staged = Join-Path $destinationDirectory ("node.atomic-{0}-{1}.exe" -f $PID, [Guid]::NewGuid().ToString("N"))
+    try {
+        Copy-Item $source $staged
+        if ((Get-FileHash -Algorithm SHA256 $staged).Hash -ne $sourceHash) {
+            throw "Staged Node copy hash mismatch."
+        }
+        if (Test-Path $destination) {
+            [IO.File]::Replace($staged, $destination, $null)
+        } else {
+            [IO.File]::Move($staged, $destination)
+        }
+        $destinationHash = (Get-FileHash -Algorithm SHA256 $destination).Hash
+        $destinationVersion = (& $destination --version 2>&1 | Out-String).Trim()
+        if ($destinationHash -ne $sourceHash -or
+            $destinationVersion -notmatch [regex]::Escape([string]$NodeConfig.version)) {
+            throw "Atomic Node hook shim verification failed after replacement."
+        }
+    } catch {
+        throw "Atomic Node hook shim replacement failed without deleting the existing executable. Run elevated or reorder Machine PATH so NVM_SYMLINK precedes C:\.tools\.npm-global. $($_.Exception.Message)"
+    } finally {
+        if (Test-Path $staged) {
+            Remove-Item $staged -Force
+        }
+    }
+}
+
+function Test-NodeHookShim {
+    param([pscustomobject]$NodeConfig, [bool]$ApplyRepair)
+    $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
+    $machineEntries = @($machinePath -split ";" | Where-Object { $_ })
+    $shadowDirectory = Split-Path ([string]$NodeConfig.hookShim)
+    $nvmSymlink = Get-NvmSymlink
+    $shadowIndex = -1
+    $nvmIndex = -1
+    for ($index = 0; $index -lt $machineEntries.Count; $index++) {
+        $entry = $machineEntries[$index].Trim().TrimEnd("\")
+        if ($entry -ieq $shadowDirectory.TrimEnd("\")) {
+            $shadowIndex = $index
+        }
+        if ($entry -ieq "%NVM_SYMLINK%" -or ($nvmSymlink -and $entry -ieq $nvmSymlink.TrimEnd("\"))) {
+            $nvmIndex = $index
+        }
+    }
+    $isShadowing = $shadowIndex -ge 0 -and ($nvmIndex -lt 0 -or $shadowIndex -lt $nvmIndex)
+    if (-not $nvmSymlink) {
+        Add-Result "GATED" "node:hook-shadow" "NVM_SYMLINK is missing. Configure NVM or perform elevated Machine PATH remediation."
+        return
+    }
+    $selectedNode = Join-Path $nvmSymlink "node.exe"
+    if (-not (Test-Path $selectedNode)) {
+        Add-Result "FAIL" "node:hook-shadow" "Selected NVM Node is not runnable at $selectedNode."
+        return
+    }
+    $shim = [string]$NodeConfig.hookShim
+    $matches = $false
+    if (Test-Path $shim) {
+        $selectedHash = (Get-FileHash -Algorithm SHA256 $selectedNode).Hash
+        $shimHash = (Get-FileHash -Algorithm SHA256 $shim).Hash
+        $selectedVersion = (& $selectedNode --version 2>&1 | Out-String).Trim()
+        $shimVersion = (& $shim --version 2>&1 | Out-String).Trim()
+        $matches = $selectedHash -eq $shimHash -and
+            $selectedVersion -match [regex]::Escape([string]$NodeConfig.version) -and
+            $shimVersion -match [regex]::Escape([string]$NodeConfig.version)
+    }
+    if ($matches) {
+        $order = if ($isShadowing) { "Machine PATH shadow is active" } else { "Machine PATH does not shadow NVM" }
+        Add-Result "PASS" "node:hook-shadow" "$order; hook node.exe hash/version match selected NVM Node."
+        return
+    }
+    if ($ApplyRepair) {
+        Repair-NodeHookShim $NodeConfig
+        Add-Result "PASS" "node:hook-shadow" "Atomically replaced and verified the hook Node shim with no missing-target window."
+    } elseif ($isShadowing) {
+        Add-Result "GATED" "node:hook-shadow" "C:\.tools\.npm-global precedes NVM_SYMLINK but node.exe differs or is missing. Use -RepairNodeHookShim elevated, or reorder Machine PATH. Never delete/rename the live shim."
+    } else {
+        Add-Result "GATED" "node:hook-shadow" "Hook node.exe differs or is missing. Use -RepairNodeHookShim; replacement is staged and atomic."
+    }
 }
 
 function Install-WingetExact {
@@ -766,6 +890,7 @@ if ($AcceptAndroidLicenses -and -not $ConfigureAndroid) {
 $mutatingSwitches = @(
     $RestoreWorkspace,
     $InstallToolchains,
+    $RepairNodeHookShim,
     $InstallWorkspaceDependencies,
     $BuildAndLinkHappy,
     $ConfigurePlugins,
@@ -782,6 +907,7 @@ if ($InstallToolchains) {
     Install-AllToolchains $config
 }
 Ensure-NarrowWrappers ([bool]$InstallToolchains)
+Test-NodeHookShim $config.toolchains.node ([bool]($InstallToolchains -or $RepairNodeHookShim))
 
 Test-Version "node" $config.toolchains.node
 Test-Version "npm" $config.toolchains.npm
@@ -848,9 +974,11 @@ if ($ConfigurePlugins) {
 Test-CopilotPlugins $config
 Test-CodexBuildPrerequisites $config
 Test-ReleaseAndRuntimeGates
-$codexText = Get-CommandText "codex"
-if ($codexText) {
-    Add-Result "PASS" "codex:global-package" "Installed command reports $(($codexText -split "`r?`n")[0])."
+$codexCommand = Get-Command codex -ErrorAction SilentlyContinue
+$codexPackagePath = if ($codexCommand) { Join-Path (Split-Path $codexCommand.Source) "node_modules\@gim-home\codex\package.json" } else { $null }
+if ($codexPackagePath -and (Test-Path $codexPackagePath)) {
+    $codexPackage = Get-Content $codexPackagePath -Raw | ConvertFrom-Json
+    Add-Result "PASS" "codex:global-package" "Installed package version is $($codexPackage.version)."
 } else {
     Add-Result "GATED" "codex:global-package" "Install an operator-supplied package or a published release."
 }
