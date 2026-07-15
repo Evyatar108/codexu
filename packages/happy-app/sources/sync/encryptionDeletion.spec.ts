@@ -25,6 +25,8 @@ const allowedMatches: AllowedMatch[] = [
     { file: 'packages/happy-app/sources/utils/oauth.ts', pattern: /expo-crypto/, reason: 'OAuth PKCE verifier generation' },
     { file: 'packages/happy-app/sources/utils/worktree.ts', pattern: /expo-crypto/, reason: 'worktree id generation' },
     { file: 'packages/happy-app/sources/auth/deviceKeypair.ts', pattern: /expo-crypto/, reason: 'Ed25519 device keypair + nonce CSPRNG for public-server device proof (US-007)' },
+    { file: 'packages/happy-app/sources/hooks/useGithubConnection.ts', pattern: /\/v1\/connect\/github/, reason: 'optional post-pairing GitHub connected-service route' },
+    { file: 'packages/happy-app/sources/sync/githubConnection.ts', pattern: /\/v1\/connect\/github/, reason: 'optional post-pairing GitHub connected-service route' },
 ];
 
 function findMatches(pattern: RegExp): Array<{ file: string; line: string }> {
@@ -77,6 +79,6 @@ describe('deleted Sprint D surfaces', () => {
     });
 
     it('has no legacy v1 account or machine route strings', () => {
-        expect(findMatches(/\/v1\/machines|\/v1\/connect\/github|\/v1\/connect\/|\/v1\/account\/profile|\/v1\/account\/settings|\/v1\/me\/machine/)).toEqual([]);
+        expect(withoutAllowed(findMatches(/\/v1\/machines|\/v1\/connect\/github|\/v1\/connect\/|\/v1\/account\/profile|\/v1\/account\/settings|\/v1\/me\/machine/))).toEqual([]);
     });
 });

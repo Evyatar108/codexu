@@ -28,6 +28,7 @@ function createTofuConfig(): TofuHandshakeConfig {
             ed25519PublicKey: "unused",
             x25519PublicKey: "unused",
         },
+        ed25519SecretKey: new Uint8Array(32).fill(1),
     };
 }
 
@@ -44,11 +45,14 @@ describe("dual-listener network binding", () => {
         const accountSettings = path.join(dir, "account-settings.json");
         const loopbackCap = path.join(dir, "loopback-cap.txt");
         await writeFile(profile, JSON.stringify({
-            githubUserId: 42,
-            githubLogin: "octocat",
-            name: "Octo Cat",
-            avatarUrl: "https://example.test/avatar.png",
-            updatedAt: "2026-05-11T12:00:00.000Z",
+            version: 1,
+            id: "machine-1",
+            timestamp: Date.parse("2026-05-11T12:00:00.000Z"),
+            firstName: "Octo",
+            lastName: "Cat",
+            avatar: null,
+            github: null,
+            connectedServices: [],
         }));
         await writeFile(accountSettings, JSON.stringify({ theme: "plain" }));
         await writeFile(loopbackCap, "capability-token\n");
@@ -82,7 +86,7 @@ describe("dual-listener network binding", () => {
 
         await expect(fetch(`http://127.0.0.1:${tunnelPort}/v2/me/profile`, { headers: tunnelHeaders }).then(async response => ({ status: response.status, body: await response.json() }))).resolves.toEqual({
             status: 200,
-            body: expect.objectContaining({ githubUserId: 42, githubLogin: "octocat" }),
+            body: expect.objectContaining({ id: "machine-1", github: null, connectedServices: [] }),
         });
         await expect(fetch(`http://127.0.0.1:${loopbackPort}/v2/me/machine`, { headers: loopbackHeaders }).then(async response => ({ status: response.status, body: await response.json() }))).resolves.toEqual({
             status: 200,

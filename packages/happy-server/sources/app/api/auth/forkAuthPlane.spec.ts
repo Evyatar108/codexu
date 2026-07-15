@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { configureApi, createApi, type TofuHandshakeConfig } from "../api";
 import {
     PUBLIC_DEVICE_PROOF_HEADER,
+    encodeBase64,
     encodePublicDeviceProofHeader,
     generatePublicRequestNonce,
     hashRequestBody,
@@ -29,7 +30,14 @@ import {
 // inline wiring.
 // ---------------------------------------------------------------------------
 
-const tofuConfig: TofuHandshakeConfig = { localUserId: "operator-user" };
+const tofuConfig: TofuHandshakeConfig = {
+    localUserId: "operator-user",
+    tofuPublicKeys: {
+        ed25519PublicKey: encodeBase64(new Uint8Array(32).fill(1)),
+        x25519PublicKey: encodeBase64(new Uint8Array(32).fill(2)),
+    },
+    ed25519SecretKey: new Uint8Array(32).fill(3),
+};
 
 describe("forkAuthPlane golden auth-decision (M1-R1a behavior-preserving relocation)", () => {
     const apps: ReturnType<typeof createApi>[] = [];
