@@ -79,6 +79,23 @@ function Invoke-Git {
     return Invoke-Native "git" (@("-C", $Repository) + $Arguments) $Root -AllowFailure:$AllowFailure
 }
 
+function Invoke-GitText {
+    param([string]$Repository, [string[]]$Arguments)
+
+    $oldPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $output = & git -C $Repository @Arguments 2>$null
+        $exitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $oldPreference
+    }
+    return [pscustomobject]@{
+        ExitCode = $exitCode
+        Text = ($output | Out-String).Trim()
+    }
+}
+
 function Get-CommandText {
     param([string]$Command, [string[]]$Arguments = @("--version"))
     $resolved = Get-Command $Command -ErrorAction SilentlyContinue
@@ -481,15 +498,62 @@ function Set-McporterBinaryCheckoutOverride {
     }
 }
 
-function Repair-McporterBinaryCheckoutArtifact {
+function Get-GitFilteredBlobSha256 {
+    param([string]$Repository, [string]$Path)
+
+    $git = Get-Command git -ErrorAction Stop
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = $git.Source
+    $startInfo.Arguments = "-C `"$Repository`" cat-file --filters --path=`"$Path`" `"HEAD:$Path`""
+    $startInfo.UseShellExecute = $false
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.CreateNoWindow = $true
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $startInfo
+    try {
+        if (-not $process.Start()) {
+            throw "Failed to start git while reading HEAD:$Path."
+        }
+        $sha256 = [Security.Cryptography.SHA256]::Create()
+        try {
+            $hash = $sha256.ComputeHash($process.StandardOutput.BaseStream)
+            $process.WaitForExit()
+            if ($process.ExitCode -ne 0) {
+                throw "git cat-file --filters failed while reading HEAD:$Path."
+            }
+            return ([BitConverter]::ToString($hash) -replace "-", "")
+        } finally {
+            $sha256.Dispose()
+        }
+    } finally {
+        $process.Dispose()
+    }
+}
+
+function Get-McporterBinaryCheckoutArtifactSha256 {
     param([string]$Repository, [string]$SubmodulePath)
     if ($SubmodulePath -ne "external/repos/mcporter") {
-        return
+        return $null
     }
 
     $binaryPath = "dist-bun/mcporter-macos-arm64-v0.6.2.tar.gz"
     $status = @(& git -C $Repository status --porcelain -- $binaryPath)
-    if ($status.Count -eq 1 -and $status[0] -eq " M $binaryPath") {
+    if ($status.Count -ne 1 -or $status[0] -ne " M $binaryPath") {
+        return $null
+    }
+    return Get-GitFilteredBlobSha256 $Repository $binaryPath
+}
+
+function Repair-McporterBinaryCheckoutArtifact {
+    param([string]$Repository, [string]$SubmodulePath, [string]$ExpectedArtifactSha256)
+    if ($SubmodulePath -ne "external/repos/mcporter" -or -not $ExpectedArtifactSha256) {
+        return
+    }
+
+    $binaryPath = "dist-bun/mcporter-macos-arm64-v0.6.2.tar.gz"
+    $worktreePath = Join-Path $Repository ($binaryPath -replace "/", "\")
+    $worktreeSha256 = (Get-FileHash -Algorithm SHA256 $worktreePath).Hash
+    if ($worktreeSha256 -eq $ExpectedArtifactSha256) {
         Invoke-Git $Repository @("restore", "--source=HEAD", "--worktree", "--", $binaryPath) | Out-Null
     }
 }
@@ -508,9 +572,13 @@ function Prepare-NestedSubmodule {
     if ($isInitialized) {
         $head = (& git -C $nested rev-parse HEAD).Trim()
         $branch = (& git -C $nested branch --show-current | Out-String).Trim()
+        $mcporterArtifactSha256 = $null
+        if (-not $branch -and $head -eq $ExpectedCommit) {
+            $mcporterArtifactSha256 = Get-McporterBinaryCheckoutArtifactSha256 $nested $SubmodulePath
+        }
         Set-McporterBinaryCheckoutOverride $nested $SubmodulePath
         if (-not $branch -and $head -eq $ExpectedCommit) {
-            Repair-McporterBinaryCheckoutArtifact $nested $SubmodulePath
+            Repair-McporterBinaryCheckoutArtifact $nested $SubmodulePath $mcporterArtifactSha256
         }
         $status = @(& git -C $nested status --porcelain)
         if ($branch) {
@@ -523,7 +591,7 @@ function Prepare-NestedSubmodule {
             return
         }
         if ($status.Count -gt 0) {
-            throw "Detached nested checkout at $nested is dirty; refusing restore."
+            throw "Detached nested checkout at $nested is dirty; refusing restore: $($status -join ', ')"
         }
     }
     Set-SubmoduleUrlBeforeUpdate $Wrapper $SubmodulePath $Url
@@ -1573,17 +1641,25 @@ function Test-ShortClone {
         Add-Result "GATED" "android:short-clone" "Optional real short clone is absent; use -CreateShortClone."
         return
     }
-    & git -C $ShortClonePath rev-parse --git-dir 1>$null 2>$null
-    if ($LASTEXITCODE -ne 0) {
+    $prefix = Invoke-GitText $ShortClonePath @("rev-parse", "--show-prefix")
+    if ($prefix.ExitCode -ne 0) {
         Add-Result "FAIL" "android:short-clone" "$ShortClonePath exists but is not a git repository."
         return
     }
-    $origin = (& git -C $ShortClonePath remote get-url origin 2>$null).Trim()
-    $head = (& git -C $ShortClonePath rev-parse HEAD 2>$null).Trim()
-    $branch = (& git -C $ShortClonePath branch --show-current 2>$null).Trim()
-    if ((Normalize-GitUrl $origin) -ne (Normalize-GitUrl $Manifest.repositories.codexu.url) -or
-        $head -ne $Manifest.restoreVerification.snapshot -or
-        $branch -ne $Manifest.snapshotBranch) {
+    if ($prefix.Text) {
+        Add-Result "FAIL" "android:short-clone" "$ShortClonePath is inside a repository but is not its root."
+        return
+    }
+    $origin = Invoke-GitText $ShortClonePath @("remote", "get-url", "origin")
+    $head = Invoke-GitText $ShortClonePath @("rev-parse", "HEAD")
+    $branch = Invoke-GitText $ShortClonePath @("branch", "--show-current")
+    if ($origin.ExitCode -ne 0 -or $head.ExitCode -ne 0 -or $branch.ExitCode -ne 0) {
+        Add-Result "FAIL" "android:short-clone" "Repository is missing a readable origin, HEAD, or branch."
+        return
+    }
+    if ((Normalize-GitUrl $origin.Text) -ne (Normalize-GitUrl $Manifest.repositories.codexu.url) -or
+        $head.Text -ne $Manifest.restoreVerification.snapshot -or
+        $branch.Text -ne $Manifest.snapshotBranch) {
         Add-Result "FAIL" "android:short-clone" "Repository identity, branch, or HEAD differs from the explicit migration snapshot."
         return
     }

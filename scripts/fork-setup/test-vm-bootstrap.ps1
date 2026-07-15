@@ -100,7 +100,7 @@ foreach ($required in @('"happy-wire", "build"', '"happy-server", "build"', '"ha
         @{
             Name = "Short clone validates identity and exact snapshot"
             Pass = $bootstrapText -match "Normalize-GitUrl" -and
-                $bootstrapText -match '& git -C \$ShortClonePath rev-parse --git-dir' -and
+                $bootstrapText -match 'Invoke-GitText \$ShortClonePath @\("rev-parse", "--show-prefix"\)' -and
                 $bootstrapText -notmatch 'Invoke-Git \$ShortClonePath @\("rev-parse", "--is-inside-work-tree"\)' -and
                 $bootstrapText -match "restoreVerification\.snapshot" -and
                 $bootstrapText -match "Short clone is dirty or has missing/mismatched recursive submodules"
@@ -318,6 +318,45 @@ $bootstrapPath = Join-Path $PSScriptRoot "bootstrap-vm.ps1"
             throw "Resumed-active nested fixture was moved or not rejected."
         }
 
+        $repairWrapper = Join-Path $fixtureBase "repair-wrapper"
+        New-Item -ItemType Directory -Force -Path $repairWrapper | Out-Null
+        & git -C $repairWrapper init --quiet
+        & git -C $repairWrapper config user.email "fixture@example.invalid"
+        & git -C $repairWrapper config user.name "Fixture"
+        [IO.File]::WriteAllText((Join-Path $repairWrapper ".gitmodules"), $modules, [Text.Encoding]::ASCII)
+        & git -C $repairWrapper add .gitmodules
+        & git -C $repairWrapper update-index --add --cacheinfo "160000,$mcporterCommit,external/repos/mcporter"
+        & git -C $repairWrapper commit --quiet -m wrapper
+        $repairCheckout = Join-Path $repairWrapper "external\repos\mcporter"
+        New-Item -ItemType Directory -Force -Path (Split-Path $repairCheckout) | Out-Null
+        & git clone --quiet --no-checkout $mcporterSource $repairCheckout
+        & git -C $repairCheckout config core.autocrlf false
+        & git -C $repairCheckout checkout --quiet --detach $mcporterCommit
+        $artifactStatus = @(& git -C $repairCheckout status --porcelain -- dist-bun/mcporter-macos-arm64-v0.6.2.tar.gz)
+        if ($artifactStatus.Count -ne 1 -or
+            $artifactStatus[0] -ne " M dist-bun/mcporter-macos-arm64-v0.6.2.tar.gz") {
+            throw "Detached mcporter fixture did not reproduce the text-normalization artifact."
+        }
+        $Root = $repairWrapper
+        Prepare-NestedSubmodule $repairWrapper "external/repos/mcporter" $mcporterSource $mcporterCommit $null
+        if (@(& git -C $repairCheckout status --porcelain).Count -ne 0) {
+            throw "Detached mcporter checkout artifact was not repaired."
+        }
+        $binaryFixturePath = Join-Path $repairCheckout "dist-bun\mcporter-macos-arm64-v0.6.2.tar.gz"
+        [byte[]]$intentionalBytes = @(0xde, 0xad, 0xbe, 0xef)
+        [IO.File]::WriteAllBytes($binaryFixturePath, $intentionalBytes)
+        $blocked = $false
+        try {
+            Prepare-NestedSubmodule $repairWrapper "external/repos/mcporter" $mcporterSource $mcporterCommit $null
+        } catch {
+            $blocked = $true
+        }
+        if (-not $blocked -or
+            [Convert]::ToBase64String([IO.File]::ReadAllBytes($binaryFixturePath)) -ne
+                [Convert]::ToBase64String($intentionalBytes)) {
+            throw "Intentional detached mcporter binary edits were not preserved."
+        }
+
         $wrongRoot = Join-Path $fixtureBase "wrong-root"
         New-Item -ItemType Directory -Force -Path $wrongRoot | Out-Null
         & git -C $wrongRoot init --quiet
@@ -364,6 +403,32 @@ $bootstrapPath = Join-Path $PSScriptRoot "bootstrap-vm.ps1"
         Assert-RootRestorePreflight $exactManifest
         if ($bootstrapPath.StartsWith($targetRoot, [StringComparison]::OrdinalIgnoreCase)) {
             throw "Tooling/target separation fixture used target-local tooling."
+        }
+        $shortManifest = [pscustomobject]@{
+            repositories = [pscustomobject]@{
+                codexu = [pscustomobject]@{ url = "https://invalid.example/codexu.git" }
+            }
+            snapshotBranch = "migration/vm-2026-07-14"
+            restoreVerification = [pscustomobject]@{ snapshot = $targetHead }
+        }
+        $shortCloneChild = Join-Path $targetRoot "child"
+        New-Item -ItemType Directory -Force -Path $shortCloneChild | Out-Null
+        $ShortClonePath = $shortCloneChild
+        $script:Results = New-Object System.Collections.Generic.List[object]
+        Test-ShortClone $shortManifest
+        $shortResult = $script:Results | Select-Object -Last 1
+        if ($shortResult.Status -ne "FAIL" -or $shortResult.Detail -notmatch "not its root") {
+            throw "Short-clone subdirectory fixture was accepted as a repository root."
+        }
+        $incompleteClone = Join-Path $fixtureBase "incomplete-clone"
+        New-Item -ItemType Directory -Force -Path $incompleteClone | Out-Null
+        & git -C $incompleteClone init --quiet
+        $ShortClonePath = $incompleteClone
+        $script:Results = New-Object System.Collections.Generic.List[object]
+        Test-ShortClone $shortManifest
+        $shortResult = $script:Results | Select-Object -Last 1
+        if ($shortResult.Status -ne "FAIL" -or $shortResult.Detail -notmatch "missing a readable") {
+            throw "Incomplete short-clone fixture did not fail cleanly."
         }
         $wrapperStub = Join-Path $fixtureBase "wrapper-stub.ps1"
         $wrapperCapture = Join-Path $fixtureBase "wrapper-capture.json"
