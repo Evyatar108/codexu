@@ -1,4 +1,4 @@
-import { logger } from '@/ui/logger'
+import { getLatestDaemonLog, logger } from '@/ui/logger'
 import { checkIfDaemonRunningAndCleanupStaleState, isDaemonRunningCurrentlyInstalledHappyVersion } from './controlClient'
 import { spawnHappyCLI } from '@/utils/spawnHappyCLI'
 
@@ -34,5 +34,11 @@ export async function ensureDaemonRunning(): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, DAEMON_READY_POLL_INTERVAL_MS))
   }
 
-  logger.debug(`Happy background service did not become ready within ${DAEMON_READY_TIMEOUT_MS}ms; continuing anyway`)
+  const latestDaemonLog = await getLatestDaemonLog()
+  const logDiagnostics = latestDaemonLog
+    ? `Daemon log: ${latestDaemonLog.path}.`
+    : 'No daemon log was found; run "happy daemon logs" after retrying.'
+  const errorMessage = `Happy background service did not become ready within ${DAEMON_READY_TIMEOUT_MS / 1000} seconds. ${logDiagnostics} Run "happy doctor" for diagnostics.`
+  logger.debug(errorMessage)
+  throw new Error(errorMessage)
 }

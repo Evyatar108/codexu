@@ -5,12 +5,7 @@ const mocks = vi.hoisted(() => ({
   mockIsDaemonRunningCurrentlyInstalledHappyVersion: vi.fn(),
   mockCheckIfDaemonRunningAndCleanupStaleState: vi.fn(),
   mockSpawnHappyCLI: vi.fn(),
-}))
-
-vi.mock('@/ui/logger', () => ({
-  logger: {
-    debug: mocks.mockLoggerDebug,
-  },
+  mockGetLatestDaemonLog: vi.fn(),
 }))
 
 vi.mock('./controlClient', () => ({
@@ -22,6 +17,13 @@ vi.mock('@/utils/spawnHappyCLI', () => ({
   spawnHappyCLI: mocks.mockSpawnHappyCLI,
 }))
 
+vi.mock('@/ui/logger', () => ({
+  logger: {
+    debug: mocks.mockLoggerDebug,
+  },
+  getLatestDaemonLog: mocks.mockGetLatestDaemonLog,
+}))
+
 import { ensureDaemonRunning } from './ensureDaemonRunning'
 
 describe('ensureDaemonRunning', () => {
@@ -31,6 +33,7 @@ describe('ensureDaemonRunning', () => {
       unref: vi.fn(),
     })
     mocks.mockCheckIfDaemonRunningAndCleanupStaleState.mockResolvedValue(true)
+    mocks.mockGetLatestDaemonLog.mockResolvedValue(null)
   })
 
   afterEach(() => {
@@ -87,5 +90,23 @@ describe('ensureDaemonRunning', () => {
 
     expect(readinessChecks).toBe(52)
     expect(mocks.mockLoggerDebug).toHaveBeenCalledWith('Happy background service is ready')
+  })
+
+  it('rejects with the daemon log path when automatic startup times out', async () => {
+    vi.useFakeTimers()
+    mocks.mockIsDaemonRunningCurrentlyInstalledHappyVersion.mockResolvedValue(false)
+    mocks.mockCheckIfDaemonRunningAndCleanupStaleState.mockResolvedValue(false)
+    mocks.mockGetLatestDaemonLog.mockResolvedValue({
+      file: '2026-07-15-daemon.log',
+      path: 'C:\\happy-home\\logs\\2026-07-15-daemon.log',
+      modified: new Date(),
+    })
+
+    const startup = ensureDaemonRunning()
+    const rejection = expect(startup).rejects.toThrow(
+      'C:\\happy-home\\logs\\2026-07-15-daemon.log',
+    )
+    await vi.advanceTimersByTimeAsync(60_000)
+    await rejection
   })
 })
