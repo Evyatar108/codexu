@@ -5,6 +5,7 @@ param(
     [string]$ConfigPath,
     [switch]$ValidateOnly,
     [switch]$RestoreWorkspace,
+    [switch]$AllowNewerRootSnapshot,
     [switch]$InstallToolchains,
     [switch]$RepairNodeHookShim,
     [switch]$InstallWorkspaceDependencies,
@@ -17,17 +18,23 @@ param(
     [string]$CodexPackagePath,
     [string]$CodexPackageSha256,
     [string]$CodexPackageExpectedVersion,
+    [switch]$InstallCodexPackage,
     [string]$CodexRef,
     [string]$CodexExpectedCommit,
     [string]$ToolkitRef,
-    [string]$ToolkitExpectedCommit
+    [string]$ToolkitExpectedCommit,
+    [string]$ToolkitSourcePath,
+    [switch]$LibraryOnly
 )
 
 $ErrorActionPreference = "Stop"
 $env:FIREBASE_CLI_DISABLE_UPDATE_CHECK = "1"
 $script:Results = New-Object System.Collections.Generic.List[object]
 $script:CodexPublicationInputValid = $false
+$script:CodexPackageInputValid = $false
+$script:CodexRefInputValid = $false
 $script:ToolkitPublicationInputValid = $false
+$script:ToolkitValidatedSourcePath = $null
 
 function Add-Result {
     param(
@@ -423,18 +430,10 @@ function Set-SubmoduleUrlBeforeUpdate {
     Invoke-Git $Repository @("config", "submodule.$SubmodulePath.url", $Url) | Out-Null
 }
 
-function Initialize-RecursiveSubmodules {
-    param([string]$Repository, [hashtable]$UrlOverrides = @{})
-    foreach ($entry in $UrlOverrides.GetEnumerator()) {
-        Set-SubmoduleUrlBeforeUpdate $Repository $entry.Key $entry.Value
-    }
-    Invoke-Git $Repository @("-c", "core.autocrlf=false", "submodule", "update", "--init", "--recursive") | Out-Null
-}
-
 function Ensure-ExistingBranchAtCommit {
     param([string]$Repository, [string]$Branch, [string]$Commit)
     $head = (& git -C $Repository rev-parse HEAD).Trim()
-    $currentBranch = (& git -C $Repository branch --show-current).Trim()
+    $currentBranch = (& git -C $Repository branch --show-current | Out-String).Trim()
     $branchExists = (Invoke-Git $Repository @("show-ref", "--verify", "--quiet", "refs/heads/$Branch") -AllowFailure) -eq 0
     if ($branchExists) {
         $branchCommit = (& git -C $Repository rev-parse "refs/heads/$Branch").Trim()
@@ -456,17 +455,97 @@ function Ensure-ExistingBranchAtCommit {
     Invoke-Git $Repository @("switch", "--create", $Branch, $Commit) | Out-Null
 }
 
+function Prepare-NestedSubmodule {
+    param(
+        [string]$Wrapper,
+        [string]$SubmodulePath,
+        [string]$Url,
+        [string]$ExpectedCommit,
+        [string]$ExpectedBranch
+    )
+    $nested = Join-Path $Wrapper ($SubmodulePath -replace "/", "\")
+    $isInitialized = Test-Path (Join-Path $nested ".git")
+    $freshClone = $false
+    if ($isInitialized) {
+        $head = (& git -C $nested rev-parse HEAD).Trim()
+        $branch = (& git -C $nested branch --show-current | Out-String).Trim()
+        $status = @(& git -C $nested status --porcelain)
+        if ($branch) {
+            if ($status.Count -gt 0 -or $head -ne $ExpectedCommit -or
+                ($ExpectedBranch -and $branch -ne $ExpectedBranch)) {
+                throw "Active nested work at $nested diverged. Refusing recursive update, detach, reset, or branch movement."
+            }
+            Set-SubmoduleUrlBeforeUpdate $Wrapper $SubmodulePath $Url
+            Invoke-Git $nested @("-c", "core.autocrlf=false", "submodule", "update", "--init", "--recursive") | Out-Null
+            return
+        }
+        if ($status.Count -gt 0) {
+            throw "Detached nested checkout at $nested is dirty; refusing restore."
+        }
+    }
+    Set-SubmoduleUrlBeforeUpdate $Wrapper $SubmodulePath $Url
+    if (-not $isInitialized) {
+        if (Test-Path $nested) {
+            $children = @(Get-ChildItem $nested -Force)
+            if ($children.Count -gt 0) {
+                throw "Uninitialized nested path is not empty: $nested"
+            }
+            Remove-Item $nested -Force
+        }
+        New-Item -ItemType Directory -Force -Path (Split-Path $nested) | Out-Null
+        Invoke-Native "git" @("clone", "--no-checkout", $Url, $nested) | Out-Null
+        Invoke-Git $Wrapper @("submodule", "absorbgitdirs", "--", $SubmodulePath) | Out-Null
+        $freshClone = $true
+    }
+    $remotes = @(& git -C $nested remote)
+    if ($remotes -contains "origin") {
+        Invoke-Git $nested @("remote", "set-url", "origin", $Url) | Out-Null
+    } else {
+        Invoke-Git $nested @("remote", "add", "origin", $Url) | Out-Null
+    }
+    if ((Invoke-Git $nested @("cat-file", "-e", "$ExpectedCommit^{commit}") -AllowFailure) -ne 0) {
+        Invoke-Git $nested @("fetch", "origin", $ExpectedCommit) | Out-Null
+    }
+    $head = (& git -C $nested rev-parse HEAD 2>$null | Out-String).Trim()
+    if ($freshClone -or $head -ne $ExpectedCommit) {
+        Invoke-Git $nested @("checkout", "--detach", $ExpectedCommit) | Out-Null
+    }
+    if ($ExpectedBranch) {
+        Ensure-ExistingBranchAtCommit $nested $ExpectedBranch $ExpectedCommit
+    }
+    Invoke-Git $nested @("-c", "core.autocrlf=false", "submodule", "update", "--init", "--recursive") | Out-Null
+}
+
+function Assert-RootRestorePreflight {
+    param([pscustomobject]$Manifest)
+    $head = (& git -C $Root rev-parse HEAD).Trim()
+    $branch = (& git -C $Root branch --show-current).Trim()
+    $expectedHead = [string]$Manifest.restoreVerification.snapshot
+    $expectedBranch = [string]$Manifest.snapshotBranch
+    $status = @(& git -C $Root status --porcelain)
+    $exact = $branch -eq $expectedBranch -and $head -eq $expectedHead
+    $newerAllowed = $false
+    if ($AllowNewerRootSnapshot -and $branch -eq $expectedBranch -and $status.Count -eq 0) {
+        $newerAllowed = (Invoke-Git $Root @("merge-base", "--is-ancestor", $expectedHead, $head) -AllowFailure) -eq 0
+    }
+    if ($status.Count -gt 0 -or (-not $exact -and -not $newerAllowed)) {
+        throw "Root restore preflight failed before mutation. Expected clean $expectedBranch at $expectedHead" +
+            $(if ($AllowNewerRootSnapshot) { " or a clean descendant on the same branch." } else { "." }) +
+            " Found $branch at $head."
+    }
+}
+
 function Restore-MigrationTopology {
     param([pscustomobject]$Manifest)
+    Assert-RootRestorePreflight $Manifest
     $codex = Join-Path $Root "codex"
     $toolkit = Join-Path $Root "ai-developer-toolkit"
     Set-SubmoduleUrlBeforeUpdate $Root "codex" $Manifest.repositories.codex.url
     Set-SubmoduleUrlBeforeUpdate $Root "ai-developer-toolkit" $Manifest.repositories.aiDeveloperToolkit.url
     Invoke-Git $Root @("-c", "core.autocrlf=false", "submodule", "update", "--init", "--", "codex", "ai-developer-toolkit") | Out-Null
-    Initialize-RecursiveSubmodules $codex @{
-        "external/repos/codex-patched" = $Manifest.repositories.codexPatched.url
-    }
-    Initialize-RecursiveSubmodules $toolkit
+    $codexRecorded = (& git -C $codex rev-parse "HEAD:external/repos/codex-patched").Trim()
+    Prepare-NestedSubmodule $codex "external/repos/codex-patched" $Manifest.repositories.codexPatched.url $codexRecorded $null
+    Prepare-NestedSubmodule $toolkit "external/repos/mcporter" $Manifest.repositories.mcporter.url $Manifest.repositories.mcporter.activeCommit $null
     Ensure-WorktreeAtCommit $codex (Join-Path $codex ".worktrees\codex-v2-copilot-encrypted-subagent-handoff") `
         $Manifest.repositories.codex.activeBranch $Manifest.repositories.codex.activeCommit "vm-mirror" $Manifest.repositories.codex.url
     Ensure-WorktreeAtCommit $codex (Join-Path $codex ".worktrees\codex-rs-core-change-incremental-build-over-30m") `
@@ -478,15 +557,19 @@ function Restore-MigrationTopology {
     Ensure-WorktreeAtCommit $toolkit (Join-Path $toolkit ".worktrees\ralph-model-routing-v564-hybrid") `
         $Manifest.repositories.aiDeveloperToolkit.routingBranch $Manifest.repositories.aiDeveloperToolkit.routingCommit "origin" $Manifest.repositories.aiDeveloperToolkit.url
     $wrapper = Join-Path $codex ".worktrees\codex-v2-copilot-encrypted-subagent-handoff"
-    Initialize-RecursiveSubmodules $wrapper @{
-        "external/repos/codex-patched" = $Manifest.repositories.codexPatched.url
+    Prepare-NestedSubmodule $wrapper "external/repos/codex-patched" $Manifest.repositories.codexPatched.url `
+        $Manifest.repositories.codexPatched.activeCommit $Manifest.repositories.codexPatched.activeBranch
+    $buildWrapper = Join-Path $codex ".worktrees\codex-rs-core-change-incremental-build-over-30m"
+    $buildRecorded = (& git -C $buildWrapper rev-parse "HEAD:external/repos/codex-patched").Trim()
+    Prepare-NestedSubmodule $buildWrapper "external/repos/codex-patched" $Manifest.repositories.codexPatched.url $buildRecorded $null
+    foreach ($toolkitWorktree in @(
+        (Join-Path $toolkit ".worktrees\publish-ralph-564"),
+        (Join-Path $toolkit ".worktrees\ralph-v2-encrypted-role-wait-terminal-hardening"),
+        (Join-Path $toolkit ".worktrees\ralph-model-routing-v564-hybrid")
+    )) {
+        Prepare-NestedSubmodule $toolkitWorktree "external/repos/mcporter" $Manifest.repositories.mcporter.url `
+            $Manifest.repositories.mcporter.activeCommit $null
     }
-    Initialize-RecursiveSubmodules (Join-Path $codex ".worktrees\codex-rs-core-change-incremental-build-over-30m") @{
-        "external/repos/codex-patched" = $Manifest.repositories.codexPatched.url
-    }
-    Initialize-RecursiveSubmodules (Join-Path $toolkit ".worktrees\publish-ralph-564")
-    Initialize-RecursiveSubmodules (Join-Path $toolkit ".worktrees\ralph-v2-encrypted-role-wait-terminal-hardening")
-    Initialize-RecursiveSubmodules (Join-Path $toolkit ".worktrees\ralph-model-routing-v564-hybrid")
     $nested = Join-Path $wrapper "external\repos\codex-patched"
     $nestedRemotes = @(& git -C $nested remote)
     if ($nestedRemotes -contains "vm-mirror") {
@@ -495,9 +578,6 @@ function Restore-MigrationTopology {
         Invoke-Git $nested @("remote", "add", "vm-mirror", $Manifest.repositories.codexPatched.url) | Out-Null
     }
     Invoke-Git $nested @("fetch", "vm-mirror", "--prune") | Out-Null
-    Invoke-Git $nested @("cat-file", "-e", "$($Manifest.repositories.codexPatched.activeCommit)^{commit}") | Out-Null
-    Ensure-ExistingBranchAtCommit $nested $Manifest.repositories.codexPatched.activeBranch $Manifest.repositories.codexPatched.activeCommit
-    Invoke-Git $nested @("-c", "core.autocrlf=false", "submodule", "update", "--init", "--recursive") | Out-Null
 }
 
 function Test-MigrationTopology {
@@ -506,15 +586,17 @@ function Test-MigrationTopology {
     $rootBranch = (& git -C $Root branch --show-current 2>$null).Trim()
     $expectedRootHead = [string]$Manifest.restoreVerification.snapshot
     $expectedRootBranch = [string]$Manifest.snapshotBranch
-    if ($rootHead -eq $expectedRootHead -and $rootBranch -eq $expectedRootBranch) {
-        $rootStatus = @(& git -C $Root status --porcelain)
-        if ($rootStatus.Count -eq 0) {
-            Add-Result "PASS" "topology:root-snapshot" "$rootBranch at $rootHead with a clean worktree."
-        } else {
-            Add-Result "FAIL" "topology:root-snapshot" "Root snapshot has unexpected tracked or untracked changes."
-        }
+    $rootStatus = @(& git -C $Root status --porcelain)
+    $exactRoot = $rootHead -eq $expectedRootHead -and $rootBranch -eq $expectedRootBranch
+    $allowedNewerRoot = $false
+    if ($AllowNewerRootSnapshot -and $rootBranch -eq $expectedRootBranch -and $rootStatus.Count -eq 0) {
+        $allowedNewerRoot = (Invoke-Git $Root @("merge-base", "--is-ancestor", $expectedRootHead, $rootHead) -AllowFailure) -eq 0
+    }
+    if (($exactRoot -or $allowedNewerRoot) -and $rootStatus.Count -eq 0) {
+        $mode = if ($exactRoot) { "exact" } else { "explicitly allowed newer descendant" }
+        Add-Result "PASS" "topology:root-snapshot" "$rootBranch at $rootHead is the $mode clean snapshot."
     } else {
-        Add-Result "GATED" "topology:root-snapshot" "Expected current snapshot $expectedRootBranch at $expectedRootHead; found $rootBranch at $rootHead."
+        Add-Result "FAIL" "topology:root-snapshot" "Expected clean $expectedRootBranch at $expectedRootHead; found $rootBranch at $rootHead."
     }
     $checks = @(
         @("codex-prd-b", (Join-Path $Root "codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff"), $Manifest.repositories.codex.activeBranch, $Manifest.repositories.codex.activeCommit),
@@ -681,24 +763,27 @@ function Configure-CopilotPlugins {
     if (-not $script:ToolkitPublicationInputValid) {
         throw "-ConfigurePlugins requires -ToolkitRef and -ToolkitExpectedCommit resolving exactly."
     }
-    $source = Join-Path $env:LOCALAPPDATA "codexu-bootstrap\toolkit-marketplace"
-    if (-not (Test-Path (Join-Path $source ".git"))) {
-        Invoke-Native "git" @("clone", "--no-checkout", $Manifest.repositories.aiDeveloperToolkit.url, $source) | Out-Null
+    $source = $script:ToolkitValidatedSourcePath
+    if (-not $source) {
+        $source = Join-Path $env:LOCALAPPDATA "codexu-bootstrap\toolkit-marketplace"
+        if (-not (Test-Path (Join-Path $source ".git"))) {
+            Invoke-Native "git" @("clone", "--no-checkout", $Manifest.repositories.aiDeveloperToolkit.url, $source) | Out-Null
+        }
+        $origin = (& git -C $source remote get-url origin).Trim()
+        if ((Normalize-GitUrl $origin) -ne (Normalize-GitUrl $Manifest.repositories.aiDeveloperToolkit.url)) {
+            throw "Toolkit marketplace cache has an unexpected origin."
+        }
+        Invoke-Git $source @("fetch", "origin", $ToolkitRef) | Out-Null
+        $resolved = (& git -C $source rev-parse "FETCH_HEAD^{commit}").Trim()
+        if ($resolved -ne $ToolkitExpectedCommit) {
+            throw "Toolkit marketplace ref no longer matches the expected commit."
+        }
+        $sourceStatus = @(& git -C $source status --porcelain)
+        if ($sourceStatus.Count -gt 0) {
+            throw "Toolkit marketplace cache is dirty; refusing to replace installed plugins from it."
+        }
+        Invoke-Git $source @("switch", "--detach", $ToolkitExpectedCommit) | Out-Null
     }
-    $origin = (& git -C $source remote get-url origin).Trim()
-    if ((Normalize-GitUrl $origin) -ne (Normalize-GitUrl $Manifest.repositories.aiDeveloperToolkit.url)) {
-        throw "Toolkit marketplace cache has an unexpected origin."
-    }
-    Invoke-Git $source @("fetch", "origin", $ToolkitRef) | Out-Null
-    $resolved = (& git -C $source rev-parse "FETCH_HEAD^{commit}").Trim()
-    if ($resolved -ne $ToolkitExpectedCommit) {
-        throw "Toolkit marketplace ref no longer matches the expected commit."
-    }
-    $sourceStatus = @(& git -C $source status --porcelain)
-    if ($sourceStatus.Count -gt 0) {
-        throw "Toolkit marketplace cache is dirty; refusing to replace installed plugins from it."
-    }
-    Invoke-Git $source @("switch", "--detach", $ToolkitExpectedCommit) | Out-Null
     $marketplaces = (& copilot plugin marketplace list 2>$null | Out-String)
     if ($marketplaces -match [regex]::Escape($Config.plugins.marketplaceName)) {
         Invoke-Native "copilot" @("plugin", "marketplace", "remove", $Config.plugins.marketplaceName) | Out-Null
@@ -816,6 +901,45 @@ function Resolve-ExactGitRef {
     return $true
 }
 
+function Resolve-ToolkitPublicationInput {
+    param([pscustomobject]$Manifest)
+    if ($ToolkitSourcePath) {
+        if (-not (Test-Path $ToolkitSourcePath)) {
+            Add-Result "FAIL" "plugins:source-input" "Local toolkit source path does not exist."
+            return $false
+        }
+        $source = (Resolve-Path $ToolkitSourcePath).Path
+        if (-not (Resolve-ExactGitRef "plugins:source-input" $source $ToolkitRef $ToolkitExpectedCommit)) {
+            return $false
+        }
+        $head = (& git -C $source rev-parse HEAD).Trim()
+        $status = @(& git -C $source status --porcelain)
+        if ($head -ne $ToolkitExpectedCommit -or $status.Count -gt 0) {
+            Add-Result "FAIL" "plugins:local-source" "Local toolkit checkout must be clean and at the exact expected commit."
+            return $false
+        }
+        $script:ToolkitValidatedSourcePath = $source
+        Add-Result "PASS" "plugins:local-source" "Validated exact local toolkit source without remote fetch."
+        return $true
+    }
+    if (-not $ToolkitRef -and -not $ToolkitExpectedCommit) {
+        Add-Result "GATED" "plugins:source-input" "Supply a local source path or a remote ref with expected commit."
+        return $false
+    }
+    if (-not $ToolkitRef -or $ToolkitExpectedCommit -notmatch "^[0-9a-fA-F]{40}$") {
+        Add-Result "FAIL" "plugins:source-input" "Remote toolkit ref and full expected commit are required together."
+        return $false
+    }
+    $remoteRows = @(& git ls-remote $Manifest.repositories.aiDeveloperToolkit.url $ToolkitRef 2>$null)
+    $remoteMatch = @($remoteRows | Where-Object { ($_ -split "\s+")[0] -eq $ToolkitExpectedCommit })
+    if ($LASTEXITCODE -ne 0 -or $remoteMatch.Count -ne 1) {
+        Add-Result "FAIL" "plugins:source-input" "Toolkit remote ref is absent or does not equal the expected commit."
+        return $false
+    }
+    Add-Result "PASS" "plugins:source-input" "Remote toolkit ref is published at the exact expected commit."
+    return $true
+}
+
 function Test-CodexPackageInput {
     if (-not $CodexPackagePath) {
         Add-Result "GATED" "codex:package-input" "Supply package path, SHA256, and expected version for package-based restore."
@@ -870,11 +994,77 @@ function Test-CodexPackageInput {
         return $false
     }
     Add-Result "PASS" "codex:package-input" "Package metadata, version, layout, and SHA256 policy are exact."
+    $script:CodexPackageInputValid = $true
     return $true
 }
 
+function Install-ValidatedCodexPackage {
+    if (-not $script:CodexPackageInputValid) {
+        throw "-InstallCodexPackage requires a package that passed path, metadata, layout, version, and SHA256 validation."
+    }
+    Invoke-Native "npm" @("install", "--global", $CodexPackagePath) | Out-Null
+    $provenancePath = Join-Path $env:LOCALAPPDATA "codexu-bootstrap\codex-install-provenance.json"
+    New-Item -ItemType Directory -Force -Path (Split-Path $provenancePath) | Out-Null
+    $provenance = [ordered]@{
+        packagePath = (Resolve-Path $CodexPackagePath).Path
+        sha256 = $CodexPackageSha256.ToLowerInvariant()
+        version = $CodexPackageExpectedVersion
+        installedAt = [DateTime]::UtcNow.ToString("o")
+    } | ConvertTo-Json
+    $temporary = "$provenancePath.$PID.tmp"
+    [IO.File]::WriteAllText($temporary, "$provenance`r`n", [Text.Encoding]::UTF8)
+    if (Test-Path $provenancePath) {
+        [IO.File]::Replace($temporary, $provenancePath, $null)
+    } else {
+        [IO.File]::Move($temporary, $provenancePath)
+    }
+}
+
+function Test-InstalledCodexProvenance {
+    $command = Get-Command codex -ErrorAction SilentlyContinue
+    if (-not $command) {
+        Add-Result "GATED" "codex:global-package" "No installed Codex command."
+        return
+    }
+    $packageRoot = Join-Path (Split-Path $command.Source) "node_modules\@gim-home\codex"
+    $packageJsonPath = Join-Path $packageRoot "package.json"
+    $provenancePath = Join-Path $env:LOCALAPPDATA "codexu-bootstrap\codex-install-provenance.json"
+    if (-not (Test-Path $packageJsonPath)) {
+        Add-Result "FAIL" "codex:global-package" "Installed command is not backed by @gim-home/codex metadata."
+        return
+    }
+    $metadata = Get-Content $packageJsonPath -Raw | ConvertFrom-Json
+    $requiredInstalled = @(
+        (Join-Path $packageRoot "bin\codex.js"),
+        [string](Get-ChildItem (Join-Path $packageRoot "vendor") -Recurse -Filter "codex.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName),
+        [string](Get-ChildItem (Join-Path $packageRoot "vendor") -Recurse -Filter "codex-core.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName),
+        [string](Get-ChildItem (Join-Path $packageRoot "vendor") -Recurse -Filter "codex-windows-sandbox-setup.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName),
+        [string](Get-ChildItem (Join-Path $packageRoot "vendor") -Recurse -Filter "codex-command-runner.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName)
+    )
+    if (@($requiredInstalled | Where-Object { -not $_ -or -not (Test-Path $_) }).Count -gt 0) {
+        Add-Result "FAIL" "codex:global-package" "Installed Codex package binary layout is incomplete."
+        return
+    }
+    if (-not $script:CodexPackageInputValid -or -not (Test-Path $provenancePath)) {
+        Add-Result "GATED" "codex:global-package" "Installed version $($metadata.version) lacks exact validated package provenance."
+        return
+    }
+    $provenance = Get-Content $provenancePath -Raw | ConvertFrom-Json
+    $sourcePath = (Resolve-Path $CodexPackagePath).Path
+    if ($metadata.name -ne "@gim-home/codex" -or
+        $metadata.version -ne $CodexPackageExpectedVersion -or
+        $provenance.version -ne $CodexPackageExpectedVersion -or
+        $provenance.sha256 -ne $CodexPackageSha256.ToLowerInvariant() -or
+        $provenance.packagePath -ne $sourcePath -or
+        (Get-FileHash -Algorithm SHA256 $sourcePath).Hash.ToLowerInvariant() -ne $provenance.sha256) {
+        Add-Result "FAIL" "codex:global-package" "Installed Codex metadata/layout/provenance do not match the selected package."
+        return
+    }
+    Add-Result "PASS" "codex:global-package" "Installed Codex exactly matches selected package metadata, layout, and SHA256 provenance."
+}
+
 function Test-CodexBuildPrerequisites {
-    param([pscustomobject]$Config)
+    param([pscustomobject]$Config, [pscustomobject]$Manifest)
     $checks = @{
         "llvm:clang-cl" = "C:\Program Files\LLVM\bin\clang-cl.exe"
         "llvm:lld-link" = "C:\Program Files\LLVM\bin\lld-link.exe"
@@ -901,12 +1091,7 @@ function Test-CodexBuildPrerequisites {
     } else {
         Add-Result "GATED" "codex:rusty-v8" "Pinned rusty_v8 archive library is missing."
     }
-    $toolchains = @(& rustup toolchain list 2>$null)
-    if ($toolchains -match [regex]::Escape([string]$Config.codex.rustToolchain)) {
-        Add-Result "PASS" "codex:rust-toolchain" "Exact toolchain $($Config.codex.rustToolchain) is installed."
-    } else {
-        Add-Result "GATED" "codex:rust-toolchain" "Install exact toolchain $($Config.codex.rustToolchain)."
-    }
+    Test-ExactRustToolchain $Config.codex.rustToolchain
     if ($env:RUSTC_WRAPPER) {
         Add-Result "FAIL" "codex:global-rustc-wrapper" "RUSTC_WRAPPER must not be globally forced."
     } else {
@@ -916,12 +1101,28 @@ function Test-CodexBuildPrerequisites {
     $refValid = Resolve-ExactGitRef "codex:ref-input" (Join-Path $Root "codex") $CodexRef $CodexExpectedCommit
     if ($packageValid -or $refValid) {
         $script:CodexPublicationInputValid = $true
+        $script:CodexRefInputValid = $refValid
     } else {
         Add-Result "GATED" "codex:publication" "Publish commit $($Config.codex.packageFixPublicationCommit) or supply -CodexPackagePath/-CodexRef; it is not a remote restore ref."
     }
-    $script:ToolkitPublicationInputValid = Resolve-ExactGitRef "plugins:source-input" (Join-Path $Root "ai-developer-toolkit") $ToolkitRef $ToolkitExpectedCommit
+    $script:ToolkitPublicationInputValid = Resolve-ToolkitPublicationInput $Manifest
     if (-not $script:ToolkitPublicationInputValid) {
         Add-Result "GATED" "plugins:publication" "Publish local-only plugin fixes or supply -ToolkitRef; never patch installed caches."
+    }
+}
+
+function Test-ExactRustToolchain {
+    param([string]$ExpectedToolchain)
+    $rustup = Get-Command rustup -ErrorAction SilentlyContinue
+    if (-not $rustup) {
+        Add-Result "GATED" "codex:rust-toolchain" "rustup is missing; install it before Codex builds."
+    } else {
+        $toolchains = @(& $rustup.Source toolchain list 2>$null)
+        if ($toolchains -match [regex]::Escape($ExpectedToolchain)) {
+            Add-Result "PASS" "codex:rust-toolchain" "Exact toolchain $ExpectedToolchain is installed."
+        } else {
+            Add-Result "GATED" "codex:rust-toolchain" "Install exact toolchain $ExpectedToolchain."
+        }
     }
 }
 
@@ -970,16 +1171,14 @@ function Test-ReleaseAndRuntimeGates {
     Add-Result "GATED" "happy:release-validation" "Signing, Firebase upload, release, and distribution remain operator-run gates." $false
 }
 
-function Test-RestrictedSecretAcl {
-    param([string]$Path)
-    $acl = Get-Acl $Path
-    $operator = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+function Test-AclPolicyData {
+    param([string]$Owner, [object[]]$Access, [string]$Operator)
     $allowed = @(
-        $operator,
-        [string]$acl.Owner,
+        $Operator,
         "NT AUTHORITY\SYSTEM",
         "BUILTIN\Administrators"
     ) | Select-Object -Unique
+    $ownerAllowed = $allowed -contains $Owner
     $sensitiveMask = [Security.AccessControl.FileSystemRights]::ReadData -bor
         [Security.AccessControl.FileSystemRights]::ListDirectory -bor
         [Security.AccessControl.FileSystemRights]::ReadAttributes -bor
@@ -990,15 +1189,22 @@ function Test-RestrictedSecretAcl {
         [Security.AccessControl.FileSystemRights]::Write -bor
         [Security.AccessControl.FileSystemRights]::Modify -bor
         [Security.AccessControl.FileSystemRights]::FullControl
-    $unsafe = @($acl.Access | Where-Object {
+    $unsafe = @($Access | Where-Object {
         $_.AccessControlType -eq "Allow" -and
         $allowed -notcontains [string]$_.IdentityReference -and
         (([int64]$_.FileSystemRights -band [int64]$sensitiveMask) -ne 0)
     })
     return [pscustomobject]@{
-        Safe = $unsafe.Count -eq 0
-        Owner = [string]$acl.Owner
+        Safe = $ownerAllowed -and $unsafe.Count -eq 0
+        Owner = $Owner
     }
+}
+
+function Test-RestrictedSecretAcl {
+    param([string]$Path)
+    $acl = Get-Acl $Path
+    $operator = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+    return Test-AclPolicyData ([string]$acl.Owner) @($acl.Access) $operator
 }
 
 function Test-SecretAclGate {
@@ -1010,7 +1216,7 @@ function Test-SecretAclGate {
     try {
         $result = Test-RestrictedSecretAcl $Path
         if (-not $result.Safe) {
-            Add-Result "FAIL" "gate:$Name" "$Description grants read or write access outside operator/owner, SYSTEM, or Administrators."
+            Add-Result "FAIL" "gate:$Name" "$Description owner or allow ACEs extend beyond operator, SYSTEM, or Administrators."
         } else {
             Add-Result "PASS" "gate:$Name" "$Description ACL is restricted; contents were not read."
         }
@@ -1187,10 +1393,11 @@ function Ensure-ShortClone {
     Set-SubmoduleUrlBeforeUpdate $ShortClonePath "ai-developer-toolkit" $Manifest.repositories.aiDeveloperToolkit.url
     Invoke-Git $ShortClonePath @("-c", "core.autocrlf=false", "submodule", "update", "--init", "--", "codex", "ai-developer-toolkit") | Out-Null
     $shortCodex = Join-Path $ShortClonePath "codex"
-    Initialize-RecursiveSubmodules $shortCodex @{
-        "external/repos/codex-patched" = $Manifest.repositories.codexPatched.url
-    }
-    Initialize-RecursiveSubmodules (Join-Path $ShortClonePath "ai-developer-toolkit")
+    $shortCodexRecorded = (& git -C $shortCodex rev-parse "HEAD:external/repos/codex-patched").Trim()
+    Prepare-NestedSubmodule $shortCodex "external/repos/codex-patched" $Manifest.repositories.codexPatched.url `
+        $shortCodexRecorded $null
+    Prepare-NestedSubmodule (Join-Path $ShortClonePath "ai-developer-toolkit") "external/repos/mcporter" `
+        $Manifest.repositories.mcporter.url $Manifest.repositories.mcporter.activeCommit $null
     Test-ShortClone $Manifest
 }
 
@@ -1209,6 +1416,10 @@ function Write-Summary {
     if ($fail -gt 0) {
         exit 1
     }
+}
+
+if ($LibraryOnly) {
+    return
 }
 
 if (-not $Root) {
@@ -1236,6 +1447,7 @@ $mutatingSwitches = @(
     $RestoreWorkspace,
     $InstallToolchains,
     $RepairNodeHookShim,
+    $InstallCodexPackage,
     $InstallWorkspaceDependencies,
     $BuildAndLinkHappy,
     $ConfigurePlugins,
@@ -1310,23 +1522,15 @@ if ($CreateShortClone) {
     Test-ShortClone $manifest
 }
 
-Test-CodexBuildPrerequisites $config
+Test-CodexBuildPrerequisites $config $manifest
+if ($InstallCodexPackage) {
+    Install-ValidatedCodexPackage
+}
 if ($ConfigurePlugins) {
     Configure-CopilotPlugins $config $manifest
 }
 Test-CopilotPlugins $config
 Test-ReleaseAndRuntimeGates
-$codexCommand = Get-Command codex -ErrorAction SilentlyContinue
-$codexPackagePath = if ($codexCommand) { Join-Path (Split-Path $codexCommand.Source) "node_modules\@gim-home\codex\package.json" } else { $null }
-if ($codexPackagePath -and (Test-Path $codexPackagePath)) {
-    $codexPackage = Get-Content $codexPackagePath -Raw | ConvertFrom-Json
-    if ($script:CodexPublicationInputValid) {
-        Add-Result "PASS" "codex:global-package" "Installed version $($codexPackage.version) is present and reproducibility input validated."
-    } else {
-        Add-Result "GATED" "codex:global-package" "Installed version $($codexPackage.version) does not prove corrected release reproducibility."
-    }
-} else {
-    Add-Result "GATED" "codex:global-package" "Install an operator-supplied package or a published release."
-}
+Test-InstalledCodexProvenance
 Test-OperatorGates
 Write-Summary

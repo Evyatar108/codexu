@@ -140,5 +140,208 @@ if ($manifest.repositories.codexPatched.activeCommit -ne "6d73e16c44d65ac243834a
 if ($manifest.activeTask.publicationPerformed -ne $false) {
     throw "PRD B publication state changed."
 }
+if ($manifest.restoreVerification.snapshot -ne "fa48a50a54fdf35c72e7f63ceba5d9cfab7655b5") {
+    throw "Published migration snapshot contract is stale."
+}
+if ($manifest.repositories.mcporter.url -ne "https://github.com/evmitran_microsoft/mcporter.git" -or
+    $manifest.repositories.mcporter.activeCommit -ne "94e1329f5fe37ce8bbf68e2b3ea3d5b5374d4f33") {
+    throw "mcporter migration mirror contract is stale."
+}
 
-Write-Host "PASS: scripts parse, are ASCII-only, and all eight restore/bootstrap regression cases pass."
+$restoreStart = $bootstrapText.IndexOf("function Restore-MigrationTopology")
+$restoreBody = if ($restoreStart -ge 0) { $bootstrapText.Substring($restoreStart) } else { "" }
+$secondReviewCases = @(
+    @{
+        Name = "Fresh and resumed nested restore paths are non-destructive"
+        Pass = $bootstrapText -match '"clone", "--no-checkout"' -and
+            $bootstrapText -match '"submodule", "absorbgitdirs"' -and
+            $bootstrapText -match "Active nested work .* Refusing recursive update"
+    },
+    @{
+        Name = "mcporter mirror precedes every toolkit nested restore"
+        Pass = $bootstrapText -match 'external/repos/mcporter' -and
+            $bootstrapText -match 'repositories\.mcporter\.url' -and
+            $bootstrapText -notmatch 'Evyatar108/mcporter'
+    },
+    @{
+        Name = "Wrong root fails before mutation"
+        Pass = $restoreBody.IndexOf("Assert-RootRestorePreflight") -ge 0 -and
+            $restoreBody.IndexOf("Assert-RootRestorePreflight") -lt $restoreBody.IndexOf("Set-SubmoduleUrlBeforeUpdate")
+    },
+    @{
+        Name = "Secret owner is independently restricted"
+        Pass = $bootstrapText -match '\$ownerAllowed = \$allowed -contains' -and
+            $bootstrapText -notmatch '\$allowed = @\(\s*\$operator,\s*\[string\]\$acl\.Owner'
+    },
+    @{
+        Name = "Codex install verifies exact package provenance"
+        Pass = $bootstrapText -match "Install-ValidatedCodexPackage" -and
+            $bootstrapText -match "Test-InstalledCodexProvenance" -and
+            $bootstrapText -match "Installed Codex exactly matches selected package"
+    },
+    @{
+        Name = "Local toolkit sources stay local"
+        Pass = $bootstrapText -match "ToolkitSourcePath" -and
+            $bootstrapText -match "Validated exact local toolkit source without remote fetch" -and
+            $bootstrapText -match "git ls-remote"
+    },
+    @{
+        Name = "Missing rustup is gated"
+        Pass = $bootstrapText -match "Get-Command rustup -ErrorAction SilentlyContinue" -and
+            $bootstrapText -match "rustup is missing; install it before Codex builds"
+    }
+)
+foreach ($case in $secondReviewCases) {
+    if (-not [bool]$case.Pass) {
+        throw "Second-review regression case failed: $($case.Name)"
+    }
+}
+
+$bootstrapPath = Join-Path $PSScriptRoot "bootstrap-vm.ps1"
+& {
+    . $bootstrapPath -LibraryOnly
+    $fixtureBase = Join-Path $PSScriptRoot (".vm-bootstrap-fixtures-" + [Guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Force -Path $fixtureBase | Out-Null
+    try {
+        $nestedSource = Join-Path $fixtureBase "nested-source"
+        New-Item -ItemType Directory -Force -Path $nestedSource | Out-Null
+        & git -C $nestedSource init --quiet
+        & git -C $nestedSource config user.email "fixture@example.invalid"
+        & git -C $nestedSource config user.name "Fixture"
+        [IO.File]::WriteAllText((Join-Path $nestedSource "seed.txt"), "seed`n", [Text.Encoding]::ASCII)
+        & git -C $nestedSource add seed.txt
+        & git -C $nestedSource commit --quiet -m seed
+        $nestedCommit = (& git -C $nestedSource rev-parse HEAD).Trim()
+
+        $wrapper = Join-Path $fixtureBase "wrapper"
+        New-Item -ItemType Directory -Force -Path $wrapper | Out-Null
+        & git -C $wrapper init --quiet
+        & git -C $wrapper config user.email "fixture@example.invalid"
+        & git -C $wrapper config user.name "Fixture"
+        $modules = @"
+[submodule "external/repos/dependency"]
+	path = external/repos/dependency
+	url = https://legacy.invalid/dependency.git
+"@
+        [IO.File]::WriteAllText((Join-Path $wrapper ".gitmodules"), $modules, [Text.Encoding]::ASCII)
+        & git -C $wrapper add .gitmodules
+        & git -C $wrapper update-index --add --cacheinfo "160000,$nestedCommit,external/repos/dependency"
+        & git -C $wrapper commit --quiet -m wrapper
+        $Root = $wrapper
+        Prepare-NestedSubmodule $wrapper "external/repos/dependency" $nestedSource $nestedCommit "active"
+        $nestedCheckout = Join-Path $wrapper "external\repos\dependency"
+        if ((& git -C $nestedCheckout branch --show-current).Trim() -ne "active" -or
+            (& git -C $nestedCheckout rev-parse HEAD).Trim() -ne $nestedCommit) {
+            throw "Fresh-uninitialized nested fixture failed."
+        }
+        [IO.File]::WriteAllText((Join-Path $nestedCheckout "resumed.txt"), "resumed`n", [Text.Encoding]::ASCII)
+        & git -C $nestedCheckout add resumed.txt
+        & git -C $nestedCheckout commit --quiet -m resumed
+        $resumedCommit = (& git -C $nestedCheckout rev-parse HEAD).Trim()
+        $blocked = $false
+        try {
+            Prepare-NestedSubmodule $wrapper "external/repos/dependency" $nestedSource $nestedCommit "active"
+        } catch {
+            $blocked = $true
+        }
+        if (-not $blocked -or (& git -C $nestedCheckout rev-parse HEAD).Trim() -ne $resumedCommit) {
+            throw "Resumed-active nested fixture was moved or not rejected."
+        }
+
+        $wrongRoot = Join-Path $fixtureBase "wrong-root"
+        New-Item -ItemType Directory -Force -Path $wrongRoot | Out-Null
+        & git -C $wrongRoot init --quiet
+        & git -C $wrongRoot config user.email "fixture@example.invalid"
+        & git -C $wrongRoot config user.name "Fixture"
+        [IO.File]::WriteAllText((Join-Path $wrongRoot "root.txt"), "root`n", [Text.Encoding]::ASCII)
+        & git -C $wrongRoot add root.txt
+        & git -C $wrongRoot commit --quiet -m root
+        & git -C $wrongRoot branch -M wrong
+        $wrongHead = (& git -C $wrongRoot rev-parse HEAD).Trim()
+        $Root = $wrongRoot
+        $AllowNewerRootSnapshot = $false
+        $wrongManifest = [pscustomobject]@{
+            snapshotBranch = "expected"
+            restoreVerification = [pscustomobject]@{ snapshot = $wrongHead }
+        }
+        $beforeConfig = (& git -C $wrongRoot config --list | Out-String)
+        $blocked = $false
+        try {
+            Assert-RootRestorePreflight $wrongManifest
+        } catch {
+            $blocked = $true
+        }
+        $afterConfig = (& git -C $wrongRoot config --list | Out-String)
+        if (-not $blocked -or $beforeConfig -ne $afterConfig -or (& git -C $wrongRoot rev-parse HEAD).Trim() -ne $wrongHead) {
+            throw "Wrong-root preflight fixture mutated repository state."
+        }
+
+        $broadRead = [pscustomobject]@{
+            AccessControlType = "Allow"
+            IdentityReference = "BUILTIN\Users"
+            FileSystemRights = [Security.AccessControl.FileSystemRights]::ReadAndExecute
+        }
+        if ((Test-AclPolicyData "CONTOSO\OtherOwner" @($broadRead) "CONTOSO\Operator").Safe) {
+            throw "ACL-owner fixture accepted an arbitrary owner/broad reader."
+        }
+
+        $toolkitFixture = Join-Path $fixtureBase "toolkit-local"
+        New-Item -ItemType Directory -Force -Path $toolkitFixture | Out-Null
+        & git -C $toolkitFixture init --quiet
+        & git -C $toolkitFixture config user.email "fixture@example.invalid"
+        & git -C $toolkitFixture config user.name "Fixture"
+        [IO.File]::WriteAllText((Join-Path $toolkitFixture "plugin.txt"), "plugin`n", [Text.Encoding]::ASCII)
+        & git -C $toolkitFixture add plugin.txt
+        & git -C $toolkitFixture commit --quiet -m plugin
+        $ToolkitSourcePath = $toolkitFixture
+        $ToolkitRef = "HEAD"
+        $ToolkitExpectedCommit = (& git -C $toolkitFixture rev-parse HEAD).Trim()
+        $script:Results = New-Object System.Collections.Generic.List[object]
+        $fakeManifest = [pscustomobject]@{
+            repositories = [pscustomobject]@{
+                aiDeveloperToolkit = [pscustomobject]@{ url = "https://invalid.example/never-fetch.git" }
+            }
+        }
+        if (-not (Resolve-ToolkitPublicationInput $fakeManifest) -or
+            $script:ToolkitValidatedSourcePath -ne $toolkitFixture) {
+            throw "Local toolkit source fixture failed."
+        }
+
+        $packageFixture = Join-Path $fixtureBase "package-fixture"
+        $packageRoot = Join-Path $packageFixture "package"
+        $vendor = Join-Path $packageRoot "vendor\x64\codex"
+        New-Item -ItemType Directory -Force -Path (Join-Path $packageRoot "bin") | Out-Null
+        New-Item -ItemType Directory -Force -Path $vendor | Out-Null
+        [IO.File]::WriteAllText((Join-Path $packageRoot "package.json"), '{"name":"@gim-home/codex","version":"9.9.9"}', [Text.Encoding]::ASCII)
+        foreach ($file in @("bin\codex.js", "vendor\x64\codex\codex.exe", "vendor\x64\codex\codex-core.exe",
+            "vendor\x64\codex\codex-windows-sandbox-setup.exe", "vendor\x64\codex\codex-command-runner.exe")) {
+            [IO.File]::WriteAllText((Join-Path $packageRoot $file), "fixture", [Text.Encoding]::ASCII)
+        }
+        $archive = Join-Path $packageFixture "codex.tgz"
+        & tar.exe -czf $archive -C $packageFixture package
+        $CodexPackagePath = $archive
+        $CodexPackageSha256 = (Get-FileHash -Algorithm SHA256 $archive).Hash
+        $CodexPackageExpectedVersion = "9.9.9"
+        $script:Results = New-Object System.Collections.Generic.List[object]
+        if (-not (Test-CodexPackageInput) -or -not $script:CodexPackageInputValid) {
+            throw "Exact Codex package fixture failed."
+        }
+
+        $oldPath = $env:Path
+        try {
+            $env:Path = ""
+            $script:Results = New-Object System.Collections.Generic.List[object]
+            Test-ExactRustToolchain "1.95.0-x86_64-pc-windows-msvc"
+            $rustResult = $script:Results | Where-Object Name -eq "codex:rust-toolchain" | Select-Object -Last 1
+            if ($rustResult.Status -ne "GATED") {
+                throw "Missing-rustup fixture did not return GATED."
+            }
+        } finally {
+            $env:Path = $oldPath
+        }
+    } finally {
+        Remove-Item $fixtureBase -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+Write-Host "PASS: scripts parse, are ASCII-only, and all 15 static plus 7 fixture regressions pass."

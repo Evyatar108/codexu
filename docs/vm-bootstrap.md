@@ -52,6 +52,17 @@ Existing branches are never force-reset: any divergent/resumed branch fails
 closed without moving its ref or discarding commits. There is no silent
 fallback.
 
+The root contract is exact:
+`migration/vm-2026-07-14` at
+`fa48a50a54fdf35c72e7f63ceba5d9cfab7655b5`. Restore preflight checks it
+before changing remotes, submodules, or worktrees. A clean descendant on that
+same branch is accepted only with explicit `-AllowNewerRootSnapshot`; a wrong
+branch, unrelated SHA, or dirty root fails before mutation.
+
+The toolkit's nested mcporter dependency is also manifest-controlled through
+`https://github.com/evmitran_microsoft/mcporter.git`. Its mirror URL is set
+before every toolkit restore, including toolkit worktrees and `D:\h`.
+
 ## Source publication gates
 
 The Codex package fix at
@@ -68,13 +79,31 @@ Publication inputs are exact, not advisory:
   -CodexPackageSha256 <64-hex> `
   -CodexPackageExpectedVersion <version> `
   -CodexRef <ref> -CodexExpectedCommit <40-hex> `
-  -ToolkitRef <ref> -ToolkitExpectedCommit <40-hex>
+  -ToolkitRef <ref> -ToolkitExpectedCommit <40-hex> `
+  -ToolkitSourcePath C:\path\to\local-toolkit
 ```
 
 The package path is checked for name, version, SHA256, and all shipped Windows
 binaries. Git refs must resolve exactly to the supplied commits. Plugin setup
 uses an exact detached toolkit checkout and validates installed plugin
 versions; marketplace latest is not accepted as reproducibility evidence.
+For an unpublished toolkit ref, `-ToolkitSourcePath` is mandatory and the
+clean local checkout itself is installed. Without a local path, the ref must
+exist remotely at the exact expected commit.
+
+Install a validated Codex package with:
+
+```powershell
+...\bootstrap-vm.ps1 -InstallCodexPackage `
+  -CodexPackagePath C:\path\codex-package.tgz `
+  -CodexPackageSha256 <64-hex> `
+  -CodexPackageExpectedVersion <version>
+```
+
+The install writes nonsecret provenance and then checks installed package
+name, version, Windows binary layout, source artifact path, and SHA256.
+Merely validating a ref or observing an already-installed version is not
+release reproducibility evidence.
 
 The bootstrap never reconstructs a fix by editing installed npm or plugin
 caches.
@@ -127,8 +156,9 @@ caches.
   ralph-overview, edge-browser, and subagent-model-routing. Crews and Ralph
   Orchestration remain disabled.
 - Secret gates inspect only existence and ACLs; secret content is not read.
-  Effective allow ACEs, inherited or explicit, may grant access only to the
-  current operator/file owner, SYSTEM, and BUILTIN\Administrators. Broad read,
+  The owner itself must be the current operator, SYSTEM, or
+  BUILTIN\Administrators. Effective allow ACEs, inherited or explicit, may
+  grant access only to those same principals. Broad read,
   ReadAndExecute, or write grants to Everyone, Users, Authenticated Users, or
   any other principal fail validation. No token prefix is printed, and
   `happy auth status` is never called.
