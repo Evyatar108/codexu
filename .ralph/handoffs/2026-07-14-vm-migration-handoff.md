@@ -34,6 +34,7 @@ its receipt can be regenerated and independently verified
 - `.ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff-prd-b/` - current PRD B state, reviews, findings, and focused evidence.
 - `.ralph/jobs/codex-v2-copilot-encrypted-subagent-handoff/receipts/` - PRD A receipt plus obsolete/rejected PRD B receipt.
 - `docs/vm-migration-manifest.json` - machine-readable repository and commit inventory.
+- `docs/vm-migration-smoke.json` - successful clean-clone restore proof.
 
 ## 4. Detailed findings with file:line evidence
 
@@ -70,7 +71,11 @@ The root now points its Codex submodule at the private VM mirror
 (`.gitmodules:1-6`). The restore script initializes both root submodules,
 recreates the priority worktrees, switches the nested source branch, and fails
 if the nested SHA differs from the required candidate
-(`scripts/fork-setup/restore-vm-workspace.ps1:55-125`).
+(`scripts/fork-setup/restore-vm-workspace.ps1:55-124`).
+The same script completed from a fresh private clone and restored all six
+recorded commits with the intentional unstaged wrapper gitlink
+(`docs/vm-migration-manifest.json:55-60`;
+`docs/vm-migration-smoke.json:1-20`).
 
 ## 5. Things to NOT do
 
@@ -126,6 +131,7 @@ if the nested SHA differs from the required candidate
 ### Migration
 
 - `docs/vm-migration-manifest.json` - repository, branch, commit, and preservation inventory.
+- `docs/vm-migration-smoke.json` - clean-clone restore result and restored SHAs.
 - `scripts/fork-setup/restore-vm-workspace.ps1` - idempotent VM restore script.
 - `.gitmodules` - private root submodule URLs.
 
