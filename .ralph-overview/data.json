@@ -2109,6 +2109,28 @@
           "impl": "/implement-with-ralph --from-plan D:/harness-efforts/codexu/.ralph/jobs/ralph-v2-encrypted-role-wait-terminal-hardening/plan.md --target-repo D:/harness-efforts/codexu/ai-developer-toolkit/.worktrees/ralph-v2-encrypted-role-wait-terminal-hardening-base --allow-stale-base --ui-ux-judgment not-required --call-ui-ux-judgment not-required --autonomous"
         }
       }
+    },
+    {
+      "id": "happy-remove-github-auth-pairing-bootstrap",
+      "scope": "codexu|happy",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-15T06:16:15.9023546Z",
+      "initialStage": "brainstorming",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Restore upstream parity for GitHub-related support by removing the fork-only GitHub OAuth/device-login requirement from daemon onboarding and app pairing. Preserve any GitHub behavior that exists upstream; remove only coupling introduced for the retired Microsoft Dev Tunnels design."
+        }
+      ],
+      "command": {
+        "name": "happy-remove-github-auth-pairing-bootstrap",
+        "descriptionHtml": "Restore upstream parity for GitHub support in Happy onboarding and pairing",
+        "warnings": [],
+        "prompts": {
+          "brainstorm": "Investigate and design restoration of upstream parity for GitHub-related support in Happy daemon startup, local operator onboarding, and app pairing. Compare the fork against the current upstream slopus/happy implementation and classify every GitHub auth/profile/pairing difference as upstream behavior or fork-added coupling. Preserve all GitHub functionality that upstream supports; remove only the fork-specific GitHub OAuth/device-login dependency introduced for Microsoft Dev Tunnels, which are retired and must not remain a premise. Audit happy-cli, happy-server, happy-app, happy-wire, docs, and machine-local state for GitHub auth, ~/.happy/profile.json, credentials, user identity, pairing, and daemon bootstrap coupling. Preserve the fork's current security boundaries: loopback capability for local access and, in opt-in public mode, mandatory Cloudflare Access defense-in-depth plus fail-closed Ed25519 paired-device proof, body binding, nonce replay protection, pairing window, pairing secret/nonce, and TOFU key pinning. Determine the minimal upstream-aligned replacement for any local profile or stable operator identifier, migration/backward compatibility for existing ~/.happy state, and whether `happy auth` should match upstream, be removed, or be repurposed only for fork-specific public mode. Explicitly exclude Codex's separate GitHub Copilot authentication. Verify feasibility against both fork and upstream source, identify upstream-conflict surfaces, and recommend a staged implementation with acceptance tests proving GitHub-related behavior is in parity with upstream except for explicitly documented public-mode extensions."
+        }
+      }
     }
   ],
   "phaseTree": [
