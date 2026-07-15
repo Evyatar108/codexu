@@ -217,6 +217,28 @@ foreach ($case in $finalReviewCases) {
     if (-not [bool]$case.Pass) {
         throw "Final-review regression case failed: $($case.Name)"
     }
+
+    $cleanupReviewCases = @(
+        @{
+            Name = "Exact-ref cleanup validates, deinitializes, then force-removes"
+            Pass = $bootstrapText -match "Remove-CleanCodexRefWorktree" -and
+                $bootstrapText -match '"submodule", "deinit", "--force"' -and
+                $bootstrapText -match '"worktree", "remove", "--force"' -and
+                $bootstrapText -match "Nested source is dirty or mismatched; preserving"
+        },
+        @{
+            Name = "Legacy wrapper forwards target, manifest, and config"
+            Pass = (Get-Content (Join-Path $PSScriptRoot "restore-vm-workspace.ps1") -Raw) -match
+                '"-ManifestPath", \$ManifestPath' -and
+                (Get-Content (Join-Path $PSScriptRoot "restore-vm-workspace.ps1") -Raw) -match
+                '"-ConfigPath", \$ConfigPath'
+        }
+    )
+    foreach ($case in $cleanupReviewCases) {
+        if (-not [bool]$case.Pass) {
+            throw "Cleanup-review regression case failed: $($case.Name)"
+        }
+    }
 }
 
 $bootstrapPath = Join-Path $PSScriptRoot "bootstrap-vm.ps1"
@@ -318,6 +340,42 @@ $bootstrapPath = Join-Path $PSScriptRoot "bootstrap-vm.ps1"
         if ($bootstrapPath.StartsWith($targetRoot, [StringComparison]::OrdinalIgnoreCase)) {
             throw "Tooling/target separation fixture used target-local tooling."
         }
+        $wrapperStub = Join-Path $fixtureBase "wrapper-stub.ps1"
+        $wrapperCapture = Join-Path $fixtureBase "wrapper-capture.json"
+        $stubText = @'
+param(
+    [string]$Root,
+    [string]$ManifestPath,
+    [string]$ConfigPath,
+    [switch]$ValidateOnly,
+    [switch]$RestoreWorkspace
+)
+[IO.File]::WriteAllText($env:VM_BOOTSTRAP_WRAPPER_CAPTURE, (@{
+    Root = $Root
+    ManifestPath = $ManifestPath
+    ConfigPath = $ConfigPath
+    ValidateOnly = [bool]$ValidateOnly
+    RestoreWorkspace = [bool]$RestoreWorkspace
+} | ConvertTo-Json), [Text.Encoding]::ASCII)
+'@
+        [IO.File]::WriteAllText($wrapperStub, $stubText, [Text.Encoding]::ASCII)
+        $wrapperManifest = Join-Path $fixtureBase "tooling-manifest.json"
+        $wrapperConfig = Join-Path $fixtureBase "tooling-config.json"
+        [IO.File]::WriteAllText($wrapperManifest, "{}", [Text.Encoding]::ASCII)
+        [IO.File]::WriteAllText($wrapperConfig, "{}", [Text.Encoding]::ASCII)
+        $env:VM_BOOTSTRAP_WRAPPER_CAPTURE = $wrapperCapture
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "restore-vm-workspace.ps1") `
+            -Root $targetRoot -ManifestPath $wrapperManifest -ConfigPath $wrapperConfig `
+            -BootstrapPath $wrapperStub -ValidateOnly
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path $wrapperCapture)) {
+            throw "Separated-target wrapper fixture did not execute."
+        }
+        $captured = Get-Content $wrapperCapture -Raw | ConvertFrom-Json
+        if ($captured.Root -ne $targetRoot -or $captured.ManifestPath -ne $wrapperManifest -or
+            $captured.ConfigPath -ne $wrapperConfig -or -not $captured.ValidateOnly -or $captured.RestoreWorkspace) {
+            throw "Separated-target wrapper fixture did not forward the tooling/target contract."
+        }
+        Remove-Item Env:VM_BOOTSTRAP_WRAPPER_CAPTURE -ErrorAction SilentlyContinue
 
         $broadRead = [pscustomobject]@{
             AccessControlType = "Allow"
@@ -403,7 +461,38 @@ $bootstrapPath = Join-Path $PSScriptRoot "bootstrap-vm.ps1"
         if ((& git -C $refNested rev-parse HEAD).Trim() -ne $nestedCommit) {
             throw "Exact Codex ref worktree fixture used stale nested source."
         }
-        & git -C $codexRepository worktree remove --force $refWorktree
+        $fixtureArtifact = Join-Path $fixtureBase "ref-artifact.tgz"
+        [IO.File]::WriteAllText($fixtureArtifact, "artifact", [Text.Encoding]::ASCII)
+        $fixtureArtifactHash = (Get-FileHash -Algorithm SHA256 $fixtureArtifact).Hash.ToLowerInvariant()
+        $fixtureProvenance = Join-Path $fixtureBase "ref-provenance.json"
+        $fixtureProvenanceValue = [ordered]@{
+            sourceCommit = $CodexExpectedCommit
+            artifactPath = $fixtureArtifact
+            artifactSha256 = $fixtureArtifactHash
+            version = "fixture"
+        } | ConvertTo-Json
+        [IO.File]::WriteAllText($fixtureProvenance, $fixtureProvenanceValue, [Text.Encoding]::UTF8)
+        Remove-CleanCodexRefWorktree $codexRepository $refWorktree $CodexExpectedCommit `
+            $fixtureArtifact $fixtureArtifactHash $fixtureProvenance
+        if (Test-Path $refWorktree) {
+            throw "Production cleanup fixture left the exact-ref worktree behind."
+        }
+        $dirtyRefWorktree = New-CodexRefWorktree $codexManifest
+        $dirtyNested = Join-Path $dirtyRefWorktree "external\repos\codex-patched"
+        [IO.File]::WriteAllText((Join-Path $dirtyNested "unexpected.txt"), "dirty", [Text.Encoding]::ASCII)
+        $blocked = $false
+        try {
+            Remove-CleanCodexRefWorktree $codexRepository $dirtyRefWorktree $CodexExpectedCommit `
+                $fixtureArtifact $fixtureArtifactHash $fixtureProvenance
+        } catch {
+            $blocked = $true
+        }
+        if (-not $blocked -or -not (Test-Path $dirtyRefWorktree)) {
+            throw "Dirty exact-ref cleanup fixture was not preserved."
+        }
+        Remove-Item (Join-Path $dirtyNested "unexpected.txt") -Force
+        & git -C $dirtyRefWorktree submodule deinit --force -- external/repos/codex-patched
+        & git -C $codexRepository worktree remove --force $dirtyRefWorktree
 
         $oldPath = $env:Path
         try {
@@ -422,4 +511,4 @@ $bootstrapPath = Join-Path $PSScriptRoot "bootstrap-vm.ps1"
     }
 }
 
-Write-Host "PASS: scripts parse, are ASCII-only, and all 17 static plus 9 fixture regressions pass."
+Write-Host "PASS: scripts parse, are ASCII-only, and all 19 static plus 11 fixture regressions pass."

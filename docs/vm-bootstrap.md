@@ -64,6 +64,21 @@ The documented legacy command remains compatible:
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fork-setup\restore-vm-workspace.ps1
 ```
 
+From a separate tooling checkout, the same wrapper forwards the tooling files
+explicitly:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File C:\bootstrap-tools\scripts\fork-setup\restore-vm-workspace.ps1 `
+  -Root C:\codexu-target `
+  -ManifestPath C:\bootstrap-tools\docs\vm-migration-manifest.json `
+  -ConfigPath C:\bootstrap-tools\scripts\fork-setup\vm-bootstrap-config.json
+```
+
+When omitted, `ManifestPath` and `ConfigPath` default to the wrapper's tooling
+checkout, while `Root` defaults to that same checkout for backward
+compatibility.
+
 It delegates to the manifest-driven restore, validates every recorded branch
 and SHA, restores all priority worktrees, and recursively initializes nested
 submodules. Manifest mirror URLs are configured before any update can fetch.

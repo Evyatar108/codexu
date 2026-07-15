@@ -1024,6 +1024,56 @@ function New-CodexRefWorktree {
     return $worktree
 }
 
+function Remove-CleanCodexRefWorktree {
+    param(
+        [string]$SourceRepository,
+        [string]$Worktree,
+        [string]$ExpectedCommit,
+        [string]$ArtifactPath,
+        [string]$ArtifactSha256,
+        [string]$ProvenancePath
+    )
+    $nestedPath = "external/repos/codex-patched"
+    $nested = Join-Path $Worktree "external\repos\codex-patched"
+    $head = (& git -C $Worktree rev-parse HEAD 2>$null | Out-String).Trim()
+    $branch = (& git -C $Worktree branch --show-current 2>$null | Out-String).Trim()
+    $parentStatus = @(& git -C $Worktree status --porcelain 2>$null)
+    if ($head -ne $ExpectedCommit -or $branch -or $parentStatus.Count -gt 0) {
+        throw "Ref worktree is not clean/detached/exact; preserving $Worktree."
+    }
+    if (-not (Test-Path (Join-Path $nested ".git"))) {
+        throw "Nested source is missing; preserving $Worktree."
+    }
+    $recorded = (& git -C $Worktree rev-parse "HEAD:$nestedPath").Trim()
+    $nestedHead = (& git -C $nested rev-parse HEAD).Trim()
+    $nestedStatus = @(& git -C $nested status --porcelain)
+    $recursiveStatus = @(& git -C $Worktree submodule status --recursive)
+    if ($nestedHead -ne $recorded -or $nestedStatus.Count -gt 0 -or
+        $recursiveStatus.Count -eq 0 -or @($recursiveStatus | Where-Object { $_ -match "^[+\-U]" }).Count -gt 0) {
+        throw "Nested source is dirty or mismatched; preserving $Worktree."
+    }
+    if (-not (Test-Path $ArtifactPath) -or -not (Test-Path $ProvenancePath)) {
+        throw "Artifact or provenance is missing; preserving $Worktree."
+    }
+    $actualHash = (Get-FileHash -Algorithm SHA256 $ArtifactPath).Hash.ToLowerInvariant()
+    $provenance = Get-Content $ProvenancePath -Raw | ConvertFrom-Json
+    if ($actualHash -ne $ArtifactSha256.ToLowerInvariant() -or
+        $provenance.sourceCommit -ne $ExpectedCommit -or
+        $provenance.artifactPath -ne $ArtifactPath -or
+        $provenance.artifactSha256 -ne $ArtifactSha256.ToLowerInvariant()) {
+        throw "Artifact provenance does not match exact source; preserving $Worktree."
+    }
+    Invoke-Git $Worktree @("submodule", "deinit", "--force", "--", $nestedPath) | Out-Null
+    $postDeinitStatus = @(& git -C $Worktree status --porcelain)
+    if ($postDeinitStatus.Count -gt 0) {
+        throw "Submodule deinit changed tracked state; preserving $Worktree."
+    }
+    Invoke-Git $SourceRepository @("worktree", "remove", "--force", $Worktree) | Out-Null
+    if (Test-Path $Worktree) {
+        throw "Worktree cleanup did not remove $Worktree."
+    }
+}
+
 function Build-CodexRefPackage {
     param([pscustomobject]$Manifest)
     $worktree = New-CodexRefWorktree $Manifest
@@ -1118,8 +1168,10 @@ function Build-CodexRefPackage {
             artifactSha256 = $script:CodexRefArtifactSha256
             version = $version
         } | ConvertTo-Json
-        [IO.File]::WriteAllText((Join-Path $artifactRoot "source-provenance.json"), "$provenance`r`n", [Text.Encoding]::UTF8)
-        Invoke-Git (Join-Path $Root "codex") @("worktree", "remove", $worktree) | Out-Null
+        $provenancePath = Join-Path $artifactRoot "source-provenance.json"
+        [IO.File]::WriteAllText($provenancePath, "$provenance`r`n", [Text.Encoding]::UTF8)
+        Remove-CleanCodexRefWorktree (Join-Path $Root "codex") $worktree $CodexExpectedCommit `
+            $finalArtifact $script:CodexRefArtifactSha256 $provenancePath
         return $finalArtifact
     } catch {
         throw "Codex exact-ref build/package failed. Preserved clean-room worktree for diagnosis at $worktree. $($_.Exception.Message)"
