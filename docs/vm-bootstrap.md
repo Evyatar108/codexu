@@ -47,7 +47,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fork-setup\restore-v
 
 It delegates to the manifest-driven restore, validates every recorded branch
 and SHA, restores all priority worktrees, and recursively initializes nested
-submodules. There is no silent fallback.
+submodules. Manifest mirror URLs are configured before any update can fetch.
+Existing branches are never force-reset: any divergent/resumed branch fails
+closed without moving its ref or discarding commits. There is no silent
+fallback.
 
 ## Source publication gates
 
@@ -57,10 +60,21 @@ local-only. They are deliberately not added to
 `docs\vm-migration-manifest.json` as remote refs. Publish the owning source
 first or provide explicit local inputs:
 
+Publication inputs are exact, not advisory:
+
 ```powershell
-...\bootstrap-vm.ps1 -ValidateOnly -CodexPackagePath C:\path\codex-package.tgz -ToolkitRef refs\heads\operator-provided
-...\bootstrap-vm.ps1 -ValidateOnly -CodexRef refs\heads\operator-provided -ToolkitRef refs\heads\operator-provided
+...\bootstrap-vm.ps1 -ValidateOnly `
+  -CodexPackagePath C:\path\codex-package.tgz `
+  -CodexPackageSha256 <64-hex> `
+  -CodexPackageExpectedVersion <version> `
+  -CodexRef <ref> -CodexExpectedCommit <40-hex> `
+  -ToolkitRef <ref> -ToolkitExpectedCommit <40-hex>
 ```
+
+The package path is checked for name, version, SHA256, and all shipped Windows
+binaries. Git refs must resolve exactly to the supplied commits. Plugin setup
+uses an exact detached toolkit checkout and validates installed plugin
+versions; marketplace latest is not accepted as reproducibility evidence.
 
 The bootstrap never reconstructs a fix by editing installed npm or plugin
 caches.
@@ -85,8 +99,12 @@ caches.
   rerun elevated or move `%NVM_SYMLINK%` ahead of the shadow directory in
   Machine PATH. Never remove the hook Node during an active session.
 - Codex iteration uses `codex\scripts\iteration-env.sh`, sccache, xwin, and
-  the verified rusty_v8 v149.2.0 archive. `RUSTC_WRAPPER` is not global.
-  Release/publish keeps its separate profile.
+  rusty_v8 v149.2.0 with pinned extracted-library SHA256. Use
+  `scripts\fork-setup\invoke-codex-build.ps1` for cargo checks/builds: it
+  sources the frozen iteration profile, then overrides its `stable` setting
+  with exact `RUSTUP_TOOLCHAIN=1.95.0-x86_64-pc-windows-msvc` for that child
+  shell only. It never changes the global rustup default. `RUSTC_WRAPPER` is
+  not global. Release/publish keeps its separate profile.
 - Happy source installation builds happy-wire, happy-server, and happy-cli,
   then runs `npm link` inside `packages\happy-cli`. It does not invoke
   `scripts\install-local.cjs`, start the daemon, or run auth.
@@ -97,6 +115,9 @@ caches.
   checksum. The USB driver package files are noninteractive; BOOX driver
   binding and USB authorization remain operator/device gates. It writes
   `sdk.dir=D:/Android/Sdk`. Expo prebuild is not used.
+- The optional `D:\h` clone must match the manifest repository URL, snapshot
+  branch, exact snapshot SHA, cleanliness, and every recursive submodule.
+  Existing stale or unrelated repositories are rejected, never repointed.
 - The production package id remains `com.evyatar109.happy`.
 - Optional public mode is daemon-owned. The daemon starts its outbound
   cloudflared provider; this bootstrap creates no NSSM services.
@@ -105,8 +126,12 @@ caches.
 - The enabled Copilot set is exactly stop-copilot-shell-polling,
   ralph-overview, edge-browser, and subagent-model-routing. Crews and Ralph
   Orchestration remain disabled.
-- Secret gates inspect only existence and ACL shape. No secret content or
-  token prefix is printed, and `happy auth status` is never called.
+- Secret gates inspect only existence and ACLs; secret content is not read.
+  Effective allow ACEs, inherited or explicit, may grant access only to the
+  current operator/file owner, SYSTEM, and BUILTIN\Administrators. Broad read,
+  ReadAndExecute, or write grants to Everyone, Users, Authenticated Users, or
+  any other principal fail validation. No token prefix is printed, and
+  `happy auth status` is never called.
 - GitHub/SAML, Codex Copilot login, signing, Firebase login, Cloudflare
   login/tunnel credentials, `~\.happy\public-tunnel.json`, USB authorization,
   pushes, tags, releases, and distribution remain operator gates.
