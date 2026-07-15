@@ -8,6 +8,7 @@ import type { LocalDeviceAuthConfig, LocalAuthRuntime } from "./app/api/auth/loc
 import type { LocalPairingInvite } from "@slopus/happy-wire";
 import { decodeBase64 } from "privacy-kit";
 import { db, getPGlite } from "./storage/db";
+import { applyPGliteMigrations } from "./storage/applyPGliteMigrations";
 // FORK PATCH: [RESTORE-R3-done] operator-identity gate now lives in ./fork/operatorIdentityGate (invariant HS-5); re-exported here to preserve the index.ts public surface
 import { assertOperatorIdentityGate } from "./fork/operatorIdentityGate";
 export { assertOperatorIdentityGate };
@@ -138,6 +139,11 @@ export function createApp(config: CreateAppConfig): HappyServerHandle {
         ]);
 
         configureDb({ provider: "pglite", pgliteDir: path.join(serverDataDir, "pglite") });
+        const pglite = getPGlite();
+        if (!pglite) {
+            throw new Error("Embedded PGlite database was not created");
+        }
+        await applyPGliteMigrations(pglite);
         configureFiles({
             dataDir: serverDataDir,
             publicUrl: config.publicUrl || `http://${config.host || "127.0.0.1"}:${config.port}`,

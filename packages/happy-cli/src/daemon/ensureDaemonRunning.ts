@@ -2,8 +2,8 @@ import { logger } from '@/ui/logger'
 import { checkIfDaemonRunningAndCleanupStaleState, isDaemonRunningCurrentlyInstalledHappyVersion } from './controlClient'
 import { spawnHappyCLI } from '@/utils/spawnHappyCLI'
 
-const DAEMON_READY_TIMEOUT_MS = 5000
-const DAEMON_READY_POLL_INTERVAL_MS = 100
+export const DAEMON_READY_TIMEOUT_MS = 60_000
+export const DAEMON_READY_POLL_INTERVAL_MS = 100
 
 export async function ensureDaemonRunning(): Promise<void> {
   logger.debug('Ensuring Happy background service is running & matches our version...')

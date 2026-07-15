@@ -4,31 +4,8 @@ import os from "os";
 import path from "path";
 import { encodeBase64 } from "privacy-kit";
 import { assertOperatorIdentityGate, bootstrapMachineForEmbedded, createApp, type HappyServerHandle } from "./index";
-import { db, getPGlite } from "./storage/db";
+import { db } from "./storage/db";
 import { machineUpdateHandler } from "./app/api/socket/machineUpdateHandler";
-
-async function createMachineTable() {
-    const pglite = getPGlite();
-    if (!pglite) {
-        throw new Error("PGlite was not configured");
-    }
-
-    await pglite.exec(`
-        CREATE TABLE IF NOT EXISTS "Machine" (
-            "id" TEXT PRIMARY KEY,
-            "metadata" TEXT NOT NULL,
-            "metadataVersion" INTEGER NOT NULL DEFAULT 0,
-            "daemonState" TEXT,
-            "daemonStateVersion" INTEGER NOT NULL DEFAULT 0,
-            "dataEncryptionKey" BYTEA,
-            "seq" INTEGER NOT NULL DEFAULT 0,
-            "active" BOOLEAN NOT NULL DEFAULT true,
-            "lastActiveAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
-            "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
-            "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
-        );
-    `);
-}
 
 describe("bootstrapMachineForEmbedded", () => {
     let server: HappyServerHandle | null = null;
@@ -46,7 +23,7 @@ describe("bootstrapMachineForEmbedded", () => {
         })).rejects.toThrow("Embedded PGlite database is not configured; call createApp(...).start() before bootstrapMachineForEmbedded().");
     });
 
-    it("upserts an embedded Machine row with encrypted payload versions and data key", async () => {
+    it("migrates a pristine embedded database before upserting the Machine row", async () => {
         const dataDir = await mkdtemp(path.join(os.tmpdir(), "happy-server-embedded-"));
         server = createApp({
             dataDir,
@@ -55,7 +32,6 @@ describe("bootstrapMachineForEmbedded", () => {
             localUserId: "local-user",
         });
         await server.start();
-        await createMachineTable();
 
         const dataEncryptionKey = new Uint8Array([1, 2, 3, 4]);
         await bootstrapMachineForEmbedded({
@@ -80,7 +56,7 @@ describe("bootstrapMachineForEmbedded", () => {
             daemonStateVersion: 1,
         });
         expect(Array.from(row.dataEncryptionKey ?? [])).toEqual([1, 2, 3, 4]);
-    }, 20_000);
+    }, 60_000);
 
     it("allows machine-update-state after embedded bootstrap for data-key and legacy machines", async () => {
         const dataDir = await mkdtemp(path.join(os.tmpdir(), "happy-server-embedded-"));
@@ -91,7 +67,6 @@ describe("bootstrapMachineForEmbedded", () => {
             localUserId: "local-user",
         });
         await server.start();
-        await createMachineTable();
 
         await bootstrapMachineForEmbedded({
             machineId: "machine-data-key",
@@ -116,7 +91,7 @@ describe("bootstrapMachineForEmbedded", () => {
             version: 2,
             daemonState: "legacy-next-state",
         });
-    }, 20_000);
+    }, 60_000);
 });
 
 describe("operator identity gate", () => {

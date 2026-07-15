@@ -30,7 +30,7 @@ import { claudeCliPath } from './claude/claudeLocal'
 import { execFileSync } from 'node:child_process'
 import { extractNoSandboxFlag } from './utils/sandboxFlags'
 import { handleResumeCommand } from '@/resume/handleResumeCommand'
-import { ensureDaemonRunning } from './daemon/ensureDaemonRunning'
+import { DAEMON_READY_POLL_INTERVAL_MS, DAEMON_READY_TIMEOUT_MS, ensureDaemonRunning } from './daemon/ensureDaemonRunning'
 import { handleCodexCommand } from './commands/codexCommand'
 import { runInitCommand } from '@/tunnel/tunnelManager'
 import { handlePairCommand } from '@/commands/pair'
@@ -510,14 +510,16 @@ Conversation history is preserved on the server, but in-flight tool calls are in
       });
       child.unref();
 
-      // Wait for daemon to write state file (up to 5 seconds)
+      // A pristine embedded database applies the full Prisma migration chain
+      // before the daemon can publish its state and control port.
       let started = false;
-      for (let i = 0; i < 50; i++) {
+      const deadline = Date.now() + DAEMON_READY_TIMEOUT_MS;
+      while (Date.now() < deadline) {
         if (await checkIfDaemonRunningAndCleanupStaleState()) {
           started = true;
           break;
         }
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, DAEMON_READY_POLL_INTERVAL_MS));
       }
 
       if (started) {

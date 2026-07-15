@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   mockLoggerDebug: vi.fn(),
@@ -33,6 +33,10 @@ describe('ensureDaemonRunning', () => {
     mocks.mockCheckIfDaemonRunningAndCleanupStaleState.mockResolvedValue(true)
   })
 
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('returns without spawning when the daemon is already running', async () => {
     mocks.mockIsDaemonRunningCurrentlyInstalledHappyVersion.mockResolvedValue(true)
 
@@ -65,6 +69,23 @@ describe('ensureDaemonRunning', () => {
     expect(mockUnref).toHaveBeenCalled()
     expect(mocks.mockCheckIfDaemonRunningAndCleanupStaleState).toHaveBeenCalledTimes(2)
     expect(mocks.mockLoggerDebug).toHaveBeenCalledWith('Starting Happy background service...')
+    expect(mocks.mockLoggerDebug).toHaveBeenCalledWith('Happy background service is ready')
+  })
+
+  it('allows a pristine embedded database more than five seconds to initialize', async () => {
+    vi.useFakeTimers()
+    mocks.mockIsDaemonRunningCurrentlyInstalledHappyVersion.mockResolvedValue(false)
+    let readinessChecks = 0
+    mocks.mockCheckIfDaemonRunningAndCleanupStaleState.mockImplementation(async () => {
+      readinessChecks++
+      return readinessChecks === 52
+    })
+
+    const startup = ensureDaemonRunning()
+    await vi.advanceTimersByTimeAsync(5_200)
+    await startup
+
+    expect(readinessChecks).toBe(52)
     expect(mocks.mockLoggerDebug).toHaveBeenCalledWith('Happy background service is ready')
   })
 })
