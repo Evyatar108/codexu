@@ -26,8 +26,8 @@ function Ensure-Remote {
         [string]$Url
     )
 
-    & git -C $Repository remote get-url $Name *> $null
-    if ($LASTEXITCODE -eq 0) {
+    $existing = & git -C $Repository remote 2>$null
+    if ($existing -contains $Name) {
         Invoke-Git $Repository @("remote", "set-url", $Name, $Url)
     } else {
         Invoke-Git $Repository @("remote", "add", $Name, $Url)
