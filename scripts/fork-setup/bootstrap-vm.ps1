@@ -526,6 +526,7 @@ function Test-AndroidSdk {
         $Config.android.cmake = "D:\Android\Sdk\cmake\3.30.5"
         "platform-tools" = "D:\Android\Sdk\platform-tools"
         "emulator" = "D:\Android\Sdk\emulator"
+        "extras;google;usb_driver" = "D:\Android\Sdk\extras\google\usb_driver"
     }
     foreach ($entry in $paths.GetEnumerator()) {
         if (Test-Path $entry.Value) {

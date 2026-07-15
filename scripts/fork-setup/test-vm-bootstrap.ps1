@@ -33,6 +33,9 @@ foreach ($pin in @($config.portable.jdk, $config.portable.cloudflared)) {
 if ($config.android.commandLineTools.checksum -notmatch "^[0-9a-f]{40}$") {
     throw "Android command-line tools are missing the official SHA1 pin."
 }
+if ($config.android.additionalPackages -notcontains "extras;google;usb_driver") {
+    throw "Android Google USB driver package is missing."
+}
 if ($config.plugins.enabledAllowlist -contains "crews@ai-developer-toolkit") {
     throw "Crews must not be enabled by bootstrap."
 }
