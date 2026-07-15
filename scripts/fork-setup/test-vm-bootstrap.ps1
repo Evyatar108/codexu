@@ -220,10 +220,10 @@ foreach ($case in $finalReviewCases) {
 
     $cleanupReviewCases = @(
         @{
-            Name = "Exact-ref cleanup validates, deinitializes, then force-removes"
+            Name = "Exact-ref cleanup validates then force-removes without deinit"
             Pass = $bootstrapText -match "Remove-CleanCodexRefWorktree" -and
-                $bootstrapText -match '"submodule", "deinit", "--force"' -and
                 $bootstrapText -match '"worktree", "remove", "--force"' -and
+                $bootstrapText -notmatch '"submodule", "deinit", "--force"' -and
                 $bootstrapText -match "Nested source is dirty or mismatched; preserving"
         },
         @{
@@ -347,6 +347,7 @@ param(
     [string]$Root,
     [string]$ManifestPath,
     [string]$ConfigPath,
+    [switch]$AllowNewerRootSnapshot,
     [switch]$ValidateOnly,
     [switch]$RestoreWorkspace
 )
@@ -354,6 +355,7 @@ param(
     Root = $Root
     ManifestPath = $ManifestPath
     ConfigPath = $ConfigPath
+    AllowNewerRootSnapshot = [bool]$AllowNewerRootSnapshot
     ValidateOnly = [bool]$ValidateOnly
     RestoreWorkspace = [bool]$RestoreWorkspace
 } | ConvertTo-Json), [Text.Encoding]::ASCII)
@@ -372,8 +374,34 @@ param(
         }
         $captured = Get-Content $wrapperCapture -Raw | ConvertFrom-Json
         if ($captured.Root -ne $targetRoot -or $captured.ManifestPath -ne $wrapperManifest -or
-            $captured.ConfigPath -ne $wrapperConfig -or -not $captured.ValidateOnly -or $captured.RestoreWorkspace) {
+            $captured.ConfigPath -ne $wrapperConfig -or $captured.AllowNewerRootSnapshot -or
+            -not $captured.ValidateOnly -or $captured.RestoreWorkspace) {
             throw "Separated-target wrapper fixture did not forward the tooling/target contract."
+        }
+        Remove-Item Env:VM_BOOTSTRAP_WRAPPER_CAPTURE -ErrorAction SilentlyContinue
+
+        $sameCheckout = Join-Path $fixtureBase "same-checkout"
+        $sameScripts = Join-Path $sameCheckout "scripts\fork-setup"
+        $sameDocs = Join-Path $sameCheckout "docs"
+        New-Item -ItemType Directory -Force -Path $sameScripts | Out-Null
+        New-Item -ItemType Directory -Force -Path $sameDocs | Out-Null
+        Copy-Item (Join-Path $PSScriptRoot "restore-vm-workspace.ps1") (Join-Path $sameScripts "restore-vm-workspace.ps1")
+        [IO.File]::WriteAllText((Join-Path $sameScripts "vm-bootstrap-config.json"), "{}", [Text.Encoding]::ASCII)
+        [IO.File]::WriteAllText((Join-Path $sameDocs "vm-migration-manifest.json"), "{}", [Text.Encoding]::ASCII)
+        $sameCapture = Join-Path $fixtureBase "same-wrapper-capture.json"
+        $env:VM_BOOTSTRAP_WRAPPER_CAPTURE = $sameCapture
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $sameScripts "restore-vm-workspace.ps1") `
+            -BootstrapPath $wrapperStub -AllowNewerRootSnapshot
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path $sameCapture)) {
+            throw "Same-checkout wrapper fixture did not execute."
+        }
+        $sameCaptured = Get-Content $sameCapture -Raw | ConvertFrom-Json
+        if ($sameCaptured.Root -ne $sameCheckout -or
+            $sameCaptured.ManifestPath -ne (Join-Path $sameDocs "vm-migration-manifest.json") -or
+            $sameCaptured.ConfigPath -ne (Join-Path $sameScripts "vm-bootstrap-config.json") -or
+            -not $sameCaptured.AllowNewerRootSnapshot -or $sameCaptured.ValidateOnly -or
+            -not $sameCaptured.RestoreWorkspace) {
+            throw "Same-checkout wrapper fixture did not preserve compatible defaults/switch forwarding."
         }
         Remove-Item Env:VM_BOOTSTRAP_WRAPPER_CAPTURE -ErrorAction SilentlyContinue
 
@@ -444,6 +472,8 @@ param(
         & git -C $codexRepository update-index --add --cacheinfo "160000,$nestedCommit,external/repos/codex-patched"
         & git -C $codexRepository commit --quiet -m codex-wrapper
         $CodexExpectedCommit = (& git -C $codexRepository rev-parse HEAD).Trim()
+        $privateMirror = $nestedSource
+        & git -C $codexRepository config submodule.external/repos/codex-patched.url $privateMirror
         $script:CodexRefInputValid = $true
         $CodexRefWorktreeRoot = Join-Path $fixtureBase "cwb"
         $Root = $codexTargetRoot
@@ -477,6 +507,9 @@ param(
         if (Test-Path $refWorktree) {
             throw "Production cleanup fixture left the exact-ref worktree behind."
         }
+        if ((& git -C $codexRepository config submodule.external/repos/codex-patched.url) -ne $privateMirror) {
+            throw "Exact-ref cleanup fixture mutated shared private-mirror config."
+        }
         $dirtyRefWorktree = New-CodexRefWorktree $codexManifest
         $dirtyNested = Join-Path $dirtyRefWorktree "external\repos\codex-patched"
         [IO.File]::WriteAllText((Join-Path $dirtyNested "unexpected.txt"), "dirty", [Text.Encoding]::ASCII)
@@ -491,7 +524,6 @@ param(
             throw "Dirty exact-ref cleanup fixture was not preserved."
         }
         Remove-Item (Join-Path $dirtyNested "unexpected.txt") -Force
-        & git -C $dirtyRefWorktree submodule deinit --force -- external/repos/codex-patched
         & git -C $codexRepository worktree remove --force $dirtyRefWorktree
 
         $oldPath = $env:Path

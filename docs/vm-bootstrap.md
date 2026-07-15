@@ -79,6 +79,19 @@ When omitted, `ManifestPath` and `ConfigPath` default to the wrapper's tooling
 checkout, while `Root` defaults to that same checkout for backward
 compatibility.
 
+If the tooling was committed as a clean descendant on the same migration
+branch and the tooling checkout is also the target, preserve legacy
+same-checkout use explicitly:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File scripts\fork-setup\restore-vm-workspace.ps1 `
+  -AllowNewerRootSnapshot
+```
+
+The wrapper forwards this switch to bootstrap preflight. It does not permit a
+different branch, unrelated commit, or dirty checkout.
+
 It delegates to the manifest-driven restore, validates every recorded branch
 and SHA, restores all priority worktrees, and recursively initializes nested
 submodules. Manifest mirror URLs are configured before any update can fetch.
@@ -155,6 +168,10 @@ success; failures preserve it and print its diagnostic path. Override with
 `-CodexRefWorktreeRoot` only when another short real path is required. Add
 `-InstallCodexPackage` in the same invocation to install that produced
 artifact and bind installed provenance to the source commit.
+
+Cleanup validates parent and nested cleanliness plus artifact provenance, then
+uses force worktree removal directly. It does not run `git submodule deinit`,
+so linked worktrees retain the shared private-mirror submodule configuration.
 
 The bootstrap never reconstructs a fix by editing installed npm or plugin
 caches.

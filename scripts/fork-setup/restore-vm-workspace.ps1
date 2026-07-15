@@ -4,6 +4,7 @@ param(
     [string]$ManifestPath,
     [string]$ConfigPath,
     [string]$BootstrapPath,
+    [switch]$AllowNewerRootSnapshot,
     [switch]$ValidateOnly
 )
 
@@ -32,6 +33,9 @@ if ($ValidateOnly) {
     $arguments += "-ValidateOnly"
 } else {
     $arguments += "-RestoreWorkspace"
+}
+if ($AllowNewerRootSnapshot) {
+    $arguments += "-AllowNewerRootSnapshot"
 }
 & powershell.exe @arguments
 exit $LASTEXITCODE

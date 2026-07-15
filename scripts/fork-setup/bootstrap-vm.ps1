@@ -1063,11 +1063,6 @@ function Remove-CleanCodexRefWorktree {
         $provenance.artifactSha256 -ne $ArtifactSha256.ToLowerInvariant()) {
         throw "Artifact provenance does not match exact source; preserving $Worktree."
     }
-    Invoke-Git $Worktree @("submodule", "deinit", "--force", "--", $nestedPath) | Out-Null
-    $postDeinitStatus = @(& git -C $Worktree status --porcelain)
-    if ($postDeinitStatus.Count -gt 0) {
-        throw "Submodule deinit changed tracked state; preserving $Worktree."
-    }
     Invoke-Git $SourceRepository @("worktree", "remove", "--force", $Worktree) | Out-Null
     if (Test-Path $Worktree) {
         throw "Worktree cleanup did not remove $Worktree."
