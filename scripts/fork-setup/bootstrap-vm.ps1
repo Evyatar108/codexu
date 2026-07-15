@@ -804,6 +804,70 @@ function Test-PropertiesSecretGate {
     }
 }
 
+function Test-CloudflareTunnelIdentity {
+    param([pscustomobject]$CloudflaredConfig)
+    $expectedName = [string]$CloudflaredConfig.namedTunnel.name
+    $expectedId = [string]$CloudflaredConfig.namedTunnel.id
+    $credentials = Join-Path $env:USERPROFILE ".cloudflared\$expectedId.json"
+    if (Test-Path $credentials) {
+        try {
+            $acl = Get-Acl $credentials
+            $unsafe = @($acl.Access | Where-Object {
+                $_.AccessControlType -eq "Allow" -and
+                $_.IdentityReference -match "Everyone|Users|Authenticated Users" -and
+                $_.FileSystemRights.ToString() -match "Write|FullControl|Modify"
+            })
+            if ($unsafe.Count -gt 0) {
+                Add-Result "FAIL" "cloudflare:tunnel-credentials" "Credential file $expectedId.json has broad write ACLs."
+            } else {
+                Add-Result "PASS" "cloudflare:tunnel-credentials" "Credential filename and ACL match tunnel id $expectedId; contents were not read."
+            }
+        } catch {
+            Add-Result "GATED" "cloudflare:tunnel-credentials" "Credential filename matches $expectedId, but ACL inspection failed."
+        }
+    } else {
+        Add-Result "GATED" "cloudflare:tunnel-credentials" "Expected credential file named $expectedId.json."
+    }
+    $command = Get-Command cloudflared -ErrorAction SilentlyContinue
+    if (-not $command) {
+        Add-Result "GATED" "cloudflare:tunnel-identity" "cloudflared is unavailable; expected tunnel $expectedName ($expectedId)."
+        return
+    }
+    $oldPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $raw = @(& $command.Source tunnel list --output json 2>&1)
+        $exitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $oldPreference
+    }
+    if ($exitCode -ne 0) {
+        Add-Result "GATED" "cloudflare:tunnel-identity" "Could not query tunnel names/ids; expected $expectedName ($expectedId)."
+        return
+    }
+    try {
+        $jsonStart = -1
+        for ($index = 0; $index -lt $raw.Count; $index++) {
+            if ([string]$raw[$index] -match "^\s*[\[\{]") {
+                $jsonStart = $index
+                break
+            }
+        }
+        if ($jsonStart -lt 0) {
+            throw "JSON payload not found."
+        }
+        $tunnels = (($raw[$jsonStart..($raw.Count - 1)] | Out-String).Trim() | ConvertFrom-Json)
+        $match = @($tunnels | Where-Object { $_.name -eq $expectedName -and $_.id -eq $expectedId })
+        if ($match.Count -eq 1) {
+            Add-Result "PASS" "cloudflare:tunnel-identity" "Named tunnel is $expectedName with id $expectedId."
+        } else {
+            Add-Result "FAIL" "cloudflare:tunnel-identity" "Expected exactly one tunnel named $expectedName with id $expectedId."
+        }
+    } catch {
+        Add-Result "GATED" "cloudflare:tunnel-identity" "Tunnel query returned no parseable names/ids."
+    }
+}
+
 function Test-OperatorGates {
     Add-Result "GATED" "gate:github-secondary-saml" "Second GitHub account and SAML authorization require an operator check." $false
     Test-JsonSecretGate "codex-copilot-login" (Join-Path $env:USERPROFILE ".codex\auth.json") "Codex Copilot login"
@@ -811,6 +875,7 @@ function Test-OperatorGates {
         "Android signing properties" @("RELEASE_STORE_FILE", "RELEASE_STORE_PASSWORD", "RELEASE_KEY_ALIAS", "RELEASE_KEY_PASSWORD")
     Test-JsonSecretGate "firebase-login" (Join-Path $env:APPDATA "configstore\firebase-tools.json") "Firebase login"
     Test-SecretAclGate "cloudflare-login" (Join-Path $env:USERPROFILE ".cloudflared\cert.pem") "Cloudflare login"
+    Test-CloudflareTunnelIdentity $config.portable.cloudflared
     Test-JsonSecretGate "public-tunnel" (Join-Path $env:USERPROFILE ".happy\public-tunnel.json") `
         "Happy public tunnel configuration" @("hostname", "tunnelName", "cloudflareAccess")
     Add-Result "GATED" "gate:usb-authorization" "USB authorization requires the operator and a connected device." $false

@@ -69,6 +69,10 @@ caches.
 
 - Version pins and verified JDK/cloudflared URLs and SHA256 values live in
   `scripts\fork-setup\vm-bootstrap-config.json`.
+- Cloudflared is pinned to 2026.7.2 Windows amd64. Validation checks only the
+  named tunnel identity `happy` / `ebd51c79-c883-4850-a9bd-403c1513ed36`,
+  its credential filename, and `cert.pem` ACL/existence. Certificate content
+  is never read or printed.
 - `D:` maps persistently at user logon to `C:\dev-drive`.
   `D:\codex-sccache`, `D:\cxb`, and `D:\Android\Sdk` are durable roots.
 - Git Bash `usr\bin` is never globally added to `PATH`; narrow wrappers cover

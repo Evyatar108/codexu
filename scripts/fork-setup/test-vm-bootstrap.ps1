@@ -29,6 +29,14 @@ foreach ($pin in @($config.portable.jdk, $config.portable.cloudflared)) {
     if ($pin.sha256 -notmatch "^[0-9a-f]{64}$") {
         throw "Portable download is missing a pinned SHA256."
     }
+    if ($config.portable.cloudflared.version -ne "2026.7.2" -or
+        $config.portable.cloudflared.sha256 -ne "cdb5d4432f6ae1595654a692a51308b69d2bf7af961f5578d9391837cf072df9") {
+        throw "Cloudflared release pin is stale."
+    }
+    if ($config.portable.cloudflared.namedTunnel.name -ne "happy" -or
+        $config.portable.cloudflared.namedTunnel.id -ne "ebd51c79-c883-4850-a9bd-403c1513ed36") {
+        throw "Cloudflare named tunnel identity is stale."
+    }
 }
 if ($config.android.commandLineTools.checksum -notmatch "^[0-9a-f]{40}$") {
     throw "Android command-line tools are missing the official SHA1 pin."
