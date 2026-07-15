@@ -1,5 +1,8 @@
-# scripts/fork-setup/setup-services.ps1 -- run in ELEVATED PowerShell
-# Sets up happy-server + cloudflared as Windows services on a fresh machine.
+# scripts/fork-setup/setup-services.ps1 -- legacy standalone deployment only
+# This is NOT the current daemon-owned public-mode bootstrap. Current public
+# mode embeds happy-server in the daemon and starts its own cloudflared child.
+# See docs/vm-bootstrap.md. This script requires an explicit legacy switch.
+# Run in ELEVATED PowerShell only for an intentionally retained old deployment.
 # Idempotent: re-running overwrites the service configs cleanly.
 #
 # Prerequisites:
@@ -14,7 +17,7 @@
 # - happy-server installed in the primary clone at D:\harness-efforts\happy
 #   with .env.dev already set up.
 #
-# What this script does:
+# What the legacy script does:
 #   1. Check prereqs are present.
 #   2. Stop + kill any running cloudflared / happy-server.
 #   3. Uninstall any existing HappyServer / cloudflared services.
@@ -23,6 +26,13 @@
 #   5. Register HappyServer via nssm (wraps pnpm --filter happy-server standalone:dev).
 #   6. Register cloudflared via nssm (wraps cloudflared --config <sys> tunnel run).
 #   7. Start both, probe the tunnel.
+
+[CmdletBinding()]
+param([switch]$LegacyStandaloneServices)
+
+if (-not $LegacyStandaloneServices) {
+    throw "Legacy NSSM services are not used by daemon-owned public mode. Pass -LegacyStandaloneServices only for an intentional old standalone deployment."
+}
 
 $ErrorActionPreference = "Continue"
 

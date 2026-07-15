@@ -86,7 +86,8 @@ Activity-log readers MUST tolerate a final torn line: if `JSON.parse` fails on t
 |---|---|
 | Backlog + follow-ups + shipped log | `docs/fork-roadmap.md` |
 | Setup, branches, build workflow, known debt, decision log | `docs/fork-notes.md` |
-| Windows Services setup for happy-server + cloudflared | `scripts/fork-setup/setup-services.ps1` |
+| VM bootstrap and restore | `docs/vm-bootstrap.md`, `scripts/fork-setup/bootstrap-vm.ps1` |
+| Legacy standalone Windows Services (not daemon-owned public mode) | `scripts/fork-setup/setup-services.ps1 -LegacyStandaloneServices` |
 | Day-to-day service ops (restart, logs, failure modes) | `.agents/skills/happy-service-manage/SKILL.md` |
 | JS-only edit-reload loop on the tablet | `.agents/skills/happy-tablet-iterate/SKILL.md` |
 | Claude Code metadata-tag discovery for `MarkdownView` | `.agents/skills/happy-discover-metadata-tags/SKILL.md` |

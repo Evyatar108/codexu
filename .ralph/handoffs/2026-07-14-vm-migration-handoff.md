@@ -163,3 +163,21 @@ powershell -ExecutionPolicy Bypass -File scripts\fork-setup\restore-vm-workspace
 
 Then verify `codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched`
 is on `6d73e16c44d65ac243834a942d7fab2c3b279221` before changing any file.
+
+## Bootstrap automation update
+
+The legacy restore command now delegates to
+`scripts\fork-setup\bootstrap-vm.ps1 -RestoreWorkspace`. The orchestrator
+validates every recorded worktree branch and SHA, restores the toolkit routing
+worktree omitted by the original script, and initializes nested submodules
+recursively. Its read-only acceptance mode is:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fork-setup\bootstrap-vm.ps1 -ValidateOnly
+```
+
+Toolchains, Happy source linking, plugin allowlisting, Android, Codex caches,
+and operator gates are documented in `docs\vm-bootstrap.md`. PRD B remains
+paused and unpublished. Validation does not mutate its worktrees. Local-only
+package/plugin fixes are publication gates or operator-supplied inputs, never
+invented remote refs.

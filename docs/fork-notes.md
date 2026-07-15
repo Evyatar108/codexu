@@ -18,6 +18,11 @@
 > - The `https://happy.evyatar.dev` Cloudflare single-user-server section (further down) documents the
 >   operator's personal deployment; treat the domain there as **operator-environment config**, not a fork
 >   default (a task tracks moving any in-code domain default to an env var + defaulting autoconnect off).
+> - **Current VM bootstrap:** use `scripts/fork-setup/bootstrap-vm.ps1`; see
+>   `docs/vm-bootstrap.md`. Optional public mode is daemon-owned and starts its
+>   own outbound cloudflared provider. It does not use the historical NSSM
+>   HappyServer/cloudflared services described later. Android restores the
+>   committed native sources directly and does not run Expo prebuild.
 
 Personal fork of [slopus/happy](https://github.com/slopus/happy), started to fix a UI-hang bug on an Android e-ink tablet and tack on some tablet-UX conveniences the upstream app doesn't have. This file is the source of truth for where the code lives, which branch does what, and how to rebuild when something changes.
 
