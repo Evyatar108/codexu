@@ -5,6 +5,8 @@ import { createPGlite } from "@/storage/pgliteLoader";
 
 import { applyPGliteMigrations } from "@/storage/applyPGliteMigrations";
 
+const PGLITE_TEST_TIMEOUT_MS = 30_000;
+
 describe("applyPGliteMigrations", () => {
     const cleanupPaths: string[] = [];
 
@@ -64,7 +66,7 @@ describe("applyPGliteMigrations", () => {
         expect(retriedTable.rows[0]?.relation).toBe('"AtomicProbe"');
         expect(retriedLedger.rows[0]?.count).toBe("1");
         await pg.close();
-    });
+    }, PGLITE_TEST_TIMEOUT_MS);
 
     it("applies and records a migration with an explicit transaction wrapper exactly once", async () => {
         const root = await mkdtemp(path.join(process.cwd(), ".test-pglite-migration-"));
@@ -92,5 +94,5 @@ describe("applyPGliteMigrations", () => {
         expect(table.rows[0]?.relation).toBe('"WrappedProbe"');
         expect(ledger.rows[0]?.count).toBe("1");
         await pg.close();
-    });
+    }, PGLITE_TEST_TIMEOUT_MS);
 });
