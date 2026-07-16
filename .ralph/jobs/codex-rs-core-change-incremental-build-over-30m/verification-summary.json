@@ -1,0 +1,132 @@
+{
+  "taskId": "codex-rs-core-change-incremental-build-over-30m",
+  "commits": [
+    "e1d4964f0195178c1b6c3a2baf30251ed9becbf9",
+    "d0fc7a01e37bdf4419956e234f80cfb60fc21174",
+    "d3096cdcaae7387973355e89f32dd4f76cd65216",
+    "e7156aec4a8356ef2fb629a8d5b432b5fbf3084b",
+    "e073c312",
+    "2a95dd19c89fc99492d0e5a25d77cb070fe77da3"
+  ],
+  "branch": "ralph/codex-rs-core-change-incremental-build-over-30m",
+  "measurements": [
+    {
+      "scenario": "targeted-post-restore-noop",
+      "runId": "d001-targeted-post-restore-noop-final4",
+      "wallSeconds": 4.599,
+      "budgetSeconds": 30,
+      "status": "pass",
+      "rebuiltPackages": 0,
+      "freshness": "pass"
+    },
+    {
+      "scenario": "targeted-core-edit-followup",
+      "runId": "d001-targeted-core-edit-followup-final4",
+      "wallSeconds": 100.137,
+      "budgetSeconds": 120,
+      "status": "pass",
+      "rebuiltPackages": 1,
+      "restoration": "clean",
+      "reconciliationSeconds": 7.89,
+      "reconciliationRebuiltPackages": 1
+    },
+    {
+      "scenario": "workspace-high-fanout-edit-followup",
+      "runId": "d001-workspace-high-edit-followup-final4",
+      "wallSeconds": 54.691,
+      "budgetSeconds": 600,
+      "status": "pass",
+      "rebuiltPackages": 30,
+      "restoration": "clean",
+      "reconciliationSeconds": 25.889,
+      "reconciliationRebuiltPackages": 30
+    }
+  ],
+  "observedNoopFailures": [
+    {
+      "wallSeconds": 70.541,
+      "freshness": "pass"
+    },
+    {
+      "wallSeconds": 67.64,
+      "freshness": "pass"
+    }
+  ],
+  "tests": [
+    {
+      "name": "workspace metadata preflight",
+      "status": "pass"
+    },
+    {
+      "name": "iteration environment path suite",
+      "command": "bash scripts/test_iteration_env_sccache_path.sh",
+      "status": "pass",
+      "evidence": "evidence/terminal-iteration-env-final.log"
+    },
+    {
+      "name": "workspace T2 gate",
+      "command": "bash scripts/verify-core-change.sh workspace",
+      "status": "pass",
+      "evidence": "evidence/workspace-typecheck-gate-terminal.log"
+    },
+    {
+      "name": "git diff check",
+      "command": "git diff --check",
+      "status": "pass",
+      "evidence": "evidence/terminal-git-diff-check-final.log"
+    },
+    {
+      "name": "node verifier regression suite",
+      "command": "node scripts/test_verify_core_change.mjs",
+      "status": "pass",
+      "tests": 14,
+      "evidence": "evidence/terminal-node-tests-real-cargo-followup.log"
+    },
+    {
+      "name": "PowerShell measurement regression suite",
+      "command": "pwsh -NoProfile -File scripts/test_measure_build.ps1",
+      "status": "pass",
+      "evidence": "evidence/terminal-measure-tests-real-cargo-followup.log"
+    },
+    {
+      "name": "real Cargo reconciliation integration",
+      "command": "pwsh -NoProfile -File scripts/test_measure_build_real_cargo.ps1",
+      "status": "pass",
+      "evidence": "evidence/terminal-real-cargo-integration.log",
+      "lockWaitObserved": true,
+      "recoveryNormalizationOwnerRebuilds": 1,
+      "externalChecksFresh": 2,
+      "unrelatedArtifactPreserved": true
+    }
+  ],
+  "reviews": {
+    "code": "clean",
+    "docs": "clean",
+    "security": "skipped"
+  },
+  "environment": {
+    "cargo": "1.97.0",
+    "rustc": "1.97.0",
+    "llvm": "22.1.2",
+    "sccache": "0.16.0",
+    "sccacheDirectory": "D:\\codex-sccache",
+    "lto": "off",
+    "codegenUnits": 16,
+    "incremental": 0,
+    "jobs": 8,
+    "patchedCommit": "587a6a8ab8948ff912b1f24a62833b277934302d",
+    "measuredScriptSha256": "1cd9ae97e556518a5b5a504c3d4d9e5c9d71c22e8b8356acf8ba8367211c92bd",
+    "currentScriptSha256": "a67806eaf03d3b46338354a3abe0a73b08e6b3c78d8f44640b794d871ce669fb"
+  },
+  "recordedAt": "2026-07-16T21:41:10.775982Z",
+  "commit": "2a95dd19c89fc99492d0e5a25d77cb070fe77da3",
+  "reconciliationFailureSafety": {
+    "status": "pass",
+    "strategy": "Cargo-locked workspace-owner package clean plus normalization",
+    "wholeSharedTargetPreserved": true,
+    "unrelatedSentinelPreserved": true,
+    "externalDependenciesExcluded": true,
+    "concurrentRejectionFailsClosed": true,
+    "futureArtifactTruthfulAfterNormalization": true
+  }
+}

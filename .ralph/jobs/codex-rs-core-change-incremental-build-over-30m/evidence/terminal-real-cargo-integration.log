@@ -1,0 +1,58 @@
+[measure-build] runId=test-real-cargo-reconciliation-locking-11524 scenario=real-cargo-reconciliation-locking tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p probe-owner
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-real-cargo-reconciliation-locking-11524.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-real-cargo-reconciliation-locking-11524.csv
+    Blocking waiting for file lock on package cache
+   Compiling probe-owner v0.1.0 (C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\real-cargo-integration-11524\workspace\probe-owner)
+      Timing report saved to C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\real-cargo-integration-11524\workspace\target\cargo-timings\cargo-timing-20260716T212925093Z-453002f4166d7f3e.html
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.35s
+   Compiling probe-owner v0.1.0 (C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\real-cargo-integration-11524\workspace\probe-owner)
+error: failed to run custom build command for `probe-owner v0.1.0 (C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\real-cargo-integration-11524\workspace\probe-owner)`
+
+Caused by:
+  process didn't exit successfully: `C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\real-cargo-integration-11524\workspace\target\debug\build\probe-owner-d2b9ee9c3acea2bc\build-script-build` (exit code: 101)
+  --- stdout
+  cargo:rerun-if-changed=src/lib.rs
+  cargo:rerun-if-env-changed=REAL_CARGO_TEST_FAIL_COUNTS
+
+  --- stderr
+
+  thread 'main' (6256) panicked at probe-owner\build.rs:15:9:
+  intentional real Cargo reconciliation failure at build count 3
+  note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+      Timing report saved to C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\real-cargo-integration-11524\workspace\target\cargo-timings\cargo-timing-20260716T212930536Z-453002f4166d7f3e.html
+    Blocking waiting for file lock on build directory
+     Removed 22 files, 2.8MiB total
+   Compiling probe-owner v0.1.0 (C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\real-cargo-integration-11524\workspace\probe-owner)
+      Timing report saved to C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\real-cargo-integration-11524\workspace\target\cargo-timings\cargo-timing-20260716T212939475Z-453002f4166d7f3e.html
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.98s
+Probe restoration failed: reconcile restored source artifacts: Cargo exited 101
+{
+  "status": "pass",
+  "measuredExitCode": 4,
+  "measuredStartedAt": "2026-07-16T21:29:15.1284694+00:00",
+  "measuredFinishedAt": "2026-07-16T21:29:41.8088426+00:00",
+  "concurrentCargo": {
+    "startedAt": "2026-07-16T14:29:30.3377902-07:00",
+    "finishedAt": "2026-07-16T14:29:37.0484674-07:00",
+    "exitCode": 0
+  },
+  "reconciliationStartedAt": "2026-07-16T21:29:30.3287683+00:00",
+  "packageCleanExitCode": 0,
+  "recoveryNormalizationExitCode": 0,
+  "ownerFingerprintInvalidated": true,
+  "unrelatedFingerprintPreserved": true,
+  "unrelatedArtifactPreserved": true,
+  "unrelatedArtifactSha256": "26784aeb3e1ef96eef5eca8990a9cb3b00cb8a01a9f25c2df9e6b29c02cbf484",
+  "recoveryNormalizationOwnerRebuilds": 1,
+  "firstCheckOwnerRebuilds": 0,
+  "firstCheckOwnerFresh": 1,
+  "secondCheckOwnerRebuilds": 0,
+  "secondCheckOwnerFresh": 1,
+  "concurrentCargoDurationSeconds": 6.711,
+  "realSharedTargetOverlapObserved": true,
+  "realCargoLockWaitDiagnosticObserved": true
+}
+real Cargo reconciliation locking integration passed
+
+warning: in the working copy of 'Cargo.lock', LF will be replaced by CRLF the next time Git touches it

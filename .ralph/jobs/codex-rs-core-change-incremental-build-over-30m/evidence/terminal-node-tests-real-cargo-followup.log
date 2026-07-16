@@ -1,0 +1,94 @@
+TAP version 13
+# Subtest: requires an explicit known tier
+ok 1 - requires an explicit known tier
+  ---
+  duration_ms: 2.2773
+  type: 'test'
+  ...
+# Subtest: targeted requires exact repeatable packages and deduplicates stably
+ok 2 - targeted requires exact repeatable packages and deduplicates stably
+  ---
+  duration_ms: 1.1248
+  type: 'test'
+  ...
+# Subtest: package flags and slow confirmation stay isolated by tier
+ok 3 - package flags and slow confirmation stay isolated by tier
+  ---
+  duration_ms: 0.2709
+  type: 'test'
+  ...
+# Subtest: metadata validation accepts only exact unique workspace members
+ok 4 - metadata validation accepts only exact unique workspace members
+  ---
+  duration_ms: 0.4378
+  type: 'test'
+  ...
+# Subtest: tiers produce exact canonical argv without escalation
+ok 5 - tiers produce exact canonical argv without escalation
+  ---
+  duration_ms: 0.3421
+  type: 'test'
+  ...
+# Subtest: slow tiers reject unconfirmed execution before Cargo
+ok 6 - slow tiers reject unconfirmed execution before Cargo
+  ---
+  duration_ms: 170.2974
+  type: 'test'
+  ...
+# Subtest: shell wrapper rejects unconfirmed slow tiers before iteration setup
+ok 7 - shell wrapper rejects unconfirmed slow tiers before iteration setup
+  ---
+  duration_ms: 356.5015
+  type: 'test'
+  ...
+# Subtest: iteration tiers require only canonical sccache configuration
+ok 8 - iteration tiers require only canonical sccache configuration
+  ---
+  duration_ms: 4653.7811
+  type: 'test'
+  ...
+# Subtest: iteration tiers reject missing sccache before Cargo and report it in plan JSON
+ok 9 - iteration tiers reject missing sccache before Cargo and report it in plan JSON
+  ---
+  duration_ms: 5432.2001
+  type: 'test'
+  ...
+# Subtest: publish preflight rejects non-file archives and non-directory LIB/INCLUDE entries before Cargo
+ok 10 - publish preflight rejects non-file archives and non-directory LIB/INCLUDE entries before Cargo
+  ---
+  duration_ms: 7660.9315
+  type: 'test'
+  ...
+# Subtest: Cargo child status is preserved
+ok 11 - Cargo child status is preserved
+  ---
+  duration_ms: 0.4062
+  type: 'test'
+  ...
+# Subtest: publish runbook checks versions from the codex-rs release directory
+ok 12 - publish runbook checks versions from the codex-rs release directory
+  ---
+  duration_ms: 1.603
+  type: 'test'
+  ...
+# Subtest: recorded evidence preserves useful budgets, no-op freshness, scope, and healthy cache
+ok 13 - recorded evidence preserves useful budgets, no-op freshness, scope, and healthy cache
+  ---
+  duration_ms: 0.9528
+  type: 'test'
+  ...
+# Subtest: operator docs prescribe tier wrappers and isolated cache experiments
+ok 14 - operator docs prescribe tier wrappers and isolated cache experiments
+  ---
+  duration_ms: 135.7839
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 18440.1078

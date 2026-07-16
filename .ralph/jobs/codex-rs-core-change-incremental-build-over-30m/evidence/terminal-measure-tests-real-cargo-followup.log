@@ -1,0 +1,204 @@
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'multiple.txt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'probe-two.txt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'probe.txt', LF will be replaced by CRLF the next time Git touches it
+[measure-build] runId=20260716T205322Z scenario= tier=executable parseOnly=True packages=
+[measure-build] runId=positional-run scenario=positional-scenario tier=executable parseOnly=True packages=
+[measure-build] runId=colon-run scenario=abbreviated-scenario tier=executable parseOnly=True packages=
+[measure-build] runId=exact-run scenario=exact-scenario tier=executable parseOnly=True packages=
+[measure-build] runId=20260716T205326Z scenario= tier=executable parseOnly=True packages=
+[measure-build] runId=20260716T205327Z scenario= tier=publish parseOnly=True packages=
+[measure-build] -Package is required for targeted.
+[measure-build] -Tier must be one of: targeted, workspace, executable, publish. Received: invalid
+[measure-build] Unknown parameter: -Unknown
+[measure-build] Duplicate parameter: -Tier
+[measure-build] -Tier requires a value.
+[measure-build] -RunId requires a value.
+[measure-build] -Package requires a value.
+[measure-build] Ambiguous parameter: -P (ParseOnly, Package, ProbeSpec)
+[measure-build] -ParseOnly requires a Boolean value after ':'.
+[measure-build] Duplicate parameter: -ParseOnly
+[measure-build] Duplicate parameter: -Scenario
+[measure-build] runId=false-switch-run scenario=false-switch tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\false-switch-run.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\false-switch-run.csv
+[measure-build] -ProbeSpec is supported only for targeted and workspace tiers, not executable.
+[measure-build] -ProbeSpec is supported only for targeted and workspace tiers, not publish.
+[measure-build] -RunId must be one safe filename component using only ASCII letters, digits, dot, underscore, and hyphen.
+[measure-build] -RunId must be one safe filename component using only ASCII letters, digits, dot, underscore, and hyphen.
+[measure-build] -RunId must be one safe filename component using only ASCII letters, digits, dot, underscore, and hyphen.
+[measure-build] -RunId must be one safe filename component using only ASCII letters, digits, dot, underscore, and hyphen.
+[measure-build] -RunId uses a reserved filename component: CON
+[measure-build] -RunId must be one safe filename component using only ASCII letters, digits, dot, underscore, and hyphen.
+[measure-build] -RunId must be one safe filename component using only ASCII letters, digits, dot, underscore, and hyphen.
+[measure-build] Artifact output leaf must not be a symlink, junction, or reparse point: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-linked-output.cargo.jsonl
+[measure-build] runId=test-fake-dirty scenario=dirty-probe tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] ProbeSpec preflight failed: Probe repository must be clean before editing.
+[measure-build] runId=test-fake-wrong-hash scenario=wrong-hash tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] ProbeSpec preflight failed: Original hash mismatch for probe.txt: 82812ab3807f6d1ebfe09e249ba12f3da5c9b4540f75bcc6ae7322b03e4d3acd
+[measure-build] runId=test-missing-file scenario=missing-file tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] ProbeSpec preflight failed: Cannot find path 'C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-measure-build\missing-probe.json' because it does not exist.
+[measure-build] runId=test-malformed-base64 scenario=malformed-base64 tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] ProbeSpec preflight failed: Exception calling "FromBase64String" with "1" argument(s): "The input is not a valid Base-64 string as it contains a non-base 64 character, more than two padding characters, or an illegal character among the padding characters."
+[measure-build] runId=test-fake-multiple scenario=multiple-match tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] ProbeSpec preflight failed: Expected exactly one byte match in multiple.txt; found 2.
+[measure-build] runId=test-fake-success scenario=fake-success tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-success.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-success.csv
+[measure-build] runId=test-fake-truthful-restored-artifacts scenario=truthful-restored-artifacts tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-truthful-restored-artifacts.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-truthful-restored-artifacts.csv
+[measure-build] runId=test-fake-poison-timestamp-fallback scenario=poison-timestamp-fallback tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-poison-timestamp-fallback.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-poison-timestamp-fallback.csv
+[measure-build] runId=test-fake-failed-reconciliation-invalidation scenario=failed-reconciliation-invalidation tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+reconciliation failed 
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-failed-reconciliation-invalidation.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-failed-reconciliation-invalidation.csv
+Probe restoration failed: reconcile restored source artifacts: Cargo exited 9
+[measure-build] runId=test-fake-rebuild-after-failed-reconciliation scenario=rebuild-after-failed-reconciliation tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-rebuild-after-failed-reconciliation.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-rebuild-after-failed-reconciliation.csv
+[measure-build] runId=test-fake-concurrent-cargo-rejected scenario=concurrent-cargo-rejected tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+reconciliation failed 
+target lock held by concurrent cargo 
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-concurrent-cargo-rejected.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-concurrent-cargo-rejected.csv
+Probe restoration failed: invalidate artifacts after failed reconciliation: narrow Cargo package clean: Cargo clean exited 11: target lock held by concurrent cargo; reconcile restored source artifacts: Cargo exited 9
+[measure-build] runId=test-fake-truthful-post-restore-noop scenario=truthful-post-restore-noop tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-truthful-post-restore-noop.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-truthful-post-restore-noop.csv
+[measure-build] runId=test-fake-failed-probe-restored-artifacts scenario=failed-probe-restored-artifacts tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-failed-probe-restored-artifacts.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-failed-probe-restored-artifacts.csv
+[measure-build] runId=test-fake-failed-before-artifact-restored scenario=failed-before-artifact-restored tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-failed-before-artifact-restored.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-failed-before-artifact-restored.csv
+[measure-build] runId=test-fake-failed-after-dependency-restored scenario=failed-after-dependency-restored tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-failed-after-dependency-restored.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-failed-after-dependency-restored.csv
+[measure-build] runId=test-fake-capture-failure-after-start scenario=capture-failure-after-start tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-capture-failure-after-start.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-capture-failure-after-start.csv
+Cargo invocation failed before execution: Injected capture failure after Cargo start.
+[measure-build] runId=test-fake-truthful-after-failed-probe-noop scenario=truthful-after-failed-probe-noop tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-truthful-after-failed-probe-noop.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-truthful-after-failed-probe-noop.csv
+[measure-build] runId=test-fake-noop-freshness scenario=noop-freshness tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-noop-freshness.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-noop-freshness.csv
+[measure-build] runId=20260716T205657Z scenario= tier=targeted parseOnly=True packages=codex-core
+[measure-build] runId=test-fake-noop-budget-fail scenario=noop-budget-fail tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-noop-budget-fail.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-noop-budget-fail.csv
+Acceptance budget missed: 31 seconds > 30.
+[measure-build] targeted-noop cannot use -ProbeSpec because a controlled source edit contradicts no-op freshness.
+[measure-build] runId=test-fake-repeat-probe-1 scenario=repeated-fresh-probe tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-repeat-probe-1.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-repeat-probe-1.csv
+[measure-build] runId=test-fake-repeat-probe-2 scenario=repeated-fresh-probe tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-repeat-probe-2.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-repeat-probe-2.csv
+[measure-build] runId=test-fake-default-provenance scenario=default-provenance tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-default-provenance.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-default-provenance.csv
+[measure-build] runId=test-fake-edited-mismatch scenario=edited-mismatch tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] On-disk edited hash mismatch for probe.txt: 82812ab3807f6d1ebfe09e249ba12f3da5c9b4540f75bcc6ae7322b03e4d3acd
+[measure-build] runId=test-fake-apply-write-failure scenario=apply-write-failure tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] injected probe write failure after truncation
+[measure-build] runId=test-fake-partial-write-timestamp-settlement scenario=partial-write-timestamp-settlement tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] injected probe write failure after truncation
+[measure-build] runId=test-fake-delayed-metadata-settlement scenario=delayed-metadata-settlement tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-delayed-metadata-settlement.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-delayed-metadata-settlement.csv
+[measure-build] runId=test-fake-exclusive-probe-handles scenario=exclusive-probe-handles tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-exclusive-probe-handles.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-exclusive-probe-handles.csv
+[measure-build] runId=test-fake-wall scenario=cargo-wall-only tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-wall.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-wall.csv
+[measure-build] runId=test-fake-failure scenario=fake-failure tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-failure.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-failure.csv
+[measure-build] runId=test-fake-restore scenario=restore-continues tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-restore.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-restore.csv
+Probe restoration failed: restore probe.txt: injected restoration failure; verify probe.txt: hash mismatch; verify probe repository: repository is dirty
+[measure-build] runId=test-fake-mismatch-restore scenario=mismatch-and-restore-failure tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+Probe restoration failed after 'On-disk edited hash mismatch for probe.txt: 82812ab3807f6d1ebfe09e249ba12f3da5c9b4540f75bcc6ae7322b03e4d3acd': restore probe.txt: injected restoration failure; verify probe.txt: mtime mismatch
+[measure-build] runId=test-fake-budget scenario=fake-budget tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-budget.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-budget.csv
+Acceptance budget missed: 121 seconds > 120.
+[measure-build] runId=test-fake-parser scenario=fake-parser tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-parser.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-parser.csv
+Malformed Cargo JSON event: {malformed
+[measure-build] runId=test-fake-sccache-before scenario=invalid-sccache-before tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-sccache-before.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-sccache-before.csv
+Before-build sccache stats unavailable: sccache stats command emitted invalid JSON: Conversion from JSON failed with error: Invalid character after parsing property name. Expected ':' but got:  . Path '', line 3, position 0.
+[measure-build] runId=test-fake-sccache-after scenario=invalid-sccache-after tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-sccache-after.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-sccache-after.csv
+After-build sccache stats unavailable: sccache stats command emitted invalid JSON: Conversion from JSON failed with error: Invalid character after parsing property name. Expected ':' but got:  . Path '', line 3, position 0.
+[measure-build] runId=test-fake-combined-failure scenario=cargo-and-sccache-failure tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-combined-failure.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-combined-failure.csv
+[measure-build] runId=test-fake-start-failure scenario=fake-start-failure tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-start-failure.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-start-failure.csv
+Cargo invocation failed before execution: Exception calling "Start" with "0" argument(s): "An error occurred trying to start process 'C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-measure-build\bin\does-not-exist' with working directory 'C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-measure-build\probe-repo'. The system cannot find the file specified."
+warning: in the working copy of 'probe.txt', LF will be replaced by CRLF the next time Git touches it
+[measure-build] runId=test-mismatched-repository scenario=mismatched-repository tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] ProbeSpec preflight failed: ProbeSpec repositoryRoot must match the measured workspace Git repository.
+[measure-build] runId=test-fake-traversal scenario=traversal-escape tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] ProbeSpec preflight failed: Probe path escapes repositoryRoot: ..\outside-probe\outside.txt
+[measure-build] runId=test-fake-linked-parent scenario=linked-parent tier=targeted parseOnly=False
+[measure-build] command: cargo check --timings -p codex-core
+[measure-build] ProbeSpec preflight failed: Probe path linked-parent/outside.txt must not contain symlink, junction, or reparse components: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-measure-build\probe-repo\linked-parent
+[measure-build] runId=test-fake-publish scenario=publish-no-sccache tier=publish parseOnly=False
+[measure-build] command: cargo build --release --bin codex --bin codex-core --bin codex-windows-sandbox-setup --bin codex-command-runner --timings
+[measure-build] JSON: C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-publish.json
+[measure-build] CSV:  C:\efforts\codexu\codex\.worktrees\codex-rs-core-change-incremental-build-over-30m\docs\implementation\build-perf-artifacts\test-fake-publish.csv
+measure-build tests passed
