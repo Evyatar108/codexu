@@ -1,0 +1,582 @@
+{
+  "schemaVersion": 1,
+  "taskId": "codex-system-prompt-minimization-vs-claude-code",
+  "phase": "brainstorm",
+  "status": "complete",
+  "completedAt": "2026-07-16T04:45:33Z",
+  "sourceTask": {
+    "file": ".ralph-overview/data.json",
+    "taskId": "codex-system-prompt-minimization-vs-claude-code",
+    "seedLineAtResearchTime": 2136,
+    "scope": "Compare actual Codex and Claude Code prompt composition, classify prompt layers, and define a safe evidence-first minimization path without changing production prompts."
+  },
+  "decision": {
+    "decisionId": "D-001",
+    "verdict": "REVISE",
+    "headline": "GO only for Phase-0 instrumentation and characterization; NO-GO for compact prompt text, section transforms, or any default change.",
+    "implementationReadyScope": [
+      "An opt-in, metadata-only trace that fingerprints the resolved prompt layers, the logical Responses payload, and the final application payload handed to each supported transport.",
+      "Catalog/model provenance capture that distinguishes bundled metadata from synthesized fallback metadata.",
+      "Deterministic fixtures, privacy canaries, drift detection, and a reproducible capture runbook for later experiments."
+    ],
+    "gatedFollowUps": [
+      "Any compact prompt profile or clause removal.",
+      "Moving fixed UI taste from the global model template to a conditional frontend skill.",
+      "Removing or neutralizing anthropomorphic subjectivity/taste language.",
+      "Changing the default prompt profile for any model or provider."
+    ]
+  },
+  "recommendedDirection": "Revise D-001 into an evidence-first program. Plan and implement only Phase 0: opt-in, metadata-only instrumentation at the post-model-resolution and final encoded-request boundaries, with exact model/catalog provenance and fail-closed privacy behavior. Use that trace to run two separate controlled blocks for fork synthesized fallback and upstream bundled gpt-5.6-sol. Do not implement prompt transforms or change defaults until the preregistered factorial experiment passes all contract, quality, safety, and drift gates. If those gates pass, design a separate typed post-model-resolution allowlisted section-transform seam that defaults to baseline and falls back unchanged on unknown model, catalog, hash, or anchor drift.",
+  "correctedClaims": [
+    {
+      "id": "C-001",
+      "claim": "Claude Code is not minimally prompted. The Piebald repository describes a heterogeneous catalog of conditional system strings, tool descriptions, agent prompts, utility prompts, skills, and data prompts; these are not all fragments inserted into every turn.",
+      "confidence": "high for catalog composition; limited for proprietary runtime inclusion and order",
+      "evidence": [
+        "S-CLAUDE-OFFICIAL",
+        "S-PIEBALD",
+        "S-TWEAKCC"
+      ],
+      "caveat": "The pinned Piebald README headline says 515 prompts, while the same pinned tree currently contains 584 indexed markdown files. Neither count is a per-turn prompt count. Anthropic's official repository does not expose the complete runtime prompt-construction implementation."
+    },
+    {
+      "id": "C-002",
+      "claim": "At checked fork state, gpt-5.6-sol is absent from the six-entry bundled model catalog. When the Copilot models endpoint returns that unknown slug, the fork synthesizes ModelInfo from the generic prompt.md and explicitly supplies no model_messages. The synthesized Copilot row sets used_fallback_model_metadata to false, so that existing boolean cannot distinguish synthesized from bundled provenance.",
+      "confidence": "high for checked source",
+      "evidence": [
+        "S-FORK-WRAPPER",
+        "S-FORK-PATCHED-CATALOG",
+        "S-FORK-PATCHED-MODEL-INFO",
+        "S-FORK-COPILOT-ENDPOINT"
+      ],
+      "caveat": "This is fork-current source behavior, not proof of the payload sent by the installed live binary in a particular session. Phase 0 needs an explicit provenance enum rather than inference from used_fallback_model_metadata."
+    },
+    {
+      "id": "C-003",
+      "claim": "Upstream rust-v0.141.0 has a six-model catalog with no gpt-5.6-sol. The later inspected upstream commit 800715d2 bundles gpt-5.6-sol with a model-specific prompt containing anthropomorphic subjectivity and taste language.",
+      "confidence": "high for pinned source",
+      "evidence": [
+        "S-UPSTREAM-0141-CATALOG",
+        "S-UPSTREAM-CURRENT-CATALOG"
+      ],
+      "caveat": "The bundled Sol finding belongs only to 800715d2 in this audit. It must not be attributed to rust-v0.141.0, the older checked fork catalog, or the installed live fork without a trace."
+    },
+    {
+      "id": "C-004",
+      "claim": "The fork generic fallback lacks the GPT-5.5 frontend checklist and rich empathy/personality overlay, but it still asks for a concise, direct, friendly tone.",
+      "confidence": "high",
+      "evidence": [
+        "S-FORK-GENERIC-PROMPT",
+        "S-FORK-GPT55-CATALOG"
+      ],
+      "caveat": "The generic fallback is smaller than GPT-5.5's model-specific prompt; it is not instruction-free."
+    },
+    {
+      "id": "C-005",
+      "claim": "Configuration defaults personality to Pragmatic when the personality feature is enabled, but that does not imply uniform effective wording. An unknown synthesized fallback has no model_messages personality template. Upstream Sol's personality variables are empty and its template lacks the personality placeholder, while anthropomorphic language is baked directly into the main template.",
+      "confidence": "high",
+      "evidence": [
+        "S-FORK-CONFIG",
+        "S-FORK-PATCHED-MODEL-INFO",
+        "S-UPSTREAM-CURRENT-CATALOG"
+      ],
+      "caveat": "Configured personality and effective prompt text must be traced separately."
+    },
+    {
+      "id": "C-006",
+      "claim": "Claude Code has conditional frontend browser verification and detailed visual guidance in an Artifact design skill rather than an equivalent always-on interactive base layer.",
+      "confidence": "medium-high for the extracted catalog",
+      "evidence": [
+        "S-PIEBALD-FRONTEND",
+        "S-PIEBALD-ARTIFACT-DESIGN"
+      ],
+      "caveat": "The exact runtime inclusion conditions and ordering are partly proprietary."
+    },
+    {
+      "id": "C-007",
+      "claim": "No equivalent global Claude Code phrase asserting inner life, another subjectivity, or tastes/preferences was found in the 584-file pinned extracted catalog.",
+      "confidence": "medium",
+      "evidence": [
+        "S-PIEBALD",
+        "S-ANTHROPOMORPHISM-SCAN"
+      ],
+      "caveat": "This is evidence of absence in one extracted catalog, not proof that no equivalent runtime wording exists."
+    },
+    {
+      "id": "C-008",
+      "claim": "Whole base_instructions replacement is unsafe as a minimization mechanism because model override handling clears instruction templates and variables in model_messages. additional_instructions is appended after the resolved base prompt and cannot selectively remove clauses.",
+      "confidence": "high",
+      "evidence": [
+        "S-FORK-PATCHED-MODEL-INFO",
+        "S-FORK-SESSION",
+        "S-FORK-CLIENT"
+      ],
+      "caveat": "A future compact profile therefore needs a typed internal seam rather than either existing configuration escape hatch."
+    },
+    {
+      "id": "C-009",
+      "claim": "No behavioral ablation, outbound request capture, randomized evaluation, or causal experiment has been run for this task.",
+      "confidence": "certain",
+      "evidence": [],
+      "caveat": "No causal quality, latency, cost, or reliability claim is made."
+    }
+  ],
+  "evidenceSeparation": {
+    "forkCurrent": {
+      "codexuCommit": "f575ff28",
+      "wrapperCommit": "3ff55692e7045e85ce78ebe8337ab40b55494c9c",
+      "patchedSourceCommit": "587a6a8ab8948ff912b1f24a62833b277934302d",
+      "finding": "The bundled fork catalog has six models and no gpt-5.6-sol; unknown Copilot slugs are synthesized from generic prompt.md with model_messages absent."
+    },
+    "forkLiveUnverified": {
+      "observedBinary": "codex-cli 0.141.0-copilot-api.3",
+      "observedPath": "C:\\.tools\\.npm-global\\codex.ps1",
+      "finding": "Binary identity was observed, but no request trace was captured. Catalog cache contents, prompt selection, and actual outbound payload remain unverified.",
+      "prohibitedInference": "Do not infer live prompt contents from either the checked fork source or the upstream catalog."
+    },
+    "upstreamReleaseBaseline": {
+      "tag": "rust-v0.141.0",
+      "tagCommit": "3fb81667d30d9d24297216ea61fbfcc4351b2aa9",
+      "finding": "The tag has six bundled models and no gpt-5.6-sol."
+    },
+    "upstreamCurrent": {
+      "currentInspectedCommit": "800715d201651a2a07c2706dca10400109dae3d3",
+      "finding": "This later pin bundles gpt-5.6-sol. Its Sol catalog entry hash is 03859b2face3a8f5dc7534312509bf2c8937fc5c8ebf347a2ad9a9ac509fd27a and its instruction-template hash is e9778714d505f3dd04d44db4394024c5fab5bf6554fc9faa3cdf9cf776b63bb9; anthropomorphic subjectivity/taste wording is part of the main template."
+    }
+  },
+  "alternatives": [
+    {
+      "id": "D-001",
+      "name": "Evidence-first instrumentation, then gated typed transforms",
+      "decision": "REVISE_AND_RECOMMEND",
+      "now": "Implement Phase 0 only.",
+      "later": "Consider allowlisted compact transforms and conditional frontend skill only after experiment gates pass.",
+      "why": "It resolves the live-payload uncertainty without silently changing any runtime contract."
+    },
+    {
+      "id": "D-002",
+      "name": "Replace base_instructions with a compact prompt",
+      "decision": "REJECT",
+      "why": "It clears model instruction templates/variables, changes personality behavior, risks resume/context semantics, and conflates experiment text with runtime plumbing."
+    },
+    {
+      "id": "D-003",
+      "name": "Append counter-instructions through additional_instructions",
+      "decision": "REJECT",
+      "why": "Appending cannot minimize the original prompt, creates contradictions, and adds tokens."
+    },
+    {
+      "id": "D-004",
+      "name": "Move generic behavior and design taste into AGENTS.md",
+      "decision": "REJECT",
+      "why": "AGENTS.md is repository policy, varies by working directory, and must not become a substitute for model/runtime contracts. Only repository-specific design constraints belong there."
+    },
+    {
+      "id": "D-005",
+      "name": "Make an immediate compact profile opt-in without instrumentation",
+      "decision": "NO_GO",
+      "why": "The current live prompt is unverified and there is no causal evidence that the proposed ablations preserve performance."
+    },
+    {
+      "id": "D-006",
+      "name": "Leave all prompts unchanged indefinitely",
+      "decision": "FALLBACK",
+      "why": "This remains the correct outcome if characterization is unstable or the controlled experiment does not show a safe benefit."
+    }
+  ],
+  "verdictMatrix": [
+    {
+      "surface": "Tool definitions, tool-choice semantics, parallel-call metadata, and output schemas",
+      "action": "KEEP",
+      "timing": "immutable",
+      "reason": "Execution contract, not stylistic prose."
+    },
+    {
+      "surface": "Permissions, approvals, sandbox policy, collaboration rules, and plan-mode no-mutation constraints",
+      "action": "KEEP",
+      "timing": "immutable",
+      "reason": "Safety and state-transition contract."
+    },
+    {
+      "surface": "Skills, plugins, extensions, repository/user instructions, and environment truth",
+      "action": "KEEP",
+      "timing": "immutable",
+      "reason": "Dynamic capability and context layers must remain authoritative."
+    },
+    {
+      "surface": "Provider request conversion, message role mapping, personality machinery, and launcher safety rails",
+      "action": "KEEP",
+      "timing": "immutable",
+      "reason": "Wire compatibility and fork safety."
+    },
+    {
+      "surface": "Concise/direct/friendly collaboration language",
+      "action": "REWRITE_CANDIDATE",
+      "timing": "experiment only",
+      "reason": "May be compressible, but no causal evidence yet supports removal."
+    },
+    {
+      "surface": "Fixed generic UI taste and detailed visual-aesthetic checklist",
+      "action": "MOVE",
+      "timing": "gated follow-up",
+      "destination": "A conditional frontend/artifact-design skill; AGENTS.md only for repository-specific design policy.",
+      "reason": "The guidance is task-conditional rather than a universal coding-agent contract."
+    },
+    {
+      "surface": "Anthropomorphic inner-life, subjectivity, taste, and non-mirror language",
+      "action": "REMOVE_OR_NEUTRALIZE_CANDIDATE",
+      "timing": "experiment only",
+      "reason": "It is not a runtime contract, but its interaction with model behavior must be measured before removal."
+    },
+    {
+      "surface": "Repeated behavioral prose already enforced by tools or runtime state",
+      "action": "REMOVE_OR_REWRITE_CANDIDATE",
+      "timing": "experiment only",
+      "reason": "Potential token savings require section-level attribution and held-out evaluation."
+    },
+    {
+      "surface": "Whole base_instructions override",
+      "action": "REJECT",
+      "timing": "never as this mechanism",
+      "reason": "Clears model_messages instruction templates and variables."
+    },
+    {
+      "surface": "additional_instructions append",
+      "action": "REJECT",
+      "timing": "never as minimization mechanism",
+      "reason": "Can only add, not remove or safely move, content."
+    }
+  ],
+  "immutableRuntimeLayers": [
+    {
+      "id": "R-001",
+      "name": "Tools and parallel metadata",
+      "invariant": "Do not remove, alter, or ablate tool definitions, choice rules, parallel-call capabilities, or output schemas."
+    },
+    {
+      "id": "R-002",
+      "name": "Permission and safety state",
+      "invariant": "Do not alter sandbox, approval, escalation, collaboration, or plan-mode mutation restrictions."
+    },
+    {
+      "id": "R-003",
+      "name": "Dynamic capabilities",
+      "invariant": "Preserve skill/plugin/extension/MCP machinery and every pre-existing capability. In the later factorial only, Factor A may vary one hash-pinned candidate frontend-guidance skill and its task-eligibility activation as an explicitly declared treatment; no other dynamic capability may differ."
+    },
+    {
+      "id": "R-004",
+      "name": "Instruction hierarchy",
+      "invariant": "Preserve user instructions, repository instructions, AGENTS.md discovery, and environment/context truth in their existing precedence and order."
+    },
+    {
+      "id": "R-005",
+      "name": "Provider and model semantics",
+      "invariant": "Preserve model selection, catalog provenance, role conversion, request conversion, personality machinery, context-window metadata, and resume behavior."
+    },
+    {
+      "id": "R-006",
+      "name": "Fork launcher rails",
+      "invariant": "Preserve Copilot launcher safety rails and any provider-specific safety appendages byte-for-byte during experiments."
+    }
+  ],
+  "phase0": {
+    "name": "Prompt and outbound-request characterization",
+    "objective": "Prove what prompt and application payload the checked binary hands to its HTTP or WebSocket transport, identify each stable and expected-variant layer, and reject contaminated experiment runs without recording raw prompt or user content. Raw network frames, TLS records, and socket bytes are explicitly out of scope.",
+    "implementationReady": true,
+    "scope": [
+      "Add a default-off environment/config gate for local diagnostics.",
+      "Record model slug, provider identifier, a catalogProvenance enum such as bundled, copilot_synthesized, or generic_local_fallback, and a separate effectiveInstructionSource enum such as config_base_override, resumed_session_history, or resolved_model. Also record comp_hash when present, used_fallback_model_metadata as a separate legacy signal, configured personality, whether model_messages/template variables participate, and binary/source build identity.",
+      "At post-model-resolution, record HMAC-SHA-256 and byte count for resolved model instructions, appended launcher/additional instructions, and final top-level instructions.",
+      "For HTTP Responses, record separate HMACs and byte counts for the logical serialized JSON and the final prepared application entity after request compression and auth mutation, immediately before transport.stream. Do not call either hash raw wire bytes.",
+      "For Responses-over-WebSocket, record the HMAC and byte count of the final serialized Message::Text application payload immediately before send. Per-message deflate, WebSocket framing, TCP, and TLS bytes are out of scope and may be nondeterministic.",
+      "Record hashes/counts for tools, role sequence, permissions/collaboration state, skills/plugins/repository instruction inventory, cache/context state, and request options so controlled semantic-state violations are machine-detectable.",
+      "Classify fields as controlled-stable or expected-variant. Session, thread, turn, window, trace, timestamp, request nonce, and prompt-cache identifiers are expected to vary in fresh sessions and must not invalidate a run merely because their full-payload HMAC changes.",
+      "Alongside each full application-payload HMAC, record a typed canonical experiment-projection HMAC that replaces only an explicit allowlist of expected-variant identifiers/timestamps with type markers. No broad JSON-key stripping is allowed.",
+      "Join resolution and transport events with a random local runCorrelationId and HMAC-derived opaque event correlations; never emit raw session, thread, turn, window, trace, or request identifiers and never change the provider payload.",
+      "Write metadata-only JSONL to a user-selected local path; never emit raw prompt text, request bodies, user messages, secrets, headers, URLs with queries, or tool arguments.",
+      "Add deterministic unit/integration fixtures, a privacy canary, and a runbook that demonstrates one synthesized-fallback capture and one bundled-model capture."
+    ],
+    "nonGoals": [
+      "No prompt text edits.",
+      "No compact profile.",
+      "No model catalog edit.",
+      "No default change.",
+      "No safety, tool, dynamic-context, role-mapping, or launcher-rail ablation.",
+      "No claim that instrumentation results imply behavioral causality."
+    ],
+    "likelyPatchSurface": [
+      "codex/external/repos/codex-patched/codex-rs/core/src/client.rs for resolved instruction-layer metadata and typed semantic request projection at ResponsesApiRequest construction.",
+      "codex/external/repos/codex-patched/codex-rs/model-provider/src/copilot_models_endpoint.rs or an equally authoritative model-resolution seam for explicit bundled-versus-synthesized provenance; used_fallback_model_metadata alone is insufficient.",
+      "codex/external/repos/codex-patched/codex-rs/codex-api/src/endpoint/responses.rs for the logical serialized JSON hash.",
+      "codex/external/repos/codex-patched/codex-rs/codex-api/src/endpoint/session.rs after into_prepared and auth.apply_auth, immediately before transport.stream, for the final HTTP prepared-entity hash.",
+      "codex/external/repos/codex-patched/codex-rs/codex-api/src/endpoint/responses_websocket.rs immediately before Message::Text send for the final WebSocket application-payload hash.",
+      "codex/external/repos/codex-patched/codex-rs/codex-client/src/request.rs only if a read-only prepared-body observer cannot be implemented without widening access.",
+      "A new fork overlay diagnostics crate/module and targeted tests; minimize edits in upstream-owned files.",
+      "Fork documentation for the opt-in trace schema, privacy rules, and experiment capture runbook."
+    ],
+    "privacyModel": {
+      "hash": "HMAC-SHA-256 with an explicit experiment key shared only within one controlled block",
+      "rawContent": "forbidden",
+      "failureMode": "If key, output path, serialization, or redaction validation is invalid, emit no trace and continue the unchanged baseline request path.",
+      "rationale": "Stable block-local HMACs permit equality/drift checks while reducing offline guessing risk versus unsalted hashes."
+    },
+    "acceptanceGates": [
+      "Tracing is default-off and baseline request bytes are identical with tracing disabled.",
+      "For identical synthetic inputs, enabling tracing produces byte-identical logical Responses JSON, final HTTP prepared entity, and final WebSocket application text versus tracing disabled.",
+      "With tracing enabled, the recorded HTTP prepared-entity HMAC matches an independently computed HMAC over synthetic capturing-transport bytes after compression/auth, and the WebSocket application-payload HMAC matches the exact synthetic Message::Text string.",
+      "No raw prompt substring, user content, authorization header, token, tool arguments, or repository file contents appear in trace fixtures or privacy-canary scans.",
+      "A known bundled model and an unknown Copilot slug produce distinct, correct catalog-provenance fields.",
+      "The trace distinguishes configured personality from effective model_messages/template participation.",
+      "HTTP and WebSocket request paths use explicitly named, transport-appropriate application boundaries; unsupported paths are rejected explicitly and there is no claim to raw wire/TLS equivalence.",
+      "All controlled-stable runtime-contract component hashes remain stable across baseline repetitions; expected-variant fields are HMACed/typed separately and do not create false contamination failures.",
+      "Drift or missing anchors never changes prompt text and never blocks the request; it marks the capture invalid and retains baseline behavior."
+    ]
+  },
+  "futureTypedTransformSeam": {
+    "status": "gated design, not implementation-ready",
+    "location": "After model/catalog resolution and personality template rendering, before dynamic developer/user context and launcher/additional rails are appended.",
+    "shape": [
+      "A typed PromptProfile enum with Baseline as the default and no implicit environment fallback.",
+      "A ResolvedInstructionProvenance value containing model slug, catalog provenance, catalog/comp hash, base-template hash, personality participation, and section inventory.",
+      "An allowlist keyed by exact model slug plus catalog/template hash.",
+      "Section-aware transforms over named, uniquely anchored sections only; never broad regex replacement over the whole prompt.",
+      "Transforms may affect only experiment-approved behavioral sections. Immutable runtime layers are outside the transform input.",
+      "Unknown model, absent hash, duplicate/missing anchor, catalog drift, resume mismatch, or transform error returns the untouched baseline prompt and records a local invalid-profile event.",
+      "Profile selection must be persisted in session metadata so resume and compaction cannot silently change it."
+    ],
+    "whyNotExistingOverrides": "base_instructions clears instruction templates and variables in model_messages; additional_instructions only appends. Neither preserves the intended boundary."
+  },
+  "experimentDesign": {
+    "status": "not run",
+    "behavioralAblationRun": false,
+    "outboundRequestCaptureRun": false,
+    "causalClaimMade": false,
+    "designPath": "experiment-design.md",
+    "blocks": [
+      {
+        "id": "B-FORK-FALLBACK",
+        "description": "Checked fork behavior with gpt-5.6-sol supplied as an unknown Copilot slug and synthesized from generic prompt.md."
+      },
+      {
+        "id": "B-UPSTREAM-BUNDLED",
+        "description": "Pinned upstream behavior with bundled gpt-5.6-sol model-specific instructions."
+      }
+    ],
+    "factors": [
+      {
+        "id": "A",
+        "name": "Fixed global UI taste",
+        "forkFallbackLevels": [
+          "absent, matching the observed generic-fallback baseline",
+          "add a hash-pinned matched global UI-taste section as a positive-control transplant"
+        ],
+        "upstreamBundledLevels": [
+          "present, matching the bundled Sol baseline",
+          "remove it from the base and make equivalent guidance available only through a conditional frontend/artifact skill on eligible tasks"
+        ]
+      },
+      {
+        "id": "B",
+        "name": "Anthropomorphic prose",
+        "forkFallbackLevels": [
+          "absent, matching the observed generic-fallback baseline",
+          "add a hash-pinned matched anthropomorphic section as a positive-control transplant"
+        ],
+        "upstreamBundledLevels": [
+          "present, matching the bundled Sol baseline",
+          "rewrite to neutral task-oriented collaboration language"
+        ]
+      },
+      {
+        "id": "C",
+        "name": "Behavioral prose density",
+        "levels": [
+          "full baseline",
+          "compact section-preserving wording"
+        ]
+      }
+    ],
+    "controls": [
+      "Freeze provider, exact model slug/version, service tier, declared cache mode, context semantic contents/order, tools and schemas, permissions, collaboration mode, all pre-existing skills/plugins/extensions, repository/user instructions, environment truth, launcher rails, and sampling/reasoning settings. Factor A is the sole allowlisted exception: one hash-pinned candidate frontend-guidance skill plus its eligibility/activation state may vary exactly as declared.",
+      "Use fresh sessions for every task-cell repetition.",
+      "Randomize cell order within each source block and balance order across tasks.",
+      "Use held-out tasks not used to author transforms and stratify frontend, non-UI coding, debugging, repository navigation, and plan/safety-sensitive work.",
+      "Blind graders to cell, source block, and hypothesis; adjudicate disagreements.",
+      "Use the canonical experiment-projection and component hashes to reject any run whose controlled non-ablated state differs from its block manifest. The only dynamic-capability difference allowed is the Factor A candidate frontend-guidance skill content/eligibility/activation recorded in the cell manifest. Full payload HMACs are expected to differ when fresh-session identifiers differ.",
+      "Never ablate safety or dynamic runtime contracts."
+    ],
+    "analysis": [
+      "Treat task as the experimental unit and repetitions as observations nested within task × cell. Use a preregistered mixed-effects model or preregistered task-cell aggregation so repeated runs are not counted as independent tasks.",
+      "Estimate main effects and two/three-way interactions separately for each source block before any pooled analysis, with task blocking/random effects and preregistered multiplicity control.",
+      "Report task success, correctness, tool-use errors, permission/safety violations, UI quality on eligible tasks, unnecessary-token count, latency, and interaction turns with confidence intervals.",
+      "Use a pilot only to estimate task-level variance and power; preregister the analysis unit, nesting, sample size, non-inferiority margins, primary-outcome hierarchy, and multiplicity adjustment before the held-out main run.",
+      "A win in one source block does not authorize a global transform for the other block."
+    ]
+  },
+  "riskAndUpstreamConflictSurface": [
+    {
+      "risk": "Prompt/catalog drift",
+      "severity": "high",
+      "mitigation": "Exact model plus template/catalog hashes; baseline fallback on any mismatch."
+    },
+    {
+      "risk": "Privacy leakage from tracing full requests",
+      "severity": "high",
+      "mitigation": "Metadata-only HMACs, no raw values, opt-in output path, privacy canaries, and fail-closed trace emission without affecting requests."
+    },
+    {
+      "risk": "base_instructions bypasses model_messages and personality rendering",
+      "severity": "high",
+      "mitigation": "Do not use whole-base override for experiments or product profiles."
+    },
+    {
+      "risk": "Instrumentation changes request bytes or timing-sensitive behavior",
+      "severity": "high",
+      "mitigation": "No provider-payload fields, deterministic disabled-path equivalence tests, and bounded hashing at typed application boundaries. Do not claim visibility into transport framing or TLS."
+    },
+    {
+      "risk": "HTTP/WebSocket observability divergence",
+      "severity": "medium",
+      "mitigation": "Name and trace HTTP logical JSON plus prepared entity, and WebSocket serialized application text separately; explicitly fail the experiment when the selected transport is unsupported."
+    },
+    {
+      "risk": "Fresh-session identifiers make full payloads differ and can create linkable trace metadata",
+      "severity": "medium-high",
+      "mitigation": "Use random run correlation plus HMAC-derived opaque event ids, classify expected-variant fields explicitly, and compare a typed canonical experiment projection rather than full payload equality."
+    },
+    {
+      "risk": "Upstream conflict in core/client and codex-api request encoding",
+      "severity": "medium-high",
+      "mitigation": "Put logic in a fork overlay diagnostics crate and keep upstream seams typed and minimal."
+    },
+    {
+      "risk": "Moving UI guidance reduces frontend quality",
+      "severity": "medium-high",
+      "mitigation": "Conditional skill activation is a factorial factor and must pass frontend-specific non-inferiority gates."
+    },
+    {
+      "risk": "Claude comparison overclaims proprietary runtime behavior",
+      "severity": "medium",
+      "mitigation": "Treat extracted catalogs as composition evidence, retain evidence-of-absence caveats, and avoid per-turn count claims."
+    }
+  ],
+  "prerequisites": [
+    "Pin and record the exact wrapper, nested patched-source, upstream tag/current commit, Piebald, tweakcc, and official Claude repository commits.",
+    "Define the Phase-0 trace schema and privacy threat model before coding.",
+    "Choose and document one supported Responses transport path or cover both HTTP and WebSocket.",
+    "Create deterministic bundled-model and synthesized-fallback fixtures without relying on the live remote catalog.",
+    "Pre-register the experiment task strata, grader rubric, randomization, non-inferiority margins, and power calculation after Phase-0 pilot data.",
+    "Keep production prompt text and defaults untouched until all compact-profile gates pass."
+  ],
+  "acceptanceGates": {
+    "phase0Plan": [
+      "Plan scope contains instrumentation and characterization only.",
+      "Every story has disabled-path equivalence and privacy acceptance criteria.",
+      "The plan identifies exact upstream-owned seams and an overlay-first conflict-minimization strategy.",
+      "The plan includes local tests for bundled and synthesized fallback provenance plus encoded request HMAC verification.",
+      "The plan explicitly excludes prompt text, catalog, personality, safety, tool, and default changes."
+    ],
+    "compactProfileImplementation": [
+      "Phase-0 captures are stable and complete for both source blocks.",
+      "The main factorial experiment is preregistered and completed on held-out tasks.",
+      "No immutable runtime component hash differs within a valid experiment block.",
+      "Compact candidate is non-inferior on correctness, tool use, permissions, and safety, and demonstrates a material token/latency or quality benefit.",
+      "Frontend conditional-skill cell is non-inferior on frontend quality.",
+      "The typed seam design has baseline-default, exact allowlist, resume persistence, and fail-closed drift behavior.",
+      "A separate reviewed task authorizes implementation."
+    ],
+    "defaultChange": [
+      "Compact profile ships opt-in first and completes real dogfood.",
+      "Rollback is one configuration change and baseline remains available.",
+      "At least one release of opt-in evidence shows no Medium+ regression.",
+      "A separate operator decision explicitly authorizes the default change per model/provider allowlist."
+    ]
+  },
+  "uncertainties": [
+    {
+      "question": "What prompt/catalog path did the installed codex-cli 0.141.0-copilot-api.3 use in actual recent Sol sessions?",
+      "resolution": "Phase-0 outbound capture; currently unverified."
+    },
+    {
+      "question": "Does the live Copilot catalog now supply bundled Sol metadata to the fork despite the checked local catalog?",
+      "resolution": "Trace catalog provenance and comp_hash without logging raw remote catalog content."
+    },
+    {
+      "question": "Which Claude Code extracted strings are included and in what order for a given interactive turn?",
+      "resolution": "Not answerable from the official repository or static extraction alone; retain proprietary-runtime caveat."
+    },
+    {
+      "question": "Are anthropomorphic and UI clauses beneficial, neutral, or harmful for Sol?",
+      "resolution": "Controlled factorial experiment only; no current causal claim."
+    },
+    {
+      "question": "Can one compact profile safely cover both fallback and bundled Sol?",
+      "resolution": "Do not assume; analyze blocks separately and scope allowlists by exact model/catalog/template hash."
+    }
+  ],
+  "sourceLedger": {
+    "path": "source-ledger.md",
+    "pins": [
+      {
+        "id": "S-FORK-WRAPPER",
+        "repo": "evmitran_microsoft/codexu-codex",
+        "commit": "3ff55692e7045e85ce78ebe8337ab40b55494c9c"
+      },
+      {
+        "id": "S-FORK-PATCHED",
+        "repo": "evmitran_microsoft/codexu-codex-patched",
+        "commit": "587a6a8ab8948ff912b1f24a62833b277934302d"
+      },
+      {
+        "id": "S-UPSTREAM-0141",
+        "repo": "openai/codex",
+        "commit": "3fb81667d30d9d24297216ea61fbfcc4351b2aa9",
+        "tag": "rust-v0.141.0"
+      },
+      {
+        "id": "S-UPSTREAM-CURRENT",
+        "repo": "openai/codex",
+        "commit": "800715d201651a2a07c2706dca10400109dae3d3"
+      },
+      {
+        "id": "S-CLAUDE-OFFICIAL",
+        "repo": "anthropics/claude-code",
+        "commit": "c39cb0f14bfe8bb519bae5bfc55add6867c5e2ab"
+      },
+      {
+        "id": "S-PIEBALD",
+        "repo": "Piebald-AI/claude-code-system-prompts",
+        "commit": "e812fce2f9791aa6f051deda9838dbcb397381b2"
+      },
+      {
+        "id": "S-TWEAKCC",
+        "repo": "Piebald-AI/tweakcc",
+        "commit": "f4e0b9402d482703eb967c7cc26b8f2a66e49e55"
+      }
+    ]
+  },
+  "planSeed": {
+    "title": "Plan Phase-0 Codex prompt/request characterization only",
+    "targetRepository": "codex submodule plus minimal codexu artifact/docs linkage if required",
+    "prompt": "Plan only Phase 0 for task codex-system-prompt-minimization-vs-claude-code from .ralph/brainstorms/codex-system-prompt-minimization-vs-claude-code/brainstorm.json. Target an opt-in, metadata-only diagnostic that records post-model-resolution instruction-layer HMACs; a catalogProvenance enum such as bundled, copilot-synthesized, or local generic fallback; a separate effectiveInstructionSource enum that distinguishes config base override, resumed-session history, and resolved model instructions; and configured-versus-effective personality state. For HTTP, HMAC both logical serialized JSON and the final prepared application entity after compression/auth immediately before transport.stream; for WebSocket, HMAC the final serialized Message::Text application payload immediately before send. Do not claim visibility into WebSocket frames, TCP, TLS, or other raw wire bytes. Join events only with a random runCorrelationId and HMAC-derived opaque correlations; never emit raw session/thread/turn/window/trace/request ids. Record both the full per-run application-payload HMAC and a typed canonical experiment-projection HMAC that normalizes only an explicit allowlist of expected-variant identifiers/timestamps, so fresh sessions do not fail frozen-state checks. Preserve request bytes and every immutable runtime layer: tools/parallel metadata, permissions, collaboration and plan no-mutation, skills/plugins/extensions, repository/user instructions, environment truth, provider role mapping, personality machinery, and launcher safety rails. Prefer a fork overlay diagnostics crate/module with the smallest typed seams in upstream-owned model resolution, session instruction-source selection, core/client, endpoint/session, and WebSocket send code. Require default-off behavior, user-selected local output, no raw prompt/request/user/tool/secret content, a privacy canary, bundled-vs-synthesized catalog fixtures that prove used_fallback_model_metadata is not provenance, config/history/model effective-instruction-source fixtures, transport-appropriate capture tests, deterministic controlled-state drift checks, and byte-identical logical JSON/HTTP entity/WebSocket text with tracing enabled versus disabled for identical synthetic inputs. Do not edit prompt text, model catalogs, personality wording, defaults, or implement compact transforms. Treat the typed allowlisted post-resolution transform seam, UI-guidance move, anthropomorphism ablation, block-specific factorial experiment, and any default change as gated follow-up tasks. Produce plan.md, stories-outline.md, exact file/ownership conflict surface, tests, rollback, and acceptance mapping; stop after the plan phase."
+  },
+  "review": {
+    "status": "clean",
+    "reviewerRoute": "gpt-5.6-sol xhigh standard general-purpose subagents; no crews",
+    "rounds": 7,
+    "resolvedMediumPlus": [
+      "Corrected outbound observability from an uncompressed-body claim to transport-appropriate logical JSON, HTTP prepared-entity, and WebSocket application-text boundaries.",
+      "Made the 2^3 factors block-specific so absent fallback UI/anthropomorphic clauses use positive-control additions rather than degenerate removal cells.",
+      "Separated controlled semantic state from expected-variant fresh-session identifiers and added opaque correlation plus typed canonical projection.",
+      "Repinned stale/broken source links to checked files and line ranges.",
+      "Separated catalogProvenance from effectiveInstructionSource, including config override, resumed history, and resolved model paths.",
+      "Added enabled-versus-disabled byte-equivalence gates.",
+      "Specified task-level nested analysis and multiplicity control to avoid pseudoreplication.",
+      "Corrected rust-v0.141.0 to six models/no Sol and pinned the bundled-Sol experiment only to 800715d2.",
+      "Made a bundled-Sol result invalidate the checked fork-fallback source/build pin instead of treating remote metadata as a bundled classification.",
+      "Replaced CRLF-worktree prompt/catalog hashes with portable raw Git blob OIDs and SHA-256 values.",
+      "Made Factor A's hash-pinned candidate frontend skill the sole declared exception to otherwise frozen pre-existing dynamic capabilities."
+    ],
+    "finalResult": "CLEAN: no Medium+ findings"
+  }
+}
