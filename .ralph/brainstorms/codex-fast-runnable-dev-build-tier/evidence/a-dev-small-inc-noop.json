@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "runId": "a-dev-small-inc-noop",
+  "repository": {
+    "codexWrapper": "3ff55692e7045e85ce78ebe8337ab40b55494c9c",
+    "patchedCodex": "587a6a8ab8948ff912b1f24a62833b277934302d",
+    "beforeStatus": "",
+    "afterStatus": ""
+  },
+  "candidate": {
+    "profile": "dev-small",
+    "targetDir": "D:\\codex-targets\\frdbt-dev-small-inc",
+    "incremental": 1,
+    "sccache": false,
+    "sccacheDir": null,
+    "lto": "off (dev profile default)",
+    "jobs": 8,
+    "packageBins": [
+      "codex-cli/codex-core",
+      "codex-copilot-launcher/codex"
+    ]
+  },
+  "environment": {
+    "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "clangCl": "clang version 19.1.7",
+    "linker": "lld-link",
+    "rustyV8Archive": "C:\\Users\\evmitran\\.cargo\\.rusty_v8\\rusty_v8_release_x86_64-pc-windows-msvc_v149.2.0.lib",
+    "lib": "C:\\Users\\evmitran\\.xwin\\crt\\lib\\x86_64;C:\\Users\\evmitran\\.xwin\\sdk\\lib\\um\\x86_64;C:\\Users\\evmitran\\.xwin\\sdk\\lib\\ucrt\\x86_64",
+    "include": "C:\\Users\\evmitran\\.xwin\\crt\\include;C:\\Users\\evmitran\\.xwin\\sdk\\include\\ucrt;C:\\Users\\evmitran\\.xwin\\sdk\\include\\um;C:\\Users\\evmitran\\.xwin\\sdk\\include\\shared"
+  },
+  "target": {
+    "bytesBefore": 13904021055.0,
+    "bytesAfter": 13904014968.0
+  },
+  "probe": null,
+  "measured": {
+    "startedAt": "2026-07-16T22:35:10.7210783Z",
+    "finishedAt": "2026-07-16T22:35:23.7515449Z",
+    "wallSeconds": 13.029,
+    "exitCode": 0,
+    "stdout": "a-dev-small-inc-noop.cargo.jsonl",
+    "stderr": "a-dev-small-inc-noop.cargo.stderr.log",
+    "timings": "a-dev-small-inc-noop.cargo-timing.html",
+    "argv": [
+      "cargo",
+      "build",
+      "--locked",
+      "--profile",
+      "dev-small",
+      "-p",
+      "codex-cli",
+      "--bin",
+      "codex-core",
+      "-p",
+      "codex-copilot-launcher",
+      "--bin",
+      "codex",
+      "--timings",
+      "--message-format=json-render-diagnostics"
+    ]
+  },
+  "reconciliation": null,
+  "binaries": {
+    "measured": {
+      "profileDir": "D:\\codex-targets\\frdbt-dev-small-inc\\dev-small",
+      "launcher": {
+        "path": "D:\\codex-targets\\frdbt-dev-small-inc\\dev-small\\codex.exe",
+        "bytes": 1298944,
+        "sha256": "66434f38a9219ba5a2a25c30518066c67f89996401c88ce958a959c91298d04e",
+        "lastWriteTimeUtc": "2026-07-16T22:31:54.2881139Z"
+      },
+      "core": {
+        "path": "D:\\codex-targets\\frdbt-dev-small-inc\\dev-small\\codex-core.exe",
+        "bytes": 360580096,
+        "sha256": "db7b02f6085f287c611875785237ec59316ed90c2c3c5a9e491062cd7fca28ad",
+        "lastWriteTimeUtc": "2026-07-16T22:34:17.8416064Z"
+      }
+    },
+    "final": {
+      "profileDir": "D:\\codex-targets\\frdbt-dev-small-inc\\dev-small",
+      "launcher": {
+        "path": "D:\\codex-targets\\frdbt-dev-small-inc\\dev-small\\codex.exe",
+        "bytes": 1298944,
+        "sha256": "66434f38a9219ba5a2a25c30518066c67f89996401c88ce958a959c91298d04e",
+        "lastWriteTimeUtc": "2026-07-16T22:31:54.2881139Z"
+      },
+      "core": {
+        "path": "D:\\codex-targets\\frdbt-dev-small-inc\\dev-small\\codex-core.exe",
+        "bytes": 360580096,
+        "sha256": "db7b02f6085f287c611875785237ec59316ed90c2c3c5a9e491062cd7fca28ad",
+        "lastWriteTimeUtc": "2026-07-16T22:34:17.8416064Z"
+      }
+    }
+  }
+}

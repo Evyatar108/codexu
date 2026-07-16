@@ -1,0 +1,187 @@
+{
+  "schemaVersion": 1,
+  "profileDir": "D:\\codex-targets\\frdbt-dev-small-inc\\dev-small",
+  "codexCorePathOverridePresent": false,
+  "binaries": {
+    "launcher": {
+      "path": "D:\\codex-targets\\frdbt-dev-small-inc\\dev-small\\codex.exe",
+      "bytes": 1298944,
+      "sha256": "66434f38a9219ba5a2a25c30518066c67f89996401c88ce958a959c91298d04e"
+    },
+    "core": {
+      "path": "D:\\codex-targets\\frdbt-dev-small-inc\\dev-small\\codex-core.exe",
+      "bytes": 360581632,
+      "sha256": "14bf1df089f856d58bf397e63217b4aab796a72f09a1c26c74ab7ed2c46e6a4f"
+    }
+  },
+  "runs": [
+    {
+      "name": "version",
+      "argv": [
+        "D:\\codex-targets\\frdbt-dev-small-inc\\dev-small\\codex.exe",
+        "--version"
+      ],
+      "startedAt": "2026-07-16T23:05:21.1883134Z",
+      "wallSeconds": 24.038,
+      "exitCode": 0,
+      "accepted": true,
+      "acceptedExitCodes": [
+        0
+      ],
+      "stdout": "a-dev-small-inc-core-edit-launch-smoke.changed-smoke-version.stdout.log",
+      "stderr": "a-dev-small-inc-core-edit-launch-smoke.changed-smoke-version.stderr.log",
+      "stdoutBytes": 32,
+      "stderrBytes": 0
+    },
+    {
+      "name": "help",
+      "argv": [
+        "D:\\codex-targets\\frdbt-dev-small-inc\\dev-small\\codex.exe",
+        "--help"
+      ],
+      "startedAt": "2026-07-16T23:05:45.2314953Z",
+      "wallSeconds": 4.038,
+      "exitCode": 0,
+      "accepted": true,
+      "acceptedExitCodes": [
+        0
+      ],
+      "stdout": "a-dev-small-inc-core-edit-launch-smoke.changed-smoke-help.stdout.log",
+      "stderr": "a-dev-small-inc-core-edit-launch-smoke.changed-smoke-help.stderr.log",
+      "stdoutBytes": 6243,
+      "stderrBytes": 0
+    },
+    {
+      "name": "login-help",
+      "argv": [
+        "D:\\codex-targets\\frdbt-dev-small-inc\\dev-small\\codex.exe",
+        "login",
+        "--provider",
+        "copilot",
+        "--help"
+      ],
+      "startedAt": "2026-07-16T23:05:49.2716826Z",
+      "wallSeconds": 1.027,
+      "exitCode": 0,
+      "accepted": true,
+      "acceptedExitCodes": [
+        0
+      ],
+      "stdout": "a-dev-small-inc-core-edit-launch-smoke.changed-smoke-login-help.stdout.log",
+      "stderr": "a-dev-small-inc-core-edit-launch-smoke.changed-smoke-login-help.stderr.log",
+      "stdoutBytes": 1677,
+      "stderrBytes": 0
+    },
+    {
+      "name": "bundled-models",
+      "argv": [
+        "D:\\codex-targets\\frdbt-dev-small-inc\\dev-small\\codex.exe",
+        "debug",
+        "models",
+        "--bundled"
+      ],
+      "startedAt": "2026-07-16T23:05:50.3009519Z",
+      "wallSeconds": 1.03,
+      "exitCode": 0,
+      "accepted": true,
+      "acceptedExitCodes": [
+        0
+      ],
+      "stdout": "a-dev-small-inc-core-edit-launch-smoke.changed-smoke-bundled-models.stdout.log",
+      "stderr": "a-dev-small-inc-core-edit-launch-smoke.changed-smoke-bundled-models.stderr.log",
+      "stdoutBytes": 197353,
+      "stderrBytes": 0
+    },
+    {
+      "name": "features-list",
+      "argv": [
+        "D:\\codex-targets\\frdbt-dev-small-inc\\dev-small\\codex.exe",
+        "features",
+        "list"
+      ],
+      "startedAt": "2026-07-16T23:05:51.3328893Z",
+      "wallSeconds": 1.027,
+      "exitCode": 0,
+      "accepted": true,
+      "acceptedExitCodes": [
+        0
+      ],
+      "stdout": "a-dev-small-inc-core-edit-launch-smoke.changed-smoke-features-list.stdout.log",
+      "stderr": "a-dev-small-inc-core-edit-launch-smoke.changed-smoke-features-list.stderr.log",
+      "stdoutBytes": 6170,
+      "stderrBytes": 0
+    },
+    {
+      "name": "doctor-json",
+      "argv": [
+        "D:\\codex-targets\\frdbt-dev-small-inc\\dev-small\\codex.exe",
+        "doctor",
+        "--json"
+      ],
+      "startedAt": "2026-07-16T23:05:52.3613845Z",
+      "wallSeconds": 6.015,
+      "exitCode": 0,
+      "accepted": true,
+      "acceptedExitCodes": [
+        0,
+        1
+      ],
+      "stdout": "a-dev-small-inc-core-edit-launch-smoke.changed-smoke-doctor-json.stdout.log",
+      "stderr": "a-dev-small-inc-core-edit-launch-smoke.changed-smoke-doctor-json.stderr.log",
+      "stdoutBytes": 11122,
+      "stderrBytes": 0
+    },
+    {
+      "name": "authenticated-exec",
+      "argv": [
+        "D:\\codex-targets\\frdbt-dev-small-inc\\dev-small\\codex.exe",
+        "exec",
+        "--ephemeral",
+        "--skip-git-repo-check",
+        "--ignore-user-config",
+        "--ignore-rules",
+        "--json",
+        "\"Reply exactly FAST_RUNNABLE_OK. Do not use tools.\""
+      ],
+      "startedAt": "2026-07-16T23:05:58.3785286Z",
+      "wallSeconds": 9.041,
+      "exitCode": 0,
+      "accepted": true,
+      "acceptedExitCodes": [
+        0
+      ],
+      "stdout": "a-dev-small-inc-core-edit-launch-smoke.changed-smoke-authenticated-exec.stdout.log",
+      "stderr": "a-dev-small-inc-core-edit-launch-smoke.changed-smoke-authenticated-exec.stderr.log",
+      "stdoutBytes": 330,
+      "stderrBytes": 39
+    },
+    {
+      "name": "authenticated-tool-exec",
+      "argv": [
+        "D:\\codex-targets\\frdbt-dev-small-inc\\dev-small\\codex.exe",
+        "exec",
+        "--ephemeral",
+        "--skip-git-repo-check",
+        "--ignore-user-config",
+        "--ignore-rules",
+        "--json",
+        "\"Use the shell tool to run PowerShell Write-Output FAST_TOOL_OK, then reply exactly FAST_TOOL_OK.\""
+      ],
+      "startedAt": "2026-07-16T23:06:07.4210370Z",
+      "wallSeconds": 19.028,
+      "exitCode": 0,
+      "accepted": true,
+      "acceptedExitCodes": [
+        0
+      ],
+      "stdout": "a-dev-small-inc-core-edit-launch-smoke.changed-smoke-authenticated-tool-exec.stdout.log",
+      "stderr": "a-dev-small-inc-core-edit-launch-smoke.changed-smoke-authenticated-tool-exec.stderr.log",
+      "stdoutBytes": 822,
+      "stderrBytes": 39
+    }
+  ],
+  "imports": {
+    "codex.exe": "\nFile: D:\\codex-targets\\frdbt-dev-small-inc\\dev-small\\codex.exe\nFormat: COFF-x86-64\nArch: x86_64\nAddressSize: 64bit\nImport {\n  Name: KERNEL32.dll\n  ImportLookupTableRVA: 0x10B508\n  ImportAddressTableRVA: 0x10B8F0\n  Symbol: AddVectoredExceptionHandler (20)\n  Symbol: CancelIo (0)\n  Symbol: CloseHandle (0)\n  Symbol: CompareStringOrdinal (0)\n  Symbol: CompareStringW (0)\n  Symbol: CreateDirectoryW (0)\n  Symbol: CreateEventW (0)\n  Symbol: CreateFileW (0)\n  Symbol: CreateMutexA (0)\n  Symbol: CreateProcessW (0)\n  Symbol: CreateThread (0)\n  Symbol: DeleteCriticalSection (305)\n  Symbol: DuplicateHandle (0)\n  Symbol: EncodePointer (0)\n  Symbol: EnterCriticalSection (345)\n  Symbol: ExitProcess (0)\n  Symbol: FindClose (0)\n  Symbol: FindFirstFileExW (0)\n  Symbol: FindNextFileW (0)\n  Symbol: FlsAlloc (0)\n  Symbol: FlsFree (0)\n  Symbol: FlsGetValue (0)\n  Symbol: FlsSetValue (0)\n  Symbol: FlushFileBuffers (0)\n  Symbol: FormatMessageW (0)\n  Symbol: FreeEnvironmentStringsW (469)\n  Symbol: FreeLibrary (0)\n  Symbol: GetACP (0)\n  Symbol: GetCPInfo (0)\n  Symbol: GetCommandLineA (513)\n  Symbol: GetCommandLineW (514)\n  Symbol: GetConsoleMode (0)\n  Symbol: GetConsoleOutputCP (0)\n  Symbol: GetCurrentDirectoryW (572)\n  Symbol: GetCurrentProcess (0)\n  Symbol: GetCurrentProcessId (0)\n  Symbol: GetCurrentThread (0)\n  Symbol: GetCurrentThreadId (0)\n  Symbol: GetEnvironmentStringsW (612)\n  Symbol: GetEnvironmentVariableW (614)\n  Symbol: GetExitCodeProcess (0)\n  Symbol: GetFileAttributesW (0)\n  Symbol: GetFileInformationByHandle (0)\n  Symbol: GetFileInformationByHandleEx (0)\n  Symbol: GetFileType (0)\n  Symbol: GetFullPathNameW (0)\n  Symbol: GetLastError (0)\n  Symbol: GetModuleFileNameW (0)\n  Symbol: GetModuleHandleA (0)\n  Symbol: GetModuleHandleExW (0)\n  Symbol: GetModuleHandleW (0)\n  Symbol: GetOEMCP (0)\n  Symbol: GetOverlappedResult (0)\n  Symbol: GetProcAddress (0)\n  Symbol: GetProcessHeap (0)\n  Symbol: GetStartupInfoW (0)\n  Symbol: GetStdHandle (0)\n  Symbol: GetStringTypeW (0)\n  Symbol: GetSystemDirectoryW (0)\n  Symbol: GetSystemTimeAsFileTime (0)\n  Symbol: GetWindowsDirectoryW (0)\n  Symbol: HeapAlloc (0)\n  Symbol: HeapFree (0)\n  Symbol: HeapReAlloc (0)\n  Symbol: HeapSize (0)\n  Symbol: InitializeCriticalSectionEx (921)\n  Symbol: InitializeSListHead (924)\n  Symbol: IsDebuggerPresent (0)\n  Symbol: IsProcessorFeaturePresent (0)\n  Symbol: IsValidCodePage (0)\n  Symbol: LCMapStringW (0)\n  Symbol: LeaveCriticalSection (1010)\n  Symbol: LoadLibraryA (0)\n  Symbol: LoadLibraryExW (0)\n  Symbol: MoveFileExW (0)\n  Symbol: MultiByteToWideChar (0)\n  Symbol: QueryPerformanceCounter (1155)\n  Symbol: RaiseException (0)\n  Symbol: ReadConsoleW (0)\n  Symbol: ReadFile (0)\n  Symbol: ReadFileEx (0)\n  Symbol: ReleaseMutex (0)\n  Symbol: RtlCaptureContext (1291)\n  Symbol: RtlLookupFunctionEntry (0)\n  Symbol: RtlPcToFileHeader (0)\n  Symbol: RtlUnwindEx (1305)\n  Symbol: RtlVirtualUnwind (1306)\n  Symbol: SetEnvironmentVariableW (1372)\n  Symbol: SetFileInformationByHandle (0)\n  Symbol: SetFilePointerEx (0)\n  Symbol: SetFileTime (0)\n  Symbol: SetLastError (0)\n  Symbol: SetStdHandle (0)\n  Symbol: SetThreadStackGuarantee (0)\n  Symbol: SetUnhandledExceptionFilter (1466)\n  Symbol: SleepEx (0)\n  Symbol: SwitchToThread (0)\n  Symbol: TerminateProcess (0)\n  Symbol: UnhandledExceptionFilter (1533)\n  Symbol: VirtualProtect (0)\n  Symbol: WaitForMultipleObjects (0)\n  Symbol: WaitForSingleObject (0)\n  Symbol: WaitForSingleObjectEx (0)\n  Symbol: WideCharToMultiByte (0)\n  Symbol: WriteConsoleW (0)\n  Symbol: WriteFile (0)\n  Symbol: WriteFileEx (0)\n  Symbol: lstrlenW (0)\n}\nImport {\n  Name: shell32.dll\n  ImportLookupTableRVA: 0x10B870\n  ImportAddressTableRVA: 0x10BC58\n  Symbol: SHGetKnownFolderPath (0)\n}\nImport {\n  Name: combase.dll\n  ImportLookupTableRVA: 0x10B880\n  ImportAddressTableRVA: 0x10BC68\n  Symbol: CoTaskMemFree (0)\n}\nImport {\n  Name: ntdll.dll\n  ImportLookupTableRVA: 0x10B890\n  ImportAddressTableRVA: 0x10BC78\n  Symbol: NtCreateNamedPipeFile (300)\n  Symbol: NtOpenFile (0)\n  Symbol: NtReadFile (0)\n  Symbol: NtWriteFile (0)\n  Symbol: RtlNtStatusToDosError (0)\n}\nImport {\n  Name: api-ms-win-core-synch-l1-2-0.dll\n  ImportLookupTableRVA: 0x10B8C0\n  ImportAddressTableRVA: 0x10BCA8\n  Symbol: WaitOnAddress (0)\n  Symbol: WakeByAddressAll (0)\n  Symbol: WakeByAddressSingle (0)\n}\nImport {\n  Name: bcryptprimitives.dll\n  ImportLookupTableRVA: 0x10B8E0\n  ImportAddressTableRVA: 0x10BCC8\n  Symbol: ProcessPrng (0)\n}",
+    "codex-core.exe": "\nFile: D:\\codex-targets\\frdbt-dev-small-inc\\dev-small\\codex-core.exe\nFormat: COFF-x86-64\nArch: x86_64\nAddressSize: 64bit\nImport {\n  Name: bcryptprimitives.dll\n  ImportLookupTableRVA: 0x1201DAE8\n  ImportAddressTableRVA: 0x1201E900\n  Symbol: ProcessPrng (0)\n}\nImport {\n  Name: kernel32.dll\n  ImportLookupTableRVA: 0x1201DAF8\n  ImportAddressTableRVA: 0x1201E910\n  Symbol: AcquireSRWLockExclusive (0)\n  Symbol: AcquireSRWLockShared (0)\n  Symbol: AddVectoredExceptionHandler (20)\n  Symbol: AreFileApisANSI (0)\n  Symbol: AssignProcessToJobObject (0)\n  Symbol: CancelIo (0)\n  Symbol: CancelIoEx (0)\n  Symbol: CancelSynchronousIo (0)\n  Symbol: CloseHandle (0)\n  Symbol: CompareStringOrdinal (0)\n  Symbol: CompareStringW (0)\n  Symbol: ConnectNamedPipe (0)\n  Symbol: CopyFileExW (0)\n  Symbol: CreateConsoleScreenBuffer (0)\n  Symbol: CreateDirectoryW (0)\n  Symbol: CreateEventW (0)\n  Symbol: CreateFileA (0)\n  Symbol: CreateFileMappingW (0)\n  Symbol: CreateFileW (0)\n  Symbol: CreateHardLinkW (0)\n  Symbol: CreateIoCompletionPort (0)\n  Symbol: CreateJobObjectW (0)\n  Symbol: CreateMutexA (0)\n  Symbol: CreateMutexW (0)\n  Symbol: CreateNamedPipeW (0)\n  Symbol: CreatePipe (0)\n  Symbol: CreateProcessW (0)\n  Symbol: CreateSemaphoreA (0)\n  Symbol: CreateSemaphoreW (0)\n  Symbol: CreateSymbolicLinkW (0)\n  Symbol: CreateThread (0)\n  Symbol: CreateWaitableTimerExW (0)\n  Symbol: DeleteCriticalSection (305)\n  Symbol: DeleteFileA (0)\n  Symbol: DeleteFileW (0)\n  Symbol: DeleteProcThreadAttributeList (0)\n  Symbol: DeviceIoControl (0)\n  Symbol: DuplicateHandle (0)\n  Symbol: EncodePointer (0)\n  Symbol: EnterCriticalSection (345)\n  Symbol: EnumSystemLocalesW (0)\n  Symbol: ExitProcess (0)\n  Symbol: ExitThread (0)\n  Symbol: ExpandEnvironmentStringsW (396)\n  Symbol: FileTimeToSystemTime (0)\n  Symbol: FillConsoleOutputAttribute (0)\n  Symbol: FillConsoleOutputCharacterA (0)\n  Symbol: FindClose (0)\n  Symbol: FindFirstFileExW (0)\n  Symbol: FindNextFileW (0)\n  Symbol: FlsAlloc (0)\n  Symbol: FlsFree (0)\n  Symbol: FlsGetValue (0)\n  Symbol: FlsSetValue (0)\n  Symbol: FlushConsoleInputBuffer (0)\n  Symbol: FlushFileBuffers (0)\n  Symbol: FlushViewOfFile (0)\n  Symbol: FormatMessageA (0)\n  Symbol: FormatMessageW (0)\n  Symbol: FreeEnvironmentStringsW (469)\n  Symbol: FreeLibrary (0)\n  Symbol: FreeLibraryAndExitThread (0)\n  Symbol: GetACP (0)\n  Symbol: GetBinaryTypeW (0)\n  Symbol: GetCPInfo (0)\n  Symbol: GetCommandLineA (513)\n  Symbol: GetCommandLineW (514)\n  Symbol: GetComputerNameExW (0)\n  Symbol: GetConsoleCP (0)\n  Symbol: GetConsoleMode (0)\n  Symbol: GetConsoleOutputCP (0)\n  Symbol: GetConsoleScreenBufferInfo (0)\n  Symbol: GetConsoleScreenBufferInfoEx (0)\n  Symbol: GetCurrencyFormatEx (0)\n  Symbol: GetCurrentDirectoryW (572)\n  Symbol: GetCurrentProcess (0)\n  Symbol: GetCurrentProcessId (0)\n  Symbol: GetCurrentThread (0)\n  Symbol: GetCurrentThreadId (0)\n  Symbol: GetDateFormatEx (0)\n  Symbol: GetDateFormatW (0)\n  Symbol: GetDiskFreeSpaceA (0)\n  Symbol: GetDiskFreeSpaceW (0)\n  Symbol: GetDynamicTimeZoneInformation (0)\n  Symbol: GetEnvironmentStringsW (612)\n  Symbol: GetEnvironmentVariableW (614)\n  Symbol: GetExitCodeProcess (0)\n  Symbol: GetFileAttributesA (0)\n  Symbol: GetFileAttributesExW (0)\n  Symbol: GetFileAttributesW (0)\n  Symbol: GetFileInformationByHandle (0)\n  Symbol: GetFileInformationByHandleEx (0)\n  Symbol: GetFileSize (0)\n  Symbol: GetFileSizeEx (0)\n  Symbol: GetFileType (0)\n  Symbol: GetFinalPathNameByHandleW (0)\n  Symbol: GetFullPathNameA (0)\n  Symbol: GetFullPathNameW (0)\n  Symbol: GetGeoInfoW (0)\n  Symbol: GetLastError (0)\n  Symbol: GetLocaleInfoEx (0)\n  Symbol: GetLocaleInfoW (0)\n  Symbol: GetLogicalProcessorInformation (0)\n  Symbol: GetModuleFileNameW (0)\n  Symbol: GetModuleHandleA (0)\n  Symbol: GetModuleHandleExW (0)\n  Symbol: GetModuleHandleW (0)\n  Symbol: GetNamedPipeClientProcessId (0)\n  Symbol: GetNamedPipeInfo (0)\n  Symbol: GetNamedPipeServerProcessId (0)\n  Symbol: GetNativeSystemInfo (0)\n  Symbol: GetNumberFormatEx (0)\n  Symbol: GetNumberOfConsoleInputEvents (0)\n  Symbol: GetOEMCP (0)\n  Symbol: GetOverlappedResult (0)\n  Symbol: GetProcAddress (0)\n  Symbol: GetProcessHeap (0)\n  Symbol: GetProcessId (0)\n  Symbol: GetQueuedCompletionStatusEx (0)\n  Symbol: GetStartupInfoW (0)\n  Symbol: GetStdHandle (0)\n  Symbol: GetStringTypeW (0)\n  Symbol: GetSystemDirectoryW (0)\n  Symbol: GetSystemInfo (0)\n  Symbol: GetSystemTime (0)\n  Symbol: GetSystemTimeAsFileTime (0)\n  Symbol: GetSystemTimePreciseAsFileTime (0)\n  Symbol: GetTempFileNameA (0)\n  Symbol: GetTempPathA (0)\n  Symbol: GetTempPathW (0)\n  Symbol: GetThreadContext (812)\n  Symbol: GetThreadPriority (0)\n  Symbol: GetTickCount (0)\n  Symbol: GetTimeFormatEx (0)\n  Symbol: GetTimeFormatW (0)\n  Symbol: GetTimeZoneInformation (0)\n  Symbol: GetTimeZoneInformationForYear (0)\n  Symbol: GetUserDefaultLCID (0)\n  Symbol: GetUserGeoID (0)\n  Symbol: GetUserPreferredUILanguages (0)\n  Symbol: GetWindowsDirectoryW (0)\n  Symbol: GlobalAlloc (0)\n  Symbol: GlobalFree (0)\n  Symbol: GlobalLock (0)\n  Symbol: GlobalSize (0)\n  Symbol: GlobalUnlock (0)\n  Symbol: HeapAlloc (0)\n  Symbol: HeapCompact (0)\n  Symbol: HeapCreate (0)\n  Symbol: HeapDestroy (0)\n  Symbol: HeapFree (0)\n  Symbol: HeapQueryInformation (0)\n  Symbol: HeapReAlloc (0)\n  Symbol: HeapSize (0)\n  Symbol: HeapValidate (0)\n  Symbol: InitOnceExecuteOnce (0)\n  Symbol: InitializeConditionVariable (0)\n  Symbol: InitializeCriticalSection (919)\n  Symbol: InitializeCriticalSectionEx (921)\n  Symbol: InitializeProcThreadAttributeList (0)\n  Symbol: InitializeSListHead (924)\n  Symbol: InitializeSRWLock (0)\n  Symbol: InterlockedPushEntrySList (930)\n  Symbol: IsDebuggerPresent (0)\n  Symbol: IsProcessorFeaturePresent (0)\n  Symbol: IsValidCodePage (0)\n  Symbol: IsValidLocale (0)\n  Symbol: LCMapStringW (0)\n  Symbol: LeaveCriticalSection (1010)\n  Symbol: LoadLibraryA (0)\n  Symbol: LoadLibraryExA (0)\n  Symbol: LoadLibraryExW (0)\n  Symbol: LoadLibraryW (0)\n  Symbol: LocalFree (0)\n  Symbol: LockFile (0)\n  Symbol: LockFileEx (0)\n  Symbol: MapViewOfFile (0)\n  Symbol: MapViewOfFileEx (0)\n  Symbol: MoveFileExW (0)\n  Symbol: MultiByteToWideChar (0)\n  Symbol: OpenProcess (0)\n  Symbol: OutputDebugStringA (0)\n  Symbol: OutputDebugStringW (0)\n  Symbol: PeekNamedPipe (0)\n  Symbol: PostQueuedCompletionStatus (0)\n  Symbol: PowerClearRequest (0)\n  Symbol: PowerCreateRequest (0)\n  Symbol: PowerSetRequest (0)\n  Symbol: QueryPerformanceCounter (1155)\n  Symbol: QueryPerformanceFrequency (1156)\n  Symbol: QueryThreadCycleTime (0)\n  Symbol: RaiseException (0)\n  Symbol: ReadConsoleInputW (0)\n  Symbol: ReadConsoleW (0)\n  Symbol: ReadDirectoryChangesW (0)\n  Symbol: ReadFile (0)\n  Symbol: ReadFileEx (0)\n  Symbol: RegisterWaitForSingleObject (0)\n  Symbol: ReleaseMutex (0)\n  Symbol: ReleaseSRWLockExclusive (0)\n  Symbol: ReleaseSRWLockShared (0)\n  Symbol: ReleaseSemaphore (0)\n  Symbol: RemoveDirectoryW (0)\n  Symbol: ResizePseudoConsole (0)\n  Symbol: ResolveLocaleName (0)\n  Symbol: ResumeThread (0)\n  Symbol: RtlAddFunctionTable (0)\n  Symbol: RtlCaptureContext (0)\n  Symbol: RtlCaptureStackBackTrace (0)\n  Symbol: RtlDeleteFunctionTable (0)\n  Symbol: RtlLookupFunctionEntry (0)\n  Symbol: RtlPcToFileHeader (0)\n  Symbol: RtlUnwind (0)\n  Symbol: RtlVirtualUnwind (0)\n  Symbol: SetConsoleActiveScreenBuffer (0)\n  Symbol: SetConsoleCtrlHandler (0)\n  Symbol: SetConsoleCursorInfo (0)\n  Symbol: SetConsoleCursorPosition (0)\n  Symbol: SetConsoleMode (0)\n  Symbol: SetConsoleTextAttribute (0)\n  Symbol: SetEndOfFile (0)\n  Symbol: SetEnvironmentVariableW (1372)\n  Symbol: SetErrorMode (0)\n  Symbol: SetFileAttributesW (0)\n  Symbol: SetFileCompletionNotificationModes (0)\n  Symbol: SetFileInformationByHandle (0)\n  Symbol: SetFilePointer (0)\n  Symbol: SetFilePointerEx (0)\n  Symbol: SetFileTime (0)\n  Symbol: SetHandleInformation (0)\n  Symbol: SetInformationJobObject (0)\n  Symbol: SetLastError (0)\n  Symbol: SetNamedPipeHandleState (0)\n  Symbol: SetStdHandle (0)\n  Symbol: SetThreadPriority (0)\n  Symbol: SetThreadStackGuarantee (0)\n  Symbol: SetUnhandledExceptionFilter (1466)\n  Symbol: SetWaitableTimer (0)\n  Symbol: Sleep (0)\n  Symbol: SleepConditionVariableCS (1483)\n  Symbol: SleepConditionVariableSRW (0)\n  Symbol: SleepEx (0)\n  Symbol: SuspendThread (0)\n  Symbol: SwitchToThread (0)\n  Symbol: SystemTimeToFileTime (0)\n  Symbol: SystemTimeToTzSpecificLocalTime (0)\n  Symbol: TerminateProcess (0)\n  Symbol: TlsAlloc (0)\n  Symbol: TlsGetValue (0)\n  Symbol: TlsSetValue (0)\n  Symbol: TryAcquireSRWLockShared (0)\n  Symbol: TryEnterCriticalSection (1526)\n  Symbol: UnhandledExceptionFilter (1533)\n  Symbol: UnlockFile (0)\n  Symbol: UnlockFileEx (0)\n  Symbol: UnmapViewOfFile (0)\n  Symbol: UnregisterWait (0)\n  Symbol: UnregisterWaitEx (0)\n  Symbol: UpdateProcThreadAttribute (0)\n  Symbol: VerSetConditionMask (0)\n  Symbol: VerifyVersionInfoW (0)\n  Symbol: VirtualAlloc (0)\n  Symbol: VirtualFree (0)\n  Symbol: VirtualProtect (0)\n  Symbol: WaitForMultipleObjects (0)\n  Symbol: WaitForSingleObject (0)\n  Symbol: WaitForSingleObjectEx (0)\n  Symbol: WakeAllConditionVariable (0)\n  Symbol: WakeConditionVariable (0)\n  Symbol: WideCharToMultiByte (0)\n  Symbol: WriteConsoleW (0)\n  Symbol: WriteFile (0)\n  Symbol: WriteFileEx (0)\n  Symbol: lstrlenW (0)\n}\nImport {\n  Name: ws2_32.dll\n  ImportLookupTableRVA: 0x1201E390\n  ImportAddressTableRVA: 0x1201F1A8\n  Symbol: WSACleanup (0)\n  Symbol: WSADuplicateSocketW (0)\n  Symbol: WSAGetLastError (0)\n  Symbol: WSAIoctl (0)\n  Symbol: WSARecv (0)\n  Symbol: WSASend (0)\n  Symbol: WSASocketW (0)\n  Symbol: WSAStartup (0)\n  Symbol: accept (0)\n  Symbol: bind (0)\n  Symbol: closesocket (0)\n  Symbol: connect (0)\n  Symbol: freeaddrinfo (0)\n  Symbol: getaddrinfo (0)\n  Symbol: getpeername (0)\n  Symbol: getsockname (0)\n  Symbol: getsockopt (0)\n  Symbol: ioctlsocket (0)\n  Symbol: listen (0)\n  Symbol: recv (0)\n  Symbol: recvfrom (0)\n  Symbol: select (0)\n  Symbol: send (0)\n  Symbol: sendto (0)\n  Symbol: setsockopt (0)\n  Symbol: shutdown (0)\n  Symbol: socket (0)\n}\nImport {\n  Name: USER32.dll\n  ImportLookupTableRVA: 0x1201E470\n  ImportAddressTableRVA: 0x1201F288\n  Symbol: CloseClipboard (80)\n  Symbol: CloseDesktop (81)\n  Symbol: CreateDesktopW (104)\n  Symbol: EmptyClipboard (237)\n  Symbol: GetClipboardData (317)\n  Symbol: GetForegroundWindow (0)\n  Symbol: GetKeyboardLayout (371)\n  Symbol: GetSystemMetrics (0)\n  Symbol: GetWindowThreadProcessId (0)\n  Symbol: IsClipboardFormatAvailable (572)\n  Symbol: OpenClipboard (682)\n  Symbol: RegisterClipboardFormatW (753)\n  Symbol: SetClipboardData (826)\n  Symbol: ToUnicodeEx (970)\n}\nImport {\n  Name: advapi32.dll\n  ImportLookupTableRVA: 0x1201E4E8\n  ImportAddressTableRVA: 0x1201F300\n  Symbol: AdjustTokenPrivileges (0)\n  Symbol: AllocateAndInitializeSid (0)\n  Symbol: CheckTokenMembership (0)\n  Symbol: ConvertSidToStringSidW (0)\n  Symbol: ConvertStringSecurityDescriptorToSecurityDescriptorW (0)\n  Symbol: ConvertStringSidToSidW (0)\n  Symbol: CopySid (0)\n  Symbol: CreateProcessAsUserW (0)\n  Symbol: CreateProcessWithLogonW (0)\n  Symbol: CreateRestrictedToken (0)\n  Symbol: CreateWellKnownSid (0)\n  Symbol: CredDeleteW (0)\n  Symbol: CredFree (0)\n  Symbol: CredReadW (0)\n  Symbol: CredWriteW (0)\n  Symbol: EqualSid (0)\n  Symbol: EventRegister (268)\n  Symbol: EventSetInformation (269)\n  Symbol: EventWriteTransfer (276)\n  Symbol: FreeSid (0)\n  Symbol: GetAce (0)\n  Symbol: GetAclInformation (0)\n  Symbol: GetLengthSid (0)\n  Symbol: GetNamedSecurityInfoW (0)\n  Symbol: GetSecurityInfo (0)\n  Symbol: GetTokenInformation (0)\n  Symbol: GetUserNameW (0)\n  Symbol: ImpersonateAnonymousToken (0)\n  Symbol: IsWellKnownSid (0)\n  Symbol: LookupAccountNameW (0)\n  Symbol: LookupPrivilegeValueW (0)\n  Symbol: MapGenericMask (0)\n  Symbol: OpenProcessToken (0)\n  Symbol: OpenThreadToken (0)\n  Symbol: RegCloseKey (0)\n  Symbol: RegCreateKeyExW (0)\n  Symbol: RegCreateKeyTransactedW (0)\n  Symbol: RegEnumKeyExW (0)\n  Symbol: RegEnumValueW (0)\n  Symbol: RegOpenKeyExW (0)\n  Symbol: RegOpenKeyTransactedW (0)\n  Symbol: RegQueryInfoKeyW (0)\n  Symbol: RegQueryValueExW (0)\n  Symbol: RevertToSelf (0)\n  Symbol: SetEntriesInAclW (0)\n  Symbol: SetNamedSecurityInfoW (0)\n  Symbol: SetSecurityInfo (0)\n  Symbol: SetTokenInformation (0)\n  Symbol: SystemFunction036 (0)\n}\nImport {\n  Name: api-ms-win-core-synch-l1-2-0.dll\n  ImportLookupTableRVA: 0x1201E678\n  ImportAddressTableRVA: 0x1201F490\n  Symbol: WaitOnAddress (0)\n  Symbol: WakeByAddressAll (0)\n  Symbol: WakeByAddressSingle (0)\n}\nImport {\n  Name: shell32.dll\n  ImportLookupTableRVA: 0x1201E698\n  ImportAddressTableRVA: 0x1201F4B0\n  Symbol: DragQueryFileW (0)\n  Symbol: SHGetKnownFolderPath (0)\n  Symbol: ShellExecuteExW (0)\n}\nImport {\n  Name: combase.dll\n  ImportLookupTableRVA: 0x1201E6B8\n  ImportAddressTableRVA: 0x1201F4D0\n  Symbol: CoIncrementMTAUsage (0)\n  Symbol: CoTaskMemFree (0)\n}\nImport {\n  Name: iphlpapi.dll\n  ImportLookupTableRVA: 0x1201E6D0\n  ImportAddressTableRVA: 0x1201F4E8\n  Symbol: GetAdaptersAddresses (49)\n}\nImport {\n  Name: ntdll.dll\n  ImportLookupTableRVA: 0x1201E6E0\n  ImportAddressTableRVA: 0x1201F4F8\n  Symbol: NtCancelIoFileEx (0)\n  Symbol: NtCreateFile (0)\n  Symbol: NtCreateNamedPipeFile (300)\n  Symbol: NtDeviceIoControlFile (0)\n  Symbol: NtOpenFile (0)\n  Symbol: NtReadFile (0)\n  Symbol: NtResumeProcess (568)\n  Symbol: NtWriteFile (0)\n  Symbol: RtlNtStatusToDosError (0)\n  Symbol: RtlUnwindEx (1639)\n}\nImport {\n  Name: userenv.dll\n  ImportLookupTableRVA: 0x1201E738\n  ImportAddressTableRVA: 0x1201F550\n  Symbol: GetUserProfileDirectoryW (0)\n}\nImport {\n  Name: secur32.dll\n  ImportLookupTableRVA: 0x1201E748\n  ImportAddressTableRVA: 0x1201F560\n  Symbol: AcceptSecurityContext (0)\n  Symbol: AcquireCredentialsHandleA (0)\n  Symbol: ApplyControlToken (0)\n  Symbol: DecryptMessage (0)\n  Symbol: DeleteSecurityContext (0)\n  Symbol: EncryptMessage (0)\n  Symbol: FreeContextBuffer (0)\n  Symbol: FreeCredentialsHandle (0)\n  Symbol: GetUserNameExW (0)\n  Symbol: InitializeSecurityContextW (0)\n  Symbol: QueryContextAttributesW (0)\n}\nImport {\n  Name: crypt32.dll\n  ImportLookupTableRVA: 0x1201E7A8\n  ImportAddressTableRVA: 0x1201F5C0\n  Symbol: CertAddCertificateContextToStore (0)\n  Symbol: CertAddEncodedCertificateToStore (0)\n  Symbol: CertCloseStore (0)\n  Symbol: CertCreateCertificateChainEngine (0)\n  Symbol: CertCreateCertificateContext (0)\n  Symbol: CertDuplicateCertificateChain (0)\n  Symbol: CertDuplicateCertificateContext (0)\n  Symbol: CertDuplicateStore (0)\n  Symbol: CertEnumCertificatesInStore (0)\n  Symbol: CertFreeCertificateChain (0)\n  Symbol: CertFreeCertificateChainEngine (0)\n  Symbol: CertFreeCertificateContext (0)\n  Symbol: CertGetCertificateChain (0)\n  Symbol: CertGetEnhancedKeyUsage (0)\n  Symbol: CertOpenStore (0)\n  Symbol: CertSetCertificateContextProperty (0)\n  Symbol: CertVerifyCertificateChainPolicy (0)\n  Symbol: CertVerifyTimeValidity (0)\n  Symbol: CryptStringToBinaryA (0)\n  Symbol: CryptUnprotectData (0)\n}\nImport {\n  Name: bcrypt.dll\n  ImportLookupTableRVA: 0x1201E850\n  ImportAddressTableRVA: 0x1201F668\n  Symbol: BCryptGenRandom (0)\n}\nImport {\n  Name: shlwapi.dll\n  ImportLookupTableRVA: 0x1201E860\n  ImportAddressTableRVA: 0x1201F678\n  Symbol: AssocQueryStringW (0)\n}\nImport {\n  Name: oleaut32.dll\n  ImportLookupTableRVA: 0x1201E870\n  ImportAddressTableRVA: 0x1201F688\n  Symbol: GetErrorInfo (0)\n  Symbol: SysFreeString (0)\n  Symbol: SysStringLen (0)\n}\nImport {\n  Name: api-ms-win-core-winrt-l1-1-0.dll\n  ImportLookupTableRVA: 0x1201E890\n  ImportAddressTableRVA: 0x1201F6A8\n  Symbol: RoGetActivationFactory (0)\n}\nImport {\n  Name: WINMM.dll\n  ImportLookupTableRVA: 0x1201E8A0\n  ImportAddressTableRVA: 0x1201F6B8\n  Symbol: timeGetTime (138)\n}\nImport {\n  Name: dbghelp.dll\n  ImportLookupTableRVA: 0x1201E8B0\n  ImportAddressTableRVA: 0x1201F6C8\n  Symbol: StackWalk64 (0)\n  Symbol: SymFromAddr (0)\n  Symbol: SymFunctionTableAccess64 (0)\n  Symbol: SymGetLineFromAddr64 (0)\n  Symbol: SymGetModuleBase64 (0)\n  Symbol: SymGetSearchPathW (0)\n  Symbol: SymInitialize (0)\n  Symbol: SymSetOptions (0)\n  Symbol: SymSetSearchPathW (0)\n}"
+  }
+}

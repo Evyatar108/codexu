@@ -1,0 +1,160 @@
+{
+  "schemaVersion": 1,
+  "taskId": "codex-fast-runnable-dev-build-tier",
+  "goal": "Measure a representative launcher-plus-core runnable loop without changing the production release profile.",
+  "controlledInputs": {
+    "repository": {
+      "codexWrapper": "3ff55692e7045e85ce78ebe8337ab40b55494c9c",
+      "patchedCodex": "587a6a8ab8948ff912b1f24a62833b277934302d"
+    },
+    "toolchain": {
+      "cargo": "1.97.0",
+      "rustc": "1.97.0",
+      "host": "x86_64-pc-windows-msvc",
+      "compiler": "clang-cl 19.1.7",
+      "linker": "lld-link",
+      "jobs": 8
+    },
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--profile",
+      "dev-small",
+      "-p",
+      "codex-cli",
+      "--bin",
+      "codex-core",
+      "-p",
+      "codex-copilot-launcher",
+      "--bin",
+      "codex",
+      "--timings",
+      "--message-format=json-render-diagnostics"
+    ],
+    "probePolicy": [
+      "Start every arm from a successful no-op build in its own target directory.",
+      "Apply one byte-controlled source replacement and verify exactly one match.",
+      "Record source hash, target size, binary hashes, Cargo JSONL, stderr, and cargo-timing HTML.",
+      "Restore the original bytes and timestamp, rebuild once to reconcile the target, and require a clean nested repository status.",
+      "Do not compare arms while another build owns the same target directory."
+    ]
+  },
+  "arms": [
+    {
+      "id": "A",
+      "profile": "dev-small",
+      "target": "separate per-worktree short-path target",
+      "incremental": true,
+      "sccache": false,
+      "debug": "none",
+      "optLevel": 0,
+      "lto": false,
+      "codegenUnits": "Cargo dev default; confirm from verbose rustc argv before implementation",
+      "panic": "Cargo dev default unwind; confirm from verbose rustc argv before implementation",
+      "bins": [
+        "codex",
+        "codex-core"
+      ],
+      "status": "measured primary",
+      "purpose": "Best low-conflict hypothesis for a warm runnable edit loop."
+    },
+    {
+      "id": "B",
+      "profile": "dev-small",
+      "target": "fresh separate target",
+      "incremental": false,
+      "sccache": false,
+      "debug": "none",
+      "optLevel": 0,
+      "lto": false,
+      "bins": [
+        "codex",
+        "codex-core"
+      ],
+      "status": "designed follow-up",
+      "purpose": "Isolate the benefit and storage cost of incremental compiler state."
+    },
+    {
+      "id": "C",
+      "profile": "dev-small",
+      "target": "fresh separate target",
+      "incremental": false,
+      "sccache": true,
+      "debug": "none",
+      "optLevel": 0,
+      "lto": false,
+      "bins": [
+        "codex",
+        "codex-core"
+      ],
+      "status": "designed follow-up",
+      "purpose": "Measure cold/fresh-target reuse versus changed-core misses without mixing incremental state.",
+      "protocol": [
+        "Allocate a dedicated SCCACHE_DIR and SCCACHE_SERVER_PORT so the arm neither reuses nor stops another build's server.",
+        "Start from an empty cache directory and record zeroed advanced statistics.",
+        "Build target C1 from cold to seed the isolated cache.",
+        "Build a second fresh target C2 against the same isolated cache to measure cross-target reuse.",
+        "Apply the controlled core probe in C2 to measure changed-core hit, miss, non-cacheable, and error deltas.",
+        "Stop only the isolated-port server and retain before/after advanced statistics with the Cargo evidence."
+      ]
+    },
+    {
+      "id": "D",
+      "profile": "dev",
+      "target": "fresh separate target",
+      "incremental": true,
+      "sccache": false,
+      "debug": "limited",
+      "optLevel": 0,
+      "lto": false,
+      "bins": [
+        "codex",
+        "codex-core"
+      ],
+      "status": "conditional debugger lane",
+      "purpose": "Quantify symbol and disk overhead only when source-level debugging is required."
+    },
+    {
+      "id": "E",
+      "profile": "candidate fork-owned fast-runnable profile",
+      "target": "fresh separate target",
+      "incremental": true,
+      "sccache": false,
+      "debug": "none",
+      "optLevel": 1,
+      "lto": false,
+      "codegenUnits": [
+        256,
+        64,
+        16
+      ],
+      "bins": [
+        "codex",
+        "codex-core"
+      ],
+      "status": "conditional runtime-performance sweep",
+      "purpose": "Trade compile/link time against runtime responsiveness only if opt-level 0 proves unusably slow."
+    }
+  ],
+  "fixedDecisions": [
+    "LTO-on is not a development candidate; it is already the release/publish fidelity gate.",
+    "panic=abort is rejected because it changes failure semantics from both the current dev and release profiles.",
+    "A direct codex-core-only command is a lower-bound diagnostic, not the representative runnable artifact.",
+    "The representative command keeps the launcher adjacent to codex-core because the launcher owns provider flags, bootstrap, policy, and environment setup.",
+    "A globally shared target is rejected; concurrent worktrees require separate targets and explicit ownership locking."
+  ],
+  "comparisonMetrics": [
+    "cold wall seconds",
+    "warm no-op wall seconds and rebuilt package count",
+    "warm private core-edit wall seconds",
+    "warm public/high-fanout core-edit wall seconds",
+    "reconciliation wall seconds",
+    "target bytes and incremental subdirectory bytes",
+    "launcher and core bytes plus SHA-256",
+    "sccache hit/miss/non-cacheable/error deltas where enabled",
+    "authenticated launcher-path exec success",
+    "first and repeated process startup latency"
+  ],
+  "stopRule": "Once one additive arm produces a representative changed-core launcher-path run in at most 600 seconds without weakening release gates, defer more expensive optimization sweeps unless their expected value exceeds another full cold target warm-up."
+}
