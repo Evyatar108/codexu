@@ -2131,6 +2131,28 @@
           "brainstorm": "Investigate and design restoration of upstream parity for GitHub-related support in Happy daemon startup, local operator onboarding, and app pairing. Compare the fork against the current upstream slopus/happy implementation and classify every GitHub auth/profile/pairing difference as upstream behavior or fork-added coupling. Preserve all GitHub functionality that upstream supports; remove only the fork-specific GitHub OAuth/device-login dependency introduced for Microsoft Dev Tunnels, which are retired and must not remain a premise. Audit happy-cli, happy-server, happy-app, happy-wire, docs, and machine-local state for GitHub auth, ~/.happy/profile.json, credentials, user identity, pairing, and daemon bootstrap coupling. Preserve the fork's current security boundaries: loopback capability for local access and, in opt-in public mode, mandatory Cloudflare Access defense-in-depth plus fail-closed Ed25519 paired-device proof, body binding, nonce replay protection, pairing window, pairing secret/nonce, and TOFU key pinning. Determine the minimal upstream-aligned replacement for any local profile or stable operator identifier, migration/backward compatibility for existing ~/.happy state, and whether `happy auth` should match upstream, be removed, or be repurposed only for fork-specific public mode. Explicitly exclude Codex's separate GitHub Copilot authentication. Verify feasibility against both fork and upstream source, identify upstream-conflict surfaces, and recommend a staged implementation with acceptance tests proving GitHub-related behavior is in parity with upstream except for explicitly documented public-mode extensions."
         }
       }
+    },
+    {
+      "id": "codex-system-prompt-minimization-vs-claude-code",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-15T18:39:47.142-07:00",
+      "initialStage": "brainstorming",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Codex CLI's system prompts may contain unnecessary behavioral instructions—especially UI prescriptions, empathy guidance, and other model-level coaching—that constrain capability or bias output without an equivalent in Claude Code. Compare the real prompt sources before changing them."
+        }
+      ],
+      "command": {
+        "name": "codex-system-prompt-minimization-vs-claude-code",
+        "descriptionHtml": "Source-compare Codex and Claude Code prompts and recommend evidence-backed Codex prompt removals or rewrites.",
+        "warnings": [],
+        "prompts": {
+          "brainstorm": "Research the actual current Codex CLI system/developer prompt sources in our fork and relevant upstream versions, and the current Claude Code prompts available from credible GitHub sources. Version-pin and cite every source. Build a clause-level comparison focused on instructions that may unnecessarily constrain model capability or duplicate model training, including UI/UX prescriptions, empathy or tone coaching, verbosity/style rules, coding-behavior constraints, tool-use policy, autonomy, safety, and environment guidance. Distinguish load-bearing runtime/safety/tool-contract instructions from speculative behavioral coaching. Evaluate likely effects using source evidence and, where feasible, controlled prompt-ablation experiments rather than assuming shorter is always better. Recommend a minimal Codex prompt architecture with an explicit KEEP / REMOVE / REWRITE / MOVE-TO-AGENTS.md verdict for each disputed instruction family, preserving security, tool correctness, repository instructions, and user control. Treat the Codex fork as ours to extend. Do not edit prompts during the brainstorm; produce a recommended direction, risk analysis, test strategy, upstream-conflict surface, and a concrete plan seed. Rigorously test the operator's concern rather than rubber-stamping it."
+        }
+      }
     }
   ],
   "phaseTree": [
