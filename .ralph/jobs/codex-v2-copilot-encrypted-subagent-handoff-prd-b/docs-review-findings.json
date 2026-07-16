@@ -449,7 +449,9 @@
       ],
       "uiUxJudgment": "not-required",
       "description": "docs/implementation/patch-surface.md still misstates the production toolchain trust boundary: it says the Windows jobs run Chocolatey LLVM 19.1.7 and cargo-installed xwin and that LLVM is constrained to 19.1.7, but both .github/workflows/invariant-check.yml and .github/workflows/publish-npm.yml first reuse any preinstalled clang-cl or xwin from windows-latest without checking its version or hash. Production binaries can therefore be built by runner-image toolchains outside the documented Chocolatey/crates.io inputs.",
-      "status": "open",
+      "status": "fixed",
+      "fixedInIteration": 18,
+      "resolution": "Documented conditional reuse of runner-image LLVM, xwin, and staged SDK state, scoped the LLVM 19.1.7 pin to the Chocolatey fallback, and updated hardening guidance.",
       "relevantFiles": [
         "docs/implementation/patch-surface.md"
       ],
@@ -468,7 +470,9 @@
       ],
       "uiUxJudgment": "not-required",
       "description": ".claude/commands/rebase-upstream.md, AGENTS.override.md, and CLAUDE.md still describe rebase Phase 5b as unconditionally proceeding through a local /publish-sandbox-patch package/upload/verification path. The corrected release runbook now branches at Step 4f: a successful exact-tag Actions run owns publication and exits before manual Steps 5-6, while those manual steps are permitted only after Actions is proven blocked or inactive. The active rebase summaries can therefore direct an operator past the mutual-exclusion gate that fixed F-019.",
-      "status": "open",
+      "status": "fixed",
+      "fixedInIteration": 18,
+      "resolution": "Aligned every active rebase summary with Step 4f: exact-tag Actions success terminates publication, while manual Steps 5-6 require fail-closed blocked/inactive proof.",
       "relevantFiles": [
         ".claude/commands/rebase-upstream.md",
         "AGENTS.override.md",
@@ -489,7 +493,9 @@
       ],
       "uiUxJudgment": "not-required",
       "description": "docs/workflows/submodule-migration.md says the retention tag is created before the wrapper release commit and lists the wrapper commit after retention-tag verification. The current candidate-bound publish runbook creates the local wrapper candidate commit in Step 4b, rebuilds and records provenance in Step 4c, then publishes the submodule branch and retention tag in Step 4d before pushing the public wrapper tag in Step 4e.",
-      "status": "open",
+      "status": "fixed",
+      "fixedInIteration": 18,
+      "resolution": "Reordered the W-5 release summary to create and rebuild the local wrapper candidate before publishing the submodule branch and retention tag, while preserving the retention-before-public-tag gate.",
       "relevantFiles": [
         "docs/workflows/submodule-migration.md"
       ],

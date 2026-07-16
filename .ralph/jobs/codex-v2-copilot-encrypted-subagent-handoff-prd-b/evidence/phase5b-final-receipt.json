@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-16T01:11:23Z",
+  "executionUnit": "PRD-B-Phase-5b",
+  "targetRepository": "C:/efforts/codexu/codex/.worktrees/codex-v2-copilot-encrypted-subagent-handoff",
+  "branch": "ralph/codex-v2-copilot-encrypted-subagent-handoff",
+  "wrapperCommit": "4e2b16b6b5b4d5b26a947ccef46059b4de1ed0bf",
+  "immutableInputs": {
+    "wrapperStartSha": "89a6cbea7cd382fa4873b259fb996dcf988a5fdc",
+    "predecessorReceiptSha256": "46a311b9c6a46972a06d0eb8d3a51de2b52bb49ac4e9e6c579f620bce5753c70",
+    "nestedFinalSha": "6d73e16c44d65ac243834a942d7fab2c3b279221"
+  },
+  "review": {
+    "code": "clean",
+    "docs": "clean",
+    "round": 18,
+    "fixedFindingIds": [
+      "F-021",
+      "F-022",
+      "F-023"
+    ],
+    "openMediumPlusFindingIds": []
+  },
+  "validations": [
+    {
+      "command": "source scripts/iteration-env.sh && cd external/repos/codex-patched/codex-rs && just test -p codex-invariant-tests --test multi_agent_v2_handoff",
+      "result": "pass: 2 tests run, 2 passed, 0 skipped",
+      "log": "evidence/phase5b-final-focused-just-test.log",
+      "sha256": "460aee56f913de4a256ffc034f31189d416c53dd58a27792e7188b3a66ae394f",
+      "exitCode": 0
+    },
+    {
+      "command": "bash scripts/audit_invariants.sh",
+      "result": "pass: silent invariant audit",
+      "log": "evidence/phase5b-final-audit-invariants.log",
+      "sha256": "9cc438a062696f268f3f8200045bc40a153f2c9393a02cdd3e0986c25169aa5c",
+      "exitCode": 0
+    },
+    {
+      "command": "bash scripts/audit_network_calls.sh",
+      "result": "pass: patched 22/22; zero new endpoint, IP, IPC, or no_proxy sites",
+      "log": "evidence/phase5b-final-audit-network-calls.log",
+      "sha256": "643e699b8e66c867d12a6110a29d657ac4eba73fd0861c0d53b3292c33eace7a",
+      "exitCode": 0
+    },
+    {
+      "command": "Phase 5b round-18 documentation review gates",
+      "result": "pass: exact 17-path scope; F-021/F-022/F-023 fixed; no open Medium+ findings",
+      "log": "evidence/phase5b-round-18-review-gates.json",
+      "sha256": "8f4a7fcca0d1bd823cde6a7c3da5297833cb1ce2b1a754f9c03b5d69164e9da5",
+      "exitCode": 0
+    }
+  ],
+  "dependencyRecovery": {
+    "action": "Installed missing cargo-nextest v0.9.140 after the first just test attempt failed before tests ran.",
+    "log": "evidence/phase5b-cargo-nextest-install.log",
+    "sha256": "bdc7cd3f77eadfd5ef6d0578fbebed3169378d2d8e106cb9f445c8d67d5277a6",
+    "exitCode": 0
+  },
+  "repositoryState": {
+    "wrapperTrackedChangesClean": true,
+    "expectedUnstagedGitlinkOnly": true,
+    "gitlinkStaged": false,
+    "nestedHeadExact": true,
+    "nestedTreeClean": true
+  },
+  "forbiddenOperationsPerformed": {
+    "push": false,
+    "tag": false,
+    "release": false,
+    "publish": false,
+    "productInstall": false,
+    "dogfood": false,
+    "nestedSourceModification": false,
+    "gitlinkStageOrCommit": false
+  },
+  "terminal": true,
+  "terminalReason": "complete"
+}

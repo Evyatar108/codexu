@@ -3,22 +3,23 @@
 ## Documentation Review Summary
 
 ### Completeness: GOOD
-- Reviewed the exact 17-path `89a6cbea...67e888f0` range at HEAD `67e888f058ec3fc585f759bc39ca8278f0a2b2ba`.
+- Reviewed the exact 17-path `89a6cbea...4e2b16b6` range at HEAD `4e2b16b6b5b4d5b26a947ccef46059b4de1ed0bf`.
 - US-001 and US-002 remain represented with no blocked stories.
-- F-020 is fixed, and F-001 through F-019 remain fixed.
+- F-021 through F-023 are fixed, and F-001 through F-020 remain fixed.
 
-### Correctness: NEEDS FIX
+### Correctness: GOOD
 - Active release and rebase guidance no longer runs unsupported `--version` probes on `codex-windows-sandbox-setup.exe` or `codex-command-runner.exe`.
-- F-021 (High): the documented production toolchain trust boundary omits conditionally reused, unverified runner-image LLVM/xwin installations.
-- F-022 (High): rebase summaries still describe unconditional manual publication instead of the exact-tag Actions/manual ownership split.
-- F-023 (Medium): the submodule migration guide retains the superseded release-candidate ordering.
+- The production toolchain trust boundary includes conditional runner-image LLVM/xwin/SDK reuse and no longer overstates the LLVM fallback pin.
+- Rebase summaries enforce the exact-tag Actions/manual publication ownership split from Step 4f.
+- The submodule migration guide uses the authoritative candidate commit/rebuild, retention-tag, and public-tag ordering.
 
 ### Quality: GOOD
 - The reviewed range contains exactly the seventeen PRD write-scope paths.
 - The expected unstaged nested gitlink advance remains outside the reviewed range.
+- Final validation evidence is durable under the job `evidence/` directory.
 
 ### Overall Assessment
-Round 17 is not clean. F-020 is fixed without regressing F-001 through F-019, but F-021 through F-023 remain open.
+Round 18 is clean. All documentation findings F-001 through F-023 are fixed; no Medium+ findings remain.
 
 ### Codex Host-Lane Review
 
@@ -34,7 +35,7 @@ Not applicable; external host lanes were skipped.
 
 ### Divergences
 
-- Primary docs reviewer only: F-021, F-022, and F-023.
+- None.
 
 ### Security Review
 

@@ -1,0 +1,2146 @@
+===================================================================
+  FROZEN ITERATION PROFILE ACTIVE
+  LTO=off  codegen-units=16  jobs=8  incremental=0
+  RUSTC_WRAPPER=sccache  SCCACHE_DIR=D:\codex-sccache  size=50G
+  Do NOT change LTO / codegen-units / RUSTFLAGS round-to-round.
+  Runnable iteration is canonical T3 (builds codex-core + launcher):
+    bash scripts/verify-core-change.sh executable --confirm-slow
+===================================================================
+$env:RUST_MIN_STACK = "8388608"; $env:NEXTEST_PROFILE = "local"; cargo nextest run --no-fail-fast @($args | Select-Object -Skip 1)
+ Downloading crates ...
+  Downloaded assert_matches v1.5.0
+  Downloaded condtype v1.3.0
+  Downloaded console v0.15.11
+  Downloaded divan v0.1.21
+  Downloaded divan-macros v0.1.21
+  Downloaded insta v1.46.3
+  Downloaded prost-build v0.14.3
+  Downloaded prost-types v0.14.3
+  Downloaded scc v2.4.0
+  Downloaded sdd v3.0.10
+  Downloaded serial_test v3.3.1
+  Downloaded serial_test_derive v3.3.1
+  Downloaded test-case v3.3.1
+  Downloaded test-log v0.2.19
+  Downloaded test-case-core v3.3.1
+  Downloaded test-log-macros v0.2.19
+  Downloaded test-case-macros v3.3.1
+  Downloaded tonic-build v0.14.3
+  Downloaded tonic-prost-build v0.14.3
+  Downloaded tracing-test v0.2.5
+  Downloaded tracing-test-macro v0.2.5
+  Downloaded vt100 v0.16.2
+  Downloaded vte v0.15.0
+   Compiling cfg-if v1.0.4
+   Compiling windows-link v0.2.1
+   Compiling memchr v2.8.1
+   Compiling itoa v1.0.17
+   Compiling serde_core v1.0.228
+   Compiling scopeguard v1.2.0
+   Compiling zeroize v1.8.2
+   Compiling portable-atomic v1.13.1
+   Compiling getrandom v0.2.17
+   Compiling windows-sys v0.61.2
+   Compiling lock_api v0.4.14
+   Compiling pin-project-lite v0.2.16
+   Compiling critical-section v1.2.0
+   Compiling subtle v2.6.1
+   Compiling equivalent v1.0.2
+   Compiling shlex v1.3.0
+   Compiling once_cell v1.21.4
+   Compiling rand_core v0.6.4
+   Compiling getrandom v0.3.4
+   Compiling typenum v1.20.1
+   Compiling log v0.4.29
+   Compiling jobserver v0.1.34
+   Compiling futures-core v0.3.32
+   Compiling bytes v1.11.1
+   Compiling thiserror v2.0.18
+   Compiling stable_deref_trait v1.2.1
+   Compiling regex-syntax v0.8.8
+   Compiling cc v1.2.55
+   Compiling const-oid v0.9.6
+   Compiling cpufeatures v0.2.17
+   Compiling hashbrown v0.17.1
+   Compiling zmij v1.0.19
+   Compiling aho-corasick v1.1.4
+   Compiling generic-array v0.14.7
+   Compiling serde v1.0.228
+   Compiling futures-io v0.3.32
+   Compiling futures-task v0.3.32
+   Compiling futures-sink v0.3.32
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling smallvec v1.15.1
+   Compiling slab v0.4.12
+   Compiling fnv v1.0.7
+   Compiling futures-channel v0.3.32
+   Compiling digest v0.10.7
+   Compiling tracing-core v0.1.36
+   Compiling parking_lot_core v0.9.12
+   Compiling percent-encoding v2.3.2
+   Compiling futures-util v0.3.32
+   Compiling zerofrom v0.1.6
+   Compiling serde_json v1.0.149
+   Compiling parking_lot v0.12.5
+   Compiling tracing v0.1.44
+   Compiling yoke v0.8.2
+   Compiling regex-automata v0.4.13
+   Compiling http v1.4.0
+   Compiling zerovec v0.11.6
+   Compiling time-core v0.1.8
+   Compiling num-conv v0.2.0
+   Compiling powerfmt v0.2.0
+   Compiling time-macros v0.2.27
+   Compiling deranged v0.5.5
+   Compiling num-traits v0.2.19
+   Compiling utf8_iter v1.0.4
+   Compiling http-body v1.0.1
+   Compiling tinystr v0.8.3
+   Compiling dunce v1.0.5
+   Compiling fastrand v2.3.0
+   Compiling writeable v0.6.2
+   Compiling indexmap v2.14.0
+   Compiling http-body-util v0.1.3
+   Compiling form_urlencoded v1.2.2
+   Compiling time v0.3.47
+   Compiling untrusted v0.9.0
+   Compiling potential_utf v0.1.4
+   Compiling litemap v0.8.1
+   Compiling base64 v0.22.1
+   Compiling zerocopy v0.8.37
+   Compiling zerotrie v0.2.4
+   Compiling either v1.15.0
+   Compiling icu_locale_core v2.2.0
+   Compiling icu_normalizer_data v2.2.0
+   Compiling icu_properties_data v2.2.0
+   Compiling cmake v0.1.57
+   Compiling libc v0.2.186
+   Compiling icu_collections v2.2.0
+   Compiling aws-lc-sys v0.39.0
+   Compiling ring v0.17.14
+   Compiling bitflags v2.10.0
+   Compiling bstr v1.12.1
+   Compiling icu_provider v2.2.0
+   Compiling ipnet v2.11.0
+   Compiling mio v1.2.0
+   Compiling socket2 v0.6.3
+   Compiling ppv-lite86 v0.2.21
+   Compiling rustls-pki-types v1.14.0
+   Compiling sha1_smol v1.0.1
+   Compiling tokio v1.52.3
+   Compiling untrusted v0.7.1
+   Compiling byteorder v1.5.0
+   Compiling uuid v1.20.0
+   Compiling sync_wrapper v1.0.2
+   Compiling semver v1.0.27
+   Compiling crc32fast v1.5.0
+   Compiling allocator-api2 v0.2.21
+   Compiling pin-utils v0.1.0
+   Compiling rustc_version v0.4.1
+   Compiling httpdate v1.0.3
+   Compiling tinyvec_macros v0.1.1
+   Compiling crossbeam-utils v0.8.21
+   Compiling tinyvec v1.10.0
+   Compiling icu_properties v2.2.0
+   Compiling icu_normalizer v2.2.0
+   Compiling sha2 v0.10.9
+   Compiling windows-strings v0.5.1
+   Compiling windows-result v0.4.1
+   Compiling ryu v1.0.22
+   Compiling foldhash v0.2.0
+   Compiling num-integer v0.1.46
+   Compiling httparse v1.10.1
+   Compiling idna_adapter v1.2.1
+   Compiling rand_core v0.9.5
+   Compiling hashbrown v0.16.1
+   Compiling idna v1.1.0
+   Compiling try-lock v0.2.5
+   Compiling atomic-waker v1.1.2
+   Compiling rand_chacha v0.9.0
+   Compiling want v0.3.1
+   Compiling schannel v0.1.28
+   Compiling sha1 v0.10.6
+   Compiling tower-service v0.3.3
+   Compiling url v2.5.8
+   Compiling rand v0.9.3
+   Compiling hex v0.4.3
+   Compiling regex v1.12.3
+   Compiling mime v0.3.17
+   Compiling rustls-native-certs v0.8.3
+   Compiling windows-registry v0.6.1
+   Compiling futures-executor v0.3.32
+   Compiling lazy_static v1.5.0
+   Compiling tokio-util v0.7.18
+   Compiling tower-layer v0.3.3
+   Compiling webpki-roots v1.0.5
+   Compiling rand_core v0.10.1
+   Compiling strsim v0.11.1
+   Compiling psl-types v2.0.11
+   Compiling winapi-util v0.1.11
+   Compiling spin v0.9.8
+   Compiling futures v0.3.31
+   Compiling getrandom v0.4.2
+   Compiling minimal-lexical v0.2.1
+   Compiling windows_x86_64_msvc v0.52.6
+   Compiling crossbeam-epoch v0.9.18
+   Compiling toml_parser v1.0.6+spec-1.1.0
+   Compiling itertools v0.14.0
+   Compiling windows-targets v0.52.6
+   Compiling nibble_vec v0.1.0
+   Compiling crc-catalog v2.4.0
+   Compiling unicase v2.9.0
+   Compiling ahash v0.8.12
+   Compiling crc v3.4.0
+   Compiling h2 v0.4.13
+   Compiling tower v0.5.3
+   Compiling toml_edit v0.23.10+spec-1.0.0
+   Compiling mime_guess v2.0.5
+   Compiling anyhow v1.0.102
+   Compiling const_format v0.2.35
+   Compiling wildcard v0.3.0
+   Compiling smol_str v0.3.5
+   Compiling iri-string v0.7.10
+   Compiling proc-macro-crate v3.4.0
+   Compiling nom v7.1.3
+   Compiling flume v0.12.0
+   Compiling rama-macros v0.3.0-alpha.4
+   Compiling tokio-stream v0.1.18
+   Compiling tokio-graceful v0.2.2
+   Compiling num-bigint v0.4.6
+   Compiling asynk-strim v0.1.5
+   Compiling rama-utils v0.3.0-alpha.4
+   Compiling rama-error v0.3.0-alpha.4
+   Compiling data-encoding v2.10.0
+   Compiling adler2 v2.0.1
+   Compiling windows_x86_64_msvc v0.53.1
+   Compiling nom v8.0.0
+   Compiling endian-type v0.2.0
+   Compiling rama-core v0.3.0-alpha.4
+   Compiling windows-targets v0.53.5
+   Compiling crossbeam-deque v0.8.6
+   Compiling radix_trie v0.3.0
+   Compiling windows-sys v0.52.0
+   Compiling hyper v1.8.1
+   Compiling psl v2.1.184
+   Compiling chrono v0.4.43
+   Compiling dyn-clone v1.0.20
+   Compiling hyper-util v0.1.20
+   Compiling simd-adler32 v0.3.8
+   Compiling option-ext v0.2.0
+   Compiling md5 v0.8.0
+   Compiling rama-http-types v0.3.0-alpha.4
+   Compiling unicode-segmentation v1.12.0
+   Compiling dirs-sys v0.5.0
+   Compiling windows-sys v0.60.2
+   Compiling native-tls v0.2.14
+   Compiling windows_x86_64_msvc v0.48.5
+   Compiling libz-sys v1.1.23
+   Compiling termcolor v1.4.1
+   Compiling cpufeatures v0.3.0
+   Compiling chacha20 v0.10.0
+   Compiling ts-rs-macros v11.1.0
+   Compiling tokio-native-tls v0.3.1
+   Compiling windows-targets v0.48.5
+   Compiling cookie v0.18.1
+   Compiling dirs v6.0.0
+   Compiling rama-net v0.3.0-alpha.4
+   Compiling rayon-core v1.13.0
+   Compiling tower-http v0.6.8
+   Compiling publicsuffix v2.3.0
+   Compiling crossbeam-channel v0.5.15
+   Compiling encoding_rs v0.8.35
+   Compiling ref-cast v1.0.25
+   Compiling ts-rs v11.1.0
+   Compiling cookie_store v0.22.1
+   Compiling schemars v0.8.22
+   Compiling hyper-tls v0.6.0
+   Compiling windows-sys v0.48.0
+   Compiling rand v0.10.1
+   Compiling miniz_oxide v0.8.9
+   Compiling env_filter v1.0.0
+   Compiling serde_urlencoded v0.7.1
+   Compiling heapless v0.7.17
+   Compiling bumpalo v3.19.1
+   Compiling bytemuck v1.25.0
+   Compiling flate2 v1.1.8
+   Compiling codex-utils-absolute-path v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\utils\absolute-path)
+   Compiling env_logger v0.11.9
+   Compiling socket2 v0.5.10
+   Compiling rusticata-macros v4.1.0
+   Compiling logos-codegen v0.15.1
+   Compiling hash32 v0.2.1
+   Compiling blake3 v1.8.2
+   Compiling arrayvec v0.7.6
+   Compiling atomic v0.5.3
+   Compiling link-section v0.17.2
+   Compiling tagptr v0.2.0
+   Compiling anstyle v1.0.13
+   Compiling utf8parse v0.2.2
+   Compiling winreg v0.50.0
+   Compiling widestring v1.2.1
+   Compiling bit-vec v0.8.0
+   Compiling bitflags v1.3.2
+   Compiling regex-lite v0.1.8
+   Compiling constant_time_eq v0.3.1
+   Compiling once_cell_polyfill v1.70.2
+   Compiling ctor v1.0.6
+   Compiling bit-set v0.8.0
+   Compiling moka v0.12.13
+   Compiling anstyle-wincon v3.0.11
+   Compiling anstyle-parse v0.2.7
+   Compiling lock_free_hashtable v0.1.4
+   Compiling dupe v0.9.1
+   Compiling asn1-rs v0.7.1
+   Compiling ipconfig v0.3.2
+   Compiling quickcheck v1.1.0
+   Compiling hickory-proto v0.25.2
+   Compiling icu_locale_data v2.2.0
+   Compiling typeid v1.0.3
+   Compiling anstyle-query v1.1.5
+   Compiling cobs v0.3.0
+   Compiling hashbrown v0.14.5
+   Compiling arrayref v0.3.9
+   Compiling unicode-width v0.1.14
+   Compiling colorchoice v1.0.4
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling resolv-conf v0.7.6
+   Compiling anstream v0.6.21
+   Compiling icu_locale v2.2.0
+   Compiling dashmap v6.1.0
+   Compiling postcard v1.1.3
+   Compiling allocative v0.3.6
+   Compiling strong_hash v0.1.0
+   Compiling erased-serde v0.4.10
+   Compiling sorted_vector_map v0.2.1
+   Compiling static_interner v0.1.2
+   Compiling fancy-regex v0.16.2
+   Compiling terminal_size v0.4.3
+   Compiling Inflector v0.11.4
+   Compiling convert_case v0.6.0
+   Compiling schemafy_core v0.5.2
+   Compiling darling_core v0.21.3
+   Compiling fxhash v0.2.1
+   Compiling triomphe v0.1.15
+   Compiling csv-core v0.1.13
+   Compiling urlencoding v2.1.3
+   Compiling sequence_trie v0.3.6
+   Compiling static_assertions v1.1.0
+   Compiling inventory v0.3.24
+   Compiling take_mut v0.2.2
+   Compiling clap_lex v1.0.0
+   Compiling csv v1.4.0
+   Compiling same-file v1.0.6
+   Compiling schemafy_lib v0.5.2
+   Compiling pagable v0.4.1
+   Compiling clap_builder v4.5.58
+   Compiling hickory-resolver v0.25.2
+   Compiling derive_more-impl v1.0.0
+   Compiling logos-derive v0.15.1
+   Compiling memoffset v0.9.1
+   Compiling rama-http-headers v0.3.0-alpha.4
+   Compiling oid-registry v0.8.1
+   Compiling der-parser v10.0.0
+   Compiling darling_macro v0.21.3
+   Compiling fluent-uri v0.1.4
+   Compiling rama-dns v0.3.0-alpha.4
+   Compiling windows-sys v0.59.0
+   Compiling serde_html_form v0.3.2
+   Compiling pem v3.0.6
+   Compiling matchit v0.9.1
+   Compiling error-code v3.3.2
+   Compiling http-range-header v0.4.2
+   Compiling endian-type v0.1.2
+   Compiling clap v4.5.58
+   Compiling clipboard-win v5.4.1
+   Compiling derive_more v1.0.0
+   Compiling radix_trie v0.2.1
+   Compiling fd-lock v4.0.4
+   Compiling lsp-types v0.97.0
+   Compiling darling v0.21.3
+   Compiling starlark_map v0.14.2
+   Compiling logos v0.15.1
+   Compiling schemafy v0.5.2
+   Compiling walkdir v2.5.0
+   Compiling annotate-snippets v0.9.2
+   Compiling fdeflate v0.3.7
+   Compiling rama-http v0.3.0-alpha.4
+   Compiling tokio-test v0.4.5
+   Compiling globset v0.4.18
+   Compiling home v0.5.12
+   Compiling yasna v0.5.2
+   Compiling pxfm v0.1.27
+   Compiling quick-error v2.0.1
+   Compiling color_quant v1.1.0
+   Compiling byteorder-lite v0.1.0
+   Compiling indenter v0.3.4
+   Compiling rama-tcp v0.3.0-alpha.4
+   Compiling weezl v0.1.12
+   Compiling zune-core v0.5.1
+   Compiling display_container v0.9.0
+   Compiling image-webp v0.2.4
+   Compiling gif v0.14.1
+   Compiling zune-jpeg v0.5.12
+   Compiling rustyline v14.0.0
+   Compiling png v0.18.0
+   Compiling debugserver-types v0.5.0
+   Compiling serde_with_macros v3.17.0
+   Compiling rama-udp v0.3.0-alpha.4
+   Compiling textwrap v0.11.0
+   Compiling starlark_derive v0.14.2
+   Compiling codex-utils-home-dir v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\utils\home-dir)
+   Compiling lru v0.16.3
+   Compiling erased-serde v0.3.31
+   Compiling maplit v1.0.2
+   Compiling strsim v0.10.0
+   Compiling cmp_any v0.8.1
+   Compiling codex-utils-cache v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\utils\cache)
+   Compiling rama-socks5 v0.3.0-alpha.4
+   Compiling serde_with v3.17.0
+   Compiling moxcms v0.7.11
+   Compiling icu_decimal_data v2.2.0
+   Compiling fixed_decimal v0.7.2
+   Compiling multimap v0.10.1
+   Compiling gix-trace v0.1.18
+   Compiling icu_decimal v2.2.0
+   Compiling strum v0.27.2
+   Compiling starlark_syntax v0.14.2
+   Compiling codex-utils-path-uri v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\utils\path-uri)
+   Compiling codex-utils-string v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\utils\string)
+   Compiling chardetng v0.1.17
+   Compiling codex-async-utils v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\async-utils)
+   Compiling gix-validate v0.11.0
+   Compiling quick-xml v0.38.4
+   Compiling wildmatch v2.6.1
+   Compiling sys-locale v0.3.2
+   Compiling gix-path v0.11.2
+   Compiling unicode-normalization v0.1.25
+   Compiling thiserror v1.0.69
+   Compiling winnow v0.7.14
+   Compiling gix-utils v0.3.1
+   Compiling prodash v31.0.0
+   Compiling zlib-rs v0.6.3
+   Compiling rama-http-core v0.3.0-alpha.4
+   Compiling starlark v0.14.2
+   Compiling parking v2.2.1
+   Compiling hash32 v0.3.1
+   Compiling heapless v0.8.0
+   Compiling gix-error v0.2.1
+   Compiling concurrent-queue v2.5.0
+   Compiling image v0.25.9
+   Compiling sha1-checked v0.10.0
+   Compiling faster-hex v0.10.0
+   Compiling jiff-tzdb v0.1.6
+   Compiling winsafe v0.0.19
+   Compiling jiff-tzdb-platform v0.1.3
+   Compiling sharded-slab v0.1.7
+   Compiling zstd-sys v2.0.16+zstd.1.5.7
+   Compiling gix-features v0.46.2
+   Compiling nu-ansi-term v0.50.3
+   Compiling matchers v0.2.0
+   Compiling opentelemetry v0.31.0
+   Compiling gix-hash v0.23.0
+   Compiling tracing-log v0.2.0
+   Compiling tracing-serde v0.2.0
+   Compiling thread_local v1.1.9
+   Compiling tracing-subscriber v0.3.22
+   Compiling jiff v0.2.23
+   Compiling codex-utils-image v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\utils\image)
+   Compiling event-listener v5.4.1
+   Compiling rand_chacha v0.3.1
+   Compiling windows-core v0.62.2
+   Compiling rand v0.8.6
+   Compiling rama-http-backend v0.3.0-alpha.4
+   Compiling tempfile v3.27.0
+   Compiling rustc-hash v2.1.1
+   Compiling gix-hashtable v0.13.0
+   Compiling headers-core v0.3.0
+   Compiling inout v0.1.4
+   Compiling memmap2 v0.9.10
+   Compiling headers v0.4.1
+   Compiling cipher v0.4.4
+   Compiling tree-sitter-language v0.1.7
+   Compiling tree-sitter v0.25.10
+   Compiling darling_core v0.23.0
+   Compiling hmac v0.12.1
+   Compiling tree-sitter-bash v0.25.1
+   Compiling windows-threading v0.2.1
+   Compiling shell-words v1.1.1
+   Compiling env_home v0.1.0
+   Compiling utf-8 v0.7.6
+   Compiling which v8.0.0
+   Compiling windows-future v0.3.2
+   Compiling gix-date v0.15.1
+   Compiling gix-actor v0.40.0
+   Compiling darling_macro v0.23.0
+   Compiling tracing-opentelemetry v0.32.1
+   Compiling windows-collections v0.3.2
+   Compiling windows-numerics v0.3.1
+   Compiling gix-object v0.58.0
+   Compiling zstd-safe v7.2.4
+   Compiling event-listener-strategy v0.5.4
+   Compiling eventsource-stream v0.2.3
+   Compiling serde_path_to_error v0.1.20
+   Compiling streaming-iterator v0.1.9
+   Compiling winapi v0.3.9
+   Compiling async-channel v2.5.0
+   Compiling windows v0.62.2
+   Compiling zstd v0.13.3
+   Compiling darling v0.23.0
+   Compiling arc-swap v1.9.0
+   Compiling gix-fs v0.19.2
+   Compiling pin-project v1.1.10
+   Compiling schemars v1.2.1
+   Compiling rmcp-macros v1.7.0
+   Compiling process-wrap v9.0.1
+   Compiling gix-chunk v0.7.0
+   Compiling prost-derive v0.14.3
+   Compiling sse-stream v0.2.1
+   Compiling universal-hash v0.5.1
+   Compiling opaque-debug v0.3.1
+   Compiling nonempty v0.12.0
+   Compiling gix-tempfile v21.0.2
+   Compiling unic-langid-impl v0.9.6
+   Compiling hyper-timeout v0.5.2
+   Compiling gix-lock v21.0.2
+   Compiling prost v0.14.3
+   Compiling toml_datetime v0.7.5+spec-1.1.0
+   Compiling toml_writer v1.0.6+spec-1.1.0
+   Compiling base64ct v1.8.3
+   Compiling unic-langid v0.9.6
+   Compiling gix-commitgraph v0.35.0
+   Compiling gix-quote v0.7.0
+   Compiling gix-sec v0.13.2
+   Compiling pem-rfc7468 v0.7.0
+   Compiling curve25519-dalek v4.1.3
+   Compiling aead v0.5.2
+   Compiling serde_spanned v1.0.4
+   Compiling der v0.7.10
+   Compiling gix-ref v0.61.0
+   Compiling gix-revwalk v0.29.0
+   Compiling toml v0.9.11+spec-1.1.0
+   Compiling type-map v0.5.1
+   Compiling opentelemetry_sdk v0.31.0
+   Compiling os_info v3.14.0
+   Compiling const-hex v1.17.0
+   Compiling gix-command v0.8.0
+   Compiling gix-glob v0.24.0
+   Compiling gix-packetline v0.21.2
+   Compiling spki v0.7.3
+   Compiling gix-url v0.35.2
+   Compiling clru v0.6.3
+   Compiling self_cell v1.2.2
+   Compiling self_cell v0.10.3
+   Compiling gix-transport v0.55.1
+   Compiling gix-pack v0.68.0
+   Compiling pkcs8 v0.10.2
+   Compiling gix-revision v0.43.0
+   Compiling gix-shallow v0.10.0
+   Compiling opentelemetry-appender-tracing v0.31.1
+   Compiling gix-config-value v0.17.1
+   Compiling fluent-syntax v0.11.1
+   Compiling gethostname v1.1.0
+   Compiling similar v2.7.0
+   Compiling opentelemetry-semantic-conventions v0.31.0
+   Compiling rustc-hash v1.1.0
+   Compiling unicode-bom v2.0.3
+   Compiling gix-protocol v0.59.0
+   Compiling gix-config v0.54.0
+   Compiling gix-refspec v0.39.0
+   Compiling gix-odb v0.78.0
+   Compiling rust-embed-utils v8.11.0
+   Compiling gix-discover v0.49.0
+   Compiling gix-traverse v0.55.0
+   Compiling gix-diff v0.61.0
+   Compiling http v0.2.12
+   Compiling codex-execpolicy v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\execpolicy)
+   Compiling vsimd v0.8.0
+   Compiling outref v0.5.2
+   Compiling rust-embed-impl v8.11.0
+   Compiling poly1305 v0.8.0
+   Compiling toml v0.5.11
+   Compiling base64-simd v0.8.0
+   Compiling basic-toml v0.1.10
+   Compiling bytes-utils v0.1.4
+   Compiling gix v0.81.0
+   Compiling http-body v0.4.6
+   Compiling x25519-dalek v2.0.1
+   Compiling intl-memoizer v0.5.3
+   Compiling intl_pluralrules v7.0.2
+   Compiling aws-smithy-types v1.4.7
+   Compiling i18n-config v0.4.8
+   Compiling fluent-langneg v0.13.1
+   Compiling salsa20 v0.10.2
+   Compiling find-crate v0.6.3
+   Compiling signature v2.2.0
+   Compiling fluent-bundle v0.15.3
+   Compiling i18n-embed-impl v0.8.4
+   Compiling rust-embed v8.11.0
+   Compiling toml_edit v0.24.0+spec-1.1.0
+   Compiling pbkdf2 v0.12.2
+   Compiling chacha20 v0.9.1
+   Compiling fluent v0.16.1
+   Compiling codex-utils-path v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\utils\path-utils)
+   Compiling aws-smithy-async v1.2.14
+   Compiling serde_ignored v0.1.14
+   Compiling chacha20poly1305 v0.10.1
+   Compiling i18n-embed v0.15.4
+   Compiling aws-smithy-runtime-api v1.12.0
+   Compiling hkdf v0.12.4
+   Compiling cookie-factory v0.3.3
+   Compiling secrecy v0.10.3
+   Compiling io_tee v0.1.1
+   Compiling base64 v0.21.7
+   Compiling nix v0.28.0
+   Compiling winreg v0.10.1
+   Compiling scrypt v0.11.0
+   Compiling i18n-embed-fl v0.9.4
+   Compiling age-core v0.11.0
+   Compiling serial2 v0.2.33
+   Compiling filedescriptor v0.8.3
+   Compiling keyring v3.6.3
+   Compiling shared_library v0.1.9
+   Compiling downcast-rs v1.2.1
+   Compiling bech32 v0.9.1
+   Compiling ed25519 v2.2.3
+   Compiling crypto_secretbox v0.1.1
+   Compiling simple_asn1 v0.6.4
+   Compiling codex-keyring-store v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\keyring-store)
+   Compiling portable-pty v0.9.0
+   Compiling blake2 v0.10.6
+   Compiling chunked_transfer v1.5.0
+   Compiling age v0.11.2
+   Compiling ascii v1.1.0
+   Compiling ed25519-dalek v2.2.0
+   Compiling jsonwebtoken v9.3.1
+   Compiling codex-utils-pty v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\utils\pty)
+   Compiling crypto_box v0.9.1
+   Compiling tiny_http v0.12.0
+   Compiling webbrowser v1.0.6
+   Compiling codex-utils-template v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\utils\template)
+   Compiling polyval v0.6.2
+   Compiling aes v0.8.4
+   Compiling codex-terminal-detection v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\terminal-detection)
+   Compiling keccak v0.1.6
+   Compiling aws-smithy-http v0.62.6
+   Compiling ghash v0.5.1
+   Compiling aws-credential-types v1.2.11
+   Compiling ctr v0.9.2
+   Compiling aws-types v1.3.11
+   Compiling sha3 v0.10.9
+   Compiling hybrid-array v0.2.3
+   Compiling kem v0.3.0-pre.0
+   Compiling aws-lc-rs v1.16.2
+   Compiling glob v0.3.3
+   Compiling aes-gcm v0.10.3
+   Compiling rustls v0.23.36
+   Compiling ml-kem v0.2.3
+   Compiling thiserror-no-std v2.0.2
+   Compiling aws-smithy-observability v0.1.5
+   Compiling axum-core v0.5.6
+   Compiling debugid v0.8.0
+   Compiling matchit v0.8.4
+   Compiling sentry-types v0.46.1
+   Compiling clatter v2.2.0
+   Compiling libm v0.2.16
+   Compiling rustls-webpki v0.103.13
+   Compiling x509-parser v0.18.1
+   Compiling aws-sigv4 v1.3.7
+   Compiling libsqlite3-sys v0.37.0
+   Compiling hashlink v0.11.0
+   Compiling ff v0.13.1
+   Compiling base16ct v0.2.0
+   Compiling rcgen v0.14.7
+   Compiling group v0.13.0
+   Compiling sec1 v0.7.3
+   Compiling core_maths v0.1.1
+   Compiling sentry-core v0.46.1
+   Compiling clang-sys v1.8.1
+   Compiling aws-smithy-json v0.61.9
+   Compiling crypto-bigint v0.5.5
+   Compiling calendrical_calculations v0.2.4
+   Compiling crossbeam-queue v0.3.12
+   Compiling tokio-rustls v0.26.4
+   Compiling codex-utils-rustls-provider v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\utils\rustls-provider)
+   Compiling tungstenite v0.27.0 (https://github.com/openai-oss-forks/tungstenite-rs?rev=9200079d3b54a1ff51072e24d81fd354f085156f#9200079d)
+   Compiling rustls-platform-verifier v0.7.0
+   Compiling elliptic-curve v0.13.8
+   Compiling hyper-rustls v0.27.7
+   Compiling rama-tls-rustls v0.3.0-alpha.4
+   Compiling tonic v0.14.3
+   Compiling futures-intrusive v0.5.0
+   Compiling reqwest v0.12.28
+   Compiling reqwest v0.13.4
+   Compiling aws-smithy-http-client v1.1.12
+   Compiling codex-network-proxy v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\network-proxy)
+   Compiling tokio-tungstenite v0.28.0 (https://github.com/openai-oss-forks/tokio-tungstenite?rev=132f5b39c862e3a970f731d709608b3e6276d5f6#132f5b39)
+   Compiling axum v0.8.8
+   Compiling findshlibs v0.10.2
+   Compiling rustc-demangle v0.1.27
+   Compiling sqlx-core v0.9.0
+   Compiling aws-smithy-runtime v1.9.5
+   Compiling tonic-prost v0.14.3
+   Compiling backtrace v0.3.76
+   Compiling codex-client v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\codex-client)
+   Compiling oauth2 v5.0.0
+   Compiling opentelemetry-proto v0.31.0
+   Compiling opentelemetry-http v0.31.0
+   Compiling codex-copilot v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\codex-rs-overlay\codex-copilot)
+   Compiling rmcp v1.7.0
+   Compiling atoi v2.0.0
+   Compiling rfc6979 v0.4.0
+   Compiling aws-runtime v1.5.17
+   Compiling sentry-contexts v0.46.1
+   Compiling resb v0.1.2
+   Compiling libloading v0.8.9
+   Compiling dotenvy v0.15.7
+   Compiling xmlparser v0.13.6
+   Compiling zoneinfo64 v0.3.0
+   Compiling opentelemetry-otlp v0.31.0
+   Compiling bindgen v0.72.1
+   Compiling aws-smithy-xml v0.60.13
+   Compiling cexpr v0.6.0
+   Compiling ecdsa v0.16.9
+   Compiling codex-protocol v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\protocol)
+   Compiling sqlx-sqlite v0.9.0
+   Compiling sentry-backtrace v0.46.1
+   Compiling icu_calendar_data v2.2.0
+   Compiling primeorder v0.13.6
+   Compiling aws-smithy-query v0.60.9
+   Compiling itertools v0.13.0
+   Compiling hostname v0.4.2
+   Compiling is_ci v1.2.0
+   Compiling diplomat_core v0.15.0
+   Compiling which v6.0.3
+   Compiling p256 v0.13.2
+   Compiling aws-sdk-sts v1.95.0
+   Compiling sentry-panic v0.46.1
+   Compiling sentry-debug-images v0.46.1
+   Compiling sqlx-macros-core v0.9.0
+   Compiling icu_calendar v2.2.1
+   Compiling aws-sdk-sso v1.91.0
+   Compiling aws-sdk-ssooidc v1.93.0
+   Compiling aws-sdk-signin v1.2.0
+   Compiling timezone_provider v0.2.3
+   Compiling gzip-header v1.0.0
+   Compiling is-terminal v0.4.17
+   Compiling owo-colors v4.3.0
+   Compiling ixdtf v0.6.4
+   Compiling supports-color v2.1.0
+   Compiling v8 v149.2.0
+   Compiling sqlx-macros v0.9.0
+   Compiling temporal_rs v0.2.3
+   Compiling aws-config v1.8.12
+   Compiling sentry v0.46.1
+   Compiling diplomat v0.15.0
+   Compiling supports-color v3.0.2
+   Compiling diplomat-runtime v0.15.1
+   Compiling codex-collaboration-mode-templates v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\collaboration-mode-templates)
+   Compiling sqlx v0.9.0
+   Compiling bzip2-sys v0.1.13+1.0.8
+   Compiling lzma-sys v0.1.20
+   Compiling temporal_capi v0.2.3
+   Compiling deno_core_icudata v0.77.0
+   Compiling windows-result v0.2.0
+   Compiling darling_core v0.20.11
+   Compiling unsafe-libyaml v0.2.11
+   Compiling include_dir v0.7.4
+   Compiling codex-aws-auth v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\aws-auth)
+   Compiling darling_macro v0.20.11
+   Compiling windows-strings v0.1.0
+   Compiling zopfli v0.8.3
+   Compiling rayon v1.11.0
+   Compiling nucleo-matcher v0.3.1 (https://github.com/helix-editor/nucleo.git?rev=4253de9faabb4e5c6d81d946a5e35a90f87347ee#4253de9f)
+   Compiling serde_yaml v0.9.34+deprecated
+   Compiling lzma-rs v0.3.0
+   Compiling bzip2 v0.5.2
+   Compiling jsonptr v0.7.1
+   Compiling deflate64 v0.1.10
+   Compiling windows-core v0.58.0
+   Compiling darling v0.20.11
+   Compiling codex-skills v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\skills)
+   Compiling dirs-sys-next v0.1.2
+   Compiling codex-shell-command v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\shell-command)
+   Compiling codex-api v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\codex-api)
+   Compiling codex-file-system v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\file-system)
+   Compiling codex-agent-identity v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\agent-identity)
+   Compiling codex-utils-output-truncation v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\utils\output-truncation)
+   Compiling codex-git-utils v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\git-utils)
+   Compiling codex-sandboxing v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\sandboxing)
+   Compiling codex-state v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\state)
+   Compiling codex-app-server-protocol v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\app-server-protocol)
+   Compiling codex-code-mode-protocol v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\code-mode-protocol)
+   Compiling codex-context-fragments v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\context-fragments)
+   Compiling codex-mcp-notification-bridge v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\codex-rs-overlay\codex-mcp-notification-bridge)
+   Compiling nucleo v0.5.0 (https://github.com/helix-editor/nucleo.git?rev=4253de9faabb4e5c6d81d946a5e35a90f87347ee#4253de9f)
+   Compiling codex-code-mode v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\code-mode)
+   Compiling codex-secrets v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\secrets)
+   Compiling ignore v0.4.25
+   Compiling stop-words v0.9.0
+   Compiling foldhash v0.1.5
+   Compiling codex-file-search v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\file-search)
+   Compiling codex-response-debug-context v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\response-debug-context)
+   Compiling hashbrown v0.15.5
+   Compiling windows v0.58.0
+   Compiling dirs-next v2.0.0
+   Compiling cached_proc_macro v0.25.0
+   Compiling tracing-appender v0.2.4
+   Compiling codex-install-context v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\install-context)
+   Compiling filetime v0.2.27
+   Compiling web-time v1.1.0
+   Compiling cached_proc_macro_types v0.1.1
+   Compiling rust-stemmers v1.2.0
+   Compiling tar v0.4.45
+   Compiling deunicode v1.6.2
+   Compiling cached v0.56.0
+   Compiling codex-rollout-trace v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\rollout-trace)
+   Compiling codex-stream-diagnostics v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\codex-rs-overlay\codex-stream-diagnostics)
+   Compiling codex-prompts v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\prompts)
+   Compiling codex-memories-read v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\memories\read)
+   Compiling iana-time-zone v0.1.65
+   Compiling bm25 v2.3.2
+   Compiling codex-utils-stream-parser v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\utils\stream-parser)
+   Compiling whoami v1.6.1
+   Compiling rustix v1.1.4
+   Compiling errno v0.3.14
+   Compiling async-io v2.6.0
+   Compiling polling v3.11.0
+   Compiling codex-backend-openapi-models v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\codex-backend-openapi-models)
+   Compiling futures-lite v2.6.1
+   Compiling codex-linux-sandbox v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\linux-sandbox)
+   Compiling uds_windows v1.1.0
+   Compiling notify-types v2.1.0
+   Compiling codex-utils-cli v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\utils\cli)
+   Compiling notify v8.2.0
+   Compiling codex-shell-escalation v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\shell-escalation)
+   Compiling codex-external-agent-sessions v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\external-agent-sessions)
+   Compiling codex-utils-json-to-toml v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\utils\json-to-toml)
+   Compiling codex-invariant-tests v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\codex-rs-overlay\codex-invariant-tests)
+   Compiling codex-file-watcher v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\file-watcher)
+   Compiling codex-uds v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\uds)
+   Compiling xz2 v0.1.7
+   Compiling zip v2.4.2
+   Compiling codex-otel v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\otel)
+   Compiling codex-model-provider-info v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\model-provider-info)
+   Compiling codex-exec-server v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\exec-server)
+   Compiling codex-features v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\features)
+   Compiling codex-windows-sandbox v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\windows-sandbox-rs)
+   Compiling codex-config v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\config)
+   Compiling codex-tools v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\tools)
+warning: struct `ToolsConfig` is never constructed
+   --> tools\src\tool_config.rs:180:12
+    |
+180 | pub struct ToolsConfig {
+    |            ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+System.Management.Automation.RemoteException
+warning: struct `ToolsConfigParams` is never constructed
+   --> tools\src\tool_config.rs:219:12
+    |
+219 | pub struct ToolsConfigParams<'a> {
+    |            ^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: multiple associated items are never used
+   --> tools\src\tool_config.rs:252:12
+    |
+251 | impl ToolsConfig {
+    | ---------------- associated items in this implementation
+252 |     pub fn new(params: &ToolsConfigParams<'_>) -> Self {
+    |            ^^^
+...
+376 |     pub fn with_agent_type_description(mut self, agent_type_description: String) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+381 |     pub fn with_namespace_tools_capability(mut self, namespace_tools: bool) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+388 |     pub fn with_image_generation_capability(mut self, image_generation: bool) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+395 |     pub fn with_web_search_capability(mut self, web_search: bool) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+402 |     pub fn with_spawn_agent_usage_hint(mut self, spawn_agent_usage_hint: bool) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+407 |     pub fn with_spawn_agent_usage_hint_text(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+415 |     pub fn with_hide_spawn_agent_metadata(mut self, hide_spawn_agent_metadata: bool) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+420 |     pub fn with_goal_tools_allowed(mut self, allowed: bool) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^
+...
+425 |     pub fn with_max_concurrent_threads_per_session(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+433 |     pub fn with_wait_agent_min_timeout_ms(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+441 |     pub fn with_allow_login_shell(mut self, allow_login_shell: bool) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^
+...
+446 |     pub fn with_environment_mode(mut self, environment_mode: ToolEnvironmentMode) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^
+...
+451 |     pub fn with_unified_exec_shell_mode(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+459 |     pub fn with_unified_exec_shell_mode_for_session(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+474 |     pub fn with_web_search_config(mut self, web_search_config: Option<WebSearchConfig>) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^
+...
+479 |     pub fn for_code_mode_nested_tools(&self) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `supports_image_generation` is never used
+   --> tools\src\tool_config.rs:487:4
+    |
+487 | fn supports_image_generation(model_info: &ModelInfo) -> bool {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: `codex-tools` (lib) generated 4 warnings
+   Compiling codex-apply-patch v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\apply-patch)
+   Compiling codex-arg0 v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\arg0)
+   Compiling codex-login v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\login)
+   Compiling codex-rmcp-client v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\rmcp-client)
+   Compiling codex-extension-api v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\ext\extension-api)
+   Compiling codex-connectors v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\connectors)
+   Compiling codex-home v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\codex-home)
+warning: field `refresh_lock` is never read
+    --> login\src\auth\manager.rs:1490:5
+     |
+1481 | pub struct AuthManager {
+     |            ----------- field in this struct
+...
+1490 |     refresh_lock: Semaphore,
+     |     ^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+System.Management.Automation.RemoteException
+   Compiling codex-utils-plugins v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\utils\plugins)
+   Compiling codex-feedback v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\feedback)
+   Compiling codex-models-manager v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\models-manager)
+   Compiling codex-rollout v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\rollout)
+warning: `codex-login` (lib) generated 1 warning
+   Compiling codex-plugin v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\plugin)
+   Compiling codex-model-provider v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\model-provider)
+   Compiling codex-hooks v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\hooks)
+   Compiling codex-plugin-scope v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\codex-rs-overlay\codex-plugin-scope)
+warning: unexpected `cfg` condition value: `test-support`
+   --> model-provider\src\copilot.rs:190:21
+    |
+190 |     #[cfg(any(test, feature = "test-support"))]
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^ help: remove the condition
+    |
+    = note: no expected values for `feature`
+    = help: consider adding `test-support` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: `#[warn(unexpected_cfgs)]` on by default
+System.Management.Automation.RemoteException
+warning: unexpected `cfg` condition value: `test-support`
+   --> model-provider\src\provider.rs:189:21
+    |
+189 |     #[cfg(any(test, feature = "test-support"))]
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^ help: remove the condition
+    |
+    = note: no expected values for `feature`
+    = help: consider adding `test-support` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+System.Management.Automation.RemoteException
+   Compiling codex-analytics v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\analytics)
+   Compiling codex-mcp v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\codex-mcp)
+   Compiling codex-backend-client v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\backend-client)
+warning: `codex-model-provider` (lib) generated 2 warnings
+   Compiling codex-thread-store v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\thread-store)
+   Compiling codex-external-agent-migration v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\external-agent-migration)
+warning: function `serialize_enum_as_string` is never used
+  --> analytics\src\lib.rs:78:15
+   |
+78 | pub(crate) fn serialize_enum_as_string<T: serde::Serialize>(value: &T) -> Option<String> {
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+System.Management.Automation.RemoteException
+warning: function `usize_to_u64` is never used
+  --> analytics\src\lib.rs:84:15
+   |
+84 | pub(crate) fn usize_to_u64(value: usize) -> u64 {
+   |               ^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `option_i64_to_u64` is never used
+  --> analytics\src\lib.rs:88:15
+   |
+88 | pub(crate) fn option_i64_to_u64(value: Option<i64>) -> Option<u64> {
+   |               ^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: struct `AcceptedLineFingerprintEventInput` is never constructed
+  --> analytics\src\accepted_lines.rs:17:19
+   |
+17 | pub(crate) struct AcceptedLineFingerprintEventInput {
+   |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `accepted_line_fingerprint_event_requests` is never used
+  --> analytics\src\accepted_lines.rs:94:15
+   |
+94 | pub(crate) fn accepted_line_fingerprint_event_requests(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `accepted_line_repo_hash_for_cwd` is never used
+   --> analytics\src\accepted_lines.rs:131:14
+    |
+131 | pub async fn accepted_line_repo_hash_for_cwd(cwd: &Path) -> Option<String> {
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: multiple variants are never constructed
+  --> analytics\src\events.rs:61:5
+   |
+60 | pub(crate) enum TrackEventRequest {
+   |                 ----------------- variants in this enum
+61 |     SkillInvocation(SkillInvocationEventRequest),
+   |     ^^^^^^^^^^^^^^^
+62 |     ThreadInitialized(ThreadInitializedEvent),
+   |     ^^^^^^^^^^^^^^^^^
+63 |     GuardianReview(Box<GuardianReviewEventRequest>),
+   |     ^^^^^^^^^^^^^^
+64 |     AppMentioned(CodexAppMentionedEventRequest),
+   |     ^^^^^^^^^^^^
+65 |     AppUsed(CodexAppUsedEventRequest),
+   |     ^^^^^^^
+66 |     HookRun(CodexHookRunEventRequest),
+   |     ^^^^^^^
+67 |     Compaction(Box<CodexCompactionEventRequest>),
+   |     ^^^^^^^^^^
+68 |     Goal(Box<CodexGoalEventRequest>),
+   |     ^^^^
+69 |     TurnEvent(Box<CodexTurnEventRequest>),
+   |     ^^^^^^^^^
+70 |     TurnSteer(CodexTurnSteerEventRequest),
+   |     ^^^^^^^^^
+71 |     CommandExecution(CodexCommandExecutionEventRequest),
+   |     ^^^^^^^^^^^^^^^^
+72 |     FileChange(CodexFileChangeEventRequest),
+   |     ^^^^^^^^^^
+73 |     McpToolCall(CodexMcpToolCallEventRequest),
+   |     ^^^^^^^^^^^
+74 |     DynamicToolCall(CodexDynamicToolCallEventRequest),
+   |     ^^^^^^^^^^^^^^^
+75 |     CollabAgentToolCall(CodexCollabAgentToolCallEventRequest),
+   |     ^^^^^^^^^^^^^^^^^^^
+76 |     WebSearch(CodexWebSearchEventRequest),
+   |     ^^^^^^^^^
+77 |     ImageGeneration(CodexImageGenerationEventRequest),
+   |     ^^^^^^^^^^^^^^^
+78 |     AcceptedLineFingerprints(Box<CodexAcceptedLineFingerprintsEventRequest>),
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+81 |     PluginUsed(CodexPluginUsedEventRequest),
+   |     ^^^^^^^^^^
+82 |     PluginInstalled(CodexPluginEventRequest),
+   |     ^^^^^^^^^^^^^^^
+83 |     PluginUninstalled(CodexPluginEventRequest),
+   |     ^^^^^^^^^^^^^^^^^
+84 |     PluginEnabled(CodexPluginEventRequest),
+   |     ^^^^^^^^^^^^^
+85 |     PluginDisabled(CodexPluginEventRequest),
+   |     ^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `plugin_state_event_type` is never used
+   --> analytics\src\events.rs:963:15
+    |
+963 | pub(crate) fn plugin_state_event_type(state: PluginState) -> &'static str {
+    |               ^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `codex_app_metadata` is never used
+   --> analytics\src\events.rs:972:15
+    |
+972 | pub(crate) fn codex_app_metadata(
+    |               ^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `codex_plugin_metadata` is never used
+   --> analytics\src\events.rs:987:15
+    |
+987 | pub(crate) fn codex_plugin_metadata(plugin: PluginTelemetryMetadata) -> CodexPluginMetadata {
+    |               ^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `codex_compaction_event_params` is never used
+    --> analytics\src\events.rs:1015:15
+     |
+1015 | pub(crate) fn codex_compaction_event_params(
+     |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `codex_goal_event_params` is never used
+    --> analytics\src\events.rs:1052:15
+     |
+1052 | pub(crate) fn codex_goal_event_params(
+     |               ^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `codex_plugin_used_metadata` is never used
+    --> analytics\src\events.rs:1079:15
+     |
+1079 | pub(crate) fn codex_plugin_used_metadata(
+     |               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `codex_hook_run_metadata` is never used
+    --> analytics\src\events.rs:1096:15
+     |
+1096 | pub(crate) fn codex_hook_run_metadata(
+     |               ^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `analytics_hook_event_name` is never used
+    --> analytics\src\events.rs:1110:4
+     |
+1110 | fn analytics_hook_event_name(event_name: HookEventName) -> &'static str {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `analytics_hook_source` is never used
+    --> analytics\src\events.rs:1125:4
+     |
+1125 | fn analytics_hook_source(source: HookSource) -> &'static str {
+     |    ^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `subagent_thread_started_event_request` is never used
+    --> analytics\src\events.rs:1151:15
+     |
+1151 | pub(crate) fn subagent_thread_started_event_request(
+     |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `subagent_source_name` is never used
+    --> analytics\src\events.rs:1180:15
+     |
+1180 | pub(crate) fn subagent_source_name(subagent_source: &SubAgentSource) -> String {
+     |               ^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `analytics_hook_status` is never used
+    --> analytics\src\events.rs:1184:4
+     |
+1184 | fn analytics_hook_status(status: HookRunStatus) -> HookRunStatus {
+     |    ^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: fields `turn_id`, `thread_id`, and `error` are never read
+   --> analytics\src\facts.rs:123:16
+    |
+122 | pub struct TurnCodexErrorFact {
+    |            ------------------ fields in this struct
+123 |     pub(crate) turn_id: String,
+    |                ^^^^^^^
+124 |     pub(crate) thread_id: String,
+    |                ^^^^^^^^^
+125 |     pub(crate) error: TurnCodexError,
+    |                ^^^^^
+    |
+    = note: `TurnCodexErrorFact` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+System.Management.Automation.RemoteException
+warning: fields `kind` and `http_status_code` are never read
+   --> analytics\src\facts.rs:181:16
+    |
+180 | pub(crate) struct TurnCodexError {
+    |                   -------------- fields in this struct
+181 |     pub(crate) kind: CodexErrKind,
+    |                ^^^^
+182 |     pub(crate) http_status_code: Option<u16>,
+    |                ^^^^^^^^^^^^^^^^
+    |
+    = note: `TurnCodexError` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+System.Management.Automation.RemoteException
+warning: field `0` is never read
+   --> analytics\src\facts.rs:493:27
+    |
+493 |     SubAgentThreadStarted(SubAgentThreadStartedInput),
+    |     --------------------- ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+493 -     SubAgentThreadStarted(SubAgentThreadStartedInput),
+493 +     SubAgentThreadStarted(()),
+    |
+System.Management.Automation.RemoteException
+warning: field `0` is never read
+   --> analytics\src\facts.rs:494:16
+    |
+494 |     Compaction(Box<CodexCompactionEvent>),
+    |     ---------- ^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+494 -     Compaction(Box<CodexCompactionEvent>),
+494 +     Compaction(()),
+    |
+System.Management.Automation.RemoteException
+warning: field `0` is never read
+   --> analytics\src\facts.rs:495:10
+    |
+495 |     Goal(Box<CodexGoalEvent>),
+    |     ---- ^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+495 -     Goal(Box<CodexGoalEvent>),
+495 +     Goal(()),
+    |
+System.Management.Automation.RemoteException
+warning: field `0` is never read
+   --> analytics\src\facts.rs:496:20
+    |
+496 |     GuardianReview(Box<GuardianReviewEventParams>),
+    |     -------------- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+496 -     GuardianReview(Box<GuardianReviewEventParams>),
+496 +     GuardianReview(()),
+    |
+System.Management.Automation.RemoteException
+warning: field `0` is never read
+   --> analytics\src\facts.rs:497:24
+    |
+497 |     TurnResolvedConfig(Box<TurnResolvedConfigFact>),
+    |     ------------------ ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+497 -     TurnResolvedConfig(Box<TurnResolvedConfigFact>),
+497 +     TurnResolvedConfig(()),
+    |
+System.Management.Automation.RemoteException
+warning: field `0` is never read
+   --> analytics\src\facts.rs:498:20
+    |
+498 |     TurnTokenUsage(Box<TurnTokenUsageFact>),
+    |     -------------- ^^^^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+498 -     TurnTokenUsage(Box<TurnTokenUsageFact>),
+498 +     TurnTokenUsage(()),
+    |
+System.Management.Automation.RemoteException
+warning: field `0` is never read
+   --> analytics\src\facts.rs:499:17
+    |
+499 |     TurnProfile(Box<TurnProfileFact>),
+    |     ----------- ^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+499 -     TurnProfile(Box<TurnProfileFact>),
+499 +     TurnProfile(()),
+    |
+System.Management.Automation.RemoteException
+warning: field `0` is never read
+   --> analytics\src\facts.rs:500:20
+    |
+500 |     TurnCodexError(Box<TurnCodexErrorFact>),
+    |     -------------- ^^^^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+500 -     TurnCodexError(Box<TurnCodexErrorFact>),
+500 +     TurnCodexError(()),
+    |
+System.Management.Automation.RemoteException
+warning: field `0` is never read
+   --> analytics\src\facts.rs:501:18
+    |
+501 |     SkillInvoked(SkillInvokedInput),
+    |     ------------ ^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+501 -     SkillInvoked(SkillInvokedInput),
+501 +     SkillInvoked(()),
+    |
+System.Management.Automation.RemoteException
+warning: field `0` is never read
+   --> analytics\src\facts.rs:502:18
+    |
+502 |     AppMentioned(AppMentionedInput),
+    |     ------------ ^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+502 -     AppMentioned(AppMentionedInput),
+502 +     AppMentioned(()),
+    |
+System.Management.Automation.RemoteException
+warning: field `0` is never read
+   --> analytics\src\facts.rs:503:13
+    |
+503 |     AppUsed(AppUsedInput),
+    |     ------- ^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+503 -     AppUsed(AppUsedInput),
+503 +     AppUsed(()),
+    |
+System.Management.Automation.RemoteException
+warning: field `0` is never read
+   --> analytics\src\facts.rs:504:13
+    |
+504 |     HookRun(HookRunInput),
+    |     ------- ^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+504 -     HookRun(HookRunInput),
+504 +     HookRun(()),
+    |
+System.Management.Automation.RemoteException
+warning: field `0` is never read
+   --> analytics\src\facts.rs:505:16
+    |
+505 |     PluginUsed(PluginUsedInput),
+    |     ---------- ^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+505 -     PluginUsed(PluginUsedInput),
+505 +     PluginUsed(()),
+    |
+System.Management.Automation.RemoteException
+warning: field `0` is never read
+   --> analytics\src\facts.rs:506:24
+    |
+506 |     PluginStateChanged(PluginStateChangedInput),
+    |     ------------------ ^^^^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+506 -     PluginStateChanged(PluginStateChangedInput),
+506 +     PluginStateChanged(()),
+    |
+System.Management.Automation.RemoteException
+warning: fields `tracking` and `invocations` are never read
+   --> analytics\src\facts.rs:510:9
+    |
+509 | pub(crate) struct SkillInvokedInput {
+    |                   ----------------- fields in this struct
+510 |     pub tracking: TrackEventsContext,
+    |         ^^^^^^^^
+511 |     pub invocations: Vec<SkillInvocation>,
+    |         ^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: fields `tracking` and `mentions` are never read
+   --> analytics\src\facts.rs:515:9
+    |
+514 | pub(crate) struct AppMentionedInput {
+    |                   ----------------- fields in this struct
+515 |     pub tracking: TrackEventsContext,
+    |         ^^^^^^^^
+516 |     pub mentions: Vec<AppInvocation>,
+    |         ^^^^^^^^
+System.Management.Automation.RemoteException
+warning: fields `tracking` and `app` are never read
+   --> analytics\src\facts.rs:520:9
+    |
+519 | pub(crate) struct AppUsedInput {
+    |                   ------------ fields in this struct
+520 |     pub tracking: TrackEventsContext,
+    |         ^^^^^^^^
+521 |     pub app: AppInvocation,
+    |         ^^^
+System.Management.Automation.RemoteException
+warning: fields `tracking` and `hook` are never read
+   --> analytics\src\facts.rs:525:9
+    |
+524 | pub(crate) struct HookRunInput {
+    |                   ------------ fields in this struct
+525 |     pub tracking: TrackEventsContext,
+    |         ^^^^^^^^
+526 |     pub hook: HookRunFact,
+    |         ^^^^
+System.Management.Automation.RemoteException
+warning: fields `tracking` and `plugin` are never read
+   --> analytics\src\facts.rs:536:9
+    |
+535 | pub(crate) struct PluginUsedInput {
+    |                   --------------- fields in this struct
+536 |     pub tracking: TrackEventsContext,
+    |         ^^^^^^^^
+537 |     pub plugin: PluginTelemetryMetadata,
+    |         ^^^^^^
+System.Management.Automation.RemoteException
+warning: fields `plugin` and `state` are never read
+   --> analytics\src\facts.rs:541:9
+    |
+540 | pub(crate) struct PluginStateChangedInput {
+    |                   ----------------------- fields in this struct
+541 |     pub plugin: PluginTelemetryMetadata,
+    |         ^^^^^^
+542 |     pub state: PluginState,
+    |         ^^^^^
+System.Management.Automation.RemoteException
+warning: struct `AnalyticsReducer` is never constructed
+   --> analytics\src\reducer.rs:137:19
+    |
+137 | pub(crate) struct AnalyticsReducer {
+    |                   ^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: struct `ConnectionState` is never constructed
+   --> analytics\src\reducer.rs:147:8
+    |
+147 | struct ConnectionState {
+    |        ^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: struct `ThreadAnalyticsState` is never constructed
+   --> analytics\src\reducer.rs:153:8
+    |
+153 | struct ThreadAnalyticsState {
+    |        ^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: struct `AnalyticsDropSite` is never constructed
+   --> analytics\src\reducer.rs:159:8
+    |
+159 | struct AnalyticsDropSite<'a> {
+    |        ^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: multiple associated functions are never used
+   --> analytics\src\reducer.rs:168:8
+    |
+167 | impl<'a> AnalyticsDropSite<'a> {
+    | ------------------------------ associated functions in this implementation
+168 |     fn guardian(input: &'a GuardianReviewEventParams) -> Self {
+    |        ^^^^^^^^
+...
+178 |     fn review(input: &'a PendingReviewState) -> Self {
+    |        ^^^^^^
+...
+188 |     fn compaction(input: &'a CodexCompactionEvent) -> Self {
+    |        ^^^^^^^^^^
+...
+198 |     fn goal(input: &'a CodexGoalEvent) -> Self {
+    |        ^^^^
+...
+208 |     fn tool_item(
+    |        ^^^^^^^^^
+...
+221 |     fn turn_steer(thread_id: &'a str) -> Self {
+    |        ^^^^^^^^^^
+...
+231 |     fn turn(thread_id: &'a str, turn_id: &'a str) -> Self {
+    |        ^^^^
+System.Management.Automation.RemoteException
+warning: enum `MissingAnalyticsContext` is never used
+   --> analytics\src\reducer.rs:242:6
+    |
+242 | enum MissingAnalyticsContext {
+    |      ^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: struct `PendingReviewState` is never constructed
+   --> analytics\src\reducer.rs:249:8
+    |
+249 | struct PendingReviewState {
+    |        ^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: struct `ItemReviewSummary` is never constructed
+   --> analytics\src\reducer.rs:263:8
+    |
+263 | struct ItemReviewSummary {
+    |        ^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: struct `ThreadMetadataState` is never constructed
+   --> analytics\src\reducer.rs:273:8
+    |
+273 | struct ThreadMetadataState {
+    |        ^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: associated function `from_thread_metadata` is never used
+   --> analytics\src\reducer.rs:282:8
+    |
+281 | impl ThreadMetadataState {
+    | ------------------------ associated function in this implementation
+282 |     fn from_thread_metadata(
+    |        ^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: enum `RequestState` is never used
+   --> analytics\src\reducer.rs:309:6
+    |
+309 | enum RequestState {
+    |      ^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: struct `PendingTurnStartState` is never constructed
+   --> analytics\src\reducer.rs:314:8
+    |
+314 | struct PendingTurnStartState {
+    |        ^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: struct `PendingTurnSteerState` is never constructed
+   --> analytics\src\reducer.rs:319:8
+    |
+319 | struct PendingTurnSteerState {
+    |        ^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: struct `CompletedTurnState` is never constructed
+   --> analytics\src\reducer.rs:327:8
+    |
+327 | struct CompletedTurnState {
+    |        ^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: struct `TurnState` is never constructed
+   --> analytics\src\reducer.rs:335:8
+    |
+335 | struct TurnState {
+    |        ^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: struct `ToolItemKey` is never constructed
+   --> analytics\src\reducer.rs:351:8
+    |
+351 | struct ToolItemKey {
+    |        ^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: struct `TurnToolCounts` is never constructed
+   --> analytics\src\reducer.rs:358:8
+    |
+358 | struct TurnToolCounts {
+    |        ^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: method `record` is never used
+   --> analytics\src\reducer.rs:370:8
+    |
+369 | impl TurnToolCounts {
+    | ------------------- method in this implementation
+370 |     fn record(&mut self, item: &ThreadItem) {
+    |        ^^^^^^
+System.Management.Automation.RemoteException
+warning: multiple methods are never used
+    --> analytics\src\reducer.rs:397:25
+     |
+ 396 | impl AnalyticsReducer {
+     | --------------------- methods in this implementation
+ 397 |     pub(crate) async fn ingest(&mut self, input: AnalyticsFact, out: &mut Vec<TrackEventRequest>) {
+     |                         ^^^^^^
+...
+ 518 |     fn ingest_initialize(
+     |        ^^^^^^^^^^^^^^^^^
+...
+ 543 |     fn ingest_subagent_thread_started(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 571 |     fn ingest_guardian_review(
+     |        ^^^^^^^^^^^^^^^^^^^^^^
+...
+ 594 |     fn ingest_request(
+     |        ^^^^^^^^^^^^^^
+...
+ 625 |     async fn ingest_turn_resolved_config(
+     |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 640 |     async fn ingest_turn_token_usage(
+     |              ^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 652 |     async fn ingest_turn_profile(
+     |              ^^^^^^^^^^^^^^^^^^^
+...
+ 663 |     fn ingest_turn_codex_error(&mut self, input: TurnCodexErrorFact) {
+     |        ^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 674 |     async fn ingest_skill_invoked(
+     |              ^^^^^^^^^^^^^^^^^^^^
+...
+ 724 |     fn ingest_app_mentioned(&mut self, input: AppMentionedInput, out: &mut Vec<TrackEventRequest>) {
+     |        ^^^^^^^^^^^^^^^^^^^^
+...
+ 735 |     fn ingest_app_used(&mut self, input: AppUsedInput, out: &mut Vec<TrackEventRequest>) {
+     |        ^^^^^^^^^^^^^^^
+...
+ 744 |     fn ingest_hook_run(&mut self, input: HookRunInput, out: &mut Vec<TrackEventRequest>) {
+     |        ^^^^^^^^^^^^^^^
+...
+ 752 |     fn ingest_plugin_used(&mut self, input: PluginUsedInput, out: &mut Vec<TrackEventRequest>) {
+     |        ^^^^^^^^^^^^^^^^^^
+...
+ 760 |     fn ingest_plugin_state_changed(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 778 |     async fn ingest_response(
+     |              ^^^^^^^^^^^^^^^
+...
+ 838 |     fn ingest_server_request(&mut self, _connection_id: u64, request: ServerRequest) {
+     |        ^^^^^^^^^^^^^^^^^^^^^
+...
+ 954 |     fn ingest_server_response(
+     |        ^^^^^^^^^^^^^^^^^^^^^^
+...
+ 999 |     fn ingest_effective_permissions_approval_response(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1020 |     fn ingest_server_request_aborted(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1039 |     fn ingest_error_response(
+     |        ^^^^^^^^^^^^^^^^^^^^^
+...
+1052 |     fn ingest_request_error_response(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1072 |     fn ingest_turn_steer_error_response(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1089 |     async fn ingest_notification(
+     |              ^^^^^^^^^^^^^^^^^^^
+...
+1218 |     fn emit_thread_initialized(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^
+...
+1269 |     fn ingest_compaction(&mut self, input: CodexCompactionEvent, out: &mut Vec<TrackEventRequest>) {
+     |        ^^^^^^^^^^^^^^^^^
+...
+1291 |     fn ingest_goal(&mut self, input: CodexGoalEvent, out: &mut Vec<TrackEventRequest>) {
+     |        ^^^^^^^^^^^
+...
+1311 |     fn ingest_guardian_review_completed(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1353 |     fn ingest_turn_steer_response(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1378 |     fn emit_turn_steer_event(
+     |        ^^^^^^^^^^^^^^^^^^^^^
+...
+1419 |     fn emit_review_event(
+     |        ^^^^^^^^^^^^^^^^^
+...
+1467 |     fn record_item_review_summary(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1486 |     async fn maybe_emit_turn_event(&mut self, turn_id: &str, out: &mut Vec<TrackEventRequest>) {
+     |              ^^^^^^^^^^^^^^^^^^^^^
+...
+1546 |     fn thread_connection_or_warn(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1568 |     fn thread_context_or_warn(
+     |        ^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `warn_missing_analytics_context` is never used
+    --> analytics\src\reducer.rs:1585:4
+     |
+1585 | fn warn_missing_analytics_context(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `tracked_tool_item_id` is never used
+    --> analytics\src\reducer.rs:1608:4
+     |
+1608 | fn tracked_tool_item_id(item: &ThreadItem) -> Option<&str> {
+     |    ^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `item_review_summary_key` is never used
+    --> analytics\src\reducer.rs:1631:4
+     |
+1631 | fn item_review_summary_key(pending_review: &PendingReviewState) -> Option<ToolItemKey> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: struct `ToolItemEventInput` is never constructed
+    --> analytics\src\reducer.rs:1644:8
+     |
+1644 | struct ToolItemEventInput<'a> {
+     |        ^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `tool_item_event` is never used
+    --> analytics\src\reducer.rs:1655:4
+     |
+1655 | fn tool_item_event(input: ToolItemEventInput<'_>) -> Option<TrackEventRequest> {
+     |    ^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: struct `ToolItemOutcome` is never constructed
+    --> analytics\src\reducer.rs:1972:8
+     |
+1972 | struct ToolItemOutcome {
+     |        ^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: struct `CommandActionCounts` is never constructed
+    --> analytics\src\reducer.rs:1979:8
+     |
+1979 | struct CommandActionCounts {
+     |        ^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `command_action_counts` is never used
+    --> analytics\src\reducer.rs:1987:4
+     |
+1987 | fn command_action_counts(command_actions: &[CommandAction]) -> CommandActionCounts {
+     |    ^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: struct `ToolItemContext` is never constructed
+    --> analytics\src\reducer.rs:2004:8
+     |
+2004 | struct ToolItemContext<'a> {
+     |        ^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `tool_item_base` is never used
+    --> analytics\src\reducer.rs:2012:4
+     |
+2012 | fn tool_item_base(
+     |    ^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `observed_duration_ms` is never used
+    --> analytics\src\reducer.rs:2052:4
+     |
+2052 | fn observed_duration_ms(started_at_ms: u64, completed_at_ms: u64) -> Option<u64> {
+     |    ^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `user_review_id` is never used
+    --> analytics\src\reducer.rs:2056:4
+     |
+2056 | fn user_review_id(request_id: &RequestId) -> String {
+     |    ^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `command_execution_review_result` is never used
+    --> analytics\src\reducer.rs:2060:4
+     |
+2060 | fn command_execution_review_result(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `file_change_review_result` is never used
+    --> analytics\src\reducer.rs:2091:4
+     |
+2091 | fn file_change_review_result(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `effective_permissions_review_result` is never used
+    --> analytics\src\reducer.rs:2104:4
+     |
+2104 | fn effective_permissions_review_result(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `guardian_review_result` is never used
+    --> analytics\src\reducer.rs:2119:4
+     |
+2119 | fn guardian_review_result(
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `guardian_review_subject_metadata` is never used
+    --> analytics\src\reducer.rs:2139:4
+     |
+2139 | fn guardian_review_subject_metadata(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `guardian_review_requested_additional_permissions` is never used
+    --> analytics\src\reducer.rs:2190:4
+     |
+2190 | fn guardian_review_requested_additional_permissions(action: &GuardianApprovalReviewAction) -> bool {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `guardian_review_requested_network_access` is never used
+    --> analytics\src\reducer.rs:2204:4
+     |
+2204 | fn guardian_review_requested_network_access(action: &GuardianApprovalReviewAction) -> bool {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `guardian_review_request_permissions_network_enabled` is never used
+    --> analytics\src\reducer.rs:2217:4
+     |
+2217 | fn guardian_review_request_permissions_network_enabled(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `final_approval_outcome` is never used
+    --> analytics\src\reducer.rs:2227:4
+     |
+2227 | fn final_approval_outcome(
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `command_execution_tool_name` is never used
+    --> analytics\src\reducer.rs:2245:4
+     |
+2245 | fn command_execution_tool_name(source: CommandExecutionSource) -> &'static str {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `command_execution_outcome` is never used
+    --> analytics\src\reducer.rs:2254:4
+     |
+2254 | fn command_execution_outcome(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `patch_apply_outcome` is never used
+    --> analytics\src\reducer.rs:2271:4
+     |
+2271 | fn patch_apply_outcome(
+     |    ^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `mcp_tool_call_outcome` is never used
+    --> analytics\src\reducer.rs:2288:4
+     |
+2288 | fn mcp_tool_call_outcome(
+     |    ^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `dynamic_tool_call_outcome` is never used
+    --> analytics\src\reducer.rs:2301:4
+     |
+2301 | fn dynamic_tool_call_outcome(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `collab_tool_call_outcome` is never used
+    --> analytics\src\reducer.rs:2314:4
+     |
+2314 | fn collab_tool_call_outcome(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `image_generation_outcome` is never used
+    --> analytics\src\reducer.rs:2327:4
+     |
+2327 | fn image_generation_outcome(status: &str) -> (ToolItemTerminalStatus, Option<ToolItemFailureKind>) {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `collab_agent_tool_name` is never used
+    --> analytics\src\reducer.rs:2337:4
+     |
+2337 | fn collab_agent_tool_name(tool: &CollabAgentTool) -> &'static str {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: struct `FileChangeCounts` is never constructed
+    --> analytics\src\reducer.rs:2348:8
+     |
+2348 | struct FileChangeCounts {
+     |        ^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `file_change_counts` is never used
+    --> analytics\src\reducer.rs:2355:4
+     |
+2355 | fn file_change_counts(changes: &[codex_app_server_protocol::FileUpdateChange]) -> FileChangeCounts {
+     |    ^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: struct `DynamicContentCounts` is never constructed
+    --> analytics\src\reducer.rs:2369:8
+     |
+2369 | struct DynamicContentCounts {
+     |        ^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `dynamic_content_counts` is never used
+    --> analytics\src\reducer.rs:2375:4
+     |
+2375 | fn dynamic_content_counts(items: &[DynamicToolCallOutputContentItem]) -> DynamicContentCounts {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `web_search_action_kind` is never used
+    --> analytics\src\reducer.rs:2391:4
+     |
+2391 | fn web_search_action_kind(action: &WebSearchAction) -> WebSearchActionKind {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `web_search_query_count` is never used
+    --> analytics\src\reducer.rs:2400:4
+     |
+2400 | fn web_search_query_count(query: &str, action: Option<&WebSearchAction>) -> Option<u64> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `accepted_line_event_input` is never used
+    --> analytics\src\reducer.rs:2413:4
+     |
+2413 | fn accepted_line_event_input(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `codex_turn_event_params` is never used
+    --> analytics\src\reducer.rs:2443:4
+     |
+2443 | fn codex_turn_event_params(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `sandbox_policy_mode` is never used
+    --> analytics\src\reducer.rs:2572:4
+     |
+2572 | fn sandbox_policy_mode(permission_profile: &PermissionProfile, cwd: &Path) -> &'static str {
+     |    ^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `collaboration_mode_mode` is never used
+    --> analytics\src\reducer.rs:2596:4
+     |
+2596 | fn collaboration_mode_mode(mode: ModeKind) -> &'static str {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `reasoning_summary_mode` is never used
+    --> analytics\src\reducer.rs:2603:4
+     |
+2603 | fn reasoning_summary_mode(summary: Option<ReasoningSummary>) -> Option<String> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `personality_mode` is never used
+    --> analytics\src\reducer.rs:2610:4
+     |
+2610 | fn personality_mode(personality: Option<Personality>) -> Option<String> {
+     |    ^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `analytics_turn_status` is never used
+    --> analytics\src\reducer.rs:2617:4
+     |
+2617 | fn analytics_turn_status(status: codex_app_server_protocol::TurnStatus) -> Option<TurnStatus> {
+     |    ^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `num_input_images` is never used
+    --> analytics\src\reducer.rs:2626:4
+     |
+2626 | fn num_input_images(input: &[UserInput]) -> usize {
+     |    ^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `rejection_reason_from_error_type` is never used
+    --> analytics\src\reducer.rs:2633:4
+     |
+2633 | fn rejection_reason_from_error_type(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `skill_id_for_local_skill` is never used
+    --> analytics\src\reducer.rs:2642:15
+     |
+2642 | pub(crate) fn skill_id_for_local_skill(
+     |               ^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `normalize_path_for_skill_id` is never used
+    --> analytics\src\reducer.rs:2664:15
+     |
+2664 | pub(crate) fn normalize_path_for_skill_id(
+     |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+   Compiling codex-core-skills v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\core-skills)
+warning: `codex-analytics` (lib) generated 106 warnings
+   Compiling codex-core-plugins v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\core-plugins)
+   Compiling codex-skills-extension v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\ext\skills)
+warning: unused import: `std::collections::BTreeSet`
+  --> core-plugins\src\remote.rs:23:5
+   |
+23 | use std::collections::BTreeSet;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+System.Management.Automation.RemoteException
+warning: constant `REMOTE_INSTALLED_MARKETPLACE_DISPLAY_ORDER` is never used
+  --> core-plugins\src\remote.rs:86:7
+   |
+86 | const REMOTE_INSTALLED_MARKETPLACE_DISPLAY_ORDER: [(&str, &str); 6] = [
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+System.Management.Automation.RemoteException
+warning: associated items `marketplace_name`, `marketplace_display_name`, and `from_marketplace_name` are never used
+   --> core-plugins\src\remote.rs:373:8
+    |
+364 | impl RemotePluginScope {
+    | ---------------------- associated items in this implementation
+...
+373 |     fn marketplace_name(self) -> &'static str {
+    |        ^^^^^^^^^^^^^^^^
+...
+381 |     fn marketplace_display_name(self) -> &'static str {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+389 |     fn from_marketplace_name(name: &str) -> Option<Self> {
+    |        ^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: struct `RemotePluginSkillDetailResponse` is never constructed
+   --> core-plugins\src\remote.rs:425:8
+    |
+425 | struct RemotePluginSkillDetailResponse {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `fetch_remote_plugin_detail_with_download_url_option` is never used
+   --> core-plugins\src\remote.rs:776:10
+    |
+776 | async fn fetch_remote_plugin_detail_with_download_url_option(
+    |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `build_remote_plugin_detail` is never used
+   --> core-plugins\src\remote.rs:794:10
+    |
+794 | async fn build_remote_plugin_detail(
+    |          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `app_declarations_from_remote_app_ids` is never used
+   --> core-plugins\src\remote.rs:888:4
+    |
+888 | fn app_declarations_from_remote_app_ids(app_ids: &[String]) -> Vec<AppDeclaration> {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `remove_remote_plugin_cache` is never used
+   --> core-plugins\src\remote.rs:948:4
+    |
+948 | fn remove_remote_plugin_cache(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `remote_installed_plugin_to_cache_entry` is never used
+    --> core-plugins\src\remote.rs:1077:4
+     |
+1077 | fn remote_installed_plugin_to_cache_entry(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `remote_skill_interface_to_info` is never used
+    --> core-plugins\src\remote.rs:1147:4
+     |
+1147 | fn remote_skill_interface_to_info(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `remote_plugin_display_name` is never used
+    --> core-plugins\src\remote.rs:1167:4
+     |
+1167 | fn remote_plugin_display_name(plugin: &RemotePluginSummary) -> &str {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `sort_remote_plugin_summaries_by_display_name` is never used
+    --> core-plugins\src\remote.rs:1175:4
+     |
+1175 | fn sort_remote_plugin_summaries_by_display_name(plugins: &mut [RemotePluginSummary]) {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `fetch_shared_workspace_plugins` is never used
+    --> core-plugins\src\remote.rs:1258:10
+     |
+1258 | async fn fetch_shared_workspace_plugins(
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `get_remote_shared_workspace_plugins_page` is never used
+    --> core-plugins\src\remote.rs:1335:10
+     |
+1335 | async fn get_remote_shared_workspace_plugins_page(
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `fetch_plugin_detail` is never used
+    --> core-plugins\src\remote.rs:1372:10
+     |
+1372 | async fn fetch_plugin_detail(
+     |          ^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `remote_plugin_skill_detail_url` is never used
+    --> core-plugins\src\remote.rs:1388:4
+     |
+1388 | fn remote_plugin_skill_detail_url(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: constant `REMOTE_FEATURED_PLUGIN_FETCH_TIMEOUT` is never used
+ --> core-plugins\src\remote_legacy.rs:9:7
+  |
+9 | const REMOTE_FEATURED_PLUGIN_FETCH_TIMEOUT: Duration = Duration::from_secs(10);
+  |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: constant `REMOTE_PLUGIN_MUTATION_TIMEOUT` is never used
+  --> core-plugins\src\remote_legacy.rs:10:7
+   |
+10 | const REMOTE_PLUGIN_MUTATION_TIMEOUT: Duration = Duration::from_secs(30);
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: struct `RemotePluginMutationResponse` is never constructed
+  --> core-plugins\src\remote_legacy.rs:14:8
+   |
+14 | struct RemotePluginMutationResponse {
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `ensure_codex_backend_auth` is never used
+   --> core-plugins\src\remote_legacy.rs:125:4
+    |
+125 | fn ensure_codex_backend_auth(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `post_remote_plugin_mutation` is never used
+   --> core-plugins\src\remote_legacy.rs:137:10
+    |
+137 | async fn post_remote_plugin_mutation(
+    |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `remote_plugin_mutation_url` is never used
+   --> core-plugins\src\remote_legacy.rs:187:4
+    |
+187 | fn remote_plugin_mutation_url(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+   Compiling codex-core v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\core)
+warning: `codex-core-plugins` (lib) generated 22 warnings (run `cargo fix --lib -p codex-core-plugins` to apply 1 suggestion)
+warning: unused import: `codex_features::Feature`
+  --> core\src\tools\handlers\multi_agents_common.rs:15:5
+   |
+15 | use codex_features::Feature;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+System.Management.Automation.RemoteException
+warning: field `index` is never read
+  --> core\src\chat_transport\anthropic_sse.rs:54:9
+   |
+53 |     SignedThinkingStart {
+   |     ------------------- field in this variant
+54 |         index: i64,
+   |         ^^^^^
+   |
+   = note: `TranslatedSseEvent` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+System.Management.Automation.RemoteException
+warning: field `index` is never read
+  --> core\src\chat_transport\anthropic_sse.rs:58:9
+   |
+57 |     SignedThinkingDelta {
+   |     ------------------- field in this variant
+58 |         index: i64,
+   |         ^^^^^
+   |
+   = note: `TranslatedSseEvent` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+System.Management.Automation.RemoteException
+warning: field `index` is never read
+  --> core\src\chat_transport\anthropic_sse.rs:63:9
+   |
+62 |     SignedThinkingSignature {
+   |     ----------------------- field in this variant
+63 |         index: i64,
+   |         ^^^^^
+   |
+   = note: `TranslatedSseEvent` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+System.Management.Automation.RemoteException
+warning: field `index` is never read
+  --> core\src\chat_transport\anthropic_sse.rs:68:9
+   |
+67 |     SignedThinkingStop {
+   |     ------------------ field in this variant
+68 |         index: i64,
+   |         ^^^^^
+   |
+   = note: `TranslatedSseEvent` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+System.Management.Automation.RemoteException
+   Compiling codex-chatgpt v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\chatgpt)
+   Compiling codex-guardian v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\ext\guardian)
+   Compiling codex-memories-extension v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\ext\memories)
+   Compiling codex-cloud-config v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\cloud-config)
+   Compiling codex-web-search-extension v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\ext\web-search)
+   Compiling codex-mcp-extension v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\ext\mcp)
+   Compiling codex-app-server-transport v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\app-server-transport)
+warning: `codex-core` (lib) generated 5 warnings (run `cargo fix --lib -p codex-core` to apply 1 suggestion)
+   Compiling codex-image-generation-extension v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\ext\image-generation)
+   Compiling codex-memories-write v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\memories\write)
+   Compiling codex-goal-extension v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\ext\goal)
+   Compiling codex-app-server v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\app-server)
+   Compiling codex-app-server-client v0.141.0-copilot-api.3 (C:\efforts\codexu\codex\.worktrees\codex-v2-copilot-encrypted-subagent-handoff\external\repos\codex-patched\codex-rs\app-server-client)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8m 39s
+warning: the following packages contain code that will be rejected by a future version of Rust: proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+────────────
+ Nextest run ID a7d95592-a431-4061-9efd-d91c8256a4b6 with nextest profile: local
+    Starting 2 tests across 1 binary
+        PASS [   0.019s] (1/2) codex-invariant-tests::multi_agent_v2_handoff invariant_77_exact_v2_wait_subscribes_before_reading_final_status
+        PASS [   0.042s] (2/2) codex-invariant-tests::multi_agent_v2_handoff invariant_76_provider_aware_v2_handoff_has_exact_markers_and_truthful_encoding
+────────────
+     Summary [   0.042s] 2 tests run: 2 passed, 0 skipped

@@ -1,22 +1,23 @@
 ## Documentation Review Summary
 
 ### Completeness: GOOD
-- Reviewed the exact 17-path `89a6cbea...67e888f0` range at the required HEAD.
+- Reviewed the exact 17-path `89a6cbea...4e2b16b6` range at the required HEAD.
 - US-001 and US-002 remain represented with no blocked stories.
-- F-020 is fixed; F-001 through F-019 remain fixed.
+- F-021 through F-023 are fixed; F-001 through F-020 remain fixed.
 
-### Correctness: NEEDS FIX
+### Correctness: GOOD
 - No unsupported helper-version probes remain in active release or rebase guidance.
-- F-021: production supply-chain documentation omits conditionally reused, unverified runner-image LLVM/xwin installations.
-- F-022: rebase summaries do not yet follow the exact-tag Actions/manual publication ownership split.
-- F-023: the submodule migration guide retains superseded candidate/retention-tag ordering.
+- Production supply-chain guidance now describes conditional runner-image LLVM/xwin/SDK reuse and scopes the LLVM 19.1.7 pin to the Chocolatey fallback.
+- Rebase summaries now follow Step 4f's mutually exclusive exact-tag Actions/manual publication ownership.
+- The submodule migration guide now follows the candidate commit/rebuild, retention-tag, and public-tag ordering from the authoritative runbook.
 
 ### Quality: GOOD
 - The reviewed range contains exactly the seventeen PRD write-scope paths.
 - The nested checkout remains read-only context; the expected unstaged gitlink advance is outside the reviewed range.
+- The final review gates, focused `just test`, invariant audit, and network audit are recorded under `evidence/`.
 
 ### Blocked Stories
 - None.
 
 ### Overall Assessment
-Round 17 is not clean. F-020 is fixed without regressing F-001 through F-019, but High findings F-021 and F-022 and Medium finding F-023 remain open.
+Round 18 is clean. All documentation findings F-001 through F-023 are fixed with no open Medium+ findings.

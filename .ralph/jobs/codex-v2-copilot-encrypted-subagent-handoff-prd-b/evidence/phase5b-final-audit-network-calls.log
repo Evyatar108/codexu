@@ -1,0 +1,62 @@
+========================================
+ Codex Network Call Audit
+========================================
+Source: /c/efforts/codexu/codex/.worktrees/codex-v2-copilot-encrypted-subagent-handoff/external/repos/codex-patched/codex-rs
+Overlay: /c/efforts/codexu/codex/.worktrees/codex-v2-copilot-encrypted-subagent-handoff/codex-rs-overlay
+
+--- Known Patch Sites ---
+
+  [PATCHED] analytics/src/client.rs — Analytics telemetry (US-002)
+  [PATCHED] core-plugins/src/remote.rs — Remote plugin management (US-005)
+  [PATCHED] core-plugins/src/remote_legacy.rs — Remote plugin management legacy API (v0.124 — list/featured/enable/uninstall)
+  [PATCHED] core-plugins/src/remote_bundle.rs — Remote plugin bundle download (v0.128 — reachability-blocked + direct bail)
+  [PATCHED] tui/src/updates.rs — Version update check (US-006)
+  [PATCHED] tui/src/tooltips.rs — TUI announcement tip (raw.githubusercontent.com leak, no_proxy bypass)
+  [PATCHED] cloud-tasks/src/lib.rs — Cloud tasks backend (US-007)
+  [PATCHED] cloud-tasks/src/env_detect.rs — Cloud tasks environment detection (review fix)
+  [PATCHED] login/src/auth/manager.rs — OAuth token refresh (US-008)
+  [PATCHED] app-server-transport/src/transport/remote_control/mod.rs — Remote control (v0.123 — ChatGPT-only, force-disabled)
+  [PATCHED] agent-identity/src/lib.rs — Agent identity task registration (v0.124 — ChatGPT-only, fail-closed)
+  [PATCHED] cli/src/doctor/updates.rs — Doctor update probe (redirect-upstream — fork releases API; brew probe neutralized)
+  [PATCHED] app-server-daemon/src/update_loop.rs — Standalone daemon self-updater (redirect-upstream — install.sh remote-exec neutralized)
+  [PATCHED] codex-rs-overlay/codex-copilot/src/auth.rs — Copilot auth/session headers (fork-only overlay)
+  [PATCHED] codex-rs-overlay/codex-copilot/src/anthropic_messages.rs — Signed-CoT native Anthropic Messages builder + POST /v1/messages egress (fork-only overlay, Invariant 68)
+  [PATCHED] codex-rs-overlay/codex-copilot-launcher/src/config.rs — Launcher provider flags (fork-only overlay)
+  [PATCHED] codex-rs-overlay/codex-copilot-launcher/src/main.rs — Launcher exec flow (fork-only overlay)
+  [PATCHED] codex-rs-overlay/codex-copilot-launcher/src/setup.rs — Launcher first-run setup (fork-only overlay)
+  [PATCHED] codex-rs-overlay/codex-happy/src/api.rs — Happy native overlay: POST /v1/sessions egress (loopback tunnel listener, US-008)
+  [PATCHED] codex-rs-overlay/codex-happy/src/session.rs — Happy native overlay: Socket.IO /v1/updates + /v3 messages egress (loopback tunnel listener, US-008)
+  [PATCHED] codex-rs-overlay/codex-happy/src/onboard.rs — Happy native overlay: GitHub device-flow + profile egress for self-onboarding (US-008)
+  [PATCHED] codex-rs-overlay/codex-happy/src/auth.rs — Happy native overlay: happy-server egress destination URLs (loopback tunnel/loopback listeners, US-008)
+
+--- Scanning for New Network Call Sites ---
+
+  No new network call sites found.
+
+--- Scanning for hardcoded public IPv4 literals ---
+
+  No hardcoded public IPv4 literals found.
+
+--- Scanning for local-socket IPC primitives ---
+
+  No local-socket IPC primitives found.
+
+--- Scanning for reqwest .no_proxy() call sites ---
+
+  [OK]  codex-client/src/custom_ca.rs (reviewed)
+  [OK]  login/src/auth/default_client.rs (reviewed)
+  [OK]  rmcp-client/src/auth_status.rs (reviewed)
+  [OK]  tui/src/tooltips.rs (reviewed)
+  No unreviewed .no_proxy() call sites.
+
+========================================
+ Summary
+========================================
+  Patched:        22 / 22
+  Unpatched:      0 / 22
+  New endpoint sites: 0
+  IP literals:    0
+  IPC primitives: 0
+  no_proxy sites: 0
+
+RESULT: ALL CLEAR — no patch regressions, new sites, IP literals, IPC relays, or unreviewed proxy-bypasses.
