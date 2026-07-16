@@ -742,10 +742,10 @@ ${chalk.bold.cyan('Claude Code Options (from `claude --help`):')}
     const {
       credentials
     } = await authAndSetupMachineIfNeeded();
-    await ensureDaemonRunning()
 
-    // Start the CLI
+    // Start the daemon and CLI
     try {
+      await ensureDaemonRunning()
       await runClaude(credentials, options);
     } catch (error) {
       console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')
