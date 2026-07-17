@@ -1,315 +1,205 @@
 {
-  "schemaVersion": 1,
-  "brainstormName": "codex-fast-runnable-dev-build-tier",
-  "overviewTaskId": "codex-fast-runnable-dev-build-tier",
-  "artifactType": "measurement-led-brainstorm",
-  "measuredAt": "2026-07-16",
-  "repositoryState": {
-    "codexuBase": "ec625200500e2034968f23a0ccb76d000573afdf",
-    "codexWrapper": "3ff55692e7045e85ce78ebe8337ab40b55494c9c",
-    "patchedCodex": "587a6a8ab8948ff912b1f24a62833b277934302d",
-    "predecessorHead": "2a95dd19c89fc99492d0e5a25d77cb070fe77da3",
-    "branch": "ralph/brainstorm-codex-fast-runnable-dev-build-tier",
-    "worktree": "C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier"
-  },
-  "goal": "Produce and launch a representative locally changed Codex fork artifact in at most ten minutes without changing correctness or publish gates.",
-  "predecessorBoundary": {
-    "task": "codex-rs-core-change-incremental-build-over-30m",
-    "acceptedTimingsSeconds": {
-      "targetedNoop": 4.599,
-      "targetedCoreEdit": 100.137,
-      "workspaceHighFanout": 54.691
-    },
-    "decision": "These timings solve correctness verification only. The predecessor explicitly deferred the separate-target dev-small runnable experiment."
-  },
-  "contractSeparation": [
-    {
-      "contract": "correctness verification",
-      "evidence": "T1 targeted and T2 workspace cargo check",
-      "fastArtifactRequired": false
-    },
-    {
-      "contract": "runnable smoke",
-      "evidence": "exact-path launcher/core build plus offline, authenticated, and benign shell-tool smoke",
-      "fastArtifactRequired": true
-    },
-    {
-      "contract": "debug/development performance",
-      "evidence": "conditional symbol/opt/codegen sweep",
-      "fastArtifactRequired": false
-    },
-    {
-      "contract": "publish fidelity",
-      "evidence": "existing optimized four-binary vendored release path",
-      "fastArtifactRequired": false
-    }
-  ],
-  "artifactDecision": {
-    "narrowestUsefulArtifact": "adjacent codex.exe launcher plus codex-core.exe",
-    "directCoreDisposition": "diagnostic lower bound only",
-    "reason": [
-      "The launcher owns bootstrap, Copilot provider flags, safety rails, configuration, and environment behavior.",
-      "CODEX_CORE_PATH was unset in every smoke, proving adjacent-core discovery.",
-      "The launcher was not rebuilt by representative core edits, so preserving the real invocation path added no changed-core compile fanout.",
-      "A real authenticated PowerShell tool invocation completed successfully with only the pair."
-    ],
-    "publishOnlyAdditions": [
-      "codex-windows-sandbox-setup.exe",
-      "codex-command-runner.exe",
-      "pinned vendor rg.exe",
-      "optimized release profile and package layout"
-    ]
-  },
-  "measurementSummary": {
-    "candidate": {
-      "id": "A",
-      "profile": "dev-small",
-      "targetDir": "D:\\codex-targets\\frdbt-dev-small-inc",
-      "incremental": true,
-      "sccache": false,
-      "lto": false,
-      "jobs": 8,
-      "bins": [
-        "codex-copilot-launcher/codex",
-        "codex-cli/codex-core"
-      ]
-    },
-    "runs": [
-      {
-        "scenario": "cold separate-target fill",
-        "wallSeconds": 619.039,
-        "rebuiltPackageCount": 985,
-        "status": "honest cold warm-up is 19.039 seconds above the ten-minute target"
-      },
-      {
-        "scenario": "warm no-op",
-        "wallSeconds": 13.029,
-        "rebuiltPackageCount": 0,
-        "status": "fresh"
-      },
-      {
-        "scenario": "private semantics-preserving core edit",
-        "wallSeconds": 70.04,
-        "rebuiltPackageCount": 25,
-        "status": "pass"
-      },
-      {
-        "scenario": "private edit restoration reconciliation",
-        "wallSeconds": 70.016,
-        "rebuiltPackageCount": 25,
-        "status": "clean"
-      },
-      {
-        "scenario": "post-reconciliation no-op",
-        "wallSeconds": 7.037,
-        "rebuiltPackageCount": 0,
-        "status": "fresh"
-      },
-      {
-        "scenario": "public high-fanout core edit",
-        "wallSeconds": 75.037,
-        "rebuiltPackageCount": 25,
-        "status": "pass"
-      },
-      {
-        "scenario": "public edit restoration reconciliation",
-        "wallSeconds": 78.018,
-        "rebuiltPackageCount": 25,
-        "status": "clean"
-      },
-      {
-        "scenario": "audited private core edit with verbose rustc evidence",
-        "wallSeconds": 200.029,
-        "rebuiltPackageCount": 25,
-        "status": "pass"
-      },
-      {
-        "scenario": "audited build through exact-hash authenticated turn",
-        "wallSeconds": 246.914,
-        "rebuiltPackageCount": 25,
-        "status": "pass"
-      },
-      {
-        "scenario": "audited build through exact-hash shell-tool turn",
-        "wallSeconds": 265.944,
-        "rebuiltPackageCount": 25,
-        "status": "pass"
-      },
-      {
-        "scenario": "audited restoration reconciliation",
-        "wallSeconds": 92.023,
-        "rebuiltPackageCount": 25,
-        "status": "clean"
-      }
-    ],
-    "comparisonToReleaseLike": {
-      "releaseLikeWarmCoreEditSeconds": 1845.745,
-      "fastWarmPrivateCoreEditSeconds": 70.04,
-      "speedup": 26.35,
-      "wallTimeReductionPercent": 96.2
-    },
-    "storage": {
-      "coldTargetBytes": 13904021055,
-      "coldTargetGiB": 12.949,
-      "postPrivateReconciliationBytes": 16152048543,
-      "postPrivateReconciliationGiB": 15.043,
-      "incrementalGrowthGiB": 2.094
-    },
-    "binaries": {
-      "launcherBytes": 1298944,
-      "coreBytes": 360580096,
-      "externalAdjacentDllCount": 0,
-      "imports": "Windows system DLLs only"
-    },
-    "runtime": {
-      "firstProcessObservedRangeSeconds": [
-        3.047,
-        24.044
-      ],
-      "warmedParserSecondsApproximately": 1.0,
-      "authenticatedNoToolSeconds": 17.031,
-      "authenticatedNoToolResult": "FAST_RUNNABLE_OK",
-      "authenticatedToolSeconds": 18.044,
-      "authenticatedToolCommand": "PowerShell Write-Output FAST_TOOL_OK",
-      "authenticatedToolExitCode": 0,
-      "authenticatedToolResult": "FAST_TOOL_OK",
-      "exactChangedArtifact": {
-        "coreSha256": "14bf1df089f856d58bf397e63217b4aab796a72f09a1c26c74ab7ed2c46e6a4f",
-        "measurementHashMatchesSmokeHash": true,
-        "buildSeconds": 200.029,
-        "buildThroughAuthenticatedTurnSeconds": 246.914,
-        "buildThroughShellToolTurnSeconds": 265.944,
-        "authenticatedExitCode": 0,
-        "shellToolExitCode": 0
-      }
-    },
-    "feasibility": {
-      "warmRunnableAtMost10Minutes": true,
-      "exactChangedBuildAndToolSmokeAtMost10Minutes": true,
-      "coldTargetAtMost10Minutes": false,
-      "bestHonestTier": "about 70-75 seconds for normal warmed private/public codex-core builds; 4m25.944s for the audited exact-changed-hash build through authenticated shell-tool smoke; about 10m19s for the first cold target fill",
-      "metricNotGamed": "T1/T2 check timings are excluded from the runnable result"
-    }
-  },
-  "candidateDirections": [
-    {
-      "id": "D-001",
-      "name": "Extend the canonical verifier with a dev-small runnable tier",
-      "status": "recommended",
-      "goNoGo": "GO",
-      "summary": "Base on accepted predecessor HEAD 2a95dd19, add an explicit runnable tier to verify-core-change, extend measure-build.ps1, and use the existing dev-small profile with incremental on, sccache off, a short per-worktree target, the adjacent launcher/core pair, and explicit provenance/ownership safeguards.",
-      "tradeoffs": [
-        "Cold warm-up is 10m19s.",
-        "Each target consumes about 13-15 GiB.",
-        "Opt-level 0 is not suitable for performance claims.",
-        "Raw Cargo output is not the published vendor layout."
-      ]
-    },
-    {
-      "id": "D-002",
-      "name": "New fork-owned fast-runnable Cargo profile",
-      "status": "conditional",
-      "goNoGo": "DEFER",
-      "summary": "Only add a named profile after measured evidence shows dev-small runtime, debugger, or default-drift limitations.",
-      "whyNotFirst": [
-        "Arm A already beats the target.",
-        "Workspace Cargo.toml is upstream-canonical conflict surface.",
-        "A wrapper can freeze and validate environment intent without changing release."
-      ]
-    },
-    {
-      "id": "D-003",
-      "name": "Direct codex-core lane",
-      "status": "rejected primary",
-      "goNoGo": "NO-GO",
-      "summary": "Keep only as a diagnostic lower bound because it bypasses launcher-owned fork behavior."
-    },
-    {
-      "id": "D-004",
-      "name": "Global shared target or mixed sccache plus incremental",
-      "status": "rejected",
-      "goNoGo": "NO-GO",
-      "summary": "Cross-worktree locks, ambiguous fingerprints, and mixed cache attribution outweigh possible disk savings."
-    },
-    {
-      "id": "D-005",
-      "name": "Rust crate-boundary or release-link architecture changes",
-      "status": "rejected",
-      "goNoGo": "NO-GO",
-      "summary": "The measured low-conflict arm already reduces the loop by 96.2%, so high-conflict source changes are unjustified."
-    }
-  ],
+  "schemaVersion": 2,
+  "taskId": "codex-fast-runnable-dev-build-tier",
+  "phase": "brainstorm",
+  "verdict": "GO_WARM_LOOP_ONLY",
   "recommendedDirection": "D-001",
+  "summary": "Extend the accepted predecessor with an additive, default-off runnable lane that builds and smokes the adjacent fork launcher/core pair using dev-small, a short per-worktree target, incremental compilation on, and sccache off. Warm changed-core build-through-version was 92.963-98.635 seconds. Incremental-on cold build-through-version was 648.476 seconds, so the result does not support a universal ten-minute claim.",
   "taskDisposition": {
     "remainsSeparateAfterPredecessor": true,
     "closeAsUnnecessary": false,
-    "reason": "Predecessor D-001 intentionally stopped at verification. This brainstorm proves a distinct runnable behavior tier with its own artifact, runtime, storage, packaging, and freshness contract."
+    "reason": "The predecessor solves correctness verification only. Runnable launcher behavior, exact artifact freshness, runtime dependencies, storage, concurrency, and cleanup require a separate contract."
   },
+  "artifact": {
+    "shape": "adjacent launcher plus core",
+    "files": [
+      "codex.exe",
+      "codex-core.exe"
+    ],
+    "packagesAndBins": [
+      "codex-cli/codex-core",
+      "codex-copilot-launcher/codex"
+    ],
+    "directCore": "diagnostic lower bound only",
+    "launcherOnly": "not runnable",
+    "publishFidelity": false
+  },
+  "contractSeparation": {
+    "correctnessVerification": "Accepted predecessor T1/T2.",
+    "runnableSmoke": "Exact changed launcher/core version, authenticated no-tool, and benign shell-tool passes.",
+    "debugDevPerformance": "dev-small is opt-level 0, no debug symbols, stripped symbols, no LTO; behavior iteration only.",
+    "publishFidelity": "Existing thin-LTO release and vendor packaging remain unchanged."
+  },
+  "slo": {
+    "warmLoop": {
+      "metric": "buildThroughVersionSeconds",
+      "budgetSeconds": 600,
+      "privateEditSeconds": 92.963,
+      "highFanoutEditSeconds": 98.635,
+      "verdict": "PASS"
+    },
+    "coldStart": {
+      "metric": "buildThroughVersionSeconds from absent target",
+      "tenMinuteBudgetSeconds": 600,
+      "honestSetupBudgetSeconds": 720,
+      "incrementalOnSeconds": 648.476,
+      "tenMinuteVerdict": "FAIL",
+      "setupBudgetVerdict": "PASS"
+    }
+  },
+  "measurements": {
+    "scriptSha256": "49e9dd12d5112bc374ef01755cfcf07af68be22d4d4a17e95e247091a157ac48",
+    "smokeScriptSha256": "5651946f60324e494fa5053affd1ef1d63cbe4a22a5b2d05353f9ce8064137cc",
+    "verbosity": "normal",
+    "driverProvenance": "Every run records the PowerShell executable/version, process command line/argv, effective driver argv, culture, UI culture, and timezone.",
+    "smokeAcceptance": {
+      "timeoutSeconds": 180,
+      "timeoutCount": 0,
+      "semanticFailureCount": 0,
+      "requirements": "No-tool JSONL has exactly four whitelisted events and no tool/error item. Tool JSONL has exactly six whitelisted events, one normalized pwsh Write-Output FAST_TOOL_OK command start/completion, exact FAST_TOOL_OK output, and exact final message. Timeout termination is bounded and verified for captured process-tree PIDs only.",
+      "timeoutPreflight": "A one-second forced-timeout run verified tree/root termination for all three probes and left zero target processes."
+    },
+    "armAIncrementalOn": {
+      "target": "D:\\codex-targets\\frdbt-audit-a-inc1",
+      "coldBuildSeconds": 622.041,
+      "coldBuildThroughVersionSeconds": 648.476,
+      "warmNoopSeconds": 9.03,
+      "privateEditBuildSeconds": 68.037,
+      "privateEditBuildThroughVersionSeconds": 92.963,
+      "privateEditBuildThroughToolSeconds": 126.926,
+      "highFanoutBuildSeconds": 74.036,
+      "highFanoutBuildThroughVersionSeconds": 98.635,
+      "highFanoutBuildThroughToolSeconds": 129.55,
+      "postReconcileNoopSeconds": 7.031,
+      "functionalSmoke": "pass"
+    },
+    "armBIncrementalOff": {
+      "target": "D:\\codex-targets\\frdbt-audit-b-inc0",
+      "coldBuildSeconds": 465.034,
+      "coldBuildThroughVersionSeconds": 490.788,
+      "privateEditBuildSeconds": 170.032,
+      "postReconcileNoopSeconds": 7.043,
+      "functionalColdSmoke": "pass"
+    },
+    "attribution": {
+      "privateEditIncrementalSavingsSeconds": 101.995,
+      "privateEditIncrementalSavingsPercent": 60.0,
+      "incrementalOnColdDirectoryGiB": 5.184,
+      "incrementalOnPostCyclesDirectoryGiB": 7.286,
+      "incrementalOffDirectoryGiB": 0,
+      "incrementalOnColdTargetGiB": 12.949,
+      "incrementalOnPostCyclesTargetGiB": 15.054,
+      "incrementalOffColdTargetGiB": 7.729,
+      "incrementalOffPostCyclesTargetGiB": 7.731,
+      "sccacheCausality": "provisional; all measured arms disabled sccache",
+      "coldTimingCausality": "provisional; serial ordering and one sample confound the cold comparison"
+    }
+  },
+  "alternatives": [
+    {
+      "id": "D-001",
+      "name": "Extend predecessor with runnable tier",
+      "goNoGo": "GO",
+      "reason": "Lowest conflict; reuses accepted dispatch, locking, provenance, probe, reconciliation, tests, and docs."
+    },
+    {
+      "id": "D-002",
+      "name": "New Cargo profile",
+      "goNoGo": "DEFER",
+      "reason": "Existing dev-small passes the warm SLO; no evidence justifies upstream-canonical profile conflict."
+    },
+    {
+      "id": "D-003",
+      "name": "Direct codex-core",
+      "goNoGo": "NO-GO",
+      "reason": "Bypasses launcher-owned fork behavior."
+    },
+    {
+      "id": "D-004",
+      "name": "Incremental off default",
+      "goNoGo": "NO-GO",
+      "reason": "Saves 5.184-7.286 GiB but makes the measured private edit 101.995 seconds slower."
+    },
+    {
+      "id": "D-005",
+      "name": "Global shared target or mixed sccache/incremental",
+      "goNoGo": "NO-GO",
+      "reason": "Concurrency/provenance risk and unmeasured sccache causality."
+    },
+    {
+      "id": "D-006",
+      "name": "Release/LTO or crate-boundary changes",
+      "goNoGo": "NO-GO",
+      "reason": "Unnecessary for a warm lane measured at 92.963-98.635 seconds through launch."
+    }
+  ],
   "safetyAndConflictSurface": [
-    "Derive a short per-worktree target; reject a deep worktree-local target by default.",
-    "Use an exclusive owner lock and record canonical worktree, repository, dirty-state, toolchain, profile, bins, timestamps, and hashes.",
-    "Do not use binary hash equality as freshness; restored-source rebuilds produced valid byte-different executables.",
-    "Detect running target executables and report exact path/PID; never kill by process name.",
-    "Guard cleanup with the owner manifest and never delete the release target or an arbitrary caller path.",
-    "Keep the first implementation in wrapper scripts/tests/docs; avoid patched-Codex Rust and Cargo.toml edits.",
-    "Production release profile, publish command, four-binary vendor layout, and pinned ripgrep checks remain unchanged."
+    "Derive a short per-worktree target; do not mutate one global target across worktrees.",
+    "Use exclusive ownership/locking and record repository, dirty state, profile, bins, toolchain, environment, timestamps, and hashes.",
+    "Fail closed on failed or interrupted builds; do not smoke or bless prior artifacts.",
+    "Detect running target executables by exact path/PID; never kill by process name.",
+    "Guard cleanup with the owner manifest and never delete release targets, arbitrary paths, or installed binaries.",
+    "Keep the first implementation in fork wrapper scripts/tests/docs; avoid patched-Codex Rust and Cargo.toml changes.",
+    "Keep release profile, publish command, vendor layout, helper packaging, and optimized smoke unchanged."
   ],
   "testStrategy": [
-    "Deterministic target derivation, path rejection, environment clearing, selection, lock, and cleanup tests.",
-    "Manifest tests for current, dirty, changed-HEAD, changed-profile, and interrupted states.",
-    "Real no-op, private core-edit, public core-edit, and restoration measurements with byte-safe source handling.",
-    "Exact-path offline, authenticated no-tool, and benign shell-tool smoke with CODEX_CORE_PATH unset.",
-    "Explicit sandbox-helper and rg.exe preflight reporting.",
-    "Retain T1/T2 checks and one optimized publish smoke outside the fast lane."
+    "Deterministic target derivation and unsafe/deep/shared path rejection.",
+    "Environment clearing, fixed profile/bin selection, and sccache policy tests.",
+    "Target owner lock plus stale, dirty, changed-HEAD, and interrupted manifest tests.",
+    "Byte-safe private/high-fanout probes and reconciliation.",
+    "Exact-path version, authenticated, and benign shell-tool smokes with CODEX_CORE_PATH unset.",
+    "Helper and DLL preflight reporting.",
+    "Retain predecessor T1/T2 and an optimized publish smoke outside the lane."
   ],
-  "rollback": "Remove runnable-tier additions from the existing verifier, measurement script, tests, and docs, then remove only owner-verified fast targets. Existing targeted, workspace, executable, and publish semantics, release targets, publish profile, and installed binaries are unaffected.",
+  "rollback": "Remove additive runnable dispatch, tests, measurement integration, and docs, then delete only owner-verified fast targets. Existing verification tiers, release profile, publish command, release targets, and installed binaries remain untouched.",
   "planSeed": {
-    "goal": "Implement an additive, explicit, default-off fast-runnable Codex development lane using the measured dev-small incremental arm while preserving all correctness and release gates.",
+    "goal": "Implement an additive, explicit, default-off runnable Codex development lane using the measured dev-small incremental arm while preserving all correctness and release gates.",
     "targetRepository": "codex wrapper",
     "suggestedBranch": "ralph/codex-fast-runnable-dev-build-tier",
-    "prerequisite": "Branch from or rebase onto accepted predecessor HEAD 2a95dd19c89fc99492d0e5a25d77cb070fe77da3. Preserve targeted, workspace, executable, and publish tiers; add runnable rather than creating a parallel command or repurposing executable.",
+    "prerequisite": "Branch from or rebase onto accepted predecessor HEAD 2a95dd19c89fc99492d0e5a25d77cb070fe77da3. Extend its verifier rather than creating a parallel command.",
     "stories": [
-      "Extend scripts/verify-core-change.{sh,mjs} with explicit runnable dispatch that derives a short per-worktree target, clears conflicting Rust, sccache, and profile overrides, enables incremental compilation, disables sccache, and builds the measured launcher/core pair.",
-      "Add exclusive target ownership, provenance/freshness manifests, interrupted-build handling, running-executable detection, and guarded cleanup.",
-      "Codify launcher/core as the minimum artifact; expose optional helper and rg.exe preflights without weakening or duplicating publish packaging.",
-      "Add exact-path offline, authenticated, and benign shell-tool smokes that prove the target executable ran.",
-      "Extend scripts/measure-build.ps1 and predecessor deterministic tests, then run one real private/public core-edit evidence pass while retaining T1/T2 and optimized executable/publish gates.",
-      "Update agent and build-performance documentation with contract separation, cold/warm expectations, storage, concurrency, limitations, and rollback."
+      "Add runnable dispatch that builds codex-cli/codex-core plus codex-copilot-launcher/codex with dev-small, a short per-worktree target, incremental on, sccache off, and conflicting overrides cleared.",
+      "Add exclusive ownership/locking, provenance/freshness manifests, interrupted-build fail-closed behavior, exact-path process detection, and guarded cleanup.",
+      "Add exact-path version, authenticated no-tool, and benign shell-tool smokes with CODEX_CORE_PATH unset; report helper/package gaps without weakening publish.",
+      "Extend predecessor measurement/tests with exact command/environment, binary hashes, separate incremental-directory sizing, and external raw-evidence hashes.",
+      "Document correctness, warm runnable smoke, debugger/runtime limitations, cold setup budget, storage, concurrency, and publish fidelity as separate contracts."
     ],
     "acceptanceCriteria": [
-      "Warmed private and public core edits build a runnable launcher/core pair in at most 600 seconds.",
-      "No-op builds invoke no rustc and complete in at most 30 seconds.",
-      "Exact-path authenticated launcher and benign shell-tool smokes succeed.",
-      "Concurrent cross-worktree mutation and stale/interrupted provenance fail closed.",
-      "The release profile and publish command remain byte-for-byte unchanged.",
+      "Warm private and high-fanout changed-core build-through-version completes within 600 seconds.",
+      "Exact changed artifacts pass authenticated and benign shell-tool smokes.",
+      "Post-reconcile no-op rebuilds zero packages and completes within 30 seconds.",
+      "Cold target build-through-version is reported separately against a 720-second setup budget and never marketed as the warm SLO.",
+      "Unsafe concurrency, stale/interrupted provenance, and unowned cleanup fail closed.",
+      "Production release/publish configuration remains byte-for-byte unchanged.",
       "Code and docs review converge with no Medium-or-higher findings."
     ]
-  },
-  "review": {
-    "status": "clean",
-    "rounds": 2,
-    "mediumOrHigherFindings": 0,
-    "remainingFindings": 0,
-    "reviewArtifact": "review-findings.md",
-    "verdict": "GO"
   },
   "evidence": {
     "summary": "evidence/measurement-summary.json",
     "experimentDesign": "experiment-design.json",
-    "measurementScript": "evidence/measure-candidate.ps1",
-    "smokeScript": "evidence/smoke-candidate.ps1",
-    "rawCargoJsonlPattern": "evidence/a-*.cargo.jsonl",
-    "cargoTimingPattern": "evidence/a-*.cargo-timing.html",
-    "smoke": "evidence/smoke-results.json",
-    "exactChangedArtifactSmoke": "evidence/a-dev-small-inc-core-edit-launch-smoke.changed-smoke-results.json",
+    "runManifests": "evidence/runs/*.json",
+    "smokeOutputs": "evidence/smoke/*",
     "effectiveProfile": "evidence/effective-profile.json",
-    "review": "review-findings.md",
-    "environment": [
-      "evidence/host-environment.json",
-      "evidence/windows-path-environment.json",
-      "evidence/windows-drive-mapping.json",
-      "evidence/cargo-topology.json",
-      "evidence/repository-provenance.json"
-    ]
+    "repositoryProvenance": "evidence/repository-provenance.json",
+    "externalRawManifest": "evidence/raw-evidence-manifest.json",
+    "externalRawRoot": "D:\\codex-targets\\frdbt-evidence\\audit-20260716-v2",
+    "externalRawFileCount": 36,
+    "externalRawBytes": 21834871,
+    "externalRawAllPresent": true,
+    "externalRawAllHashesVerified": true,
+    "repositoryFootprint": {
+      "files": 48,
+      "bytes": 450509,
+      "physicalLines": 9390
+    }
+  },
+  "review": {
+    "status": "clean",
+    "rounds": 6,
+    "followUpRounds": 4,
+    "mediumOrHigherFindings": 0,
+    "remainingFindings": 0,
+    "reviewArtifact": "review-findings.md",
+    "verdict": "GO_WARM_LOOP_ONLY"
   }
 }

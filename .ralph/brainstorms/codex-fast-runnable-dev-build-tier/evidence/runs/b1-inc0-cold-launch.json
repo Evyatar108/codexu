@@ -1,0 +1,621 @@
+{
+  "schemaVersion": 2,
+  "artifactType": "measurement-run-manifest",
+  "runId": "b1-inc0-cold-launch",
+  "script": {
+    "path": "C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\.ralph\\brainstorms\\codex-fast-runnable-dev-build-tier\\evidence\\measure-candidate.ps1",
+    "sha256": "49e9dd12d5112bc374ef01755cfcf07af68be22d4d4a17e95e247091a157ac48"
+  },
+  "invocation": {
+    "driver": {
+      "executable": "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+      "processCommandLine": "\"C:\\Program Files\\PowerShell\\7\\pwsh.dll\" -NoProfile -NoLogo -NonInteractive -Command \"try { [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false) } catch {}; try { if (Get-Variable -Name PSStyle -ErrorAction SilentlyContinue) { $PSStyle.OutputRendering = 'PlainText' } } catch {}; $global:LASTEXITCODE = 0; try { & 'C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\.ralph\\brainstorms\\codex-fast-runnable-dev-build-tier\\evidence\\measure-candidate.ps1' -RunId 'b1-inc0-cold-launch' -TargetDir 'D:\\codex-targets\\frdbt-audit-b-inc0' -RawEvidenceRoot 'D:\\codex-targets\\frdbt-evidence\\audit-20260716-v2' -Incremental 0 -Verbosity normal -SmokeBuiltArtifact } finally { $__copilotSuccess = $?; if (-not $__copilotSuccess -and $LASTEXITCODE -is [int] -and $LASTEXITCODE -ne 0) { $host.SetShouldExit($LASTEXITCODE) } elseif (-not $__copilotSuccess) { $host.SetShouldExit(1) } else { $host.SetShouldExit(0) } }\"",
+      "processArgv": [
+        "C:\\Program Files\\PowerShell\\7\\pwsh.dll",
+        "-NoProfile",
+        "-NoLogo",
+        "-NonInteractive",
+        "-Command",
+        "try { [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false) } catch {}; try { if (Get-Variable -Name PSStyle -ErrorAction SilentlyContinue) { $PSStyle.OutputRendering = 'PlainText' } } catch {}; $global:LASTEXITCODE = 0; try { & 'C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\.ralph\\brainstorms\\codex-fast-runnable-dev-build-tier\\evidence\\measure-candidate.ps1' -RunId 'b1-inc0-cold-launch' -TargetDir 'D:\\codex-targets\\frdbt-audit-b-inc0' -RawEvidenceRoot 'D:\\codex-targets\\frdbt-evidence\\audit-20260716-v2' -Incremental 0 -Verbosity normal -SmokeBuiltArtifact } finally { $__copilotSuccess = $?; if (-not $__copilotSuccess -and $LASTEXITCODE -is [int] -and $LASTEXITCODE -ne 0) { $host.SetShouldExit($LASTEXITCODE) } elseif (-not $__copilotSuccess) { $host.SetShouldExit(1) } else { $host.SetShouldExit(0) } }"
+      ],
+      "effectiveDriverArgv": [
+        "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+        "C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\.ralph\\brainstorms\\codex-fast-runnable-dev-build-tier\\evidence\\measure-candidate.ps1",
+        "-RunId",
+        "b1-inc0-cold-launch",
+        "-Profile",
+        "dev-small",
+        "-TargetDir",
+        "D:\\codex-targets\\frdbt-audit-b-inc0",
+        "-Incremental",
+        "0",
+        "-Verbosity",
+        "normal",
+        "-RawEvidenceRoot",
+        "D:\\codex-targets\\frdbt-evidence\\audit-20260716-v2",
+        "-SccacheDir",
+        "D:\\codex-sccache-frdbt",
+        "-SmokeBuiltArtifact"
+      ],
+      "version": "7.4.17",
+      "edition": "Core",
+      "platform": "Win32NT",
+      "os": "Microsoft Windows 10.0.26200",
+      "culture": "en-US",
+      "uiCulture": "en-US",
+      "timeZone": {
+        "id": "Pacific Standard Time",
+        "baseUtcOffset": "-08:00:00"
+      }
+    },
+    "profile": "dev-small",
+    "targetDir": "D:\\codex-targets\\frdbt-audit-b-inc0",
+    "incremental": 0,
+    "verbosity": "normal",
+    "rawEvidenceRoot": "D:\\codex-targets\\frdbt-evidence\\audit-20260716-v2",
+    "useSccache": false,
+    "sccacheDir": null,
+    "probeCore": false,
+    "probeHighFanout": false,
+    "smokeBuiltArtifact": true
+  },
+  "repository": {
+    "codexWrapper": "3ff55692e7045e85ce78ebe8337ab40b55494c9c",
+    "patchedCodex": "587a6a8ab8948ff912b1f24a62833b277934302d",
+    "beforeStatus": "",
+    "afterStatus": ""
+  },
+  "candidate": {
+    "profile": "dev-small",
+    "targetDir": "D:\\codex-targets\\frdbt-audit-b-inc0",
+    "incremental": 0,
+    "sccache": false,
+    "lto": "off (dev profile default)",
+    "jobs": 8,
+    "packageBins": [
+      "codex-cli/codex-core",
+      "codex-copilot-launcher/codex"
+    ]
+  },
+  "environment": {
+    "powerShell": {
+      "executable": "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+      "processCommandLine": "\"C:\\Program Files\\PowerShell\\7\\pwsh.dll\" -NoProfile -NoLogo -NonInteractive -Command \"try { [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false) } catch {}; try { if (Get-Variable -Name PSStyle -ErrorAction SilentlyContinue) { $PSStyle.OutputRendering = 'PlainText' } } catch {}; $global:LASTEXITCODE = 0; try { & 'C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\.ralph\\brainstorms\\codex-fast-runnable-dev-build-tier\\evidence\\measure-candidate.ps1' -RunId 'b1-inc0-cold-launch' -TargetDir 'D:\\codex-targets\\frdbt-audit-b-inc0' -RawEvidenceRoot 'D:\\codex-targets\\frdbt-evidence\\audit-20260716-v2' -Incremental 0 -Verbosity normal -SmokeBuiltArtifact } finally { $__copilotSuccess = $?; if (-not $__copilotSuccess -and $LASTEXITCODE -is [int] -and $LASTEXITCODE -ne 0) { $host.SetShouldExit($LASTEXITCODE) } elseif (-not $__copilotSuccess) { $host.SetShouldExit(1) } else { $host.SetShouldExit(0) } }\"",
+      "processArgv": [
+        "C:\\Program Files\\PowerShell\\7\\pwsh.dll",
+        "-NoProfile",
+        "-NoLogo",
+        "-NonInteractive",
+        "-Command",
+        "try { [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false) } catch {}; try { if (Get-Variable -Name PSStyle -ErrorAction SilentlyContinue) { $PSStyle.OutputRendering = 'PlainText' } } catch {}; $global:LASTEXITCODE = 0; try { & 'C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\.ralph\\brainstorms\\codex-fast-runnable-dev-build-tier\\evidence\\measure-candidate.ps1' -RunId 'b1-inc0-cold-launch' -TargetDir 'D:\\codex-targets\\frdbt-audit-b-inc0' -RawEvidenceRoot 'D:\\codex-targets\\frdbt-evidence\\audit-20260716-v2' -Incremental 0 -Verbosity normal -SmokeBuiltArtifact } finally { $__copilotSuccess = $?; if (-not $__copilotSuccess -and $LASTEXITCODE -is [int] -and $LASTEXITCODE -ne 0) { $host.SetShouldExit($LASTEXITCODE) } elseif (-not $__copilotSuccess) { $host.SetShouldExit(1) } else { $host.SetShouldExit(0) } }"
+      ],
+      "effectiveDriverArgv": [
+        "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+        "C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\.ralph\\brainstorms\\codex-fast-runnable-dev-build-tier\\evidence\\measure-candidate.ps1",
+        "-RunId",
+        "b1-inc0-cold-launch",
+        "-Profile",
+        "dev-small",
+        "-TargetDir",
+        "D:\\codex-targets\\frdbt-audit-b-inc0",
+        "-Incremental",
+        "0",
+        "-Verbosity",
+        "normal",
+        "-RawEvidenceRoot",
+        "D:\\codex-targets\\frdbt-evidence\\audit-20260716-v2",
+        "-SccacheDir",
+        "D:\\codex-sccache-frdbt",
+        "-SmokeBuiltArtifact"
+      ],
+      "version": "7.4.17",
+      "edition": "Core",
+      "platform": "Win32NT",
+      "os": "Microsoft Windows 10.0.26200",
+      "culture": "en-US",
+      "uiCulture": "en-US",
+      "timeZone": {
+        "id": "Pacific Standard Time",
+        "baseUtcOffset": "-08:00:00"
+      }
+    },
+    "clearedPatterns": [
+      "RUSTFLAGS",
+      "CARGO_ENCODED_RUSTFLAGS",
+      "CARGO_BUILD_RUSTFLAGS",
+      "CARGO_TARGET_*_RUSTFLAGS",
+      "RUSTC",
+      "CARGO_BUILD_RUSTC",
+      "RUSTC_BOOTSTRAP",
+      "CARGO_BUILD_TARGET",
+      "CARGO_BUILD_TARGET_DIR",
+      "RUSTC_WRAPPER",
+      "RUSTC_WORKSPACE_WRAPPER",
+      "CARGO_BUILD_RUSTC_WRAPPER",
+      "CARGO_BUILD_RUSTC_WORKSPACE_WRAPPER",
+      "SCCACHE_*",
+      "CARGO_PROFILE_*"
+    ],
+    "controlled": {
+      "PATHPrefix": "C:\\Program Files\\LLVM\\bin",
+      "RUSTUP_TOOLCHAIN": "stable-x86_64-pc-windows-msvc",
+      "CC": "clang-cl",
+      "CXX": "clang-cl",
+      "AR": "llvm-lib",
+      "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER": "lld-link",
+      "CARGO_TARGET_DIR": "D:\\codex-targets\\frdbt-audit-b-inc0",
+      "CARGO_INCREMENTAL": "0",
+      "CARGO_BUILD_JOBS": "8",
+      "RUSTY_V8_ARCHIVE": "C:\\Users\\evmitran\\.cargo\\.rusty_v8\\rusty_v8_release_x86_64-pc-windows-msvc_v149.2.0.lib",
+      "LIB": "C:\\Users\\evmitran\\.xwin\\crt\\lib\\x86_64;C:\\Users\\evmitran\\.xwin\\sdk\\lib\\um\\x86_64;C:\\Users\\evmitran\\.xwin\\sdk\\lib\\ucrt\\x86_64",
+      "INCLUDE": "C:\\Users\\evmitran\\.xwin\\crt\\include;C:\\Users\\evmitran\\.xwin\\sdk\\include\\ucrt;C:\\Users\\evmitran\\.xwin\\sdk\\include\\um;C:\\Users\\evmitran\\.xwin\\sdk\\include\\shared",
+      "RUSTC_WRAPPER": null,
+      "SCCACHE_DIR": null,
+      "SCCACHE_CACHE_SIZE": null
+    },
+    "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "clangCl": "clang version 19.1.7",
+    "linker": "lld-link"
+  },
+  "target": {
+    "before": {
+      "target": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0",
+        "bytes": 0,
+        "files": 0
+      },
+      "profile": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small",
+        "bytes": 0,
+        "files": 0
+      },
+      "incremental": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\incremental",
+        "bytes": 0,
+        "files": 0
+      },
+      "deps": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\deps",
+        "bytes": 0,
+        "files": 0
+      },
+      "build": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\build",
+        "bytes": 0,
+        "files": 0
+      },
+      "fingerprint": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\.fingerprint",
+        "bytes": 0,
+        "files": 0
+      }
+    },
+    "after": {
+      "target": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0",
+        "bytes": 8299054742,
+        "files": 9872
+      },
+      "profile": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small",
+        "bytes": 8296866552,
+        "files": 9868
+      },
+      "incremental": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\incremental",
+        "bytes": 0,
+        "files": 0
+      },
+      "deps": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\deps",
+        "bytes": 6152921126,
+        "files": 3325
+      },
+      "build": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\build",
+        "bytes": 1180759801,
+        "files": 1577
+      },
+      "fingerprint": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\.fingerprint",
+        "bytes": 1537222,
+        "files": 4956
+      }
+    }
+  },
+  "probe": null,
+  "measured": {
+    "phase": "measured",
+    "startedAt": "2026-07-17T02:25:48.9987100Z",
+    "finishedAt": "2026-07-17T02:33:34.0401848Z",
+    "wallSeconds": 465.034,
+    "exitCode": 0,
+    "cwd": "C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\codex\\external\\repos\\codex-patched\\codex-rs",
+    "argv": [
+      "cargo",
+      "build",
+      "--locked",
+      "--profile",
+      "dev-small",
+      "-p",
+      "codex-cli",
+      "--bin",
+      "codex-core",
+      "-p",
+      "codex-copilot-launcher",
+      "--bin",
+      "codex",
+      "--timings",
+      "--message-format=json-render-diagnostics"
+    ],
+    "cargo": {
+      "parseErrors": 0,
+      "rebuiltPackageCount": 985,
+      "rebuiltWorkspacePackages": [
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/codex-rs-overlay/codex-copilot-launcher#0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/codex-rs-overlay/codex-copilot#0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/codex-rs-overlay/codex-happy#0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/codex-rs-overlay/codex-mcp-notification-bridge#0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/codex-rs-overlay/codex-plugin-scope#0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/codex-rs-overlay/codex-stream-diagnostics#0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/agent-identity#codex-agent-identity@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/analytics#codex-analytics@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/ansi-escape#codex-ansi-escape@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/app-server-client#codex-app-server-client@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/app-server-daemon#codex-app-server-daemon@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/app-server-protocol#codex-app-server-protocol@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/app-server-test-client#codex-app-server-test-client@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/app-server-transport#codex-app-server-transport@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/app-server#codex-app-server@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/apply-patch#codex-apply-patch@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/arg0#codex-arg0@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/async-utils#codex-async-utils@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/aws-auth#codex-aws-auth@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/backend-client#codex-backend-client@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/chatgpt#codex-chatgpt@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/cli#codex-cli@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/cloud-config#codex-cloud-config@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/cloud-tasks-client#codex-cloud-tasks-client@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/cloud-tasks-mock-client#codex-cloud-tasks-mock-client@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/cloud-tasks#codex-cloud-tasks@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/code-mode-protocol#codex-code-mode-protocol@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/code-mode#codex-code-mode@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/codex-api#0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/codex-backend-openapi-models#0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/codex-client#0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/codex-experimental-api-macros#0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/codex-home#0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/codex-mcp#0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/collaboration-mode-templates#codex-collaboration-mode-templates@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/config#codex-config@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/connectors#codex-connectors@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/context-fragments#codex-context-fragments@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/core-plugins#codex-core-plugins@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/core-skills#codex-core-skills@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/core#codex-core@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/exec-server#codex-exec-server@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/exec#codex-exec@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/execpolicy#codex-execpolicy@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/ext/extension-api#codex-extension-api@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/ext/goal#codex-goal-extension@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/ext/guardian#codex-guardian@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/ext/image-generation#codex-image-generation-extension@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/ext/mcp#codex-mcp-extension@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/ext/memories#codex-memories-extension@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/ext/skills#codex-skills-extension@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/ext/web-search#codex-web-search-extension@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/external-agent-migration#codex-external-agent-migration@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/external-agent-sessions#codex-external-agent-sessions@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/features#codex-features@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/feedback#codex-feedback@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/file-search#codex-file-search@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/file-system#codex-file-system@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/file-watcher#codex-file-watcher@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/git-utils#codex-git-utils@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/hooks#codex-hooks@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/install-context#codex-install-context@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/keyring-store#codex-keyring-store@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/linux-sandbox#codex-linux-sandbox@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/lmstudio#codex-lmstudio@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/login#codex-login@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/mcp-server#codex-mcp-server@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/memories/read#codex-memories-read@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/memories/write#codex-memories-write@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/message-history#codex-message-history@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/model-provider-info#codex-model-provider-info@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/model-provider#codex-model-provider@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/models-manager#codex-models-manager@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/network-proxy#codex-network-proxy@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/ollama#codex-ollama@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/otel#codex-otel@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/plugin#codex-plugin@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/process-hardening#codex-process-hardening@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/prompts#codex-prompts@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/protocol#codex-protocol@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/response-debug-context#codex-response-debug-context@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/responses-api-proxy#codex-responses-api-proxy@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/rmcp-client#codex-rmcp-client@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/rollout-trace#codex-rollout-trace@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/rollout#codex-rollout@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/sandboxing#codex-sandboxing@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/secrets#codex-secrets@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/shell-command#codex-shell-command@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/shell-escalation#codex-shell-escalation@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/skills#codex-skills@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/state#codex-state@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/stdio-to-uds#codex-stdio-to-uds@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/terminal-detection#codex-terminal-detection@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/thread-store#codex-thread-store@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/tools#codex-tools@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/tui#codex-tui@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/uds#codex-uds@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/utils/absolute-path#codex-utils-absolute-path@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/utils/approval-presets#codex-utils-approval-presets@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/utils/cache#codex-utils-cache@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/utils/cli#codex-utils-cli@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/utils/elapsed#codex-utils-elapsed@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/utils/fuzzy-match#codex-utils-fuzzy-match@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/utils/home-dir#codex-utils-home-dir@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/utils/image#codex-utils-image@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/utils/json-to-toml#codex-utils-json-to-toml@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/utils/oss#codex-utils-oss@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/utils/output-truncation#codex-utils-output-truncation@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/utils/path-uri#codex-utils-path-uri@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/utils/path-utils#codex-utils-path@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/utils/plugins#codex-utils-plugins@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/utils/pty#codex-utils-pty@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/utils/rustls-provider#codex-utils-rustls-provider@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/utils/sandbox-summary#codex-utils-sandbox-summary@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/utils/sleep-inhibitor#codex-utils-sleep-inhibitor@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/utils/stream-parser#codex-utils-stream-parser@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/utils/string#codex-utils-string@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/utils/template#codex-utils-template@0.141.0-copilot-api.3",
+        "path+file:///C:/efforts/codexu/.worktrees/brainstorm-codex-fast-runnable-dev-build-tier/codex/external/repos/codex-patched/codex-rs/windows-sandbox-rs#codex-windows-sandbox@0.141.0-copilot-api.3"
+      ],
+      "rebuiltTargetCount": 1186,
+      "rebuiltExecutables": [
+        "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\codex-core.exe",
+        "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\codex.exe"
+      ],
+      "buildFinished": {
+        "reason": "build-finished",
+        "success": true
+      }
+    },
+    "rawArtifacts": {
+      "stdout": {
+        "path": "D:\\codex-targets\\frdbt-evidence\\audit-20260716-v2\\b1-inc0-cold-launch\\measured.cargo.jsonl",
+        "bytes": 1100363,
+        "sha256": "6b53e91ceb33186e37f6b2f0593f48a5d8938debdd6c99ed1f8503f8d8941cf8"
+      },
+      "stderr": {
+        "path": "D:\\codex-targets\\frdbt-evidence\\audit-20260716-v2\\b1-inc0-cold-launch\\measured.cargo.stderr.log",
+        "bytes": 97544,
+        "sha256": "70cb47a560263314e4c2c394b91f54e3eea42da7fa69cf19850c45f3c9c23d4a"
+      },
+      "timings": {
+        "path": "D:\\codex-targets\\frdbt-evidence\\audit-20260716-v2\\b1-inc0-cold-launch\\measured.cargo-timing.html",
+        "bytes": 1091837,
+        "sha256": "cdaf539097512dd3a8ddd09a8f91dc8a55a1aabafa90f4e8b0cab89e6c2c46d4"
+      }
+    }
+  },
+  "smoke": {
+    "resultPath": "C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\.ralph\\brainstorms\\codex-fast-runnable-dev-build-tier\\evidence\\smoke\\b1-inc0-cold-launch-results.json",
+    "resultSha256": "5ee5a1f0582f029f6eede8675370480e66089a14f9cc553efd3c2058e9d08f1b",
+    "binaries": {
+      "launcher": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\codex.exe",
+        "bytes": 1297408,
+        "sha256": "21cd07462295c7d101f020721e023c2fdd94b5eecdb7872783bfac64a428015e"
+      },
+      "core": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\codex-core.exe",
+        "bytes": 360008192,
+        "sha256": "aa8dcb720f2f5d7eeaea671fbf283243b3bfc997d37782c512d1aa36147e575e"
+      }
+    },
+    "runs": [
+      {
+        "name": "version",
+        "argv": [
+          "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\codex.exe",
+          "--version"
+        ],
+        "startedAt": "2026-07-17T02:33:35.3973393Z",
+        "wallSeconds": 24.389,
+        "processId": 22368,
+        "timeoutSeconds": 180,
+        "timedOut": false,
+        "treeTerminationVerified": true,
+        "rootHandleExited": true,
+        "terminationVerified": true,
+        "exitCode": 0,
+        "semantic": "version",
+        "semanticResult": {
+          "accepted": true,
+          "parseErrors": 0,
+          "detail": "codex-cli 0.141.0-copilot-api.3"
+        },
+        "accepted": true,
+        "acceptedExitCodes": [
+          0
+        ],
+        "stdout": {
+          "path": "C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\.ralph\\brainstorms\\codex-fast-runnable-dev-build-tier\\evidence\\smoke\\b1-inc0-cold-launch-version.stdout.log",
+          "bytes": 32,
+          "sha256": "56fdb18501027431bc0e96cda3e0a2768db26c5753af65325f4c7069757bd7f3"
+        },
+        "stderr": {
+          "path": "C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\.ralph\\brainstorms\\codex-fast-runnable-dev-build-tier\\evidence\\smoke\\b1-inc0-cold-launch-version.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "name": "authenticated-exec",
+        "argv": [
+          "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\codex.exe",
+          "exec",
+          "--ephemeral",
+          "--skip-git-repo-check",
+          "--ignore-user-config",
+          "--ignore-rules",
+          "--json",
+          "\"Reply exactly FAST_RUNNABLE_OK. Do not use tools.\""
+        ],
+        "startedAt": "2026-07-17T02:33:59.8027489Z",
+        "wallSeconds": 13.556,
+        "processId": 10984,
+        "timeoutSeconds": 180,
+        "timedOut": false,
+        "treeTerminationVerified": true,
+        "rootHandleExited": true,
+        "terminationVerified": true,
+        "exitCode": 0,
+        "semantic": "authenticated-response",
+        "semanticResult": {
+          "accepted": true,
+          "parseErrors": 0,
+          "turnCompleted": true,
+          "eventShape": [
+            "thread.started",
+            "turn.started",
+            "item.completed:agent_message",
+            "turn.completed"
+          ],
+          "expectedEventShape": [
+            "thread.started",
+            "turn.started",
+            "item.completed:agent_message",
+            "turn.completed"
+          ],
+          "eventShapeAccepted": true,
+          "agentMessages": [
+            "FAST_RUNNABLE_OK"
+          ]
+        },
+        "accepted": true,
+        "acceptedExitCodes": [
+          0
+        ],
+        "stdout": {
+          "path": "C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\.ralph\\brainstorms\\codex-fast-runnable-dev-build-tier\\evidence\\smoke\\b1-inc0-cold-launch-authenticated-exec.stdout.log",
+          "bytes": 330,
+          "sha256": "7828176927c4dfe5840fd68eb2822a7b89dd4c98264a2093a730589a5474ad0a"
+        },
+        "stderr": {
+          "path": "C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\.ralph\\brainstorms\\codex-fast-runnable-dev-build-tier\\evidence\\smoke\\b1-inc0-cold-launch-authenticated-exec.stderr.log",
+          "bytes": 39,
+          "sha256": "1aa26269eb1cc57f86b235a03cda53c004edb5b1e9fc99d4da4f00843293d721"
+        }
+      },
+      {
+        "name": "authenticated-tool-exec",
+        "argv": [
+          "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\codex.exe",
+          "exec",
+          "--ephemeral",
+          "--skip-git-repo-check",
+          "--ignore-user-config",
+          "--ignore-rules",
+          "--json",
+          "\"Use the shell tool to run PowerShell Write-Output FAST_TOOL_OK, then reply exactly FAST_TOOL_OK.\""
+        ],
+        "startedAt": "2026-07-17T02:34:13.4352793Z",
+        "wallSeconds": 19.082,
+        "processId": 23292,
+        "timeoutSeconds": 180,
+        "timedOut": false,
+        "treeTerminationVerified": true,
+        "rootHandleExited": true,
+        "terminationVerified": true,
+        "exitCode": 0,
+        "semantic": "authenticated-tool",
+        "semanticResult": {
+          "accepted": true,
+          "parseErrors": 0,
+          "turnCompleted": true,
+          "eventShape": [
+            "thread.started",
+            "turn.started",
+            "item.started:command_execution",
+            "item.completed:command_execution",
+            "item.completed:agent_message",
+            "turn.completed"
+          ],
+          "expectedEventShape": [
+            "thread.started",
+            "turn.started",
+            "item.started:command_execution",
+            "item.completed:command_execution",
+            "item.completed:agent_message",
+            "turn.completed"
+          ],
+          "eventShapeAccepted": true,
+          "startedCommandCount": 1,
+          "completedCommandCount": 1,
+          "normalizedCommand": "\"C:\\Program Files\\PowerShell\\7\\pwsh.exe\" -Command 'Write-Output FAST_TOOL_OK'",
+          "normalizedOutput": "FAST_TOOL_OK",
+          "commandAccepted": true,
+          "agentMessages": [
+            "FAST_TOOL_OK"
+          ]
+        },
+        "accepted": true,
+        "acceptedExitCodes": [
+          0
+        ],
+        "stdout": {
+          "path": "C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\.ralph\\brainstorms\\codex-fast-runnable-dev-build-tier\\evidence\\smoke\\b1-inc0-cold-launch-authenticated-tool-exec.stdout.log",
+          "bytes": 822,
+          "sha256": "bb3a9bea9304c991b328c3989037426ac8c76a5440df1d12996b736cdc8b52f2"
+        },
+        "stderr": {
+          "path": "C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\.ralph\\brainstorms\\codex-fast-runnable-dev-build-tier\\evidence\\smoke\\b1-inc0-cold-launch-authenticated-tool-exec.stderr.log",
+          "bytes": 39,
+          "sha256": "1aa26269eb1cc57f86b235a03cda53c004edb5b1e9fc99d4da4f00843293d721"
+        }
+      }
+    ]
+  },
+  "endToEnd": {
+    "buildThroughVersionSeconds": 490.788,
+    "buildThroughAuthenticatedTurnSeconds": 504.36,
+    "buildThroughShellToolTurnSeconds": 523.519
+  },
+  "reconciliation": null,
+  "binaries": {
+    "measured": {
+      "profileDir": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small",
+      "launcher": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\codex.exe",
+        "bytes": 1297408,
+        "sha256": "21cd07462295c7d101f020721e023c2fdd94b5eecdb7872783bfac64a428015e"
+      },
+      "core": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\codex-core.exe",
+        "bytes": 360008192,
+        "sha256": "aa8dcb720f2f5d7eeaea671fbf283243b3bfc997d37782c512d1aa36147e575e"
+      }
+    },
+    "final": {
+      "profileDir": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small",
+      "launcher": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\codex.exe",
+        "bytes": 1297408,
+        "sha256": "21cd07462295c7d101f020721e023c2fdd94b5eecdb7872783bfac64a428015e"
+      },
+      "core": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\codex-core.exe",
+        "bytes": 360008192,
+        "sha256": "aa8dcb720f2f5d7eeaea671fbf283243b3bfc997d37782c512d1aa36147e575e"
+      }
+    }
+  },
+  "rawEvidence": {
+    "root": "D:\\codex-targets\\frdbt-evidence\\audit-20260716-v2\\b1-inc0-cold-launch",
+    "retention": "Retain until the implementation plan is accepted or 2026-08-15, whichever is later. Verify committed SHA-256 values before deletion."
+  }
+}

@@ -1,0 +1,314 @@
+{
+  "schemaVersion": 2,
+  "artifactType": "measurement-run-manifest",
+  "runId": "b1-inc0-post-reconcile-noop",
+  "script": {
+    "path": "C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\.ralph\\brainstorms\\codex-fast-runnable-dev-build-tier\\evidence\\measure-candidate.ps1",
+    "sha256": "49e9dd12d5112bc374ef01755cfcf07af68be22d4d4a17e95e247091a157ac48"
+  },
+  "invocation": {
+    "driver": {
+      "executable": "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+      "processCommandLine": "\"C:\\Program Files\\PowerShell\\7\\pwsh.dll\" -NoProfile -NoLogo -NonInteractive -Command \"try { [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false) } catch {}; try { if (Get-Variable -Name PSStyle -ErrorAction SilentlyContinue) { $PSStyle.OutputRendering = 'PlainText' } } catch {}; $global:LASTEXITCODE = 0; try { & 'C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\.ralph\\brainstorms\\codex-fast-runnable-dev-build-tier\\evidence\\measure-candidate.ps1' -RunId 'b1-inc0-post-reconcile-noop' -TargetDir 'D:\\codex-targets\\frdbt-audit-b-inc0' -RawEvidenceRoot 'D:\\codex-targets\\frdbt-evidence\\audit-20260716-v2' -Incremental 0 -Verbosity normal } finally { $__copilotSuccess = $?; if (-not $__copilotSuccess -and $LASTEXITCODE -is [int] -and $LASTEXITCODE -ne 0) { $host.SetShouldExit($LASTEXITCODE) } elseif (-not $__copilotSuccess) { $host.SetShouldExit(1) } else { $host.SetShouldExit(0) } }\"",
+      "processArgv": [
+        "C:\\Program Files\\PowerShell\\7\\pwsh.dll",
+        "-NoProfile",
+        "-NoLogo",
+        "-NonInteractive",
+        "-Command",
+        "try { [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false) } catch {}; try { if (Get-Variable -Name PSStyle -ErrorAction SilentlyContinue) { $PSStyle.OutputRendering = 'PlainText' } } catch {}; $global:LASTEXITCODE = 0; try { & 'C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\.ralph\\brainstorms\\codex-fast-runnable-dev-build-tier\\evidence\\measure-candidate.ps1' -RunId 'b1-inc0-post-reconcile-noop' -TargetDir 'D:\\codex-targets\\frdbt-audit-b-inc0' -RawEvidenceRoot 'D:\\codex-targets\\frdbt-evidence\\audit-20260716-v2' -Incremental 0 -Verbosity normal } finally { $__copilotSuccess = $?; if (-not $__copilotSuccess -and $LASTEXITCODE -is [int] -and $LASTEXITCODE -ne 0) { $host.SetShouldExit($LASTEXITCODE) } elseif (-not $__copilotSuccess) { $host.SetShouldExit(1) } else { $host.SetShouldExit(0) } }"
+      ],
+      "effectiveDriverArgv": [
+        "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+        "C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\.ralph\\brainstorms\\codex-fast-runnable-dev-build-tier\\evidence\\measure-candidate.ps1",
+        "-RunId",
+        "b1-inc0-post-reconcile-noop",
+        "-Profile",
+        "dev-small",
+        "-TargetDir",
+        "D:\\codex-targets\\frdbt-audit-b-inc0",
+        "-Incremental",
+        "0",
+        "-Verbosity",
+        "normal",
+        "-RawEvidenceRoot",
+        "D:\\codex-targets\\frdbt-evidence\\audit-20260716-v2",
+        "-SccacheDir",
+        "D:\\codex-sccache-frdbt"
+      ],
+      "version": "7.4.17",
+      "edition": "Core",
+      "platform": "Win32NT",
+      "os": "Microsoft Windows 10.0.26200",
+      "culture": "en-US",
+      "uiCulture": "en-US",
+      "timeZone": {
+        "id": "Pacific Standard Time",
+        "baseUtcOffset": "-08:00:00"
+      }
+    },
+    "profile": "dev-small",
+    "targetDir": "D:\\codex-targets\\frdbt-audit-b-inc0",
+    "incremental": 0,
+    "verbosity": "normal",
+    "rawEvidenceRoot": "D:\\codex-targets\\frdbt-evidence\\audit-20260716-v2",
+    "useSccache": false,
+    "sccacheDir": null,
+    "probeCore": false,
+    "probeHighFanout": false,
+    "smokeBuiltArtifact": false
+  },
+  "repository": {
+    "codexWrapper": "3ff55692e7045e85ce78ebe8337ab40b55494c9c",
+    "patchedCodex": "587a6a8ab8948ff912b1f24a62833b277934302d",
+    "beforeStatus": "",
+    "afterStatus": ""
+  },
+  "candidate": {
+    "profile": "dev-small",
+    "targetDir": "D:\\codex-targets\\frdbt-audit-b-inc0",
+    "incremental": 0,
+    "sccache": false,
+    "lto": "off (dev profile default)",
+    "jobs": 8,
+    "packageBins": [
+      "codex-cli/codex-core",
+      "codex-copilot-launcher/codex"
+    ]
+  },
+  "environment": {
+    "powerShell": {
+      "executable": "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+      "processCommandLine": "\"C:\\Program Files\\PowerShell\\7\\pwsh.dll\" -NoProfile -NoLogo -NonInteractive -Command \"try { [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false) } catch {}; try { if (Get-Variable -Name PSStyle -ErrorAction SilentlyContinue) { $PSStyle.OutputRendering = 'PlainText' } } catch {}; $global:LASTEXITCODE = 0; try { & 'C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\.ralph\\brainstorms\\codex-fast-runnable-dev-build-tier\\evidence\\measure-candidate.ps1' -RunId 'b1-inc0-post-reconcile-noop' -TargetDir 'D:\\codex-targets\\frdbt-audit-b-inc0' -RawEvidenceRoot 'D:\\codex-targets\\frdbt-evidence\\audit-20260716-v2' -Incremental 0 -Verbosity normal } finally { $__copilotSuccess = $?; if (-not $__copilotSuccess -and $LASTEXITCODE -is [int] -and $LASTEXITCODE -ne 0) { $host.SetShouldExit($LASTEXITCODE) } elseif (-not $__copilotSuccess) { $host.SetShouldExit(1) } else { $host.SetShouldExit(0) } }\"",
+      "processArgv": [
+        "C:\\Program Files\\PowerShell\\7\\pwsh.dll",
+        "-NoProfile",
+        "-NoLogo",
+        "-NonInteractive",
+        "-Command",
+        "try { [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false) } catch {}; try { if (Get-Variable -Name PSStyle -ErrorAction SilentlyContinue) { $PSStyle.OutputRendering = 'PlainText' } } catch {}; $global:LASTEXITCODE = 0; try { & 'C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\.ralph\\brainstorms\\codex-fast-runnable-dev-build-tier\\evidence\\measure-candidate.ps1' -RunId 'b1-inc0-post-reconcile-noop' -TargetDir 'D:\\codex-targets\\frdbt-audit-b-inc0' -RawEvidenceRoot 'D:\\codex-targets\\frdbt-evidence\\audit-20260716-v2' -Incremental 0 -Verbosity normal } finally { $__copilotSuccess = $?; if (-not $__copilotSuccess -and $LASTEXITCODE -is [int] -and $LASTEXITCODE -ne 0) { $host.SetShouldExit($LASTEXITCODE) } elseif (-not $__copilotSuccess) { $host.SetShouldExit(1) } else { $host.SetShouldExit(0) } }"
+      ],
+      "effectiveDriverArgv": [
+        "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+        "C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\.ralph\\brainstorms\\codex-fast-runnable-dev-build-tier\\evidence\\measure-candidate.ps1",
+        "-RunId",
+        "b1-inc0-post-reconcile-noop",
+        "-Profile",
+        "dev-small",
+        "-TargetDir",
+        "D:\\codex-targets\\frdbt-audit-b-inc0",
+        "-Incremental",
+        "0",
+        "-Verbosity",
+        "normal",
+        "-RawEvidenceRoot",
+        "D:\\codex-targets\\frdbt-evidence\\audit-20260716-v2",
+        "-SccacheDir",
+        "D:\\codex-sccache-frdbt"
+      ],
+      "version": "7.4.17",
+      "edition": "Core",
+      "platform": "Win32NT",
+      "os": "Microsoft Windows 10.0.26200",
+      "culture": "en-US",
+      "uiCulture": "en-US",
+      "timeZone": {
+        "id": "Pacific Standard Time",
+        "baseUtcOffset": "-08:00:00"
+      }
+    },
+    "clearedPatterns": [
+      "RUSTFLAGS",
+      "CARGO_ENCODED_RUSTFLAGS",
+      "CARGO_BUILD_RUSTFLAGS",
+      "CARGO_TARGET_*_RUSTFLAGS",
+      "RUSTC",
+      "CARGO_BUILD_RUSTC",
+      "RUSTC_BOOTSTRAP",
+      "CARGO_BUILD_TARGET",
+      "CARGO_BUILD_TARGET_DIR",
+      "RUSTC_WRAPPER",
+      "RUSTC_WORKSPACE_WRAPPER",
+      "CARGO_BUILD_RUSTC_WRAPPER",
+      "CARGO_BUILD_RUSTC_WORKSPACE_WRAPPER",
+      "SCCACHE_*",
+      "CARGO_PROFILE_*"
+    ],
+    "controlled": {
+      "PATHPrefix": "C:\\Program Files\\LLVM\\bin",
+      "RUSTUP_TOOLCHAIN": "stable-x86_64-pc-windows-msvc",
+      "CC": "clang-cl",
+      "CXX": "clang-cl",
+      "AR": "llvm-lib",
+      "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER": "lld-link",
+      "CARGO_TARGET_DIR": "D:\\codex-targets\\frdbt-audit-b-inc0",
+      "CARGO_INCREMENTAL": "0",
+      "CARGO_BUILD_JOBS": "8",
+      "RUSTY_V8_ARCHIVE": "C:\\Users\\evmitran\\.cargo\\.rusty_v8\\rusty_v8_release_x86_64-pc-windows-msvc_v149.2.0.lib",
+      "LIB": "C:\\Users\\evmitran\\.xwin\\crt\\lib\\x86_64;C:\\Users\\evmitran\\.xwin\\sdk\\lib\\um\\x86_64;C:\\Users\\evmitran\\.xwin\\sdk\\lib\\ucrt\\x86_64",
+      "INCLUDE": "C:\\Users\\evmitran\\.xwin\\crt\\include;C:\\Users\\evmitran\\.xwin\\sdk\\include\\ucrt;C:\\Users\\evmitran\\.xwin\\sdk\\include\\um;C:\\Users\\evmitran\\.xwin\\sdk\\include\\shared",
+      "RUSTC_WRAPPER": null,
+      "SCCACHE_DIR": null,
+      "SCCACHE_CACHE_SIZE": null
+    },
+    "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "clangCl": "clang version 19.1.7",
+    "linker": "lld-link"
+  },
+  "target": {
+    "before": {
+      "target": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0",
+        "bytes": 8300302684,
+        "files": 9875
+      },
+      "profile": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small",
+        "bytes": 8296866552,
+        "files": 9868
+      },
+      "incremental": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\incremental",
+        "bytes": 0,
+        "files": 0
+      },
+      "deps": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\deps",
+        "bytes": 6152921126,
+        "files": 3325
+      },
+      "build": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\build",
+        "bytes": 1180759801,
+        "files": 1577
+      },
+      "fingerprint": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\.fingerprint",
+        "bytes": 1537222,
+        "files": 4956
+      }
+    },
+    "after": {
+      "target": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0",
+        "bytes": 8300806829,
+        "files": 9876
+      },
+      "profile": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small",
+        "bytes": 8296866552,
+        "files": 9868
+      },
+      "incremental": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\incremental",
+        "bytes": 0,
+        "files": 0
+      },
+      "deps": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\deps",
+        "bytes": 6152921126,
+        "files": 3325
+      },
+      "build": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\build",
+        "bytes": 1180759801,
+        "files": 1577
+      },
+      "fingerprint": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\.fingerprint",
+        "bytes": 1537222,
+        "files": 4956
+      }
+    }
+  },
+  "probe": null,
+  "measured": {
+    "phase": "measured",
+    "startedAt": "2026-07-17T02:43:04.8231506Z",
+    "finishedAt": "2026-07-17T02:43:11.8672570Z",
+    "wallSeconds": 7.043,
+    "exitCode": 0,
+    "cwd": "C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\codex\\external\\repos\\codex-patched\\codex-rs",
+    "argv": [
+      "cargo",
+      "build",
+      "--locked",
+      "--profile",
+      "dev-small",
+      "-p",
+      "codex-cli",
+      "--bin",
+      "codex-core",
+      "-p",
+      "codex-copilot-launcher",
+      "--bin",
+      "codex",
+      "--timings",
+      "--message-format=json-render-diagnostics"
+    ],
+    "cargo": {
+      "parseErrors": 0,
+      "rebuiltPackageCount": 0,
+      "rebuiltWorkspacePackages": [],
+      "rebuiltTargetCount": 0,
+      "rebuiltExecutables": [],
+      "buildFinished": {
+        "reason": "build-finished",
+        "success": true
+      }
+    },
+    "rawArtifacts": {
+      "stdout": {
+        "path": "D:\\codex-targets\\frdbt-evidence\\audit-20260716-v2\\b1-inc0-post-reconcile-noop\\measured.cargo.jsonl",
+        "bytes": 1099177,
+        "sha256": "5751befa45cc98912e87b9363aa048b32579263a28b42c2fae1d930e7b5e9481"
+      },
+      "stderr": {
+        "path": "D:\\codex-targets\\frdbt-evidence\\audit-20260716-v2\\b1-inc0-post-reconcile-noop\\measured.cargo.stderr.log",
+        "bytes": 46659,
+        "sha256": "581eea717f903f5f141838b919d9534334245aa75584fa0dbf8b3ff0c2c1438b"
+      },
+      "timings": {
+        "path": "D:\\codex-targets\\frdbt-evidence\\audit-20260716-v2\\b1-inc0-post-reconcile-noop\\measured.cargo-timing.html",
+        "bytes": 549810,
+        "sha256": "aa4bb337359cf1daf277ccb8d6f5a90327beb4180c8de601c7bb7a9c2a6a4a0f"
+      }
+    }
+  },
+  "smoke": null,
+  "endToEnd": null,
+  "reconciliation": null,
+  "binaries": {
+    "measured": {
+      "profileDir": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small",
+      "launcher": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\codex.exe",
+        "bytes": 1297408,
+        "sha256": "21cd07462295c7d101f020721e023c2fdd94b5eecdb7872783bfac64a428015e"
+      },
+      "core": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\codex-core.exe",
+        "bytes": 360008192,
+        "sha256": "95acc710d3d242edb341b2d48fe126f60638d2f648ba7262393ebe8e98ef6e03"
+      }
+    },
+    "final": {
+      "profileDir": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small",
+      "launcher": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\codex.exe",
+        "bytes": 1297408,
+        "sha256": "21cd07462295c7d101f020721e023c2fdd94b5eecdb7872783bfac64a428015e"
+      },
+      "core": {
+        "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\codex-core.exe",
+        "bytes": 360008192,
+        "sha256": "95acc710d3d242edb341b2d48fe126f60638d2f648ba7262393ebe8e98ef6e03"
+      }
+    }
+  },
+  "rawEvidence": {
+    "root": "D:\\codex-targets\\frdbt-evidence\\audit-20260716-v2\\b1-inc0-post-reconcile-noop",
+    "retention": "Retain until the implementation plan is accepted or 2026-08-15, whichever is later. Verify committed SHA-256 values before deletion."
+  }
+}

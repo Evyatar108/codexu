@@ -1,0 +1,217 @@
+{
+  "schemaVersion": 2,
+  "script": {
+    "path": "C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\.ralph\\brainstorms\\codex-fast-runnable-dev-build-tier\\evidence\\smoke-candidate.ps1",
+    "sha256": "5651946f60324e494fa5053affd1ef1d63cbe4a22a5b2d05353f9ce8064137cc"
+  },
+  "mode": "minimal",
+  "profileDir": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small",
+  "codexCorePathOverridePresent": false,
+  "binaries": {
+    "launcher": {
+      "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\codex.exe",
+      "bytes": 1297408,
+      "sha256": "21cd07462295c7d101f020721e023c2fdd94b5eecdb7872783bfac64a428015e"
+    },
+    "core": {
+      "path": "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\codex-core.exe",
+      "bytes": 360008192,
+      "sha256": "aa8dcb720f2f5d7eeaea671fbf283243b3bfc997d37782c512d1aa36147e575e"
+    }
+  },
+  "runs": [
+    {
+      "name": "version",
+      "argv": [
+        "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\codex.exe",
+        "--version"
+      ],
+      "startedAt": "2026-07-17T02:33:35.3973393Z",
+      "wallSeconds": 24.389,
+      "processId": 22368,
+      "timeoutSeconds": 180,
+      "timedOut": false,
+      "treeTerminationVerified": true,
+      "rootHandleExited": true,
+      "terminationVerified": true,
+      "exitCode": 0,
+      "semantic": "version",
+      "semanticResult": {
+        "accepted": true,
+        "parseErrors": 0,
+        "detail": "codex-cli 0.141.0-copilot-api.3"
+      },
+      "accepted": true,
+      "acceptedExitCodes": [
+        0
+      ],
+      "stdout": {
+        "path": "C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\.ralph\\brainstorms\\codex-fast-runnable-dev-build-tier\\evidence\\smoke\\b1-inc0-cold-launch-version.stdout.log",
+        "bytes": 32,
+        "sha256": "56fdb18501027431bc0e96cda3e0a2768db26c5753af65325f4c7069757bd7f3"
+      },
+      "stderr": {
+        "path": "C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\.ralph\\brainstorms\\codex-fast-runnable-dev-build-tier\\evidence\\smoke\\b1-inc0-cold-launch-version.stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "authenticated-exec",
+      "argv": [
+        "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\codex.exe",
+        "exec",
+        "--ephemeral",
+        "--skip-git-repo-check",
+        "--ignore-user-config",
+        "--ignore-rules",
+        "--json",
+        "\"Reply exactly FAST_RUNNABLE_OK. Do not use tools.\""
+      ],
+      "startedAt": "2026-07-17T02:33:59.8027489Z",
+      "wallSeconds": 13.556,
+      "processId": 10984,
+      "timeoutSeconds": 180,
+      "timedOut": false,
+      "treeTerminationVerified": true,
+      "rootHandleExited": true,
+      "terminationVerified": true,
+      "exitCode": 0,
+      "semantic": "authenticated-response",
+      "semanticResult": {
+        "accepted": true,
+        "parseErrors": 0,
+        "turnCompleted": true,
+        "eventShape": [
+          "thread.started",
+          "turn.started",
+          "item.completed:agent_message",
+          "turn.completed"
+        ],
+        "expectedEventShape": [
+          "thread.started",
+          "turn.started",
+          "item.completed:agent_message",
+          "turn.completed"
+        ],
+        "eventShapeAccepted": true,
+        "agentMessages": [
+          "FAST_RUNNABLE_OK"
+        ]
+      },
+      "accepted": true,
+      "acceptedExitCodes": [
+        0
+      ],
+      "stdout": {
+        "path": "C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\.ralph\\brainstorms\\codex-fast-runnable-dev-build-tier\\evidence\\smoke\\b1-inc0-cold-launch-authenticated-exec.stdout.log",
+        "bytes": 330,
+        "sha256": "7828176927c4dfe5840fd68eb2822a7b89dd4c98264a2093a730589a5474ad0a"
+      },
+      "stderr": {
+        "path": "C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\.ralph\\brainstorms\\codex-fast-runnable-dev-build-tier\\evidence\\smoke\\b1-inc0-cold-launch-authenticated-exec.stderr.log",
+        "bytes": 39,
+        "sha256": "1aa26269eb1cc57f86b235a03cda53c004edb5b1e9fc99d4da4f00843293d721"
+      }
+    },
+    {
+      "name": "authenticated-tool-exec",
+      "argv": [
+        "D:\\codex-targets\\frdbt-audit-b-inc0\\dev-small\\codex.exe",
+        "exec",
+        "--ephemeral",
+        "--skip-git-repo-check",
+        "--ignore-user-config",
+        "--ignore-rules",
+        "--json",
+        "\"Use the shell tool to run PowerShell Write-Output FAST_TOOL_OK, then reply exactly FAST_TOOL_OK.\""
+      ],
+      "startedAt": "2026-07-17T02:34:13.4352793Z",
+      "wallSeconds": 19.082,
+      "processId": 23292,
+      "timeoutSeconds": 180,
+      "timedOut": false,
+      "treeTerminationVerified": true,
+      "rootHandleExited": true,
+      "terminationVerified": true,
+      "exitCode": 0,
+      "semantic": "authenticated-tool",
+      "semanticResult": {
+        "accepted": true,
+        "parseErrors": 0,
+        "turnCompleted": true,
+        "eventShape": [
+          "thread.started",
+          "turn.started",
+          "item.started:command_execution",
+          "item.completed:command_execution",
+          "item.completed:agent_message",
+          "turn.completed"
+        ],
+        "expectedEventShape": [
+          "thread.started",
+          "turn.started",
+          "item.started:command_execution",
+          "item.completed:command_execution",
+          "item.completed:agent_message",
+          "turn.completed"
+        ],
+        "eventShapeAccepted": true,
+        "startedCommandCount": 1,
+        "completedCommandCount": 1,
+        "normalizedCommand": "\"C:\\Program Files\\PowerShell\\7\\pwsh.exe\" -Command 'Write-Output FAST_TOOL_OK'",
+        "normalizedOutput": "FAST_TOOL_OK",
+        "commandAccepted": true,
+        "agentMessages": [
+          "FAST_TOOL_OK"
+        ]
+      },
+      "accepted": true,
+      "acceptedExitCodes": [
+        0
+      ],
+      "stdout": {
+        "path": "C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\.ralph\\brainstorms\\codex-fast-runnable-dev-build-tier\\evidence\\smoke\\b1-inc0-cold-launch-authenticated-tool-exec.stdout.log",
+        "bytes": 822,
+        "sha256": "bb3a9bea9304c991b328c3989037426ac8c76a5440df1d12996b736cdc8b52f2"
+      },
+      "stderr": {
+        "path": "C:\\efforts\\codexu\\.worktrees\\brainstorm-codex-fast-runnable-dev-build-tier\\.ralph\\brainstorms\\codex-fast-runnable-dev-build-tier\\evidence\\smoke\\b1-inc0-cold-launch-authenticated-tool-exec.stderr.log",
+        "bytes": 39,
+        "sha256": "1aa26269eb1cc57f86b235a03cda53c004edb5b1e9fc99d4da4f00843293d721"
+      }
+    }
+  ],
+  "importedDlls": {
+    "launcher": [
+      "api-ms-win-core-synch-l1-2-0.dll",
+      "bcryptprimitives.dll",
+      "combase.dll",
+      "KERNEL32.dll",
+      "ntdll.dll",
+      "shell32.dll"
+    ],
+    "core": [
+      "advapi32.dll",
+      "api-ms-win-core-synch-l1-2-0.dll",
+      "api-ms-win-core-winrt-l1-1-0.dll",
+      "bcrypt.dll",
+      "bcryptprimitives.dll",
+      "combase.dll",
+      "crypt32.dll",
+      "dbghelp.dll",
+      "iphlpapi.dll",
+      "kernel32.dll",
+      "ntdll.dll",
+      "oleaut32.dll",
+      "secur32.dll",
+      "shell32.dll",
+      "shlwapi.dll",
+      "USER32.dll",
+      "userenv.dll",
+      "WINMM.dll",
+      "ws2_32.dll"
+    ]
+  },
+  "adjacentDlls": []
+}

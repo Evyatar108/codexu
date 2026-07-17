@@ -1,22 +1,29 @@
 {
-  "schemaVersion": 1,
-  "sourceLog": "a-dev-small-inc-core-edit-launch-smoke.cargo.stderr.log",
-  "sourceLine": 13116,
-  "crate": "codex_core",
-  "selectedRustcFlags": [
-    "-C incremental=D:\\codex-targets\\frdbt-dev-small-inc\\dev-small\\incremental",
-    "-C strip=symbols"
-  ],
-  "selectedEnvironment": [],
-  "commandLineSha256": "d2c6df74de031172cc16a018a377cf5aca37d919e7dd3c1069a40daa1a246b8a",
-  "interpretation": {
-    "profile": "dev-small",
-    "optLevel": "0 (Cargo profile; no explicit rustc flag emitted)",
+  "schemaVersion": 2,
+  "profile": "dev-small",
+  "sources": {
+    "cargoToml": "codex/external/repos/codex-patched/codex-rs/Cargo.toml",
+    "cargoTomlLines": "538-558",
+    "cargoTomlSha256": "4a696c97f6f8a25be0eb63f6e02ee4d273da60c5ede14e5a1d20769439fd2d14",
+    "representativeRun": "runs/a2-inc1-core-edit-launch.json"
+  },
+  "effectiveSettings": {
+    "inherits": "dev",
+    "optLevel": 0,
     "debug": "none",
     "strip": "symbols",
-    "incremental": "enabled",
-    "lto": "off (Cargo dev default; no explicit rustc flag emitted)",
-    "panic": "unwind (Cargo dev default; no explicit rustc flag emitted)",
-    "codegenUnits": "Cargo dev default; no explicit rustc flag emitted"
-  }
+    "incremental": "controlled per arm with CARGO_INCREMENTAL=1 or 0",
+    "lto": "off by Cargo development-profile default",
+    "panic": "unwind by Cargo development-profile default",
+    "codegenUnits": "Cargo development-profile default"
+  },
+  "controlledToolchain": {
+    "cargo": "1.97.0",
+    "rustc": "1.97.0",
+    "cc": "clang-cl 19.1.7",
+    "linker": "lld-link",
+    "jobs": 8,
+    "rustyV8Archive": "C:\\Users\\evmitran\\.cargo\\.rusty_v8\\rusty_v8_release_x86_64-pc-windows-msvc_v149.2.0.lib"
+  },
+  "interpretation": "This is a stripped, opt-level-0 runnable-smoke tier, not a source-debugger tier and not a performance or publish-fidelity tier. Normal Cargo verbosity is intentional; exact Cargo argv and controlled environment are recorded in every run manifest."
 }

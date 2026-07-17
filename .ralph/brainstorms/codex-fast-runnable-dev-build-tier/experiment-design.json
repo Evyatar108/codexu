@@ -1,160 +1,168 @@
 {
-  "schemaVersion": 1,
-  "taskId": "codex-fast-runnable-dev-build-tier",
-  "goal": "Measure a representative launcher-plus-core runnable loop without changing the production release profile.",
-  "controlledInputs": {
-    "repository": {
-      "codexWrapper": "3ff55692e7045e85ce78ebe8337ab40b55494c9c",
-      "patchedCodex": "587a6a8ab8948ff912b1f24a62833b277934302d"
-    },
-    "toolchain": {
-      "cargo": "1.97.0",
-      "rustc": "1.97.0",
-      "host": "x86_64-pc-windows-msvc",
-      "compiler": "clang-cl 19.1.7",
-      "linker": "lld-link",
-      "jobs": 8
-    },
-    "command": [
-      "cargo",
-      "build",
-      "--locked",
-      "--profile",
-      "dev-small",
-      "-p",
-      "codex-cli",
-      "--bin",
-      "codex-core",
-      "-p",
-      "codex-copilot-launcher",
-      "--bin",
-      "codex",
-      "--timings",
-      "--message-format=json-render-diagnostics"
+  "schemaVersion": 2,
+  "task": "codex-fast-runnable-dev-build-tier",
+  "question": "What is the narrowest honest Codex artifact that preserves the fork launcher path and makes a changed codex-core runnable within a warm-loop budget of 600 seconds without weakening verification or publish gates?",
+  "artifactUnderTest": {
+    "requiredAdjacentFiles": [
+      "codex.exe",
+      "codex-core.exe"
     ],
-    "probePolicy": [
-      "Start every arm from a successful no-op build in its own target directory.",
-      "Apply one byte-controlled source replacement and verify exactly one match.",
-      "Record source hash, target size, binary hashes, Cargo JSONL, stderr, and cargo-timing HTML.",
-      "Restore the original bytes and timestamp, rebuild once to reconcile the target, and require a clean nested repository status.",
-      "Do not compare arms while another build owns the same target directory."
-    ]
+    "buildSelection": [
+      "-p codex-cli --bin codex-core",
+      "-p codex-copilot-launcher --bin codex"
+    ],
+    "reason": "The launcher owns bootstrap, provider, policy, and adjacent-core discovery. Direct codex-core is only a diagnostic lower bound; launcher-only is not runnable."
+  },
+  "contractSeparation": {
+    "correctnessVerification": "Accepted predecessor T1/T2; no runnable claim.",
+    "runnableSmoke": "Exact-path launcher plus adjacent core; version, authenticated no-tool, and benign shell-tool probes.",
+    "debugDevPerformance": "dev-small, opt-level 0, no symbols, no LTO; suitable for behavior iteration, not source debugging or runtime performance claims.",
+    "publishFidelity": "Existing thin-LTO release build and vendor layout remain unchanged and mandatory."
+  },
+  "controlledInputs": {
+    "measurementScriptSha256": "49e9dd12d5112bc374ef01755cfcf07af68be22d4d4a17e95e247091a157ac48",
+    "smokeScriptSha256": "5651946f60324e494fa5053affd1ef1d63cbe4a22a5b2d05353f9ce8064137cc",
+    "verbosity": "normal",
+    "profile": "dev-small",
+    "jobs": 8,
+    "sccache": false,
+    "toolchain": "stable-x86_64-pc-windows-msvc; cargo/rustc 1.97.0; clang-cl 19.1.7; lld-link",
+    "environmentPolicy": "Clear Rust flags, rustc/wrapper, target, sccache, and Cargo profile override families; then set only the values recorded in each run manifest.",
+    "sourceRevision": "patched Codex 587a6a8ab8948ff912b1f24a62833b277934302d"
+  },
+  "executionProvenance": {
+    "powerShell": "7.4.17 Core at C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+    "culture": "en-US",
+    "timeZone": "Pacific Standard Time",
+    "perRun": "Exact process command line/argv and effective driver argv are retained in every run manifest."
+  },
+  "smokeAcceptance": {
+    "timeoutSeconds": 180,
+    "timeoutTermination": "Captured root and descendant PIDs only.",
+    "version": "Exit 0 plus expected codex-cli version output.",
+    "authenticatedResponse": "Exact four-event whitelist: thread start, turn start, one FAST_RUNNABLE_OK agent completion, turn completion; every other item/tool/error event is rejected.",
+    "authenticatedTool": "Exact six-event whitelist with one normalized pwsh Write-Output FAST_TOOL_OK command start/completion, exact FAST_TOOL_OK output, one exact final message, and turn completion.",
+    "canonicalOutcome": "Four smoke-bearing scenarios passed; zero semantic failures, zero timeouts, and zero termination-verification failures. A separate one-second timeout preflight verified bounded tree cleanup with no lingering target process."
+  },
+  "metricDefinitions": {
+    "buildSeconds": "Cargo process wall time from Start-Process to exit.",
+    "buildThroughVersionSeconds": "Build start through successful exact-path launcher --version completion.",
+    "functionalSmoke": "Exact built launcher/core hashes pass authenticated no-tool and benign PowerShell tool turns. Network/model time is recorded but is not the build SLO.",
+    "disk": "Separate recursive byte/file counts for the whole target, profile, incremental, deps, build, and fingerprint directories."
+  },
+  "slo": {
+    "warmLoop": {
+      "budgetSeconds": 600,
+      "metric": "buildThroughVersionSeconds for a changed-core artifact",
+      "verdict": "PASS"
+    },
+    "coldStart": {
+      "budgetSeconds": 720,
+      "metric": "buildThroughVersionSeconds from an absent target directory",
+      "tenMinuteVerdict": "FAIL for incremental-on Arm A",
+      "honestTier": "Cold-start setup budget, not the warm-loop SLO"
+    }
   },
   "arms": [
     {
       "id": "A",
-      "profile": "dev-small",
-      "target": "separate per-worktree short-path target",
-      "incremental": true,
-      "sccache": false,
-      "debug": "none",
-      "optLevel": 0,
-      "lto": false,
-      "codegenUnits": "Cargo dev default; confirm from verbose rustc argv before implementation",
-      "panic": "Cargo dev default unwind; confirm from verbose rustc argv before implementation",
-      "bins": [
-        "codex",
-        "codex-core"
-      ],
-      "status": "measured primary",
-      "purpose": "Best low-conflict hypothesis for a warm runnable edit loop."
-    },
-    {
-      "id": "B",
-      "profile": "dev-small",
-      "target": "fresh separate target",
-      "incremental": false,
-      "sccache": false,
-      "debug": "none",
-      "optLevel": 0,
-      "lto": false,
-      "bins": [
-        "codex",
-        "codex-core"
-      ],
-      "status": "designed follow-up",
-      "purpose": "Isolate the benefit and storage cost of incremental compiler state."
-    },
-    {
-      "id": "C",
-      "profile": "dev-small",
-      "target": "fresh separate target",
-      "incremental": false,
-      "sccache": true,
-      "debug": "none",
-      "optLevel": 0,
-      "lto": false,
-      "bins": [
-        "codex",
-        "codex-core"
-      ],
-      "status": "designed follow-up",
-      "purpose": "Measure cold/fresh-target reuse versus changed-core misses without mixing incremental state.",
-      "protocol": [
-        "Allocate a dedicated SCCACHE_DIR and SCCACHE_SERVER_PORT so the arm neither reuses nor stops another build's server.",
-        "Start from an empty cache directory and record zeroed advanced statistics.",
-        "Build target C1 from cold to seed the isolated cache.",
-        "Build a second fresh target C2 against the same isolated cache to measure cross-target reuse.",
-        "Apply the controlled core probe in C2 to measure changed-core hit, miss, non-cacheable, and error deltas.",
-        "Stop only the isolated-port server and retain before/after advanced statistics with the Cargo evidence."
+      "targetDir": "D:\\codex-targets\\frdbt-audit-a-inc1",
+      "incremental": 1,
+      "runs": [
+        {
+          "id": "a2-inc1-cold-launch",
+          "buildSeconds": 622.041,
+          "buildThroughVersionSeconds": 648.476,
+          "buildThroughShellToolSeconds": 681.255,
+          "targetGiB": 12.949,
+          "incrementalGiB": 5.184
+        },
+        {
+          "id": "a2-inc1-noop",
+          "buildSeconds": 9.03,
+          "rebuiltPackages": 0
+        },
+        {
+          "id": "a2-inc1-core-edit-launch",
+          "buildSeconds": 68.037,
+          "buildThroughVersionSeconds": 92.963,
+          "buildThroughShellToolSeconds": 126.926,
+          "rebuiltPackages": 25,
+          "functionalSmoke": "pass"
+        },
+        {
+          "id": "a2-inc1-high-edit-launch",
+          "buildSeconds": 74.036,
+          "buildThroughVersionSeconds": 98.635,
+          "buildThroughShellToolSeconds": 129.55,
+          "rebuiltPackages": 25,
+          "functionalSmoke": "pass"
+        },
+        {
+          "id": "a2-inc1-post-reconcile-noop",
+          "buildSeconds": 7.031,
+          "rebuiltPackages": 0,
+          "targetGiB": 15.054,
+          "incrementalGiB": 7.286
+        }
       ]
     },
     {
-      "id": "D",
-      "profile": "dev",
-      "target": "fresh separate target",
-      "incremental": true,
-      "sccache": false,
-      "debug": "limited",
-      "optLevel": 0,
-      "lto": false,
-      "bins": [
-        "codex",
-        "codex-core"
-      ],
-      "status": "conditional debugger lane",
-      "purpose": "Quantify symbol and disk overhead only when source-level debugging is required."
-    },
-    {
-      "id": "E",
-      "profile": "candidate fork-owned fast-runnable profile",
-      "target": "fresh separate target",
-      "incremental": true,
-      "sccache": false,
-      "debug": "none",
-      "optLevel": 1,
-      "lto": false,
-      "codegenUnits": [
-        256,
-        64,
-        16
-      ],
-      "bins": [
-        "codex",
-        "codex-core"
-      ],
-      "status": "conditional runtime-performance sweep",
-      "purpose": "Trade compile/link time against runtime responsiveness only if opt-level 0 proves unusably slow."
+      "id": "B",
+      "targetDir": "D:\\codex-targets\\frdbt-audit-b-inc0",
+      "incremental": 0,
+      "runs": [
+        {
+          "id": "b1-inc0-cold-launch",
+          "buildSeconds": 465.034,
+          "buildThroughVersionSeconds": 490.788,
+          "buildThroughShellToolSeconds": 523.519,
+          "targetGiB": 7.729,
+          "incrementalGiB": 0
+        },
+        {
+          "id": "b1-inc0-noop",
+          "buildSeconds": 81.038,
+          "rebuiltPackages": 0,
+          "interpretation": "One-time post-cold stabilization outlier; use post-reconcile no-op for steady state."
+        },
+        {
+          "id": "b1-inc0-core-edit",
+          "buildSeconds": 170.032,
+          "rebuiltPackages": 25
+        },
+        {
+          "id": "b1-inc0-post-reconcile-noop",
+          "buildSeconds": 7.043,
+          "rebuiltPackages": 0,
+          "targetGiB": 7.731,
+          "incrementalGiB": 0
+        }
+      ]
     }
   ],
-  "fixedDecisions": [
-    "LTO-on is not a development candidate; it is already the release/publish fidelity gate.",
-    "panic=abort is rejected because it changes failure semantics from both the current dev and release profiles.",
-    "A direct codex-core-only command is a lower-bound diagnostic, not the representative runnable artifact.",
-    "The representative command keeps the launcher adjacent to codex-core because the launcher owns provider flags, bootstrap, policy, and environment setup.",
-    "A globally shared target is rejected; concurrent worktrees require separate targets and explicit ownership locking."
-  ],
-  "comparisonMetrics": [
-    "cold wall seconds",
-    "warm no-op wall seconds and rebuilt package count",
-    "warm private core-edit wall seconds",
-    "warm public/high-fanout core-edit wall seconds",
-    "reconciliation wall seconds",
-    "target bytes and incremental subdirectory bytes",
-    "launcher and core bytes plus SHA-256",
-    "sccache hit/miss/non-cacheable/error deltas where enabled",
-    "authenticated launcher-path exec success",
-    "first and repeated process startup latency"
-  ],
-  "stopRule": "Once one additive arm produces a representative changed-core launcher-path run in at most 600 seconds without weakening release gates, defer more expensive optimization sweeps unless their expected value exceeds another full cold target warm-up."
+  "attribution": {
+    "incrementalWarmEdit": "Arm A private edit was 101.995 seconds (60.0%) faster than Arm B: 68.037s versus 170.032s.",
+    "incrementalStorage": "Arm A's incremental directory was 5.184 GiB after cold build and 7.286 GiB after edit/reconcile cycles; Arm B's was exactly 0. The prior 2.094 GiB total-growth claim is replaced by these directly measured directory sizes.",
+    "coldComparison": "Arm B cold was faster in this serial order, but OS/source cache order and a single sample prevent a causal cold-build claim.",
+    "sccache": "All measured arms disabled sccache. Any incremental-versus-sccache interaction remains provisional and requires a separate fresh-target arm before changing the selected default."
+  },
+  "candidateVariableDisposition": {
+    "separateCargoTargetDir": "GO; required for attribution, isolation, short Windows paths, and cleanup ownership.",
+    "incrementalOnOff": "Measured; GO incremental-on for warm runnable iteration, NO-GO incremental-off as the default.",
+    "sccacheOnOff": "Off arm measured; on arm designed but deferred. No causal sccache claim.",
+    "debugSymbols": "No symbols in selected lane. Use existing dev/profile-specific work for source debugging.",
+    "optLevel": "0 selected for build latency; do not use for runtime performance conclusions.",
+    "lto": "Off selected; thin LTO remains publish-only.",
+    "codegenUnits": "Cargo development default retained; no new profile knob without evidence.",
+    "panic": "Cargo development unwind default retained.",
+    "packageBinSubset": "Launcher plus core selected; narrower shapes fail representative invocation.",
+    "launcherCoreSplit": "Adjacent pair is mandatory; CODEX_CORE_PATH remains unset in smoke."
+  },
+  "rawEvidence": {
+    "storageRoot": "D:\\codex-targets\\frdbt-evidence\\audit-20260716-v2",
+    "committedManifest": "evidence/raw-evidence-manifest.json",
+    "policy": "Cargo JSONL, stderr, and timing HTML remain outside git. Each committed run manifest records path, bytes, and SHA-256; the aggregate manifest independently re-hashes all files.",
+    "retention": "Until implementation plan acceptance or 2026-08-15, whichever is later."
+  }
 }

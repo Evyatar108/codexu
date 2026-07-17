@@ -1,111 +1,169 @@
+import hashlib
 import json
 from pathlib import Path
 
 
 EVIDENCE = Path(__file__).resolve().parent
+RUNS = EVIDENCE / "runs"
 
 
-def cargo_summary(path: Path | None) -> dict | None:
-    if path is None or not path.exists():
-        return None
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
-    rebuilt_packages: set[str] = set()
-    rebuilt_target_count = 0
-    rebuilt_executables: list[str] = []
-    build_finished = None
-    parse_errors = 0
-    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-        try:
-            event = json.loads(line)
-        except json.JSONDecodeError:
-            parse_errors += 1
-            continue
-        if event.get("reason") == "compiler-artifact" and not event.get("fresh", False):
-            package_id = event.get("package_id")
-            if package_id:
-                rebuilt_packages.add(package_id)
-            rebuilt_target_count += 1
-            executable = event.get("executable")
-            if executable:
-                rebuilt_executables.append(executable)
-        elif event.get("reason") == "build-finished":
-            build_finished = event
 
+def compact_cargo(cargo: dict) -> dict:
     return {
-        "file": path.name,
-        "parseErrors": parse_errors,
-        "rebuiltPackageCount": len(rebuilt_packages),
-        "rebuiltWorkspacePackages": sorted(
-            package_id
-            for package_id in rebuilt_packages
-            if "path+file:///C:/efforts/codexu/" in package_id
-        ),
-        "rebuiltTargetCount": rebuilt_target_count,
-        "rebuiltExecutables": sorted(rebuilt_executables),
-        "buildFinished": build_finished,
+        "parseErrors": cargo["parseErrors"],
+        "rebuiltPackageCount": cargo["rebuiltPackageCount"],
+        "rebuiltWorkspacePackageCount": len(cargo["rebuiltWorkspacePackages"]),
+        "rebuiltTargetCount": cargo["rebuiltTargetCount"],
+        "rebuiltExecutables": cargo["rebuiltExecutables"],
+        "buildFinished": cargo["buildFinished"],
     }
 
 
-def load_measurement(path: Path) -> dict:
-    raw = json.loads(path.read_text(encoding="utf-8-sig"))
+def compact_target(target: dict) -> dict:
+    result = {}
+    for name in ("target", "profile", "incremental", "deps", "build", "fingerprint"):
+        before = target["before"][name]
+        after = target["after"][name]
+        result[name] = {
+            "path": after["path"],
+            "beforeBytes": before["bytes"],
+            "afterBytes": after["bytes"],
+            "deltaBytes": after["bytes"] - before["bytes"],
+            "beforeFiles": before["files"],
+            "afterFiles": after["files"],
+            "deltaFiles": after["files"] - before["files"],
+        }
+    return result
+
+
+def compact_smoke(smoke: dict | None) -> dict | None:
+    if smoke is None:
+        return None
+    return {
+        "resultPath": smoke["resultPath"],
+        "resultSha256": smoke["resultSha256"],
+        "binaries": smoke["binaries"],
+        "runs": [
+            {
+                "name": run["name"],
+                "startedAt": run["startedAt"],
+                "wallSeconds": run["wallSeconds"],
+                "exitCode": run["exitCode"],
+                "timeoutSeconds": run["timeoutSeconds"],
+                "timedOut": run["timedOut"],
+                "treeTerminationVerified": run["treeTerminationVerified"],
+                "rootHandleExited": run["rootHandleExited"],
+                "terminationVerified": run["terminationVerified"],
+                "semantic": run["semantic"],
+                "semanticResult": run["semanticResult"],
+                "accepted": run["accepted"],
+            }
+            for run in smoke["runs"]
+        ],
+    }
+
+
+def compact_run(raw: dict) -> dict:
+    smoke = raw.get("smoke")
     measured = raw["measured"]
     reconciliation = raw.get("reconciliation")
-    measured_stdout = EVIDENCE / measured["stdout"]
-    reconciliation_stdout = (
-        EVIDENCE / reconciliation["stdout"] if reconciliation else None
-    )
-    changed_smoke_name = raw.get("changedArtifactSmoke")
-    changed_smoke_path = EVIDENCE / changed_smoke_name if changed_smoke_name else None
     return {
         "runId": raw["runId"],
-        "candidate": raw["candidate"],
+        "script": raw["script"],
+        "invocation": raw["invocation"],
         "repository": raw["repository"],
-        "target": raw["target"],
+        "candidate": raw["candidate"],
+        "target": compact_target(raw["target"]),
         "probe": raw.get("probe"),
-        "changedArtifactSmoke": (
-            json.loads(changed_smoke_path.read_text(encoding="utf-8-sig"))
-            if changed_smoke_path and changed_smoke_path.exists()
-            else None
-        ),
         "measured": {
-            **measured,
-            "cargo": cargo_summary(measured_stdout),
+            "startedAt": measured["startedAt"],
+            "finishedAt": measured["finishedAt"],
+            "wallSeconds": measured["wallSeconds"],
+            "exitCode": measured["exitCode"],
+            "cwd": measured["cwd"],
+            "argv": measured["argv"],
+            "cargo": compact_cargo(measured["cargo"]),
         },
+        "smoke": compact_smoke(smoke),
+        "endToEnd": raw.get("endToEnd"),
         "reconciliation": (
             {
-                **reconciliation,
-                "cargo": cargo_summary(reconciliation_stdout),
+                "startedAt": reconciliation["startedAt"],
+                "finishedAt": reconciliation["finishedAt"],
+                "wallSeconds": reconciliation["wallSeconds"],
+                "exitCode": reconciliation["exitCode"],
+                "cargo": compact_cargo(reconciliation["cargo"]),
             }
             if reconciliation
             else None
         ),
         "binaries": raw["binaries"],
+        "rawEvidenceRoot": raw["rawEvidence"]["root"],
     }
 
 
-measurements = [
-    load_measurement(path)
-    for path in sorted(EVIDENCE.glob("a-*.json"))
-    if not path.name.endswith(".manifest.json")
-    and not path.name.endswith(".changed-smoke-results.json")
+run_documents = [
+    json.loads(path.read_text(encoding="utf-8-sig"))
+    for path in sorted(RUNS.glob("*.json"))
 ]
 
-smoke_path = EVIDENCE / "smoke-results.json"
-smoke = (
-    json.loads(smoke_path.read_text(encoding="utf-8-sig"))
-    if smoke_path.exists()
-    else None
-)
-
 summary = {
-    "schemaVersion": 1,
-    "measurements": measurements,
-    "smoke": smoke,
+    "schemaVersion": 2,
+    "runs": [compact_run(raw) for raw in run_documents],
 }
 
-output_path = EVIDENCE / "measurement-summary.json"
-output_path.write_text(
+raw_files = []
+for raw in run_documents:
+    phases = [raw["measured"], raw.get("reconciliation")]
+    for phase in (phase for phase in phases if phase):
+        for kind, artifact in phase["rawArtifacts"].items():
+            if not artifact:
+                continue
+            path = Path(artifact["path"])
+            actual_hash = sha256(path) if path.exists() else None
+            raw_files.append(
+                {
+                    "runId": raw["runId"],
+                    "phase": phase["phase"],
+                    "kind": kind,
+                    **artifact,
+                    "exists": path.exists(),
+                    "hashVerified": actual_hash == artifact["sha256"],
+                }
+            )
+
+roots = sorted({raw["rawEvidence"]["root"] for raw in run_documents})
+script_hashes = sorted({raw["script"]["sha256"] for raw in run_documents})
+raw_manifest = {
+    "schemaVersion": 1,
+    "policy": {
+        "storage": "External to git; committed manifests retain absolute paths, byte counts, and SHA-256.",
+        "integrity": "Treat a raw artifact as valid only when its current SHA-256 equals this manifest.",
+        "retention": "Retain until the implementation plan is accepted or 2026-08-15, whichever is later.",
+    },
+    "roots": roots,
+    "measurementScriptSha256": script_hashes,
+    "fileCount": len(raw_files),
+    "totalBytes": sum(item["bytes"] for item in raw_files),
+    "allPresent": all(item["exists"] for item in raw_files),
+    "allHashesVerified": all(item["hashVerified"] for item in raw_files),
+    "files": raw_files,
+}
+
+(EVIDENCE / "measurement-summary.json").write_text(
     json.dumps(summary, indent=2) + "\n",
     encoding="utf-8",
 )
-print(output_path)
+(EVIDENCE / "raw-evidence-manifest.json").write_text(
+    json.dumps(raw_manifest, indent=2) + "\n",
+    encoding="utf-8",
+)
+print(EVIDENCE / "measurement-summary.json")
+print(EVIDENCE / "raw-evidence-manifest.json")
