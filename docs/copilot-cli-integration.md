@@ -719,6 +719,104 @@ API wholesale.
 6. **Preserve `selection`/`github_reference` attachments** if needed (`toWireAttachments`).
 7. **Extension parity in managed-server mode** isn't guaranteed — needs an extension controller/loader like `EmbeddedServer` if phone control of live extensions is required.
 
+## 13. Option 1 implementation plan (happy-cli native local controller)
+
+Chosen path (§11 decision): happy-cli attaches to a headless Copilot
+managed-server target over Copilot's native local JSON-RPC and relays into Happy.
+Both repos are now on the work account (`evmitran_microsoft/copilot-agent-runtime`,
+`.../codexu`), so an implementing agent has the runtime source for exact schemas.
+
+### Split of work
+- **Mostly codexu/happy-cli (no runtime change):** discovery, attach, event
+  relay, prompt steering, and the phone-facing abstraction.
+- **Local Copilot worktree (per §4b, no upstream PR):** only the §12 gaps that
+  need runtime changes (negotiable prompt-forwarding, missing wire APIs, exported
+  typed client, extension parity).
+
+### A. happy-cli side (codexu)
+1. **Add an agent id + provider.** Extend `AgentId` in
+   `packages/happy-cli/src/agent/core/AgentBackend.ts:51` with `'copilot'`
+   (mirrors the existing `codex`/`codex-acp` precedent). Add a
+   `commands/copilotCommand.ts` (mirror `commands/codexCommand.ts`) and register
+   a factory in `agent/core/AgentRegistry.ts`.
+2. **Spawn / discover the target.** Launch the runtime as a managed server
+   (`copilot --server --port 0 --managed-server`), then read the local discovery
+   registry for `kind="managed-server"` + `sessionId` + TCP port
+   (runtime `src/cli/sessions/spawnLiveTarget.ts`,
+   `src/core/remoteRegistry/serverRegistry.ts`). Handle the connection token that
+   `spawnLiveTarget` sets (`COPILOT_CONNECTION_TOKEN`).
+3. **Implement the native local-RPC client.** happy-cli speaks Copilot's framed
+   JSON-RPC directly (the runtime's `NativeLocalRpcConnection.sendRequest` is
+   private — §12 gap 1). Schemas come from the runtime's
+   `src/core/generated/api.ts`, `apiInterfaces.ts`, `apiDispatch.ts`,
+   `src/core/protocol/types.ts`. Connect handshake + `session.resume`.
+4. **Attach with the right options.** Resume with `observePromptEvents:true` and
+   call `session.eventLog.registerInterest` for `mcp.oauth_required` and
+   `sampling.requested` (§12 rows for permissions/OAuth/sampling).
+5. **Relay events → `SessionEnvelope`.** Subscribe to `session.event`; map the
+   live Copilot `SessionEvent`s to happy-wire `SessionEvent` variants (reuse the
+   shape logic from `src/codex/utils/sessionProtocolMapper.ts` as a template).
+   Coalesce `assistant.message_delta` into one `text` envelope; map
+   `tool.execution_start/complete` to `tool-call-start/end` with **real** name +
+   `rawInput` (avoid the ACP `kind`-as-name loss from §6); map plan/todos, usage,
+   subagents. Push via `ApiSessionClient.sendSessionProtocolMessage()`
+   (`src/api/apiSession.ts`) — server/pagination unchanged.
+6. **Steering from the phone.** Map Happy inbound actions to native RPC:
+   `session.send` (prompt), `session.abort` (cancel), `session.mode.set`,
+   `session.model.switchTo`/`setReasoningEffort`, `session.history.compact`
+   (`/compact`), `session.commands.invoke` (skills/slash), `session.mcp.*`
+   (add/status), `session.tasks.*` (subagents). Answer interactive prompts via
+   `session.permissions.handlePendingPermissionRequest` /
+   `session.ui.handlePending*`.
+7. **Safe phone-facing abstraction (required).** Do NOT forward the raw native
+   API to the phone — it includes global-config/plugin/filesystem/shell/
+   permission APIs (§12 verdict). Expose an allow-listed action set; gate
+   `session.shell.*` and `session.workspaces.*` behind explicit policy.
+8. **Auth + metadata.** `authenticateCopilot` (GitHub device login) analogous to
+   `commands/connect/authenticateCodex.ts`; extend
+   `src/utils/createSessionMetadata.ts` + `src/api/types.ts` with a `copilot`
+   flavor; add tool-view renderers under
+   `happy-app/sources/components/tools/views/`.
+
+### B. Local Copilot worktree (only if needed)
+Address §12 gaps that are runtime-side, each minimal/additive, folded into
+`all-pending-fixes`, no PR:
+- **Negotiable prompt-forwarding** (drop the same-process-only heuristic in
+  `src/cli/sessions/computeAttachPromptForwarding.ts`; add capability to
+  `connect`/`session.resume`) — needed so an external controller can answer
+  permission/elicitation prompts.
+- **Export a typed controller client / raw invoker** from
+  `src/core/sharedApi/localRpcSession.ts` (gap 1) if not reimplementing framing.
+- **Missing wire APIs**: memory list/get, first-class `schedule.create`, optional
+  agent-tree snapshot (gap 4) — require Rust SDK contract additions.
+- **Extension parity** in managed-server mode (gap 7) if phone control of live
+  extensions is required.
+- Optionally the §9 **telemetry untag** worktree (separate task
+  `copilot-acp-untag-telemetry`) — note: managed-server is `cli-server`, not
+  `cli-acp`, so revisit which clientType it reports.
+
+### C. Phased milestones
+1. **Read-only mirror:** spawn managed-server, attach, relay events to Happy,
+   verify tail-window + scroll pagination. No steering yet.
+2. **Basic steering:** `session.send` + `session.abort` + permission answers.
+3. **Rich control:** model/mode/reasoning, `/compact`, skills/commands, MCP
+   add/status, tasks/subagents.
+4. **Interactive completeness:** elicitation/user_input/sampling/OAuth
+   round-trips (may pull in the prompt-forwarding worktree patch).
+5. **Co-steer with a real TUI:** switch the target from managed-server (headless)
+   to a `--ui-server` TUI target so a local terminal and the phone drive one live
+   session (the "remoteSteerable, but local" goal).
+6. **Hardening:** phone allow-list/policy, token handling, version-skew guard
+   against the proprietary protocol.
+
+### D. Key risks (carry from §12)
+- Proprietary, **version-coupled** protocol — pin/verify against the runtime
+  build; add a capability/handshake guard.
+- **Local token security** — registry creds are filesystem-perms only; the RPC is
+  powerful. Never expose raw to the phone.
+- Ephemeral events (usage, `model.call_failure`, streaming) are live-only —
+  attach early; use `session.getMessages` for durable history on late join.
+
 ## Common pitfalls
 - Copilot's runtime source is at `D:\repos\copilot-agent-runtime`, not under
   `D:\harness-efforts` (the workspace there is an operator/knowledge workspace).
