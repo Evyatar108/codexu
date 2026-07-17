@@ -35,13 +35,13 @@ The audit revision separates two contracts:
 | Warm changed-core loop | Build start through exact built `codex.exe --version` | <=600s | private 92.963s; high-fanout 98.635s | **PASS** |
 | Warm build only | Cargo process | informational | private 68.037s; high-fanout 74.036s | PASS |
 | Warm representative behavior | Exact changed launcher/core authenticated and benign shell-tool smoke | functional | private and high-fanout both passed | PASS |
-| Cold start, incremental on | Empty target through exact `--version` | <=600s aspirational; <=720s honest setup budget | 648.476s | **FAIL 10m; PASS 12m** |
+| Cold start, incremental on | Empty target through exact `--version` | Original <=600s target | 648.476s | **FAIL; no validated cold SLO** |
 | Publish fidelity | Existing thin-LTO release/publish path | unchanged | prior ~31m release-like / ~58m publish baseline | separate gate |
 
 The recommendation is therefore **GO for the warm loop only**. A clean target
-does not meet a universal ten-minute promise on this host. Cold setup has a
-separate 720-second point budget, and the single cold observation is not a
-percentile guarantee.
+missed the original 600-second target on this host. The 648.476-second result
+is an observation, not a preregistered cold SLO or acceptance gate. Cold-start
+improvement remains a non-blocking follow-up limitation.
 
 Authenticated/model latency is recorded but is not folded into the build SLO.
 For completeness, Arm A finished the benign shell-tool turn at 681.255s cold,
@@ -180,8 +180,9 @@ separate fresh-target arm.
 reconciliation, tests, and documentation. Add the measured adjacent pair and
 exact-path smoke rather than creating a parallel tool.
 
-Tradeoffs: 12-minute cold setup budget, about 15.054 GiB after measured
-edit/reconcile cycles, no source-debug symbols, and no publish-fidelity claim.
+Tradeoffs: cold start missed the original 600-second target, the measured
+target reached about 15.054 GiB after edit/reconcile cycles, and this lane has
+no source-debug symbols or publish-fidelity claim.
 
 ### D-002 - add a new Cargo profile
 
@@ -242,7 +243,7 @@ D:\codex-targets\frdbt-evidence\audit-20260716-v2
 independently verified every current SHA-256. Retain them until implementation
 plan acceptance or 2026-08-15, whichever is later.
 
-Repository evidence is bounded to 48 files, 450,509 bytes, and 9,390 physical
+Repository evidence is bounded to 48 files, 453,452 bytes, and 9,457 physical
 lines: scripts, compact run/smoke manifests and exact outputs, profile and
 provenance, summaries, and the checksummed external-raw manifest. Cargo JSONL,
 timing HTML, and verbose logs are not committed.
@@ -275,8 +276,9 @@ Acceptance:
   within 600 seconds on the controlled warm host;
 - exact changed artifacts pass authenticated and benign shell-tool smokes;
 - post-reconcile no-op rebuilds zero packages and completes within 30 seconds;
-- clean-target build-through-version is reported separately against a
-  720-second setup budget, never marketed as the warm SLO;
+- clean-target build-through-version is reported as the 648.476-second
+  observation that failed the original 600-second target; it is not an
+  acceptance gate, and cold-start improvement remains follow-up work;
 - unsafe concurrency, stale/interrupted provenance, or unowned cleanup fails
   closed;
 - production release/publish configuration remains byte-for-byte unchanged;

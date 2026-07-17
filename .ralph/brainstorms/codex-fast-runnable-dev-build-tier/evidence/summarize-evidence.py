@@ -5,6 +5,7 @@ from pathlib import Path
 
 EVIDENCE = Path(__file__).resolve().parent
 RUNS = EVIDENCE / "runs"
+SCRIPT = Path(__file__).resolve()
 
 
 def sha256(path: Path) -> str:
@@ -113,9 +114,37 @@ run_documents = [
     json.loads(path.read_text(encoding="utf-8-sig"))
     for path in sorted(RUNS.glob("*.json"))
 ]
+run_by_id = {run["runId"]: run for run in run_documents}
 
 summary = {
     "schemaVersion": 2,
+    "generatedBy": {
+        "path": str(SCRIPT),
+        "sha256": sha256(SCRIPT),
+    },
+    "interpretation": {
+        "warmLoop": {
+            "scope": "Changed-core build through exact launcher version.",
+            "originalTargetSeconds": 600,
+            "privateEditSeconds": run_by_id["a2-inc1-core-edit-launch"]["endToEnd"][
+                "buildThroughVersionSeconds"
+            ],
+            "highFanoutEditSeconds": run_by_id["a2-inc1-high-edit-launch"][
+                "endToEnd"
+            ]["buildThroughVersionSeconds"],
+            "verdict": "GO",
+        },
+        "coldStart": {
+            "scope": "Absent target through exact launcher version.",
+            "originalTargetSeconds": 600,
+            "observedSeconds": run_by_id["a2-inc1-cold-launch"]["endToEnd"][
+                "buildThroughVersionSeconds"
+            ],
+            "verdict": "FAIL",
+            "validatedSloSeconds": None,
+            "disposition": "Non-blocking limitation; cold-start improvement is follow-up work.",
+        },
+    },
     "runs": [compact_run(raw) for raw in run_documents],
 }
 
@@ -143,6 +172,10 @@ roots = sorted({raw["rawEvidence"]["root"] for raw in run_documents})
 script_hashes = sorted({raw["script"]["sha256"] for raw in run_documents})
 raw_manifest = {
     "schemaVersion": 1,
+    "generatedBy": {
+        "path": str(SCRIPT),
+        "sha256": sha256(SCRIPT),
+    },
     "policy": {
         "storage": "External to git; committed manifests retain absolute paths, byte counts, and SHA-256.",
         "integrity": "Treat a raw artifact as valid only when its current SHA-256 equals this manifest.",
@@ -157,10 +190,14 @@ raw_manifest = {
     "files": raw_files,
 }
 
-(EVIDENCE / "measurement-summary.json").write_text(
-    json.dumps(summary, indent=2) + "\n",
-    encoding="utf-8",
-)
+summary_path = EVIDENCE / "measurement-summary.json"
+summary_text = json.dumps(summary, indent=2) + "\n"
+summary_path.write_text(summary_text, encoding="utf-8")
+raw_manifest["retainedSummary"] = {
+    "path": str(summary_path),
+    "bytes": summary_path.stat().st_size,
+    "sha256": sha256(summary_path),
+}
 (EVIDENCE / "raw-evidence-manifest.json").write_text(
     json.dumps(raw_manifest, indent=2) + "\n",
     encoding="utf-8",

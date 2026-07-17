@@ -46,7 +46,8 @@ wording issue was corrected before commit
 - Warm changed-core build-through-version is 92.963s private / 98.635s
   high-fanout and passes the 600s warm SLO.
 - Incremental-on cold build-through-version is 648.476s. The canonical verdict
-  is now GO for warm loop only; cold has a separate 720s setup budget.
+  is GO for warm loop only; cold fails the original 600s target and has no
+  validated SLO.
 - Arm B measured `CARGO_INCREMENTAL=0`: private edit 170.032s versus 68.037s
   with incremental on.
 - Direct directory sizing attributes 5.184 GiB cold and 7.286 GiB after cycles
@@ -138,3 +139,35 @@ arithmetic, target histories, storage attribution, exact four/six-event smoke
 whitelists, bounded termination, binary freshness, raw/retained evidence
 counts, artifact shape, plan seed, and unchanged publish gates. No
 Medium-or-higher findings remain.
+
+### Round 5 - REVISE
+
+1. **Medium:** the 720-second cold budget was introduced after observing the
+   648.476-second result, so labeling it PASS or making it an acceptance gate
+   was not evidence-backed.
+
+### Round 5 correction
+
+Cold start is now reported only as a 648.476-second observation that fails the
+original 600-second target. No cold SLO is claimed. GO remains limited to the
+warm loop, and cold-start improvement is a non-blocking follow-up limitation.
+
+### Round 6 - REVISE
+
+1. **Medium:** `raw-evidence-manifest.json` recorded the retained summary's
+   LF-buffer byte length rather than the size of the CRLF-translated file on
+   disk. Its SHA-256 was correct, but the stated byte count was 102,122 while
+   the actual file was 104,524 bytes.
+
+### Round 6 correction
+
+The summarizer now records `summary_path.stat().st_size` after writing.
+Regeneration updated the summary/manifest hashes, repository provenance, and
+bounded repository footprint.
+
+### Round 7 - CLEAN
+
+The independent reviewer verified the corrected cold verdict throughout the
+brainstorm and plan seed, confirmed the 720-second figure exists only as a
+rejected finding, and checked all retained/external hashes, actual byte counts,
+arithmetic, provenance, and footprint. No Medium-or-higher findings remain.

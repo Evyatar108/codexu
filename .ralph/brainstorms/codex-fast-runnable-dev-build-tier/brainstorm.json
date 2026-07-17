@@ -4,7 +4,7 @@
   "phase": "brainstorm",
   "verdict": "GO_WARM_LOOP_ONLY",
   "recommendedDirection": "D-001",
-  "summary": "Extend the accepted predecessor with an additive, default-off runnable lane that builds and smokes the adjacent fork launcher/core pair using dev-small, a short per-worktree target, incremental compilation on, and sccache off. Warm changed-core build-through-version was 92.963-98.635 seconds. Incremental-on cold build-through-version was 648.476 seconds, so the result does not support a universal ten-minute claim.",
+  "summary": "Extend the accepted predecessor with an additive, default-off runnable lane that builds and smokes the adjacent fork launcher/core pair using dev-small, a short per-worktree target, incremental compilation on, and sccache off. Warm changed-core build-through-version was 92.963-98.635 seconds. Incremental-on cold build-through-version was 648.476 seconds, which fails the original 600-second target; no cold SLO is validated.",
   "taskDisposition": {
     "remainsSeparateAfterPredecessor": true,
     "closeAsUnnecessary": false,
@@ -40,11 +40,11 @@
     },
     "coldStart": {
       "metric": "buildThroughVersionSeconds from absent target",
-      "tenMinuteBudgetSeconds": 600,
-      "honestSetupBudgetSeconds": 720,
-      "incrementalOnSeconds": 648.476,
-      "tenMinuteVerdict": "FAIL",
-      "setupBudgetVerdict": "PASS"
+      "originalTargetSeconds": 600,
+      "observedSeconds": 648.476,
+      "verdict": "FAIL",
+      "validatedSloSeconds": null,
+      "disposition": "Non-blocking limitation; cold-start improvement remains follow-up work."
     }
   },
   "measurements": {
@@ -162,13 +162,13 @@
       "Add exclusive ownership/locking, provenance/freshness manifests, interrupted-build fail-closed behavior, exact-path process detection, and guarded cleanup.",
       "Add exact-path version, authenticated no-tool, and benign shell-tool smokes with CODEX_CORE_PATH unset; report helper/package gaps without weakening publish.",
       "Extend predecessor measurement/tests with exact command/environment, binary hashes, separate incremental-directory sizing, and external raw-evidence hashes.",
-      "Document correctness, warm runnable smoke, debugger/runtime limitations, cold setup budget, storage, concurrency, and publish fidelity as separate contracts."
+      "Document correctness, warm runnable smoke, debugger/runtime limitations, the failed cold-start observation, storage, concurrency, and publish fidelity as separate contracts."
     ],
     "acceptanceCriteria": [
       "Warm private and high-fanout changed-core build-through-version completes within 600 seconds.",
       "Exact changed artifacts pass authenticated and benign shell-tool smokes.",
       "Post-reconcile no-op rebuilds zero packages and completes within 30 seconds.",
-      "Cold target build-through-version is reported separately against a 720-second setup budget and never marketed as the warm SLO.",
+      "Cold target build-through-version is reported as a 648.476-second observation that fails the original 600-second target; no cold SLO or cold acceptance gate is introduced.",
       "Unsafe concurrency, stale/interrupted provenance, and unowned cleanup fail closed.",
       "Production release/publish configuration remains byte-for-byte unchanged.",
       "Code and docs review converge with no Medium-or-higher findings."
@@ -189,14 +189,14 @@
     "externalRawAllHashesVerified": true,
     "repositoryFootprint": {
       "files": 48,
-      "bytes": 450509,
-      "physicalLines": 9390
+      "bytes": 453452,
+      "physicalLines": 9457
     }
   },
   "review": {
     "status": "clean",
-    "rounds": 6,
-    "followUpRounds": 4,
+    "rounds": 9,
+    "followUpRounds": 7,
     "mediumOrHigherFindings": 0,
     "remainingFindings": 0,
     "reviewArtifact": "review-findings.md",

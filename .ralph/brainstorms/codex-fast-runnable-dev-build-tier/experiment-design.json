@@ -57,10 +57,12 @@
       "verdict": "PASS"
     },
     "coldStart": {
-      "budgetSeconds": 720,
       "metric": "buildThroughVersionSeconds from an absent target directory",
-      "tenMinuteVerdict": "FAIL for incremental-on Arm A",
-      "honestTier": "Cold-start setup budget, not the warm-loop SLO"
+      "originalTargetSeconds": 600,
+      "observedSeconds": 648.476,
+      "verdict": "FAIL",
+      "validatedSloSeconds": null,
+      "disposition": "Non-blocking limitation; cold-start improvement remains follow-up work."
     }
   },
   "arms": [
