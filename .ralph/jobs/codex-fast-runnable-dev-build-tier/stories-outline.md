@@ -245,12 +245,14 @@ normal launcher path before the target is ready.
   `<evidence-run>\smoke-cwd` held/watched against file creation; hostile caller
   cwd or stale instruction files cannot affect event acceptance. Both execs
   pass the source-verified project-doc isolation override.
-- [ ] Require pre-existing strict `~\.codex-copilot\config.toml` and an existing
+- [ ] Require pre-existing valid-TOML `~\.codex-copilot\config.toml` and an existing
   regular non-reparse Copilot token (never read/recorded), so bootstrap cannot
-  mutate or prompt. Reject inherited `COPILOT_API_HOME` and
-  `CODEX_ENABLE_ANTHROPIC`; hold/watch/hash config, reject
-  local remote/auto-attach/Anthropic enablement, and expect pinned-core Windows
-  PowerShell even when an admitted legacy launcher `default_shell` names Bash.
+  mutate or prompt. Parse real TOML using controlled Python 3.11+ stdlib
+  `tomllib`; accept unrelated, quoted/dotted/table, and ignored legacy fields.
+  Reject inherited `COPILOT_API_HOME`/`CODEX_ENABLE_ANTHROPIC` and only parsed
+  true values for local remote/auto-attach/Anthropic enablement. Hold/watch/hash
+  exact raw config bytes and expect pinned-core Windows PowerShell even when a
+  legacy launcher `default_shell` names Bash.
 - [ ] Source-account for the launcher's fixed-profile `.codex\.tmp` deletion:
   refuse non-empty pre-existing cache state, create/hold an exclusive
   owner-sentinel in an otherwise empty canonical directory so removal fails,
@@ -263,9 +265,10 @@ normal launcher path before the target is ready.
   project-doc isolation, and fail rather than bypass a visible managed conflict.
   Cloud pins are not claimed disabled and no provider transport is added.
 - [ ] Hash/hold/watch legacy `CODEX_HOME\managed_config.toml`, which loads after
-  CLI flags; require project-doc max absent/zero and all remote features
-  plus managed-hooks absent/false in a strict simple subset; scope this to local
-  legacy state only.
+  CLI flags; parse real TOML and accept unrelated/legacy managed fields. Reject
+  only nonzero project-doc max or true remote-session, remote-auto-attach,
+  remote-control, or managed-hooks feature values; scope this to local legacy
+  state only.
 - [ ] US-003 integration keeps every source/config/direct-tool/archive
   watcher plus the recursive target watcher/writer-quiescence guard active
   through the actual final ready write.
@@ -278,6 +281,11 @@ normal launcher path before the target is ready.
   exit 0, exact output, and exact final response.
 - [ ] Each smoke has a 180-second timeout; capture/terminate/verify only the
   descendants of the started launcher, never unrelated process names.
+- [ ] Config fixtures accept benign unknown/table/quoted/dotted fields and
+  ignored legacy keys in launcher and managed TOML, reject only the enumerated
+  conflicting values, reject invalid TOML, leave other-type behavior to the
+  real consumer/smoke, and prove any accepted-field byte change during smoke
+  still fails hash/watch provenance.
 - [ ] Hash launcher/core before and after smoke; replacement or mutation fails.
 - [ ] Record presence/hashes of adjacent command-runner, sandbox-setup, rg, and
   adjacent DLLs without PE/import-closure analysis. Never copy release helpers

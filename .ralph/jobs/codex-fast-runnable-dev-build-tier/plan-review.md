@@ -547,3 +547,25 @@ The independent reviewer found no remaining actionable Medium, High, or
 Critical findings after the wrapper-only scope reduction and safety fixes.
 
 Status: **CLEAN**
+
+## Round 44 - final audit follow-up
+
+Result: **1 Medium finding**
+
+1. **Config validation rejected benign unknown/legacy launcher and managed
+   fields.**
+   - Fix: parse standards-compliant TOML via controlled Python stdlib
+     `tomllib`; accept unrelated/legacy fields and reject only enumerated values
+     that conflict with runnable smoke invariants. Preserve raw-byte
+     hash/lock/provenance and add accept/reject/drift fixtures.
+
+Status: **PENDING ROUND 45**
+
+## Round 45
+
+Result: **CLEAN (no Medium+ findings)**
+
+The independent reviewer found no remaining Medium, High, or Critical issues
+in the real-TOML, conflict-only config validation follow-up.
+
+Status: **CLEAN**

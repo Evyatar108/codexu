@@ -246,8 +246,9 @@ suffixed/crate-specific override.
 
 Record a bounded direct-tool fingerprint before target mutation: canonical
 resolved paths, versions, and SHA-256 for Cargo, rustc, `clang-cl`, `lld-link`,
-`llvm-lib`, PowerShell, and Git, plus the accepted xwin `LIB`/`INCLUDE` root
-identities. Recompute the direct executable hashes after the build epoch. A
+`llvm-lib`, PowerShell, Python 3.11+ with stdlib `tomllib`, and Git, plus the
+accepted xwin `LIB`/`INCLUDE` root identities. Recompute the direct executable
+hashes after the build epoch. A
 changed direct-tool fingerprint versus the prior owner manifest requires full
 owner-target cleanup before Cargo; in-epoch drift invalidates the run. Do not
 recursively hash/watch the sysroot, LLVM DLL closure, xwin trees, or dependency
@@ -279,7 +280,7 @@ owner cleanup. Tests pollute every listed input, attempt same-path and reparse
 replacement, and prove the child environment and freshness remain canonical.
 Existing iteration mode remains incremental-off/sccache-on and publish mode
 remains unchanged. The runnable plan fails before target mutation if Cargo,
-Rust, LLVM, xwin, rusty_v8, PowerShell 7, or Git is
+Rust, LLVM, xwin, rusty_v8, PowerShell 7, Python 3.11+ with `tomllib`, or Git is
 unavailable.
 
 The public runnable path also rejects every environment key in the
@@ -615,22 +616,26 @@ other inherited variable is absent, especially `CODEX_CORE_PATH`,
 `COPILOT_API_HOME`, `CODEX_ENABLE_ANTHROPIC`, and
 `CODEX_ENABLE_MANAGED_HOOKS`.
 
-Do not alter the canonical config. Require a regular, reparse-free UTF-8 file in a
-deliberately strict
-top-level subset: full-line comments/blank lines; optional
-`default_shell = "<absolute existing bash.exe|pwsh.exe|powershell.exe>"`;
-optional `auto_load_claude_md`/`style_user_messages` booleans; and remote
-session/auto-attach/Anthropic keys only when explicitly `false`. Reject tables,
-quoted/dotted keys, escapes outside the admitted string form, duplicates, and
-unknown lines rather than approximating TOML. Hold it with a
-read/no-write-delete handle during smokes, hash before/after, and fail on
-identity/event drift. The pinned core does not consume the launcher's
-`default_shell` override and Windows shell detection resolves PowerShell, so
-the benign assertion remains the direct exact `Write-Output FAST_TOOL_OK`
-command even when an admitted legacy Bash value is present. It must produce the
-six-event shape, exit 0, exact output, and final response. This exercises the
-normal launcher configuration without modifying it or inventing a provider
-transport.
+Do not alter the canonical config. Require a regular, reparse-free UTF-8 file
+and parse its actual TOML semantics through `measure-build.ps1` using a
+controlled Python 3.11+ `python -I -S` subprocess and stdlib `tomllib`; exchange
+only canonical JSON over pipes and create no parser files. Invalid TOML fails,
+but valid tables, quoted/dotted keys, multiline values, unrelated fields, and
+supported ignored legacy keys such as `copilot_api_port` are accepted. Reject
+only parsed values that conflict with runnable smoke invariants:
+`enable_anthropic`, `enable_remote_session`, or `enable_remote_auto_attach`
+equal to `true`. Other recognized launcher fields—including
+`default_shell`, `auto_load_claude_md`, and `style_user_messages`—and all
+unknown/legacy fields remain untouched and are judged by the real launcher
+smoke. Hold the raw file with a read/no-write-delete handle during smokes, hash
+its exact bytes before/after, and fail on identity/event drift; parsing never
+canonicalizes or rewrites provenance. The pinned core does not consume the
+launcher's `default_shell` override and Windows shell detection resolves
+PowerShell, so the benign assertion remains the direct exact
+`Write-Output FAST_TOOL_OK` command even when a legacy Bash value is present.
+It must produce the six-event shape, exit 0, exact output, and final response.
+This exercises the normal launcher configuration without modifying it or
+inventing a provider transport.
 
 System requirements and cloud-managed layers are intentionally part of the
 normal authenticated launcher and must not be bypassed. Resolve the known
@@ -644,11 +649,17 @@ change that alters those outcomes fails the smoke; invisible policy execution
 is outside this functional build-tier claim.
 
 Also resolve canonical `CODEX_HOME\managed_config.toml`, the legacy layer loaded
-after CLI session flags. Hash/hold/watch it when present and validate a strict
-simple top-level subset: `project_doc_max_bytes` absent or `0`, and remote
-session/auto-attach/control/managed-hooks absent or `false`; reject tables,
-duplicates, unknown/complex syntax, or conflicting values. Record absence
-otherwise. This controls local legacy state only, not cloud requirements.
+after CLI session flags. Parse it with the same real TOML path and
+hash/hold/watch its exact raw bytes when present. Permit unrelated tables,
+ordinary managed settings, and ignored legacy fields. Reject only effective
+values that conflict with this smoke: `project_doc_max_bytes` present and
+nonzero, or `features.remote_session`, `features.remote_auto_attach`,
+`features.remote_control`, or `features.managed_hooks` equal to `true`.
+Absent paths, explicit `false`, and values of other TOML types are not
+policy-rejected; the real core load and functional smoke remain authoritative
+and may still fail malformed consumer input. Invalid TOML or an enumerated
+conflicting value fails. Record file absence otherwise. This controls local
+legacy state only, not cloud requirements.
 
 Every invocation runs Cargo before smoke, even if a prior `ready` manifest
 exists. A changed HEAD or dirty fingerprint invalidates prior readiness; it is
@@ -904,6 +915,11 @@ Plan-contract checks:
 - Additional Cargo config, a dirty tracked workspace config, configured
   wrappers/profile overrides, `CARGO_HOME`, assume-unchanged, and skip-worktree
   flags all fail before Cargo.
+- Real-TOML config fixtures accept benign unknown fields, tables, quoted/dotted
+  keys, and supported ignored legacy keys for launcher and managed config.
+  Invalid TOML and only the enumerated conflicting smoke values fail policy
+  validation; consumer type errors remain functional-smoke failures.
+  accepted-field byte drift still fails exact hash/watch provenance.
 
 Lifecycle/failure fixtures:
 
