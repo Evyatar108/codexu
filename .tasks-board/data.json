@@ -2654,22 +2654,89 @@
       "writablePaths": [
         "plans/happy-copilot-native-local-controller-backend",
         "docs/copilot-cli-integration.md",
-        "packages/happy-cli/src/agent",
-        "packages/happy-cli/src/commands",
-        "packages/happy-cli/src/api",
+        "packages/happy-cli/src/index.ts",
+        "packages/happy-cli/src/api/api.ts",
+        "packages/happy-cli/src/api/api.test.ts",
+        "packages/happy-cli/vitest.config.ts",
         "packages/happy-cli/src/utils/createSessionMetadata.ts",
-        "packages/happy-app/sources/components/tools",
+        "packages/happy-cli/src/utils/createSessionMetadata.test.ts",
+        "packages/happy-cli/src/commands/copilotCommand.ts",
+        "packages/happy-cli/src/commands/copilotCommand.test.ts",
+        "packages/happy-cli/src/agent/core/AgentBackend.ts",
+        "packages/happy-cli/src/agent/copilot",
+        "packages/happy-app/sources/-session/SessionView.tsx",
+        "packages/happy-app/sources/-session/SessionView.copilotReadOnly.test.tsx",
+        "packages/happy-app/sources/fork/session/useForkComposer.ts",
+        "packages/happy-app/sources/fork/session/useForkComposer.copilotReadOnly.test.ts",
+        "packages/happy-app/sources/fork/session/useSessionContextDrawer.tsx",
+        "packages/happy-app/sources/fork/session/useSessionContextDrawer.copilotReadOnly.test.tsx",
+        "packages/happy-app/sources/components/MessageView.tsx",
+        "packages/happy-app/sources/components/MessageView.copilotReadOnly.test.tsx",
+        "packages/happy-app/sources/components/ChatList.tsx",
+        "packages/happy-app/sources/components/ChatList.copilotReadOnly.test.tsx",
+        "packages/happy-app/sources/components/ActiveSessionsGroupCompact.tsx",
+        "packages/happy-app/sources/components/ActiveSessionsGroupCompact.test.tsx",
+        "packages/happy-app/sources/hooks/useSessionQuickActions.ts",
+        "packages/happy-app/sources/hooks/useSessionQuickActions.copilotReadOnly.test.ts",
+        "packages/happy-app/sources/app/(app)/session/[id]",
+        "packages/happy-app/sources/sync/storage.ts",
+        "packages/happy-app/sources/sync/storage.copilotSequenceOrder.test.ts",
+        "packages/happy-app/CHANGELOG.md",
+        "packages/happy-app/sources/changelog/changelog.json",
         "packages/happy-wire"
       ],
-      "dependsOn": [],
+      "dependsOn": [
+        "happy-copilot-m0-delivery"
+      ],
       "title": "Add Copilot CLI as a Happy backend via native local controller",
       "stage": "ready",
       "lifecycle": "active",
       "actions": [
         {
-          "id": "plan",
-          "label": "Plan",
-          "prompt": "Create a source-verified, independently reviewed implementation plan for Option 1 in origin/main@417febce:docs/copilot-cli-integration.md: add GitHub Copilot CLI as a Happy backend by launching/discovering a managed-server or ui-server target and attaching through Copilot's native local JSON-RPC. Read C:/efforts/copilot-agent-runtime as source context, but default to codexu-only changes. Start with the narrow read-only mirror milestone: add the copilot agent/provider, spawn/discover and authenticate the local target, implement a version/capability-guarded allow-listed RPC client, relay durable/live SessionEvents into Happy SessionEnvelope messages, and verify tail-window plus scroll-up pagination. Then plan basic steering, rich control, interactive prompt/permission/OAuth/sampling round-trips, and eventual TUI co-steering as ordered later milestones. Never expose the raw native API to the phone. Preserve token security, version-skew guards, encryption/history correctness, event coalescing, real tool names/rawInput, monotonic sequencing, and existing Happy pagination. Any Copilot runtime change must first be proven necessary, kept minimal/local-only in C:/efforts/copilot-agent-runtime, and filed as a separate Tasks Board task because this task cannot own sibling-repository paths. Explicitly exclude the optional ACP telemetry-untag work unless filed separately. Produce exact repo/file ownership, dependencies, tests, rollout/rollback, and split implementation into repository-scoped phases; stop after plan review/fix convergence."
+          "id": "implement-m1a",
+          "label": "Implement M1a read-only mirror",
+          "prompt": "After happy-copilot-m0-delivery completes, implement only M1a from plans/happy-copilot-native-local-controller-backend/plan.md. Add a default-off Copilot agent/provider that directly spawns a managed-server target, validates loopback/token/PID/protocol/schema/version, connects and establishes routing, prebuffers session.event before resume, backfills persisted eventLog history, deduplicates by event id, establishes the live frontier, and then relays a small closed projected event allowlist into Happy with deterministic localIds and unchanged pagination. The phone surface must be truthfully read-only: restricted RPC profile, no composer/control/permission/receipt actions. Preserve persisted lane order and prebuffer arrival order; never invent chronology. Restart replays from start. No external attach, runtime patch, SEA/materialization, binary/DACL hardening, rich steering, interactive prompts, telemetry untag, or Copilot source edits. Complete focused and real managed-server tests plus code/docs review convergence; commit locally, no push/release."
+        }
+      ]
+    },
+    {
+      "id": "happy-copilot-m0-delivery",
+      "writablePaths": [
+        "packages/happy-cli/src/api/apiSession.ts",
+        "packages/happy-cli/src/api/apiSession.test.ts"
+      ],
+      "validationCommand": "pnpm --filter happy exec vitest run src/api/apiSession.test.ts",
+      "dependsOn": [],
+      "title": "Add deterministic oldest-first Happy delivery for Copilot mirror",
+      "stage": "ready",
+      "lifecycle": "active",
+      "actions": [
+        {
+          "id": "implement",
+          "label": "Implement",
+          "prompt": "Implement M0-delivery from plans/happy-copilot-native-local-controller-backend/plan.md only. Make outbound ApiSessionClient queue flushing deterministic oldest-first across batches larger than 50, isolate outbound ACK correlation from inbound receive watermark advancement, and add focused regression coverage. Preserve existing Claude/Codex/ACP behavior and wire formats. Do not implement the independent history codec fix or any Copilot managed-server code. Run focused tests, typecheck, and independent code/docs review convergence. Commit locally; no push or release."
+        }
+      ]
+    },
+    {
+      "id": "happy-session-history-codec-plaintext-legacy-compat",
+      "writablePaths": [
+        "packages/happy-cli/src/api/sessionPayloadCodec.ts",
+        "packages/happy-cli/src/api/sessionPayloadCodec.test.ts",
+        "packages/happy-cli/src/api/types.ts",
+        "packages/happy-cli/src/api/apiSession.ts",
+        "packages/happy-cli/src/api/apiSession.test.ts"
+      ],
+      "validationCommand": "pnpm --filter happy exec vitest run src/api/sessionPayloadCodec.test.ts src/api/apiSession.test.ts",
+      "dependsOn": [],
+      "title": "Make fetched Happy history plaintext-first with legacy decrypt fallback",
+      "stage": "backlog",
+      "lifecycle": "active",
+      "actions": [
+        {
+          "id": "implement",
+          "label": "Implement",
+          "prompt": "Implement the independent M0-codec task from plans/happy-copilot-native-local-controller-backend/plan.md. Decode fetched current rows as canonical plaintext JSON first, fall back to the existing legacy decryption path only when plaintext parsing fails, and surface typed malformed-row behavior. Preserve outgoing bytes and live decoding. Cover plaintext, legacy encrypted, malformed, pagination/reconnect, and cross-provider regressions. This task is independent and does not block the Copilot mirror. Commit locally after review convergence; no push or release."
         }
       ]
     }
