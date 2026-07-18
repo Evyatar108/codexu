@@ -755,109 +755,217 @@ managed-server target over Copilot's native local JSON-RPC and relays into Happy
 The pinned runtime source is read-only reference context. The implementation
 must be codexu-only unless a later milestone proves a runtime dependency.
 
-### Split of work
-- **Codexu/happy-cli:** codec-symmetry prerequisite, discovery, authenticated
-  attach, strict RPC client, event relay, deterministic replay, and the
-  phone-facing abstraction.
-- **Copilot runtime:** no change for the read-only milestone. Any later
-  unavoidable runtime delta is a separate Tasks Board task and blocks the
-  codexu chain at that dependency.
+### Revision boundary
+
+The executable first delivery is now split into:
+
+- **M0:** cross-provider plaintext-first fetch with legacy-decrypt fallback,
+  explicit malformed-row behavior, and a narrow deterministic oldest-first
+  delivery API;
+- **M1a:** direct-spawn-only, read-only managed-server mirror. It has no phone
+  input, receipts, steering, external attach/re-adoption, or persisted Copilot
+  cursor. The production target is therefore idle until M2; a separate
+  test-only local stimulus client drives the real managed-server smoke.
+
+`plans/happy-copilot-native-local-controller-backend/plan.md` is the normative
+implementation contract. The rest of this section records the same boundary at
+design-document level.
+
+`packages/happy-cli/src/index.ts` needs a coordinator writable-path grant for
+the command dispatch edit. Source review also proved that the current app
+always exposes its composer/control callbacks, so the narrow read-only gate
+needs grants for `packages/happy-app/sources/-session/SessionView.tsx` and
+`packages/happy-app/sources/fork/session/useForkComposer.ts`, plus
+`useSessionContextDrawer.tsx` and their exact Copilot read-only test files named
+in the plan. `MessageView.tsx` and its
+Copilot read-only test also need a grant because option chips and session-file
+links bypass composer gating. `ChatList.tsx` and its test must force flat
+Copilot rendering so grouped views cannot bypass that gate.
+`ActiveSessionsGroupCompact.tsx` and its existing focused test must consume the
+same `canArchive` result so incomplete placeholders and inactive Copilot rows
+cannot expose an independent swipe-Archive bypass.
+`useSessionQuickActions.ts` and its focused test must restrict both header and
+list menus and provide safe Copilot archive semantics. The session
+`[id]/info.tsx` route and its focused test must make Details display-only and
+remove its independent Delete/control/copy bypasses. Hidden navigation is not a
+security boundary: the independently routable `spawn-child`, `fork-composer`,
+`files`, `file`, `plugins`, `skills`, and `agents` screens and focused tests
+must reject Copilot and incomplete-placeholder parents before any spawn, send,
+worktree, filesystem, shell, search, prefetch, catalog, or render effect.
+The nested `message/[messageId]` screen and a focused test must likewise fail
+closed before message lookup/prefetch, `ToolFullView`, permission/footer, or
+content rendering.
+The app storage reducer and a focused sequence-order test also need a grant so
+equal-millisecond native events use Happy `seq` as the reducer/display
+tie-break without changing pagination requests or window sizes. Finally,
+`packages/happy-cli/vitest.config.ts` needs a grant so the real integration
+test is actually selected. The existing
+`packages/happy-cli/src/utils/createSessionMetadata.test.ts` also needs an
+explicit grant. Because this changes visible app behavior, the implementation
+grant must also include `packages/happy-app/CHANGELOG.md` and regenerated
+`packages/happy-app/sources/changelog/changelog.json`. These are ownership
+gaps, not separate architecture tasks. No Copilot runtime change is required
+for M0/M1a.
 
 ### A. happy-cli side (codexu)
-1. **Fix the real history prerequisite.** Make CLI cold fetch decode the same
-   plaintext payload format used by current send/live paths and update the
-   golden tests. This is a correctness fix, not an E2E-encryption migration.
+1. **Fix the real history prerequisite as M0.** Cold fetch parses current
+   plaintext JSON first, falls back to the existing legacy decrypt path, and
+   reports malformed rows without logging payload bytes or stalling later
+   rows. Both decode paths must pass canonical `@slopus/happy-wire`
+   `MessageContentSchema`, including `role:"session"` protocol history; remove
+   the stale CLI-local two-role union in `src/api/types.ts` and re-export that
+   canonical schema/type. Add the narrow caller-supplied deterministic-localId
+   delivery API and
+   flush its queue oldest-first. Do not add durable receive cursors or
+   consumption receipts.
 2. **Add an agent id + provider.** Extend `AgentId` in
    `packages/happy-cli/src/agent/core/AgentBackend.ts:51` with `'copilot'`
    and add a bespoke provider runner plus `commands/copilotCommand.ts`. Do not
    pretend the dormant `AgentRegistry` is the production dispatch path:
    `src/index.ts` needs an explicit, separately authorized one-file command
    dispatch edit.
-3. **Spawn / discover the target.** Resolve and hash a direct executable plus
-   normalized base argv and every entry script/bundle (no shell/PATH-wrapper PID
-   indirection), launch the runtime as a managed server
-   (`copilot --server --port 0 --managed-server`), and use the
+3. **Spawn / discover the target.** Resolve a direct executable without a
+   shell, launch the runtime as a managed server
+   (`copilot --server --port 0 --managed-server --session-idle-timeout 300`),
+   and use the
    canonical managed-child environment (`COPILOT_CONNECTION_TOKEN`,
-   `COPILOT_RUN_APP=1`, `COPILOT_FORCE_WINDOWS_HIDE=1`) while preserving the
-   resolved Agents-tab feature inputs. Then read the local discovery registry
-   for schema 2, `kind="managed-server"`, loopback host, live PID, non-stale
+   `COPILOT_RUN_APP=1`, `COPILOT_FORCE_WINDOWS_HIDE=1`) and preserve/enable
+   `COPILOT_AGENTS_TAB` through the pinned runtime's effective feature-flag
+   input (`COPILOT_CLI_ENABLED_FEATURE_FLAGS`), normalizing the list so an
+   inherited absent/disabled state cannot override the prerequisite, and set
+   direct child env `COPILOT_AGENTS_TAB=true`. Since config-level
+   `enabledFeatureFlags` is applied after env in the pinned runtime, fail
+   precisely before spawn if canonical config explicitly sets this flag false;
+   do not rewrite user config. Scrub
+   `COPILOT_LOADER_PID`, `COPILOT_DETACHED_SESSION`,
+   `COPILOT_DETACHED_PARENT_SESSION_ID`, and
+   `COPILOT_DETACHED_PARENT_ENGAGEMENT_ID`. Then read only the
+   directly spawned child's local discovery entry and validate schema 2,
+   `kind="managed-server"`, loopback host, exact child PID,
    mtime, `sessionId`, port, token, and `copilotVersion`
    (runtime `src/cli/sessions/spawnLiveTarget.ts`,
    `src/core/remoteRegistry/serverRegistry.ts`). Handle the connection token that
-   `spawnLiveTarget` sets (`COPILOT_CONNECTION_TOKEN`) without logging,
-   persisting, or relaying a duplicate copy. On Windows, reject registry
-   reparse points or DACLs readable outside the current user, SYSTEM, and
-   Administrators; the runtime's Unix mode tightening is a no-op there.
-   External attach must resolve the target process command and verify the same
-   SEA or Node+entry artifact tuple, including bundled `app.js` and resolved
-   native addons (`runtime.node`, Windows `cli-native.node`, etc.), or fail
-   closed. M1 rejects inherited
-   `COPILOT_RUNTIME_OOP` until its provider binary/launch chain has its own
-   tested tuple. SEA targets first run tokenless in an empty staging cache with
-   `--no-auto-update`, materialize and hash the whole normalized package tree
-   plus critical JS/native artifacts into a
-   content-addressed controller cache, then set only that verified
-   controller-owned `COPILOT_CLI_DIST_DIR` for managed spawn. The child
-   environment is allow-listed and rejects Node injection, voice-server, OOP,
-   Happy-secret, and detached-session variables. Spawn with non-piped stdio,
-   close parent log FDs, retain the child handle, and `unref()` after validation.
-   Every pre-validation failure terminates/reaps that child before returning.
+   `spawnLiveTarget` sets (`COPILOT_CONNECTION_TOKEN`) without logging or
+   relaying it. The pinned runtime itself necessarily writes that full token
+   in plaintext to the canonical registry entry. `0700`/`0600` hardening is
+   Unix-only; Windows inherits ambient ACLs, so M1a explicitly trusts the local
+   account/host and defers DACL/reparse enforcement. The controller must not
+   duplicate the token into Happy metadata, diagnostics, or evidence. Use
+   non-piped stdio (`ignore` by default),
+   `windowsHide`, no detach/unref, and immediate persistent child
+   `error`/`exit` listeners.
+   Retain the child handle; every validation failure terminates that child.
+   Any future file-FD diagnostic variant closes the parent's FD copy
+   immediately. Session-scoped reads refresh the runtime's idle clock; after
+   owner death, the 300-second timeout plus pinned five-minute sweep bounds an
+   idle orphan to about ten minutes. External attach/re-adoption, SEA materialization,
+   artifact-tree/binary hashing, Windows DACL/reparse policy, closed child
+   environment, and OOP-runtime policy are hardening work, not M1a
+   prerequisites.
 4. **Implement the native local-RPC client.** happy-cli speaks Copilot's framed
    JSON-RPC directly (the runtime's `NativeLocalRpcConnection.sendRequest` is
    private). Accept only LSP-style `Content-Length` frames, reject unsolicited
    server requests, and allow-list methods. Handshake with `connect` and
    `session.getForeground`, then run the source-defined routing bridge
-   `session.resume` with `disableResume:true`, `streaming:true`, every request
-   callback false, prompt observation false, and no tools/commands. Register but
-   discard `session.event` notifications; the event-log reader is the only
-   projection seam. Require protocol version 3,
-   matching registry/handshake identity, and an exact tested tuple of source
-   commit, handshake/registry version, and executable SHA-256. The pinned source
-   reports `0.0.1`, which is not unique enough without the executable hash.
+   `session.getForeground`, register and buffer validated `session.event`
+   notifications, then call `session.resume` with the verified session id,
+   `disableResume:true`, and no tools/commands/canvases, prompt observation, or
+   interactive callback capability. Require protocol version 3, matching
+   foreground/registry identity,
+   `registry.copilotVersion === connect.version === "1.0.71-3"` for the
+   installed SEA artifact tested by M1a, and
+   required-method availability. Test actual routing without a synthetic
+   resume row rather than attesting an exact optional callback object or
+   executable.
+   The source checkout's `package.json` value `0.0.1` is only the development
+   fallback; release packaging injects the artifact version through
+   `__CLI_VERSION__`, so M1a must not accept `0.0.1`. Binary/filesystem
+   attestation remains deferred hardening.
+   Store the verified foreground session id privately and inject it into every
+   session-scoped request (`session.resume` and all event-log reads); public
+   wrappers reject caller `sessionId` overrides.
    Include owned-target `runtime.shutdown` in a separate lifecycle allowlist.
-5. **Read history and live events without a seam.** Use only
-   `session.eventLog.read({ sessionId: foreground.sessionId, ... })` from an
-   empty or checkpointed opaque cursor, then long-poll the returned cursor.
-   Drain immediately available pages and perform a stable partial-order merge
-   because the runtime scans persisted events before buffered ephemerals:
-   preserve persisted append order and ephemeral order, use parent edges for
-   insertion, and never let wall-clock timestamps reorder persisted rows. Keep
-   a volatile working cursor and persist only a lagging safe
-   cursor after every durable Happy projection is acknowledged and no
-   delta/tool/subagent/terminal buffer remains unresolved. On expired cursor or
-   target generation change, replay from the safe point with deterministic
-   IDs/localIds so server dedup prevents duplicates. Deliver replay batches
-   oldest-first rather than through the current newest-first 50-row outbox
-   flushing. Outbound delivery seqs must not jump the contiguous receive cursor
-   over an interleaved phone row. Persist that contiguous receive seq only after
-   inbound side effects are acknowledged; deterministic read-only reply localIds
-   make crash replay idempotent.
-   Register each deterministic localId before POST so a socket self-echo that
-   arrives before the HTTP response is still recognized as controller-originated.
-   Persist pending localIds before POST and restore them before receive startup.
-6. **Relay events → `SessionEnvelope`.** Map the native Copilot
-   `SessionEvent`s to the existing happy-wire variants.
-   Coalesce `assistant.message_delta` into one `text` envelope; relay
-   `user.message` only for absent/`command-`/`schedule-` sources and never relay
-   transformed content or attachments. Map `tool.execution_start/complete` to
-   `tool-call-start/end` with the **real** name plus schema-reviewed,
-   recursively redacted native `arguments` in Happy's `args` field (the native
-   event does not call this field `rawInput`); unknown tool schemas keep the
-   name and omit arguments. Treat `assistant.message.toolRequests` and
-   `serverTools` as durable backstops. Map subagent output through a
-   deterministic CUID2-compatible envelope `subagent`, and set the same ID in
-   the parent tool's `args.sessionSubagent`. Explicitly classify plan/todos,
-   usage, permissions, and every other event as persisted,
-   ephemeral/coalesced, deferred, or excluded.
+5. **Read history and live events without a seam.** Copilot's event-log
+   ephemeral buffer is created by the first `session.eventLog.read`, not by
+   resume. Therefore: open the notification prebuffer before resume; resume to
+   establish routing; read from the start to activate event-log buffering and
+   backfill persisted history; keep the prebuffer open through an additional
+   sequence of non-blocking frontier reads until two consecutive empty
+   `hasMore:false` results, resetting on any event/`hasMore:true`; atomically
+   close/drain it; then long-poll with `waitMs:30000` from the second empty
+   read's cursor. Bound
+   frontier establishment and fail closed rather than switching early.
+   Deduplicate overlaps by native event id.
+   Preserve persisted return order and prebuffer-only arrival order; do not
+   sort by timestamp or parent id. M1a persists no source cursor: relay
+   restart replays from the start with deterministic Happy localIds, and the
+   server deduplicates retries. A live `cursorStatus:"expired"` also restarts
+   replay from the beginning with fresh bootstrap dedup state. M0 supplies
+   oldest-first delivery.
+6. **Relay a small closed event projection → `SessionEnvelope`.** M1a admits
+   only durable primary-agent `session.start`, safe `user.message`,
+   `assistant.turn_start`, final `assistant.message`,
+   `tool.execution_start/complete`, `assistant.turn_end`, `abort`,
+   `session.error`, and `session.shutdown`. All other event types are omitted.
+   Deltas/progress coalesce by omission in favor of final durable events.
+   User rows require absent source/agent id and expose only displayed content.
+   Tool starts keep the **real** validated native name. M1a's only argument
+   schema is `view`: a validated in-workspace path is normalized to a bounded
+   workspace-relative display path. Every other tool, including grep/glob,
+   mutation, shell, MCP/plugin/extension, and unknown tools, uses
+   wire-required `args:{}`. Plan/todos, usage, subagents, permissions, interactions,
+   reasoning, attachments, and tool result bodies are explicit later fidelity
+   gaps. `session.error` emits only the fixed controller-owned service text
+   `Copilot session failed.` and one failed turn end when a primary turn is
+   open; no native error type, message, stack, URL, provider/request id, or
+   formatted error crosses the boundary. It, `abort`, and
+   `assistant.turn_end` use a deterministic first-terminal-wins latch. Multiple final
+   `assistant.message` events in one turn each project once in persisted order
+   under the same Happy turn id, but a tool-only final message with empty
+   trimmed `content` emits no blank text row. Optional missing message/tool
+   `turnId` uses the sole open primary turn; explicit mismatches or no-open-turn
+   cases are omitted, and tool completion uses its projected start's stored
+   Happy turn. Controller start/stop use a deterministic lifecycle turn.
    Push through a new delivery-aware deterministic form of
    `ApiSessionClient.sendSessionProtocolMessage()`
-   (`src/api/apiSession.ts`) — server/pagination unchanged.
+   (`src/api/apiSession.ts`) — server/range APIs and window sizes are unchanged.
+   Because several native events can share one millisecond timestamp, app
+   storage uses Happy's assigned `seq` only as the equal-`createdAt` tie-break:
+   ascending for reducer input and descending for display. This preserves
+   delivery order across live/tail/range merges without inventing native
+   chronology.
 7. **Make the read-only boundary real.** Construct the Copilot
    `ApiSessionClient` with a restricted RPC profile that does not register
-   Happy's generic filesystem/shell handlers. Inbound phone messages in this
-   milestone are not forwarded; surface a deterministic read-only response and
-   `message-consumption` receipt, and advance inbound seq only after both
-   acknowledge.
+   Happy's generic filesystem/shell/workspace handlers. It registers exactly
+   one parameterless, provider-specific `killSession` lifecycle handler for
+   Archive; the handler latches asynchronous one-shot finalization before
+   replying. M1a exposes no prompt/abort/steering/configuration/permission
+   phone action and does not forward, respond to, or acknowledge inbound phone
+   messages as consumed. Its exact Happy-local allowlist is Back/navigation,
+   read-only Details, Archive while active, scrolling, and existing tail/range
+   pagination. For the Copilot flavor the app blocks composer send
+   by not mounting `AgentInput`, eliminating attachment/drop/paste, abort,
+   permission, model/mode/effort, file, and autocomplete controls. Message rows expose no option-send,
+   session-file/link, or fork-from-message action. The CLI drops any unexpected
+   inbound user row as a defense in depth. An optimistic unknown-session
+   placeholder has no flavor, so SessionView is non-interactive for all such
+   incomplete placeholders until real metadata arrives: no avatar/details
+   route, quick actions, drawer, pending-switch actions, or archived-resume
+   hint. ChatList forces flat MessageView
+   rendering for Copilot so grouped views cannot bypass the gate. SessionView
+   also suppresses the files sidebar/toggle/wrapper. Header/list quick actions
+   are Details+Archive while active and Details-only after archival; the
+   compact-list swipe wrapper consumes the same `canArchive` result and mounts
+   no swipe action for placeholders or inactive Copilot sessions. Resume,
+   fork, spawn-child, and metadata/log copy actions are absent. The Details
+   route is display-only plus the same safe Archive, hiding update/session-id/
+   resume-command copy, plugins/skills/agents/machine/resume/Delete, and
+   metadata/log copy. Copilot Archive skips worktree cleanup, calls only the
+   provider-specific `killSession`, never falls back to server force-archive,
+   and leaves the session active for retry on RPC failure.
+   Direct/deep links to spawn-child, fork-composer, files/file, plugins,
+   skills, agents, and nested message detail fail closed before any effect;
+   hiding their normal links is defense in depth, not the boundary.
 8. **Safe phone-facing abstraction (required).** Do NOT forward the raw native
    API to the phone — it includes global-config/plugin/filesystem/shell/
    workspace/extension and privileged permission APIs (§12 verdict). The first
@@ -871,21 +979,26 @@ must be codexu-only unless a later milestone proves a runtime dependency.
    render through the app's generic JSON fallback; add aliases only after a real
    smoke captures stable names.
 
-10. **Terminate without losing lifecycle.** Emit and acknowledge a deterministic
-    controller-local `stop` before controlled teardown; a native
-    `session.shutdown` uses the same ID but is never required for delivery.
-    Same-process owned shutdown then calls `runtime.shutdown` as best-effort
-    resource drain, closes JSON-RPC, and uses only the original child handle for
-    termination if needed. Persist spawned-vs-attached provenance; after
-    controller restart the target is re-adopted as detach-only because owned
-    shutdown/termination requires the original live child handle.
-    Happy phone archive/session-close is never owned shutdown: detach the relay
-    and leave the Copilot target running.
-
-The receipt requires a blocking same-repo schema task,
-`happy-copilot-message-consumption-flavor`, because happy-wire and the app raw
-schema currently accept only `claude|codex`, while the app raw-schema file is
-outside this planning task's writable set. Never label Copilot as Codex.
+10. **Terminate the owned spawn.** Enter quiescing state and capture one
+    controller-derived stop id/time; keep the current event-log read active and
+    call `runtime.shutdown`. Native `session.shutdown` may trigger
+    `emitStopOnce()` early only if that read observes it; a filtered hook wake,
+    read rejection, or delay falls through to the authoritative timeout. Both
+    paths use the same controller-owned Happy stop envelope/localId, never the
+    native event id. All controlled/archive/child-exit/RPC-failure paths call
+    one memoized `finalizeOnce()` promise. Stop delivery and flush have fixed
+    deadlines; metadata archival uses a cancellable bounded update rather than
+    infinite backoff; `sendSessionDeath()` runs from `finally`; close always
+    runs; failures are categorized rather than leaving cleanup pending. Then
+    terminate only through the retained child handle.
+    M1a does not re-adopt a child after full happy-cli process death; the
+    configured idle lease bounds the otherwise orphaned idle target.
+    Phone Archive enters this same path through the parameterless
+    provider-specific `killSession`; the app does no worktree cleanup and no
+    server-only force-archive fallback.
+    Immediate rollback disables new Copilot sessions but retains the app's
+    Copilot read-only guards until all persisted/active Copilot sessions are
+    archived; do not revert those guards first.
 
 ### B. Copilot runtime dependencies
 None for the read-only mirror. Do not edit the runtime, and do not include the
@@ -897,15 +1010,16 @@ separate runtime-owned task for capability negotiation. Do not create a
 dual-repo implementation PRD.
 
 ### C. Phased milestones
-0. **Codec prerequisite:** make current plaintext fetch symmetric with
-   send/live, split contiguous receive state from outbound delivery
-   acknowledgements, and prove ordered reconnect catch-up beyond 50 rows. Land
-   this global API change separately with Claude/Codex/ACP regressions and a
-   commit-revert rollback.
-1. **Read-only mirror:** register provider/flavor, spawn/discover/authenticate,
-   attach, relay durable history plus live events with deterministic replay,
-   enforce a restricted phone/RPC profile, and verify unchanged tail-window +
-   scroll pagination. No steering.
+0. **M0 codec/delivery prerequisite:** plaintext-first fetch, legacy decrypt
+   fallback, explicit malformed-row behavior, and caller-supplied deterministic
+   localIds delivered oldest-first. No durable receive cursor or receipts.
+1. **M1a read-only mirror:** after the `src/index.ts` ownership grant, register
+   provider/flavor, directly spawn/discover/authenticate the owned target,
+   perform connect → foreground → routing resume, run the
+   prebuffer/history/frontier handoff, relay the small durable event allowlist,
+   replay from the start on relay restart, enforce a restricted Happy RPC
+   profile, and verify unchanged >200-row tail/range pagination. No phone
+   input or steering.
 2. **Basic steering:** allow only prompt + abort.
 3. **Rich control:** allow only session-scoped model/mode/reasoning and compact;
    add skills/commands/tasks only through explicit per-operation schemas.
@@ -916,21 +1030,21 @@ dual-repo implementation PRD.
 5. **Co-steer with a real TUI:** switch the target from managed-server (headless)
    to a `--ui-server` TUI target so a local terminal and the phone drive one live
    session (the "remoteSteerable, but local" goal).
-6. **Hardening:** fuzz framing/schema rejection, evidence fixtures, token/log
-   audits, version-skew denial, target crash/restart recovery, and rollback
-   drills.
+6. **Hardening and re-adoption:** external attach/re-adoption, persistent
+   cursors, SEA/artifact attestation, DACL/reparse, closed environment, OOP
+   policy, PID-reuse/crash recovery, fuzzing, token/log audits, version skew,
+   and rollback drills.
 
 ### D. Key risks (carry from §12)
 - Proprietary, **version-coupled** protocol — pin/verify against the runtime
   build; add a capability/handshake guard.
-- **Local token security** — registry creds are filesystem-access-control only,
-  and Windows gets no runtime ACL tightening. Validate canonical path,
-  reparse/ownership/mode/DACL policy in the controller and never expose raw RPC
-  to the phone.
-- Ephemeral events emitted before the first `eventLog.read` are unrecoverable.
-  After the first read the target keeps only a bounded ephemeral buffer. Durable
-  history comes from `session.eventLog.read`; do not use `session.getMessages`
-  as a competing relay cursor.
+- **Local token security** — M1a validates loopback, exact spawned PID, schema,
+  token, session, and version and never exposes raw RPC to the phone. Stronger
+  filesystem/process attestation is deferred to hardening.
+- Ephemeral event-log buffering starts at the first `eventLog.read`. M1a closes
+  the resume-to-first-read window with a pre-resume notification prebuffer,
+  keeps it open through the event-log frontier handoff, and projects no
+  ephemeral event types.
 
 ## Common pitfalls
 - The source pin for this plan is
@@ -938,8 +1052,9 @@ dual-repo implementation PRD.
 - Don't confuse the two remote paths: `--remote` (GitHub Mission Control, eager
   load) vs the Happy relay (windowed pagination). They are different clients.
 - `ephemeral: true` Copilot events never hit `events.jsonl`. Do not add a JSONL
-  fallback; use the native event-log cursor and accept the documented
-  pre-first-read/bounded-buffer gap.
+  fallback. Install the native-notification prebuffer before resume, activate
+  event-log buffering on the first read, and retire the prebuffer only after a
+  live frontier exists.
 - Codex is a bespoke runner, not an `AgentBackend` impl; do not assume the Codex
   files are the generic extension seam. Copilot likewise needs a bespoke
   native-controller runner; ACP remains comparison/history context, not the
