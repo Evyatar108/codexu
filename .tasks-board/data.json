@@ -2648,6 +2648,29 @@
         "sourceDigest": "fbfa9a3622d7a098b617cbb9c3c2d238ea83c5ba2432ba8f6f6c63804df2b465",
         "sourceTaskId": "codex-system-prompt-minimization-vs-claude-code"
       }
+    },
+    {
+      "id": "happy-copilot-native-local-controller-backend",
+      "writablePaths": [
+        "docs/copilot-cli-integration.md",
+        "packages/happy-cli/src/agent",
+        "packages/happy-cli/src/commands",
+        "packages/happy-cli/src/api",
+        "packages/happy-cli/src/utils/createSessionMetadata.ts",
+        "packages/happy-app/sources/components/tools",
+        "packages/happy-wire"
+      ],
+      "dependsOn": [],
+      "title": "Add Copilot CLI as a Happy backend via native local controller",
+      "stage": "ready",
+      "lifecycle": "active",
+      "actions": [
+        {
+          "id": "plan",
+          "label": "Plan",
+          "prompt": "Create a source-verified, independently reviewed implementation plan for Option 1 in origin/main@417febce:docs/copilot-cli-integration.md: add GitHub Copilot CLI as a Happy backend by launching/discovering a managed-server or ui-server target and attaching through Copilot's native local JSON-RPC. Read C:/efforts/copilot-agent-runtime as source context, but default to codexu-only changes. Start with the narrow read-only mirror milestone: add the copilot agent/provider, spawn/discover and authenticate the local target, implement a version/capability-guarded allow-listed RPC client, relay durable/live SessionEvents into Happy SessionEnvelope messages, and verify tail-window plus scroll-up pagination. Then plan basic steering, rich control, interactive prompt/permission/OAuth/sampling round-trips, and eventual TUI co-steering as ordered later milestones. Never expose the raw native API to the phone. Preserve token security, version-skew guards, encryption/history correctness, event coalescing, real tool names/rawInput, monotonic sequencing, and existing Happy pagination. Any Copilot runtime change must first be proven necessary, kept minimal/local-only in C:/efforts/copilot-agent-runtime, and filed as a separate Tasks Board task because this task cannot own sibling-repository paths. Explicitly exclude the optional ACP telemetry-untag work unless filed separately. Produce exact repo/file ownership, dependencies, tests, rollout/rollback, and split implementation into repository-scoped phases; stop after plan review/fix convergence."
+        }
+      ]
     }
   ]
 }
