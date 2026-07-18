@@ -7,10 +7,12 @@ headless Copilot managed-server target and mirrors a small, read-only projection
 of its native local JSON-RPC event stream into typed Happy session envelopes.
 The phone never receives a generic Copilot RPC tunnel.
 
-This revision deliberately splits the first delivery into two independently
-reviewable changes:
+This revision deliberately separates three independently reviewable changes:
 
-- **M0:** a cross-provider Happy history/delivery correction;
+- **M0-delivery:** the deterministic oldest-first outbound delivery/watermark
+  prerequisite required by M1a;
+- **M0-codec:** an independent cross-provider fetched-history compatibility
+  task that does not block M1a;
 - **M1a:** a spawn-only, read-only Copilot mirror with no phone input.
 
 M1a is the narrowest independently executable transport/projection slice.
@@ -37,7 +39,7 @@ Pinned evidence:
 - event contracts:
   `src/core/generated/session-events.ts`.
 
-No Copilot runtime change is required for M0 or M1a. The optional ACP
+No Copilot runtime change is required for M0-delivery, M0-codec, or M1a. The optional ACP
 telemetry-untag patch remains out of scope.
 
 ## 2. Corrected source claims
@@ -49,7 +51,8 @@ rows as plaintext JSON and parses live rows as plaintext JSON, while fetched
 rows go directly through legacy decryption. `ApiSessionClient.fetchMessages()`
 therefore drops current fork-sent rows when cold-fetch decryption fails.
 
-M0 fixes the existing format rather than claiming to restore E2E encryption:
+The independent M0-codec task fixes the existing format rather than claiming
+to restore E2E encryption:
 
 1. parse fetched content as plaintext JSON first;
 2. only if plaintext parsing fails, try the existing legacy decrypt path;
@@ -105,10 +108,12 @@ coalesced result.
 
 ### Required ownership grants
 
-M1a needs one dispatch edit in:
+M1a needs exact CLI factory/dispatch grants in:
 
 ```text
 packages/happy-cli/src/index.ts
+packages/happy-cli/src/api/api.ts
+packages/happy-cli/src/api/api.test.ts
 ```
 
 Source review also confirmed that the current app always renders an enabled
@@ -182,60 +187,69 @@ phone messages and emits no `message-consumption` receipts.
 - no app/server pagination changes;
 - no Copilot runtime edits.
 
-## 4. M0: cross-provider codec and ordered delivery
+## 4. M0 prerequisites and independent compatibility work
 
-M0 lands separately before M1a.
+### 4.1 M0-delivery - required before M1a
 
-### 4.1 Changes
+M0-delivery is the only prerequisite edge into M1a. It adds the narrow outbound
+API the Copilot relay needs:
 
-1. Update `decodeIncoming(..., {source:'fetch'})` to plaintext-first with
-   legacy decrypt fallback and a typed malformed result/error.
-2. Add regression fixtures for plaintext current rows, legacy encrypted rows,
-   malformed JSON, valid JSON with an invalid message shape, and invalid
-   ciphertext.
-   Both plaintext and legacy-decoded values must pass the canonical
-   `@slopus/happy-wire` `MessageContentSchema`; schema failure is the
-   malformed-row path. Remove the stale CLI-local two-role union in
-   `src/api/types.ts` and re-export the canonical schema/type so typed
-   `role:"session"` `SessionProtocolMessageSchema` history is accepted along
-   with user and agent rows.
-3. Add the narrow outbound API M1a needs:
+```ts
+sendSessionProtocolMessageWithDelivery(
+  envelope: SessionEnvelope,
+  options: { localId: string },
+): Promise<MessageDelivery>
+```
 
-   ```ts
-   sendSessionProtocolMessageWithDelivery(
-     envelope: SessionEnvelope,
-     options: { localId: string },
-   ): Promise<MessageDelivery>
-   ```
+It preserves queue insertion order, flushes the queue head oldest-first in
+chunks of at most 50, and treats the POST response seq as acknowledgement for
+that local id without advancing the inbound fetch watermark past unscanned
+rows. It adds no durable receive cursor, consumption receipt, provider
+checkpoint, new wire format, or Copilot source cursor.
 
-4. Preserve queue insertion order and flush the queue head oldest-first in
-   chunks of at most 50.
-5. Treat the POST response seq as the acknowledgement for that local id, but do
-   not advance the inbound fetch watermark past rows it has not scanned.
+Acceptance:
 
-### 4.2 What M0 does not add
-
-- no durable receive cursor;
-- no consumption receipt;
-- no provider-specific checkpoint;
-- no new wire format or encryption migration;
-- no Copilot source event cursor.
-
-### 4.3 M0 acceptance
-
-- current plaintext rows cold-fetch successfully;
-- legacy encrypted rows still cold-fetch successfully;
-- decoded values must pass canonical `@slopus/happy-wire`
-  `MessageContentSchema`, including typed `role:"session"` history;
-- malformed rows are visible in structured diagnostics, omitted from routing,
-  and cannot stall later rows;
 - an ordered batch larger than 50 is posted oldest-first;
 - caller-supplied local ids survive retries and resolve the correct delivery;
 - outbound ACKs cannot make fetch skip an unseen interleaved row;
-- Claude, Codex, and ACP reconnect tests remain green.
+- Claude, Codex, and ACP outbound/reconnect ordering regressions remain green.
 
-Rollback is a single M0 commit revert. Since outgoing bytes do not change,
-rollback does not strand newly written history.
+Tests are confined to the delivery queue, ACK correlation, retry identity, and
+inbound-watermark isolation. Rollback reverts the M0-delivery commit before
+M1a is enabled; it does not touch message decoding or stored bytes.
+
+### 4.2 M0-codec - independent cross-provider task
+
+M0-codec is not an M1a prerequisite and may land before or after the Copilot
+mirror. M1a is outbound-only and consumes no phone message/history fetch path,
+so the plaintext-fetch defect cannot block it.
+
+The separate task:
+
+1. updates `decodeIncoming(..., {source:'fetch'})` to plaintext-first with
+   legacy decrypt fallback and a typed malformed result/error;
+2. adds fixtures for plaintext current rows, legacy encrypted rows, malformed
+   JSON, valid JSON with an invalid message shape, and invalid ciphertext;
+3. validates both decoded forms with canonical `@slopus/happy-wire`
+   `MessageContentSchema`, including typed `role:"session"`
+   `SessionProtocolMessageSchema` history;
+4. replaces the stale CLI-local two-role union in `src/api/types.ts` with the
+   canonical schema/type export;
+5. reports payload-free malformed diagnostics, skips the poison row, and
+   continues later fetched rows.
+
+Its tests cover only codec/fetch compatibility and malformed-row progress.
+Rollback independently reverts the M0-codec commit; outgoing bytes were never
+changed, so rollback does not strand newly written history and does not disable
+M1a delivery.
+
+### 4.3 Dependency graph
+
+```text
+M0-delivery ──required──> M1a read-only mirror
+
+M0-codec (independent cross-provider task; no edge to M1a)
+```
 
 ## 5. M1a: spawn-only read-only mirror
 
@@ -381,6 +395,24 @@ Add an `ApiSessionClient` construction option equivalent to:
 { rpcProfile: 'mirror-read-only' }
 ```
 
+The source factory currently hardcodes
+`new ApiSessionClient(this.credential.token, session)` in
+`packages/happy-cli/src/api/api.ts`. Thread the option through that exact seam:
+
+```ts
+sessionSyncClient(
+  session: Session,
+  options?: ApiSessionClientOptions,
+): ApiSessionClient {
+  return new ApiSessionClient(this.credential.token, session, options);
+}
+```
+
+`runCopilotMirror` must construct the client only through
+`api.sessionSyncClient(session, {rpcProfile:'mirror-read-only'})`. Omitting
+`options` preserves the existing full/default profile for all current callers.
+No other `ApiClient` factory behavior changes.
+
 The profile still connects, sends typed session envelopes, and observes
 lifecycle signals required to stop the relay. It does not call
 `registerCommonHandlers`, does not register shell/filesystem/workspace RPC
@@ -494,6 +526,9 @@ cursor or event-id ledger.
 ```text
 copilotCommand
   -> runCopilotMirror
+     -> ApiClient.getOrCreateSession
+     -> ApiClient.sessionSyncClient(session, {rpcProfile:'mirror-read-only'})
+        -> new ApiSessionClient(token, session, options)
      -> spawnManagedTarget
      -> NativeLocalRpcClient.connect(token)
      -> session.getForeground
@@ -565,7 +600,7 @@ time        = Date.parse(event.timestamp)
 
 An invalid timestamp makes the event malformed and omitted. M1a does not
 synthesize or monotonically adjust timestamps because that would invent
-chronology. Deliveries enter M0's oldest-first queue in projection order and
+chronology. Deliveries enter M0-delivery's oldest-first queue in projection order and
 wait for acknowledgement before the relay advances to the next source batch.
 happy-server remains the authority that assigns monotonic session `seq` and
 deduplicates local ids.
@@ -745,7 +780,12 @@ first milestone and bounded by the real-smoke/session-size acceptance fixture.
 
 ## 10. Exact repository edit budget
 
-### M0
+### M0-delivery - required prerequisite
+
+- `packages/happy-cli/src/api/apiSession.ts`
+- `packages/happy-cli/src/api/apiSession.test.ts`
+
+### M0-codec - independent task
 
 - `packages/happy-cli/src/api/sessionPayloadCodec.ts`
 - `packages/happy-cli/src/api/sessionPayloadCodec.test.ts`
@@ -756,6 +796,8 @@ first milestone and bounded by the real-smoke/session-size acceptance fixture.
 ### M1a
 
 - `packages/happy-cli/src/index.ts` **after coordinator ownership grant**
+- `packages/happy-cli/src/api/api.ts` **after coordinator ownership grant**
+- `packages/happy-cli/src/api/api.test.ts` **after coordinator ownership grant**
 - `packages/happy-cli/vitest.config.ts` **after coordinator ownership grant**
 - `packages/happy-cli/src/commands/copilotCommand.ts`
 - `packages/happy-cli/src/commands/copilotCommand.test.ts`
@@ -859,13 +901,25 @@ and return to planning/ownership review rather than widening silently.
 
 ## 11. Tests and acceptance
 
-### Unit
+### M0-delivery unit
+
+- oldest-first batching above 50 rows;
+- unchanged caller local ids across retry and correct delivery ACK correlation;
+- outbound ACKs cannot advance the inbound fetch watermark past unseen rows;
+- Claude, Codex, and ACP outbound/reconnect ordering regressions.
+
+### M0-codec unit - independent task
+
+- plaintext current history and legacy-decrypted history both pass canonical
+  schema validation;
+- malformed JSON, invalid message shapes, and invalid ciphertext take the
+  payload-free malformed path without stalling later rows;
+- codec rollback fixtures prove outgoing/stored bytes are unchanged.
+
+### M1a unit
 
 - framing split/coalesced reads, invalid headers, wrong byte counts, oversized
   frames, timeouts, unsolicited requests;
-- plaintext and legacy-decrypted user, agent, and canonical
-  `SessionProtocolMessageSchema` rows pass the wire schema; invalid role/session
-  envelopes take the malformed-row path;
 - session-scoped wrappers inject the verified foreground id and reject caller
   `sessionId` overrides;
 - registry validation for wrong PID/kind/schema/host/port/token/session/version;
@@ -897,7 +951,10 @@ and return to planning/ownership review rather than widening silently.
   use `{}` while preserving a validated real tool name;
 - shell-class tools always use `args:{}`;
 - deterministic envelope/local ids;
-- oldest-first batching and retry with unchanged local ids;
+- `ApiClient.sessionSyncClient()` forwards
+  `{rpcProfile:'mirror-read-only'}` unchanged to `ApiSessionClient`, while an
+  omitted option preserves the existing default/full profile; no other factory
+  method changes;
 - restricted Happy RPC profile registers no common handlers.
 - restricted profile registers only parameterless idempotent `killSession` for
   phone lifecycle, and it latches asynchronous finalization before replying.
@@ -1037,6 +1094,9 @@ implementation job artifacts. Never retain tokens or raw private prompts.
   methods;
 - unknown schema/protocol/version/method behavior fails before Happy session
   publication where possible;
+- M0-delivery rollback is independent but requires M1a to be disabled/reverted
+  first because M1a calls its delivery API;
+- M0-codec rollback is independent and neither disables nor blocks M1a;
 - immediate M1a rollback is flag-off while retaining the app's Copilot
   read-only compatibility guards for already persisted/active sessions;
 - backend/app code may be reverted only after all Copilot sessions are
@@ -1046,9 +1106,11 @@ implementation job artifacts. Never retain tokens or raw private prompts.
 
 ## 13. Ordered implementation and later tasks
 
-1. **Implement M0 only.** Review the cross-provider codec/delivery change and
-   run Claude/Codex/ACP regressions.
+1. **Implement M0-delivery only.** Review the delivery/ACK/watermark change and
+   run Claude/Codex/ACP outbound/reconnect regressions.
 2. **Obtain coordinator grants** for `packages/happy-cli/src/index.ts`,
+   `packages/happy-cli/src/api/api.ts`,
+   `packages/happy-cli/src/api/api.test.ts`,
    `packages/happy-cli/vitest.config.ts`,
    `packages/happy-cli/src/utils/createSessionMetadata.test.ts`,
    `packages/happy-app/sources/-session/SessionView.tsx`, and
@@ -1070,10 +1132,15 @@ implementation job artifacts. Never retain tokens or raw private prompts.
 3. **Implement M1a only** in story order: types/provider -> spawn/validation ->
    RPC/routing -> projection -> gap-free relay -> restricted runner ->
    pagination/real smoke.
-4. Stop. Do not fold later control or hardening into M1a.
+4. **Schedule M0-codec independently** as
+   `happy-session-history-codec-plaintext-legacy-compat`; it may land before or
+   after M1a and has its own codec/fetch tests and rollback.
+5. Stop. Do not fold later control or hardening into M1a.
 
 Proposed follow-up Tasks Board tasks:
 
+- `happy-session-history-codec-plaintext-legacy-compat`
+  - independent M0-codec cross-provider fetched-history compatibility;
 - `happy-copilot-native-controller-basic-steering`
   - prompt and abort only;
 - `happy-copilot-native-controller-rich-control`

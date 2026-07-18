@@ -154,15 +154,17 @@ there is NO `subagent` variant and NO `plan` variant on `SessionEvent`** —
 *separate* `AgentTreeDelta` protocol (`happy-wire/src/agentTree.ts`), not a
 `SessionEvent`.
 
-> Security note (shipping blocker, not just cosmetic): this fork's
+> Cross-provider history note (independent M0-codec task, not an outbound M1a
+> blocker): this fork's
 > `sessionPayloadCodec` serializes **plaintext** JSON despite "encrypted" naming
 > (`src/api/sessionPayloadCodec.ts:36-43`, `src/api/apiSession.ts:667-680`).
 > Worse, the **cold-fetch path still attempts decryption**
 > (`sessionPayloadCodec.ts:9-24`, `apiSession.ts:578-594`), so plaintext-sent
 > messages can be *dropped* after a reconnect/history refetch. Resolve this
-> asymmetry before shipping by making the CLI fetch decoder parse the same
-> current plaintext format as send/live. Re-enabling E2E encryption is a
-> separate wire migration and must not be conflated with this correctness fix.
+> asymmetry independently by making the CLI fetch decoder parse the same current
+> plaintext format as send/live. M1a does not consume this fetch path.
+> Re-enabling E2E encryption is a separate wire migration and must not be
+> conflated with this correctness fix.
 
 ---
 
@@ -319,10 +321,13 @@ adjustment, jsonl enrichment) before patching the runtime.
    synchronously by `AcpPermissionHandler`.
 8. **Replay/resume ordering.** If supporting resume of an existing Copilot
    session, import `events.jsonl` in file order before going live.
-9. **Encryption check (shipping blocker).** `sessionPayloadCodec` sends
+9. **History codec compatibility (independent task, not an M1a blocker).**
+   `sessionPayloadCodec` sends
    **plaintext** but the cold-fetch/history path still attempts decryption
    (`sessionPayloadCodec.ts:9-24`, `apiSession.ts:578-594`), so messages can be
-   dropped after reconnect. Resolve the send/fetch asymmetry before shipping.
+   dropped after reconnect. Resolve the send/fetch asymmetry as separate
+   cross-provider M0-codec work; the outbound-only M1a mirror does not consume
+   this path.
 10. **Validation.** Run a live Copilot session end-to-end through happy-server
     into happy-app; confirm tail-window loads and scroll-up pagination
     (`session-message-range`) behave, and that seqs are monotonic and 1:1 with
@@ -757,22 +762,35 @@ must be codexu-only unless a later milestone proves a runtime dependency.
 
 ### Revision boundary
 
-The executable first delivery is now split into:
+The work is now split into:
 
-- **M0:** cross-provider plaintext-first fetch with legacy-decrypt fallback,
-  explicit malformed-row behavior, and a narrow deterministic oldest-first
-  delivery API;
+- **M0-delivery:** the deterministic oldest-first outbound delivery/ACK/
+  watermark prerequisite required by M1a;
+- **M0-codec:** an independent cross-provider plaintext-first fetch with
+  legacy-decrypt fallback and explicit malformed-row behavior; it does not
+  block M1a;
 - **M1a:** direct-spawn-only, read-only managed-server mirror. It has no phone
   input, receipts, steering, external attach/re-adoption, or persisted Copilot
   cursor. The production target is therefore idle until M2; a separate
   test-only local stimulus client drives the real managed-server smoke.
+
+```text
+M0-delivery ──required──> M1a
+
+M0-codec (independent; no edge to M1a)
+```
 
 `plans/happy-copilot-native-local-controller-backend/plan.md` is the normative
 implementation contract. The rest of this section records the same boundary at
 design-document level.
 
 `packages/happy-cli/src/index.ts` needs a coordinator writable-path grant for
-the command dispatch edit. Source review also proved that the current app
+the command dispatch edit. The current `ApiClient.sessionSyncClient()` factory
+hardcodes `new ApiSessionClient(token, session)`, so exact grants are also
+required for `packages/happy-cli/src/api/api.ts` and its focused
+`api.test.ts`; thread an explicit options argument through only that factory
+while preserving omitted-options behavior for every existing caller. Source
+review also proved that the current app
 always exposes its composer/control callbacks, so the narrow read-only gate
 needs grants for `packages/happy-app/sources/-session/SessionView.tsx` and
 `packages/happy-app/sources/fork/session/useForkComposer.ts`, plus
@@ -805,26 +823,29 @@ explicit grant. Because this changes visible app behavior, the implementation
 grant must also include `packages/happy-app/CHANGELOG.md` and regenerated
 `packages/happy-app/sources/changelog/changelog.json`. These are ownership
 gaps, not separate architecture tasks. No Copilot runtime change is required
-for M0/M1a.
+for M0-delivery, M0-codec, or M1a.
 
 ### A. happy-cli side (codexu)
-1. **Fix the real history prerequisite as M0.** Cold fetch parses current
+1. **Add M0-delivery as the sole M1a prerequisite.** Add the narrow
+   caller-supplied deterministic-localId delivery API, flush its queue
+   oldest-first, correlate ACKs by local id, and prevent outbound ACKs from
+   advancing the inbound fetch watermark past unseen rows. Do not add durable
+   receive cursors or consumption receipts.
+2. **File M0-codec independently.** Cold fetch parses current
    plaintext JSON first, falls back to the existing legacy decrypt path, and
    reports malformed rows without logging payload bytes or stalling later
    rows. Both decode paths must pass canonical `@slopus/happy-wire`
    `MessageContentSchema`, including `role:"session"` protocol history; remove
    the stale CLI-local two-role union in `src/api/types.ts` and re-export that
-   canonical schema/type. Add the narrow caller-supplied deterministic-localId
-   delivery API and
-   flush its queue oldest-first. Do not add durable receive cursors or
-   consumption receipts.
-2. **Add an agent id + provider.** Extend `AgentId` in
+   canonical schema/type. This task may land before or after M1a and has its own
+   tests/rollback.
+3. **Add an agent id + provider.** Extend `AgentId` in
    `packages/happy-cli/src/agent/core/AgentBackend.ts:51` with `'copilot'`
    and add a bespoke provider runner plus `commands/copilotCommand.ts`. Do not
    pretend the dormant `AgentRegistry` is the production dispatch path:
    `src/index.ts` needs an explicit, separately authorized one-file command
    dispatch edit.
-3. **Spawn / discover the target.** Resolve a direct executable without a
+4. **Spawn / discover the target.** Resolve a direct executable without a
    shell, launch the runtime as a managed server
    (`copilot --server --port 0 --managed-server --session-idle-timeout 300`),
    and use the
@@ -862,7 +883,7 @@ for M0/M1a.
    artifact-tree/binary hashing, Windows DACL/reparse policy, closed child
    environment, and OOP-runtime policy are hardening work, not M1a
    prerequisites.
-4. **Implement the native local-RPC client.** happy-cli speaks Copilot's framed
+5. **Implement the native local-RPC client.** happy-cli speaks Copilot's framed
    JSON-RPC directly (the runtime's `NativeLocalRpcConnection.sendRequest` is
    private). Accept only LSP-style `Content-Length` frames, reject unsolicited
    server requests, and allow-list methods. Handshake with `connect` and
@@ -885,7 +906,7 @@ for M0/M1a.
    session-scoped request (`session.resume` and all event-log reads); public
    wrappers reject caller `sessionId` overrides.
    Include owned-target `runtime.shutdown` in a separate lifecycle allowlist.
-5. **Read history and live events without a seam.** Copilot's event-log
+6. **Read history and live events without a seam.** Copilot's event-log
    ephemeral buffer is created by the first `session.eventLog.read`, not by
    resume. Therefore: open the notification prebuffer before resume; resume to
    establish routing; read from the start to activate event-log buffering and
@@ -900,9 +921,9 @@ for M0/M1a.
    sort by timestamp or parent id. M1a persists no source cursor: relay
    restart replays from the start with deterministic Happy localIds, and the
    server deduplicates retries. A live `cursorStatus:"expired"` also restarts
-   replay from the beginning with fresh bootstrap dedup state. M0 supplies
+   replay from the beginning with fresh bootstrap dedup state. M0-delivery supplies
    oldest-first delivery.
-6. **Relay a small closed event projection → `SessionEnvelope`.** M1a admits
+7. **Relay a small closed event projection → `SessionEnvelope`.** M1a admits
    only durable primary-agent `session.start`, safe `user.message`,
    `assistant.turn_start`, final `assistant.message`,
    `tool.execution_start/complete`, `assistant.turn_end`, `abort`,
@@ -934,8 +955,14 @@ for M0/M1a.
    ascending for reducer input and descending for display. This preserves
    delivery order across live/tail/range merges without inventing native
    chronology.
-7. **Make the read-only boundary real.** Construct the Copilot
-   `ApiSessionClient` with a restricted RPC profile that does not register
+8. **Make the read-only boundary real.** Extend only
+   `ApiClient.sessionSyncClient(session, options?)` in `src/api/api.ts` to
+   forward options to `new ApiSessionClient(token, session, options)`.
+   `runCopilotMirror` calls
+   `api.sessionSyncClient(session, {rpcProfile:'mirror-read-only'})`; omitted
+   options preserve the existing full/default profile for every current caller.
+   Focused `api.test.ts` coverage proves both paths. The restricted
+   `ApiSessionClient` profile does not register
    Happy's generic filesystem/shell/workspace handlers. It registers exactly
    one parameterless, provider-specific `killSession` lifecycle handler for
    Archive; the handler latches asynchronous one-shot finalization before
@@ -966,20 +993,20 @@ for M0/M1a.
    Direct/deep links to spawn-child, fork-composer, files/file, plugins,
    skills, agents, and nested message detail fail closed before any effect;
    hiding their normal links is defense in depth, not the boundary.
-8. **Safe phone-facing abstraction (required).** Do NOT forward the raw native
+9. **Safe phone-facing abstraction (required).** Do NOT forward the raw native
    API to the phone — it includes global-config/plugin/filesystem/shell/
    workspace/extension and privileged permission APIs (§12 verdict). The first
    milestone exposes only the existing typed event projection. Later phone
    actions are discriminated, schema-validated high-level operations; never
    `{method, params}`.
-9. **Auth + metadata.** Reuse the runtime's already-authenticated local user
+10. **Auth + metadata.** Reuse the runtime's already-authenticated local user
    context; do not add a second GitHub device flow. Extend
    `src/utils/createSessionMetadata.ts` with a `copilot` flavor and record only
    non-secret protocol/version/target identity. Unknown real tool names already
    render through the app's generic JSON fallback; add aliases only after a real
    smoke captures stable names.
 
-10. **Terminate the owned spawn.** Enter quiescing state and capture one
+11. **Terminate the owned spawn.** Enter quiescing state and capture one
     controller-derived stop id/time; keep the current event-log read active and
     call `runtime.shutdown`. Native `session.shutdown` may trigger
     `emitStopOnce()` early only if that read observes it; a filtered hook wake,
@@ -1010,27 +1037,33 @@ separate runtime-owned task for capability negotiation. Do not create a
 dual-repo implementation PRD.
 
 ### C. Phased milestones
-0. **M0 codec/delivery prerequisite:** plaintext-first fetch, legacy decrypt
-   fallback, explicit malformed-row behavior, and caller-supplied deterministic
-   localIds delivered oldest-first. No durable receive cursor or receipts.
-1. **M1a read-only mirror:** after the `src/index.ts` ownership grant, register
+0. **M0-delivery prerequisite:** caller-supplied deterministic localIds,
+   oldest-first reliable outbound delivery, ACK correlation, and inbound
+   watermark isolation. No durable receive cursor or receipts.
+1. **M0-codec independent task
+   `happy-session-history-codec-plaintext-legacy-compat`:** plaintext-first
+   fetched-history decode, legacy decrypt fallback, canonical schema validation,
+   and explicit malformed behavior. It may land before or after M1a and has
+   separate tests/rollback.
+2. **M1a read-only mirror:** after the `src/index.ts` and `src/api/api.ts`
+   ownership grants, register
    provider/flavor, directly spawn/discover/authenticate the owned target,
    perform connect → foreground → routing resume, run the
    prebuffer/history/frontier handoff, relay the small durable event allowlist,
    replay from the start on relay restart, enforce a restricted Happy RPC
    profile, and verify unchanged >200-row tail/range pagination. No phone
    input or steering.
-2. **Basic steering:** allow only prompt + abort.
-3. **Rich control:** allow only session-scoped model/mode/reasoning and compact;
+3. **Basic steering:** allow only prompt + abort.
+4. **Rich control:** allow only session-scoped model/mode/reasoning and compact;
    add skills/commands/tasks only through explicit per-operation schemas.
    Global MCP mutation remains excluded.
-4. **Interactive completeness:** schema-bound replies to tracked pending
+5. **Interactive completeness:** schema-bound replies to tracked pending
    permission, elicitation, user-input, OAuth, and sampling requests. Never
    expose raw permission APIs or global policy mutation.
-5. **Co-steer with a real TUI:** switch the target from managed-server (headless)
+6. **Co-steer with a real TUI:** switch the target from managed-server (headless)
    to a `--ui-server` TUI target so a local terminal and the phone drive one live
    session (the "remoteSteerable, but local" goal).
-6. **Hardening and re-adoption:** external attach/re-adoption, persistent
+7. **Hardening and re-adoption:** external attach/re-adoption, persistent
    cursors, SEA/artifact attestation, DACL/reparse, closed environment, OOP
    policy, PID-reuse/crash recovery, fuzzing, token/log audits, version skew,
    and rollback drills.

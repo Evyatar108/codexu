@@ -28,7 +28,7 @@ Resolution:
 
 Resolution:
 
-- split M0 from M1a;
+- separate required M0-delivery, independent M0-codec, and M1a;
 - make M1a direct-spawn-only, read-only, and default-off;
 - add no external attach, re-adoption, persistent cursor, phone input,
   receipt, steering, or interactive capability;
@@ -50,9 +50,10 @@ Resolution:
 
 Resolution:
 
-- M0 parses plaintext first, falls back to legacy decryption, and defines
-  malformed-row behavior;
-- M0 adds only the deterministic oldest-first delivery seam;
+- M0-codec parses plaintext first, falls back to legacy decryption, and defines
+  malformed-row behavior without blocking M1a;
+- M0-delivery adds only the deterministic oldest-first delivery/watermark seam
+  required by M1a;
 - M1a adds no durable receive cursor or consumption receipt.
 
 ### Medium - ordering
@@ -83,7 +84,7 @@ Resolution:
 ## Independent review/fix convergence
 
 Fresh standard reviewers will use `gpt-5.6-sol` at `xhigh` and will be
-constrained to the narrow task: verify source correctness, M0/M1a
+constrained to the narrow task: verify source correctness, milestone
 executability, security boundary, history/frontier races, repository ownership,
 tests, and proportionality without inventing another control plane.
 
@@ -424,6 +425,36 @@ Fix applied: grant and budget that route plus a focused test, and require
 Copilot/incomplete-placeholder rejection before message lookup, prefetch,
 `ToolFullView`, permission/footer, or content rendering. The permitted child
 route remains read-only `info` only.
+
+Final acceptance: two fresh independent standard reviewers
+(`gpt-5.6-sol`, `xhigh`) returned **CLEAN** with no Medium+ findings.
+
+Status: **CLEAN**.
+
+### Round 15 - follow-up audit of `dec5ac97`
+
+The final audit returned **REVISE** with two issues:
+
+- **High:** `ApiClient.sessionSyncClient()` in
+  `packages/happy-cli/src/api/api.ts` hardcodes the two-argument
+  `ApiSessionClient` constructor, so the restricted profile was not
+  constructible through the planned/granted call chain.
+- **Medium:** the plan incorrectly made the cross-provider fetched-history
+  codec fix part of the prerequisite milestone even though outbound-only M1a
+  does not consume that path.
+
+Fixes applied:
+
+- request exact ownership of `src/api/api.ts` plus focused `api.test.ts`
+  coverage; thread `ApiSessionClientOptions` through
+  `sessionSyncClient(session, options?)`, require `runCopilotMirror` to pass
+  `{rpcProfile:'mirror-read-only'}`, and preserve omitted-options behavior for
+  every existing caller;
+- split **M0-delivery** (required: oldest-first delivery, ACK correlation, and
+  inbound-watermark isolation) from **M0-codec** (independent cross-provider
+  task `happy-session-history-codec-plaintext-legacy-compat`), with separate
+  tests, rollback, edit budgets, and the dependency graph
+  `M0-delivery -> M1a`.
 
 Final acceptance: two fresh independent standard reviewers
 (`gpt-5.6-sol`, `xhigh`) returned **CLEAN** with no Medium+ findings.

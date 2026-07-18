@@ -2,15 +2,18 @@
 
 ## Delivery contract
 
-M0 and M1a are separate codexu-only changes. M1a is spawn-only and read-only:
-it accepts no phone input and persists no Copilot cursor. Copilot runtime work
-is not required. A production M1a target is idle because the milestone has no
-prompt source; the real smoke uses a separate test-only local stimulus client.
-User-driven work starts in M2.
+M0-delivery and M1a form the Copilot implementation chain. M0-codec is a
+separate cross-provider task with no dependency edge to M1a. M1a is spawn-only
+and read-only: it accepts no phone input and persists no Copilot cursor.
+Copilot runtime work is not required. A production M1a target is idle because
+the milestone has no prompt source; the real smoke uses a separate test-only
+local stimulus client. User-driven work starts in M2.
 
 Before M1a starts, the coordinator must grant ownership of:
 
 - `packages/happy-cli/src/index.ts`;
+- `packages/happy-cli/src/api/api.ts`;
+- `packages/happy-cli/src/api/api.test.ts`;
 - `packages/happy-app/sources/-session/SessionView.tsx`;
 - `packages/happy-app/sources/fork/session/useForkComposer.ts`;
 - `packages/happy-app/sources/fork/session/useSessionContextDrawer.tsx`;
@@ -54,9 +57,11 @@ These are path grants, not separate architecture tasks. Source review proved
 the app grants necessary because the current session view always exposes the
 composer and control callbacks.
 
-## M0 - cross-provider history and delivery prerequisite
+## M0-codec - independent cross-provider task
 
-### Story 0 - Decode current and legacy Happy history
+Task proposal: `happy-session-history-codec-plaintext-legacy-compat`.
+
+### Story C0 - Decode current and legacy Happy history
 
 **Goal:** remove the plaintext-send/decrypt-fetch asymmetry without changing
 new outgoing bytes.
@@ -80,8 +85,12 @@ new outgoing bytes.
   payload-free diagnostics and are skipped without stalling later rows;
 - current plaintext and legacy encrypted fixtures both route;
 - no E2E-encryption-restoration claim is made.
+- this story has no dependency edge to M1a and may land before or after it;
+- rollback reverts only the codec/fetch commit and does not disable M1a.
 
-### Story 1 - Add deterministic oldest-first delivery
+## M0-delivery - required M1a prerequisite
+
+### Story D0 - Add deterministic oldest-first delivery
 
 **Goal:** give the Copilot relay a narrow delivery API whose source order
 becomes Happy server sequence order.
@@ -101,6 +110,16 @@ becomes Happy server sequence order.
   rows;
 - no durable receive cursor or consumption receipt is added;
 - Claude, Codex, and ACP reconnect/order regressions pass.
+- rollback requires M1a to remain disabled/reverted, but does not touch codec or
+  stored-history behavior.
+
+## Dependency graph
+
+```text
+Story D0 (M0-delivery) ──required──> Stories 2-8 (M1a)
+
+Story C0 (M0-codec) is independent
+```
 
 ## M1a - spawn-only read-only native mirror
 
@@ -343,12 +362,19 @@ becomes Happy server sequence order.
 - `agent/copilot/runCopilotMirror.ts`
 - `agent/copilot/index.ts`
 - `commands/copilotCommand.ts`
+- `api/api.ts` after ownership grant
+- `api/api.test.ts` after ownership grant
 - `api/apiSession.ts`
 - tests
 
 **Acceptance:**
 
 - Happy API uses `mirror-read-only` RPC profile;
+- `runCopilotMirror` calls
+  `api.sessionSyncClient(session, {rpcProfile:'mirror-read-only'})`;
+- `ApiClient.sessionSyncClient()` forwards the explicit options to
+  `ApiSessionClient`; omitted options preserve every existing caller's
+  default/full profile, with focused factory coverage in `api.test.ts`;
 - common shell/filesystem/workspace handlers are not registered;
 - the only phone lifecycle RPC is parameterless idempotent `killSession`, which
   latches `finalizeOnce('phone-archive')` before replying and continues cleanup
