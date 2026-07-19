@@ -109,9 +109,20 @@ type V3PostSessionMessagesResponse = {
 type ContextBoundaryInput = Omit<SessionContextBoundaryEvent, 't'>;
 type MessageConsumptionInput = Pick<SessionMessageConsumptionEvent, 'messageId' | 'agentFlavor'>;
 
-type MessageDelivery = {
+export type MessageDelivery = {
     id: string;
     seq: number;
+};
+
+type PendingOutboxMessage = {
+    content: string;
+    localId: string;
+};
+
+type PendingDelivery = {
+    promise: Promise<MessageDelivery>;
+    resolve: (delivery: MessageDelivery) => void;
+    reject: (err: unknown) => void;
 };
 
 export type AgentConfiguration = {
@@ -197,6 +208,7 @@ export class ApiSessionClient extends EventEmitter {
     private metadataLock = new AsyncLock();
     private encryptionKey: Uint8Array;
     private encryptionVariant: 'legacy' | 'dataKey';
+    private closed = false;
     private reconnectInterval: NodeJS.Timeout | null = null;
     private ignoreArchiveSignal = false;
     private skipInitialMessages = false;
@@ -212,8 +224,11 @@ export class ApiSessionClient extends EventEmitter {
         activeSubagents: new Set<string>(),
     };
     private lastSeq = 0;
-    private pendingOutbox: Array<{ content: string; localId: string }> = [];
-    private seqResolvers: Map<string, { resolve: (delivery: MessageDelivery) => void; reject: (err: unknown) => void }> = new Map();
+    private pendingOutbox: PendingOutboxMessage[] = [];
+    private pendingOutboxHead = 0;
+    private seqResolvers: Map<string, PendingDelivery> = new Map();
+    private outboundDeliverySeqs: Map<string, number | null> = new Map();
+    private outboundDeliveryHeap: Array<{ localId: string; seq: number }> = [];
     private consumptionResolvers: Map<string, { resolve: (event: SessionMessageConsumptionEvent) => void; reject: (err: unknown) => void }> = new Map();
     private observedConsumptions: Map<string, SessionMessageConsumptionEvent> = new Map();
     private pendingSummaryText: string | null = null;
@@ -276,6 +291,10 @@ export class ApiSessionClient extends EventEmitter {
         });
 
         socket.on('connect', () => {
+            if (this.closed) {
+                socket.close();
+                return;
+            }
             logger.debug('Socket connected successfully');
             if (this.reconnectInterval) {
                 clearInterval(this.reconnectInterval);
@@ -286,7 +305,11 @@ export class ApiSessionClient extends EventEmitter {
         });
 
         socket.on('rpc-request', async (data: { method: string, params: unknown }, callback: (response: unknown) => void) => {
-            callback(await this.rpcHandlerManager.handleRequest(data));
+            if (this.closed) return;
+            const response = await this.rpcHandlerManager.handleRequest(data);
+            if (!this.closed) {
+                callback(response);
+            }
         });
 
         socket.on('disconnect', (reason) => {
@@ -302,6 +325,7 @@ export class ApiSessionClient extends EventEmitter {
         });
 
         socket.on('update', (data: Update) => {
+            if (this.closed) return;
             try {
                 logger.debugLargeJson('[SOCKET] [UPDATE] Received update:', data);
 
@@ -312,6 +336,14 @@ export class ApiSessionClient extends EventEmitter {
 
                 if (data.body.t === 'new-message') {
                     const messageSeq = data.body.message?.seq;
+                    const localId = data.body.message?.localId;
+                    if (localId && this.resolveOutboundDelivery(localId, {
+                        id: data.body.message.id,
+                        seq: messageSeq,
+                    })) {
+                        this.receiveSync.invalidate();
+                        return;
+                    }
                     if (this.lastSeq === 0) {
                         this.receiveSync.invalidate();
                         return;
@@ -328,6 +360,7 @@ export class ApiSessionClient extends EventEmitter {
                         seq: messageSeq,
                     });
                     this.lastSeq = messageSeq;
+                    this.evictScannedOutboundDeliveries();
                 } else if (data.body.t === 'update-session') {
                     if (data.body.metadata && data.body.metadata.version > this.metadataVersion) {
                         const nextMetadata = JSON.parse(data.body.metadata.value);
@@ -368,7 +401,9 @@ export class ApiSessionClient extends EventEmitter {
     }
 
     private async connectWithFreshTunnelAuth(): Promise<void> {
+        if (this.closed) return;
         const options = await daemonClient.tunnelSocketIOOptions();
+        if (this.closed) return;
         const auth = {
             ...this.socketAuthBase(),
             ...options.auth,
@@ -543,6 +578,7 @@ export class ApiSessionClient extends EventEmitter {
     }
 
     private async fetchMessages() {
+        if (this.closed) return;
         // On reconnect, skip processing existing messages — just advance lastSeq
         const skipRouting = this.skipInitialMessages;
         if (skipRouting) {
@@ -560,10 +596,12 @@ export class ApiSessionClient extends EventEmitter {
                 `/v3/sessions/${encodeURIComponent(this.sessionId)}/messages?${params.toString()}`,
                 { headers: this.authHeaders() }
             );
+            if (this.closed) return;
             if (!response.ok) {
                 throw new Error(`Failed to fetch session messages: ${response.status}`);
             }
             const data = await response.json() as V3GetSessionMessagesResponse;
+            if (this.closed) return;
 
             const messages = Array.isArray(data.messages) ? data.messages : [];
             let maxSeq = afterSeq;
@@ -574,6 +612,12 @@ export class ApiSessionClient extends EventEmitter {
                 }
 
                 if (skipRouting) continue;
+                if (message.localId && this.resolveOutboundDelivery(message.localId, {
+                    id: message.id,
+                    seq: message.seq,
+                })) {
+                    continue;
+                }
 
                 if (message.content?.t !== 'encrypted') {
                     continue;
@@ -596,6 +640,7 @@ export class ApiSessionClient extends EventEmitter {
             }
 
             this.lastSeq = Math.max(this.lastSeq, maxSeq);
+            this.evictScannedOutboundDeliveries();
             const hasMore = !!data.hasMore;
             if (hasMore && maxSeq === afterSeq) {
                 logger.debug('[API] fetchMessages pagination stalled, stopping to avoid infinite loop', {
@@ -613,13 +658,82 @@ export class ApiSessionClient extends EventEmitter {
 
     private static readonly MAX_OUTBOX_BATCH_SIZE = 50;
 
+    private pushOutboundDelivery(localId: string, seq: number): void {
+        const entry = { localId, seq };
+        let index = this.outboundDeliveryHeap.push(entry) - 1;
+        while (index > 0) {
+            const parent = Math.floor((index - 1) / 2);
+            if (this.outboundDeliveryHeap[parent].seq <= seq) {
+                break;
+            }
+            this.outboundDeliveryHeap[index] = this.outboundDeliveryHeap[parent];
+            index = parent;
+        }
+        this.outboundDeliveryHeap[index] = entry;
+    }
+
+    private popOutboundDelivery(): { localId: string; seq: number } | undefined {
+        const first = this.outboundDeliveryHeap[0];
+        const last = this.outboundDeliveryHeap.pop();
+        if (!first || !last || this.outboundDeliveryHeap.length === 0) {
+            return first;
+        }
+        let index = 0;
+        while (true) {
+            const left = index * 2 + 1;
+            if (left >= this.outboundDeliveryHeap.length) {
+                break;
+            }
+            const right = left + 1;
+            const child = right < this.outboundDeliveryHeap.length
+                && this.outboundDeliveryHeap[right].seq < this.outboundDeliveryHeap[left].seq
+                ? right
+                : left;
+            if (this.outboundDeliveryHeap[child].seq >= last.seq) {
+                break;
+            }
+            this.outboundDeliveryHeap[index] = this.outboundDeliveryHeap[child];
+            index = child;
+        }
+        this.outboundDeliveryHeap[index] = last;
+        return first;
+    }
+
+    private evictScannedOutboundDeliveries(): void {
+        while (this.outboundDeliveryHeap[0]?.seq <= this.lastSeq) {
+            const delivered = this.popOutboundDelivery();
+            if (delivered && this.outboundDeliverySeqs.get(delivered.localId) === delivered.seq) {
+                this.outboundDeliverySeqs.delete(delivered.localId);
+            }
+        }
+    }
+
+    private resolveOutboundDelivery(localId: string, delivery: MessageDelivery): boolean {
+        if (!this.outboundDeliverySeqs.has(localId)) {
+            return false;
+        }
+        const previousSeq = this.outboundDeliverySeqs.get(localId);
+        this.outboundDeliverySeqs.set(localId, delivery.seq);
+        if (previousSeq !== delivery.seq) {
+            this.pushOutboundDelivery(localId, delivery.seq);
+        }
+        const deferred = this.seqResolvers.get(localId);
+        if (deferred) {
+            deferred.resolve(delivery);
+        }
+        if (delivery.seq <= this.lastSeq) {
+            this.evictScannedOutboundDeliveries();
+        }
+        return true;
+    }
+
     private async flushOutbox() {
-        // Send latest messages first so the user sees recent activity immediately,
-        // then backfill older messages in subsequent batches.
-        while (this.pendingOutbox.length > 0) {
-            const batchSize = Math.min(this.pendingOutbox.length, ApiSessionClient.MAX_OUTBOX_BATCH_SIZE);
-            const batchStart = this.pendingOutbox.length - batchSize;
-            const batch = this.pendingOutbox.slice(batchStart);
+        while (this.pendingOutboxHead < this.pendingOutbox.length) {
+            const batchEnd = Math.min(
+                this.pendingOutboxHead + ApiSessionClient.MAX_OUTBOX_BATCH_SIZE,
+                this.pendingOutbox.length,
+            );
+            const batch = this.pendingOutbox.slice(this.pendingOutboxHead, batchEnd);
 
             const response = await daemonClient.tunnelFetch(
                 `/v3/sessions/${encodeURIComponent(this.sessionId)}/messages`,
@@ -631,50 +745,66 @@ export class ApiSessionClient extends EventEmitter {
                     }),
                 }
             );
+            if (this.closed) return;
             if (!response.ok) {
                 throw new Error(`Failed to flush session outbox: ${response.status}`);
             }
             const data = await response.json() as V3PostSessionMessagesResponse;
+            if (this.closed) return;
 
             const messages = Array.isArray(data.messages) ? data.messages : [];
-            const maxSeq = messages.reduce((acc, message) => (
-                message.seq > acc ? message.seq : acc
-            ), this.lastSeq);
-            this.lastSeq = maxSeq;
+            const batchLocalIds = new Set(batch.map((entry) => entry.localId));
+            const acknowledgedLocalIds = new Set<string>();
             for (const msg of messages) {
-                if (msg.localId) {
-                    const deferred = this.seqResolvers.get(msg.localId);
-                    if (deferred) {
-                        deferred.resolve({ id: msg.id, seq: msg.seq });
-                        this.seqResolvers.delete(msg.localId);
-                    }
+                if (msg.localId && batchLocalIds.has(msg.localId)) {
+                    acknowledgedLocalIds.add(msg.localId);
+                    this.resolveOutboundDelivery(msg.localId, { id: msg.id, seq: msg.seq });
                 }
             }
-            this.pendingOutbox.splice(batchStart, batch.length);
-            const respondedLocalIds = new Set(messages.map((m) => m.localId).filter(Boolean));
-            for (const entry of batch) {
-                if (entry.localId && !respondedLocalIds.has(entry.localId)) {
-                    const deferred = this.seqResolvers.get(entry.localId);
-                    if (deferred) {
-                        deferred.reject(new Error(`Server did not return seq for localId ${entry.localId}`));
-                        this.seqResolvers.delete(entry.localId);
-                    }
-                }
+
+            const unacknowledged = batch.filter((entry) => !acknowledgedLocalIds.has(entry.localId));
+            const nextHead = batchEnd - unacknowledged.length;
+            for (let index = 0; index < unacknowledged.length; index += 1) {
+                this.pendingOutbox[nextHead + index] = unacknowledged[index];
+            }
+            this.pendingOutboxHead = nextHead;
+            for (const localId of acknowledgedLocalIds) {
+                this.seqResolvers.delete(localId);
+            }
+            if (acknowledgedLocalIds.size !== batch.length) {
+                throw new Error('Server did not acknowledge every session outbox localId');
+            }
+            if (this.pendingOutboxHead === this.pendingOutbox.length) {
+                this.pendingOutbox = [];
+                this.pendingOutboxHead = 0;
+            } else if (this.pendingOutboxHead >= 1024 && this.pendingOutboxHead * 2 >= this.pendingOutbox.length) {
+                this.pendingOutbox = this.pendingOutbox.slice(this.pendingOutboxHead);
+                this.pendingOutboxHead = 0;
             }
         }
     }
 
-    private enqueueMessageWithDelivery(content: unknown, invalidate: boolean = true): Promise<MessageDelivery> {
+    private enqueueMessageWithDelivery(content: unknown, invalidate: boolean = true, localId: string = randomUUID()): Promise<MessageDelivery> {
+        if (this.closed) {
+            return Promise.reject(new Error('Session is closed'));
+        }
+        if (localId.length === 0) {
+            return Promise.reject(new Error('Session message localId must not be empty'));
+        }
         // FORK PATCH: RESTORE-R2-done send path routes through the fork codec seam encodeOutgoing() in sessionPayloadCodec.ts, which serializes plaintext JSON (local `encrypted` is a misnomer); fork performs NO E2E encryption on send — behavior-preserving relocation, bytes unchanged (invariant HC-1)
         const encrypted = encodeOutgoing(content);
-        const localId = randomUUID();
+        const existing = this.seqResolvers.get(localId);
+        if (existing) {
+            return existing.promise;
+        }
         let resolve!: (delivery: MessageDelivery) => void;
         let reject!: (err: unknown) => void;
         const deliveryPromise = new Promise<MessageDelivery>((res, rej) => {
             resolve = res;
             reject = rej;
         });
-        this.seqResolvers.set(localId, { resolve, reject });
+        this.outboundDeliverySeqs.set(localId, null);
+        this.seqResolvers.set(localId, { promise: deliveryPromise, resolve, reject });
         this.pendingOutbox.push({ content: encrypted, localId });
         if (invalidate) {
             this.sendSync.invalidate();
@@ -798,6 +928,28 @@ export class ApiSessionClient extends EventEmitter {
         };
 
         return this.enqueueMessage(content, invalidate);
+    }
+
+    /**
+     * Queues a session envelope under a caller-stable id and resolves when that
+     * exact outbound row is acknowledged. localId must be non-empty; invalid
+     * ids reject without queueing. Reuse localId across retries or process
+     * restarts. Delivery acknowledgement does not itself advance the inbound
+     * receive watermark; normal receive scanning may advance through the
+     * acknowledged row. Closed clients reject new delivery attempts.
+     */
+    sendSessionProtocolMessageWithDelivery(
+        envelope: SessionEnvelope,
+        options: { localId: string },
+    ): Promise<MessageDelivery> {
+        const content = {
+            role: 'session',
+            content: envelope,
+            meta: {
+                sentFrom: 'cli'
+            }
+        };
+        return this.enqueueMessageWithDelivery(content, true, options.localId);
     }
 
     sendSessionProtocolMessage(envelope: SessionEnvelope) {
@@ -1081,12 +1233,17 @@ export class ApiSessionClient extends EventEmitter {
 
     async close() {
         logger.debug('[API] socket.close() called');
+        this.closed = true;
         this.sendSync.stop();
         this.receiveSync.stop();
         for (const deferred of this.seqResolvers.values()) {
             deferred.reject(new Error('Session closed before seq was assigned'));
         }
         this.seqResolvers.clear();
+        this.pendingOutbox = [];
+        this.pendingOutboxHead = 0;
+        this.outboundDeliverySeqs.clear();
+        this.outboundDeliveryHeap = [];
         this.rejectPendingConsumptionAcks(new Error('Session closed before message consumption was observed'));
         if (this.reconnectInterval) {
             clearInterval(this.reconnectInterval);
@@ -1098,9 +1255,14 @@ export class ApiSessionClient extends EventEmitter {
     }
 
     private startSmartReconnect() {
-        if (this.reconnectInterval) return;
+        if (this.closed || this.reconnectInterval) return;
 
         this.reconnectInterval = setInterval(() => {
+            if (this.closed) {
+                clearInterval(this.reconnectInterval!);
+                this.reconnectInterval = null;
+                return;
+            }
             if (this.socket?.connected) {
                 clearInterval(this.reconnectInterval!);
                 this.reconnectInterval = null;
@@ -1119,7 +1281,7 @@ export class ApiSessionClient extends EventEmitter {
         if (shouldReconnect()) {
             logger.debug('[API] Network up + lid open — reconnecting in 1s');
             setTimeout(() => {
-                if (!this.socket?.connected) {
+                if (!this.closed && !this.socket?.connected) {
                     void this.connectWithFreshTunnelAuth().catch((error) => {
                         logger.debug('[API] Failed to refresh tunnel auth before reconnect:', error);
                     });

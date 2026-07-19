@@ -155,7 +155,21 @@ function parsePostedMessage(index = 0, callIndex = 0): any {
     return JSON.parse(payload.messages[index].content);
 }
 
-function createNewMessageUpdate(seq: number, serializedContent: string): Update {
+function mockNextPostAck(seq = 1, id = `msg-${seq}`): void {
+    mockAxiosPost.mockImplementationOnce(async (_url: string, body: { messages: Array<{ localId: string }> }) => ({
+        data: {
+            messages: body.messages.map((message) => ({
+                id,
+                seq,
+                localId: message.localId,
+                createdAt: seq,
+                updatedAt: seq,
+            }))
+        }
+    }));
+}
+
+function createNewMessageUpdate(seq: number, serializedContent: string, localId: string | null = null): Update {
     return {
         id: `upd-${seq}`,
         seq,
@@ -166,7 +180,7 @@ function createNewMessageUpdate(seq: number, serializedContent: string): Update 
             message: {
                 id: `msg-${seq}`,
                 seq,
-                localId: null,
+                localId,
                 content: {
                     t: 'encrypted',
                     c: serializedContent
@@ -311,19 +325,17 @@ describe('ApiSessionClient v3 messages API migration', () => {
 
     it('queues codex message to v3 outbox, sends once, and drains outbox', async () => {
         const client = new ApiSessionClient('fake-token', session);
-        mockAxiosPost.mockResolvedValueOnce({
+        mockAxiosPost.mockImplementationOnce(async (_url: string, body: { messages: Array<{ localId: string }> }) => ({
             data: {
-                messages: [
-                    {
-                        id: 'msg-1',
-                        seq: 1,
-                        localId: 'local-1',
-                        createdAt: 1,
-                        updatedAt: 1
-                    }
-                ]
+                messages: body.messages.map((message) => ({
+                    id: 'msg-1',
+                    seq: 1,
+                    localId: message.localId,
+                    createdAt: 1,
+                    updatedAt: 1
+                }))
             }
-        });
+        }));
 
         client.sendCodexMessage({ type: 'delta', text: 'hello' });
 
@@ -336,7 +348,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
         expect(payload.messages).toHaveLength(1);
         expect(typeof payload.messages[0].localId).toBe('string');
         expect((client as any).pendingOutbox).toHaveLength(0);
-        expect((client as any).lastSeq).toBe(1);
+        expect((client as any).lastSeq).toBe(0);
 
         const decrypted = JSON.parse(payload.messages[0].content);
         expect(decrypted).toEqual({
@@ -360,18 +372,23 @@ describe('ApiSessionClient v3 messages API migration', () => {
             };
         };
         let resolveFirstPost!: (value: PostResponse) => void;
+        let firstLocalId = '';
         mockAxiosPost
-            .mockImplementationOnce(() => new Promise<PostResponse>((resolve) => {
+            .mockImplementationOnce((_url: string, body: { messages: Array<{ localId: string }> }) => new Promise<PostResponse>((resolve) => {
+                firstLocalId = body.messages[0].localId;
                 resolveFirstPost = resolve;
             }))
-            .mockResolvedValueOnce({
+            .mockImplementationOnce(async (_url: string, body: { messages: Array<{ localId: string }> }) => ({
                 data: {
-                    messages: [
-                        { id: 'msg-2', seq: 2, localId: 'local-2', createdAt: 2, updatedAt: 2 },
-                        { id: 'msg-3', seq: 3, localId: 'local-3', createdAt: 3, updatedAt: 3 }
-                    ]
+                    messages: body.messages.map((message, index) => ({
+                        id: `msg-${index + 2}`,
+                        seq: index + 2,
+                        localId: message.localId,
+                        createdAt: index + 2,
+                        updatedAt: index + 2
+                    }))
                 }
-            });
+            }));
 
         client.sendCodexMessage({ type: 'first' });
         await waitForCheck(() => {
@@ -384,7 +401,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
         resolveFirstPost({
             data: {
                 messages: [
-                    { id: 'msg-1', seq: 1, localId: 'local-1', createdAt: 1, updatedAt: 1 }
+                    { id: 'msg-1', seq: 1, localId: firstLocalId, createdAt: 1, updatedAt: 1 }
                 ]
             }
         });
@@ -396,7 +413,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
         const secondPayload = mockAxiosPost.mock.calls[1][1];
         expect(secondPayload.messages).toHaveLength(2);
         expect((client as any).pendingOutbox).toHaveLength(0);
-        expect((client as any).lastSeq).toBe(3);
+        expect((client as any).lastSeq).toBe(0);
     });
 
     it('retries failed POST and succeeds without dropping queued messages', async () => {
@@ -404,13 +421,17 @@ describe('ApiSessionClient v3 messages API migration', () => {
 
         mockAxiosPost
             .mockRejectedValueOnce(new Error('network down'))
-            .mockResolvedValueOnce({
+            .mockImplementationOnce(async (_url: string, body: { messages: Array<{ localId: string }> }) => ({
                 data: {
-                    messages: [
-                        { id: 'msg-1', seq: 1, localId: 'local-1', createdAt: 1, updatedAt: 1 }
-                    ]
+                    messages: body.messages.map((message) => ({
+                        id: 'msg-1',
+                        seq: 1,
+                        localId: message.localId,
+                        createdAt: 1,
+                        updatedAt: 1
+                    }))
                 }
-            });
+            }));
 
         client.sendCodexMessage({ type: 'retry-me' });
 
@@ -422,16 +443,299 @@ describe('ApiSessionClient v3 messages API migration', () => {
         const secondPayload = mockAxiosPost.mock.calls[1][1];
         expect(secondPayload).toEqual(firstPayload);
         expect((client as any).pendingOutbox).toHaveLength(0);
-        expect((client as any).lastSeq).toBe(1);
+        expect((client as any).lastSeq).toBe(0);
+    });
+
+    it('flushes queues larger than 50 from the oldest row forward', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        mockAxiosPost.mockImplementation(async (_url: string, body: { messages: Array<{ localId: string }> }) => ({
+            data: {
+                messages: body.messages.map((message) => {
+                    const index = Number(message.localId.slice('ordered-'.length));
+                    return {
+                        id: `msg-${index}`,
+                        seq: index + 1,
+                        localId: message.localId,
+                        createdAt: index + 1,
+                        updatedAt: index + 1,
+                    };
+                })
+            }
+        }));
+
+        const deliveries = Array.from({ length: 55 }, (_, index) => (
+            (client as any).enqueueMessageWithDelivery(
+                { role: 'agent', content: { index } },
+                false,
+                `ordered-${index}`,
+            )
+        ));
+        (client as any).sendSync.invalidate();
+
+        await expect(Promise.all(deliveries)).resolves.toHaveLength(55);
+        await waitForCheck(() => {
+            expect(mockAxiosPost).toHaveBeenCalledTimes(2);
+            expect((client as any).pendingOutbox).toHaveLength(0);
+        });
+
+        expect(mockAxiosPost.mock.calls[0][1].messages.map((message: { localId: string }) => message.localId))
+            .toEqual(Array.from({ length: 50 }, (_, index) => `ordered-${index}`));
+        expect(mockAxiosPost.mock.calls[1][1].messages.map((message: { localId: string }) => message.localId))
+            .toEqual(Array.from({ length: 5 }, (_, index) => `ordered-${index + 50}`));
+    });
+
+    it('evicts delivered localId tracking as long-running inbound scanning catches up', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        const onMessage = vi.fn();
+        client.on('message', onMessage);
+        const messageCount = 120;
+        mockAxiosPost.mockImplementation(async (_url: string, body: { messages: Array<{ localId: string }> }) => ({
+            data: {
+                messages: body.messages.map((message) => {
+                    const seq = Number(message.localId.slice('long-run-'.length)) + 1;
+                    return {
+                        id: `msg-${seq}`,
+                        seq,
+                        localId: message.localId,
+                        createdAt: seq,
+                        updatedAt: seq,
+                    };
+                })
+            }
+        }));
+
+        const deliveries = Array.from({ length: messageCount }, (_, index) => (
+            (client as any).enqueueMessageWithDelivery(
+                { role: 'agent', content: { index } },
+                false,
+                `long-run-${index}`,
+            )
+        ));
+        (client as any).sendSync.invalidate();
+
+        await expect(Promise.all(deliveries)).resolves.toHaveLength(messageCount);
+        expect((client as any).lastSeq).toBe(0);
+        expect((client as any).outboundDeliverySeqs.size).toBe(messageCount);
+
+        const storedMessages = Array.from({ length: messageCount }, (_, index) => {
+            const seq = index + 1;
+            return {
+                id: `msg-${seq}`,
+                seq,
+                localId: `long-run-${index}`,
+                content: { t: 'encrypted', c: plaintextContent({ role: 'session' }) },
+                createdAt: seq,
+                updatedAt: seq,
+            };
+        });
+        mockAxiosGet
+            .mockResolvedValueOnce({
+                data: {
+                    messages: storedMessages.slice(0, 100),
+                    hasMore: true,
+                }
+            })
+            .mockResolvedValueOnce({
+                data: {
+                    messages: storedMessages.slice(100),
+                    hasMore: false,
+                }
+            });
+
+        await (client as any).fetchMessages();
+
+        expect((client as any).lastSeq).toBe(messageCount);
+        expect((client as any).outboundDeliverySeqs.size).toBe(0);
+        expect((client as any).outboundDeliveryHeap).toHaveLength(0);
+        expect(onMessage).not.toHaveBeenCalled();
+        expect(mockAxiosGet.mock.calls[1][1].params.after_seq).toBe(100);
+    });
+
+    it('evicts out-of-order delivered sequences in watermark order', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        const highDelivery = (client as any).enqueueMessageWithDelivery(
+            { role: 'agent', content: 'high' },
+            false,
+            'heap-high',
+        );
+        const lowDelivery = (client as any).enqueueMessageWithDelivery(
+            { role: 'agent', content: 'low' },
+            false,
+            'heap-low',
+        );
+
+        (client as any).resolveOutboundDelivery('heap-high', { id: 'msg-high', seq: 30 });
+        (client as any).resolveOutboundDelivery('heap-low', { id: 'msg-low', seq: 20 });
+        await expect(Promise.all([highDelivery, lowDelivery])).resolves.toEqual([
+            { id: 'msg-high', seq: 30 },
+            { id: 'msg-low', seq: 20 },
+        ]);
+
+        (client as any).lastSeq = 25;
+        (client as any).evictScannedOutboundDeliveries();
+        expect((client as any).outboundDeliverySeqs).toEqual(new Map([['heap-high', 30]]));
+        expect((client as any).outboundDeliveryHeap).toEqual([{ localId: 'heap-high', seq: 30 }]);
+
+        (client as any).lastSeq = 30;
+        (client as any).evictScannedOutboundDeliveries();
+        expect((client as any).outboundDeliverySeqs.size).toBe(0);
+        expect((client as any).outboundDeliveryHeap).toHaveLength(0);
+        await client.close();
+    });
+
+    it('correlates out-of-order acknowledgements by caller-supplied localId', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        mockAxiosPost.mockImplementationOnce(async (_url: string, body: { messages: Array<{ localId: string }> }) => ({
+            data: {
+                messages: [...body.messages].reverse().map((message, index) => ({
+                    id: `msg-${message.localId}`,
+                    seq: 20 + index,
+                    localId: message.localId,
+                    createdAt: 20 + index,
+                    updatedAt: 20 + index,
+                }))
+            }
+        }));
+
+        const first = (client as any).enqueueMessageWithDelivery(
+            { role: 'agent', content: 'a' },
+            false,
+            'stable-a',
+        );
+        const second = (client as any).enqueueMessageWithDelivery(
+            { role: 'agent', content: 'b' },
+            false,
+            'stable-b',
+        );
+        (client as any).sendSync.invalidate();
+
+        await expect(first).resolves.toEqual({ id: 'msg-stable-a', seq: 21 });
+        await expect(second).resolves.toEqual({ id: 'msg-stable-b', seq: 20 });
+        expect(mockAxiosPost.mock.calls[0][1].messages.map((message: { localId: string }) => message.localId))
+            .toEqual(['stable-a', 'stable-b']);
+    });
+
+    it('deduplicates repeated pending sends with the same caller-supplied localId', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        type PostResponse = {
+            data: {
+                messages: Array<{ id: string; seq: number; localId: string; createdAt: number; updatedAt: number }>;
+            };
+        };
+        let resolvePost!: (value: PostResponse) => void;
+        mockAxiosPost.mockImplementationOnce(() => new Promise<PostResponse>((resolve) => {
+            resolvePost = resolve;
+        }));
+        const envelope = {
+            id: 'duplicate-envelope',
+            time: 2,
+            role: 'agent' as const,
+            ev: { t: 'text' as const, text: 'duplicate-safe' },
+        };
+
+        const first = client.sendSessionProtocolMessageWithDelivery(
+            envelope,
+            { localId: 'duplicate-stable-id' },
+        );
+        const second = client.sendSessionProtocolMessageWithDelivery(
+            envelope,
+            { localId: 'duplicate-stable-id' },
+        );
+
+        expect(second).toBe(first);
+        await waitForCheck(() => expect(mockAxiosPost).toHaveBeenCalledTimes(1));
+        expect(mockAxiosPost.mock.calls[0][1].messages).toHaveLength(1);
+
+        resolvePost({
+            data: {
+                messages: [{
+                    id: 'duplicate-message',
+                    seq: 25,
+                    localId: 'duplicate-stable-id',
+                    createdAt: 25,
+                    updatedAt: 25,
+                }]
+            }
+        });
+        await expect(first).resolves.toEqual({ id: 'duplicate-message', seq: 25 });
+        await expect(second).resolves.toEqual({ id: 'duplicate-message', seq: 25 });
+    });
+
+    it('rejects an empty caller localId before queue mutation and keeps later delivery usable', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        const envelope = {
+            id: 'validated-envelope',
+            time: 3,
+            role: 'agent' as const,
+            ev: { t: 'text' as const, text: 'validated' },
+        };
+
+        await expect(client.sendSessionProtocolMessageWithDelivery(
+            envelope,
+            { localId: '' },
+        )).rejects.toThrow('Session message localId must not be empty');
+        expect(mockAxiosPost).not.toHaveBeenCalled();
+        expect((client as any).pendingOutbox).toHaveLength(0);
+        expect((client as any).seqResolvers.size).toBe(0);
+        expect((client as any).outboundDeliverySeqs.size).toBe(0);
+
+        mockNextPostAck(26, 'validated-message');
+        await expect(client.sendSessionProtocolMessageWithDelivery(
+            envelope,
+            { localId: 'validated-local-id' },
+        )).resolves.toEqual({ id: 'validated-message', seq: 26 });
+        expect(mockAxiosPost).toHaveBeenCalledTimes(1);
+        expect(mockAxiosPost.mock.calls[0][1].messages[0].localId).toBe('validated-local-id');
+        expect((client as any).pendingOutbox).toHaveLength(0);
+    });
+
+    it('reuses a deterministic localId across retry and a new client instance', async () => {
+        const envelope = {
+            id: 'restart-envelope',
+            time: 3,
+            role: 'agent' as const,
+            ev: { t: 'text' as const, text: 'restart-safe' },
+        };
+        const respondWithExistingDelivery = async (
+            _url: string,
+            body: { messages: Array<{ localId: string }> },
+        ) => ({
+            data: {
+                messages: body.messages.map((message) => ({
+                    id: 'existing-message',
+                    seq: 30,
+                    localId: message.localId,
+                    createdAt: 30,
+                    updatedAt: 30,
+                }))
+            }
+        });
+        mockAxiosPost
+            .mockRejectedValueOnce(new Error('connection reset'))
+            .mockImplementationOnce(respondWithExistingDelivery)
+            .mockImplementationOnce(respondWithExistingDelivery);
+
+        const firstClient = new ApiSessionClient('fake-token', session);
+        await expect(firstClient.sendSessionProtocolMessageWithDelivery(
+            envelope,
+            { localId: 'restart-stable-id' },
+        )).resolves.toEqual({ id: 'existing-message', seq: 30 });
+
+        const retryPayload = mockAxiosPost.mock.calls[1][1];
+        expect(retryPayload).toEqual(mockAxiosPost.mock.calls[0][1]);
+        expect(retryPayload.messages[0].localId).toBe('restart-stable-id');
+
+        const restartedClient = new ApiSessionClient('fake-token', session);
+        await expect(restartedClient.sendSessionProtocolMessageWithDelivery(
+            envelope,
+            { localId: 'restart-stable-id' },
+        )).resolves.toEqual({ id: 'existing-message', seq: 30 });
+        expect(mockAxiosPost.mock.calls[2][1].messages[0].localId).toBe('restart-stable-id');
     });
 
     it('sends claude user text as modern session envelope', async () => {
         const client = new ApiSessionClient('fake-token', session);
-        mockAxiosPost.mockResolvedValueOnce({
-            data: {
-                messages: [{ id: 'msg-1', seq: 1, localId: 'local-1', createdAt: 1, updatedAt: 1 }]
-            }
-        });
+        mockNextPostAck();
 
         client.sendClaudeSessionMessage({
             type: 'user',
@@ -513,11 +817,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
 
     it('keeps user messages that mention the SKILL prefix mid-paragraph', async () => {
         const client = new ApiSessionClient('fake-token', session);
-        mockAxiosPost.mockResolvedValueOnce({
-            data: {
-                messages: [{ id: 'msg-1', seq: 1, localId: 'local-1', createdAt: 1, updatedAt: 1 }]
-            }
-        });
+        mockNextPostAck();
 
         client.sendClaudeSessionMessage({
             type: 'user',
@@ -546,11 +846,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
 
     it('keeps user messages that quote local-command-caveat inside a paragraph or code block', async () => {
         const client = new ApiSessionClient('fake-token', session);
-        mockAxiosPost.mockResolvedValueOnce({
-            data: {
-                messages: [{ id: 'msg-1', seq: 1, localId: 'local-1', createdAt: 1, updatedAt: 1 }]
-            }
-        });
+        mockNextPostAck();
         const text = 'Example:\n```xml\n<local-command-caveat>quoted</local-command-caveat>\n```';
 
         client.sendClaudeSessionMessage({
@@ -575,11 +871,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
 
     it('keeps standalone system-reminder user messages because the entry is receiver-only', async () => {
         const client = new ApiSessionClient('fake-token', session);
-        mockAxiosPost.mockResolvedValueOnce({
-            data: {
-                messages: [{ id: 'msg-1', seq: 1, localId: 'local-1', createdAt: 1, updatedAt: 1 }]
-            }
-        });
+        mockNextPostAck();
 
         client.sendClaudeSessionMessage({
             type: 'user',
@@ -648,11 +940,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
 
     it('sends session protocol messages through enqueueMessage with session envelope', async () => {
         const client = new ApiSessionClient('fake-token', session);
-        mockAxiosPost.mockResolvedValueOnce({
-            data: {
-                messages: [{ id: 'msg-1', seq: 1, localId: 'local-1', createdAt: 1, updatedAt: 1 }]
-            }
-        });
+        mockNextPostAck();
 
         const envelope = {
             id: 'env-1',
@@ -681,11 +969,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
 
     it('sends only modern payload for user session envelopes', async () => {
         const client = new ApiSessionClient('fake-token', session);
-        mockAxiosPost.mockResolvedValueOnce({
-            data: {
-                messages: [{ id: 'msg-1', seq: 1, localId: 'local-1', createdAt: 1, updatedAt: 1 }]
-            }
-        });
+        mockNextPostAck();
 
         client.sendSessionProtocolMessage({
             id: 'env-user-1',
@@ -715,11 +999,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
 
     it('sends modern session envelope for user text', async () => {
         const client = new ApiSessionClient('fake-token', session);
-        mockAxiosPost.mockResolvedValueOnce({
-            data: {
-                messages: [{ id: 'msg-1', seq: 1, localId: 'local-1', createdAt: 1, updatedAt: 1 }]
-            }
-        });
+        mockNextPostAck();
 
         client.sendSessionProtocolMessage({
             id: 'env-user-flag-on-1',
@@ -752,11 +1032,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
 
     it('sends ACP agent messages through enqueueMessage', async () => {
         const client = new ApiSessionClient('fake-token', session);
-        mockAxiosPost.mockResolvedValueOnce({
-            data: {
-                messages: [{ id: 'msg-1', seq: 1, localId: 'local-1', createdAt: 1, updatedAt: 1 }]
-            }
-        });
+        mockNextPostAck();
 
         client.sendAgentMessage('codex', {
             type: 'message',
@@ -815,11 +1091,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
 
     it('sends session events through enqueueMessage', async () => {
         const client = new ApiSessionClient('fake-token', session);
-        mockAxiosPost.mockResolvedValueOnce({
-            data: {
-                messages: [{ id: 'msg-1', seq: 1, localId: 'local-1', createdAt: 1, updatedAt: 1 }]
-            }
-        });
+        mockNextPostAck();
 
         client.sendSessionEvent({ type: 'ready' }, 'event-1', { contextBoundaryFallback: true });
 
@@ -925,7 +1197,17 @@ describe('ApiSessionClient v3 messages API migration', () => {
     it('routes plan-mode mapper intents through sendContextBoundary', async () => {
         const client = new ApiSessionClient('fake-token', session);
         const sendContextBoundary = vi.spyOn(client, 'sendContextBoundary').mockResolvedValue(undefined);
-        mockAxiosPost.mockResolvedValue({ data: { messages: [] } });
+        mockAxiosPost.mockImplementation(async (_url: string, body: { messages: Array<{ localId: string }> }) => ({
+            data: {
+                messages: body.messages.map((message, index) => ({
+                    id: `msg-${index + 1}`,
+                    seq: index + 1,
+                    localId: message.localId,
+                    createdAt: index + 1,
+                    updatedAt: index + 1,
+                }))
+            }
+        }));
 
         client.sendClaudeSessionMessage({
             type: 'assistant',
@@ -1278,6 +1560,182 @@ describe('ApiSessionClient v3 messages API migration', () => {
         expect(mockAxiosGet).not.toHaveBeenCalled();
     });
 
+    it('correlates a socket-before-HTTP self-echo without skipping an interleaved phone row', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        const onUserMessage = vi.fn();
+        const onMessage = vi.fn();
+        client.onUserMessage(onUserMessage);
+        client.on('message', onMessage);
+        (client as any).lastSeq = 10;
+
+        type PostResponse = {
+            data: {
+                messages: Array<{ id: string; seq: number; localId: string; createdAt: number; updatedAt: number }>;
+            };
+        };
+        type GetResponse = {
+            data: {
+                messages: Array<{
+                    id: string;
+                    seq: number;
+                    localId: string | null;
+                    content: { t: 'encrypted'; c: string };
+                    createdAt: number;
+                    updatedAt: number;
+                }>;
+                hasMore: boolean;
+            };
+        };
+        let resolvePost!: (value: PostResponse) => void;
+        let resolveGet!: (value: GetResponse) => void;
+        mockAxiosPost.mockImplementationOnce(() => new Promise<PostResponse>((resolve) => {
+            resolvePost = resolve;
+        }));
+        mockAxiosGet.mockImplementationOnce(() => new Promise<GetResponse>((resolve) => {
+            resolveGet = resolve;
+        }));
+
+        const deliveryPromise = client.sendSessionProtocolMessageWithDelivery({
+            id: 'socket-first-envelope',
+            time: 11,
+            role: 'agent',
+            ev: { t: 'text', text: 'local' },
+        }, { localId: 'socket-first-local' });
+
+        await waitForCheck(() => expect(mockAxiosPost).toHaveBeenCalledTimes(1));
+        emitSocketEvent('update', createNewMessageUpdate(
+            11,
+            plaintextContent({ role: 'session', content: { role: 'agent' } }),
+            'socket-first-local',
+        ));
+
+        await expect(deliveryPromise).resolves.toEqual({ id: 'msg-11', seq: 11 });
+        expect((client as any).lastSeq).toBe(10);
+        expect((client as any).outboundDeliverySeqs.get('socket-first-local')).toBe(11);
+        await waitForCheck(() => expect(mockAxiosGet).toHaveBeenCalledTimes(1));
+
+        const phoneMessage = {
+            role: 'user',
+            content: { type: 'text', text: 'phone row' }
+        };
+        resolveGet({
+            data: {
+                messages: [
+                    {
+                        id: 'msg-local',
+                        seq: 11,
+                        localId: 'socket-first-local',
+                        content: { t: 'encrypted', c: plaintextContent({ role: 'session' }) },
+                        createdAt: 11,
+                        updatedAt: 11,
+                    },
+                    {
+                        id: 'msg-phone',
+                        seq: 12,
+                        localId: null,
+                        content: { t: 'encrypted', c: encryptContent(session, phoneMessage) },
+                        createdAt: 12,
+                        updatedAt: 12,
+                    },
+                ],
+                hasMore: false,
+            }
+        });
+
+        await waitForCheck(() => {
+            expect(onUserMessage).toHaveBeenCalledWith(phoneMessage);
+            expect((client as any).lastSeq).toBe(12);
+        });
+        expect(onUserMessage).toHaveBeenCalledTimes(1);
+        expect(onMessage).not.toHaveBeenCalled();
+        expect((client as any).outboundDeliverySeqs.size).toBe(0);
+
+        resolvePost({
+            data: {
+                messages: [{
+                    id: 'msg-local',
+                    seq: 11,
+                    localId: 'socket-first-local',
+                    createdAt: 11,
+                    updatedAt: 11,
+                }]
+            }
+        });
+        await waitForCheck(() => expect((client as any).pendingOutbox).toHaveLength(0));
+        expect((client as any).outboundDeliverySeqs.size).toBe(0);
+    });
+
+    it('keeps ACK-before-socket tracking until the self-echo is scanned', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        const onUserMessage = vi.fn();
+        const onMessage = vi.fn();
+        client.onUserMessage(onUserMessage);
+        client.on('message', onMessage);
+        (client as any).lastSeq = 20;
+        mockAxiosPost.mockImplementationOnce(async (_url: string, body: { messages: Array<{ localId: string }> }) => ({
+            data: {
+                messages: [{
+                    id: 'msg-21',
+                    seq: 21,
+                    localId: body.messages[0].localId,
+                    createdAt: 21,
+                    updatedAt: 21,
+                }]
+            }
+        }));
+
+        await expect(client.sendSessionProtocolMessageWithDelivery({
+            id: 'ack-first-envelope',
+            time: 21,
+            role: 'agent',
+            ev: { t: 'text', text: 'ack first' },
+        }, { localId: 'ack-first-local' })).resolves.toEqual({ id: 'msg-21', seq: 21 });
+        expect((client as any).lastSeq).toBe(20);
+        expect((client as any).outboundDeliverySeqs.get('ack-first-local')).toBe(21);
+
+        const phoneMessage = {
+            role: 'user',
+            content: { type: 'text', text: 'after ack' }
+        };
+        mockAxiosGet.mockResolvedValueOnce({
+            data: {
+                messages: [
+                    {
+                        id: 'msg-21',
+                        seq: 21,
+                        localId: 'ack-first-local',
+                        content: { t: 'encrypted', c: plaintextContent({ role: 'session' }) },
+                        createdAt: 21,
+                        updatedAt: 21,
+                    },
+                    {
+                        id: 'msg-22',
+                        seq: 22,
+                        localId: null,
+                        content: { t: 'encrypted', c: encryptContent(session, phoneMessage) },
+                        createdAt: 22,
+                        updatedAt: 22,
+                    },
+                ],
+                hasMore: false,
+            }
+        });
+
+        emitSocketEvent('update', createNewMessageUpdate(
+            21,
+            plaintextContent({ role: 'session', content: { role: 'agent' } }),
+            'ack-first-local',
+        ));
+
+        await waitForCheck(() => {
+            expect(onUserMessage).toHaveBeenCalledWith(phoneMessage);
+            expect((client as any).lastSeq).toBe(22);
+        });
+        expect(onUserMessage).toHaveBeenCalledTimes(1);
+        expect(onMessage).not.toHaveBeenCalled();
+        expect((client as any).outboundDeliverySeqs.size).toBe(0);
+    });
+
     it('invalidates receive sync and fetches on seq gap', async () => {
         const client = new ApiSessionClient('fake-token', session);
         await waitForSocketInit(mockSocket);
@@ -1351,49 +1809,55 @@ describe('ApiSessionClient v3 messages API migration', () => {
         expect(mockAxiosGet.mock.calls[1][1].params.after_seq).toBe(5);
     });
 
-    it('updates lastSeq after successful outbox flush and never moves it backward', async () => {
+    it('never advances the inbound watermark from outbound acknowledgements', async () => {
         const client = new ApiSessionClient('fake-token', session);
         (client as any).lastSeq = 10;
 
-        mockAxiosPost.mockResolvedValueOnce({
+        mockAxiosPost.mockImplementation(async (_url: string, body: { messages: Array<{ localId: string }> }) => ({
             data: {
-                messages: [{ id: 'msg-9', seq: 9, localId: 'l9', createdAt: 9, updatedAt: 9 }]
+                messages: body.messages.map((message) => ({
+                    id: 'msg-100',
+                    seq: 100,
+                    localId: message.localId,
+                    createdAt: 100,
+                    updatedAt: 100,
+                }))
             }
-        });
+        }));
 
-        client.sendCodexMessage({ type: 'older' });
-        await waitForCheck(() => {
-            expect(mockAxiosPost).toHaveBeenCalledTimes(1);
-        });
-        expect((client as any).lastSeq).toBe(10);
-
-        mockAxiosPost.mockResolvedValueOnce({
-            data: {
-                messages: [{ id: 'msg-11', seq: 11, localId: 'l11', createdAt: 11, updatedAt: 11 }]
-            }
-        });
-
-        client.sendCodexMessage({ type: 'newer' });
-        await waitForCheck(() => {
-            expect(mockAxiosPost).toHaveBeenCalledTimes(2);
-        });
-        expect((client as any).lastSeq).toBe(11);
-    });
-
-    it('flushOutbox tolerates missing response.data.messages and keeps lastSeq unchanged', async () => {
-        const client = new ApiSessionClient('fake-token', session);
-        (client as any).lastSeq = 7;
-
-        mockAxiosPost.mockResolvedValueOnce({
-            data: {}
-        });
-
-        client.sendCodexMessage({ type: 'no-messages-field' });
+        client.sendCodexMessage({ type: 'outbound' });
         await waitForCheck(() => {
             expect(mockAxiosPost).toHaveBeenCalledTimes(1);
             expect((client as any).pendingOutbox).toHaveLength(0);
         });
+        expect((client as any).lastSeq).toBe(10);
+    });
 
+    it('retries a batch when the response omits acknowledgements without dropping rows', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        (client as any).lastSeq = 7;
+
+        mockAxiosPost
+            .mockResolvedValueOnce({ data: {} })
+            .mockImplementationOnce(async (_url: string, body: { messages: Array<{ localId: string }> }) => ({
+                data: {
+                    messages: body.messages.map((message) => ({
+                        id: 'msg-8',
+                        seq: 8,
+                        localId: message.localId,
+                        createdAt: 8,
+                        updatedAt: 8,
+                    }))
+                }
+            }));
+
+        client.sendCodexMessage({ type: 'no-messages-field' });
+        await waitForCheck(() => {
+            expect(mockAxiosPost).toHaveBeenCalledTimes(2);
+            expect((client as any).pendingOutbox).toHaveLength(0);
+        });
+
+        expect(mockAxiosPost.mock.calls[1][1]).toEqual(mockAxiosPost.mock.calls[0][1]);
         expect((client as any).lastSeq).toBe(7);
     });
 
@@ -1414,6 +1878,130 @@ describe('ApiSessionClient v3 messages API migration', () => {
             expect(mockAxiosGet).toHaveBeenCalledTimes(1);
         });
         expect(mockAxiosGet.mock.calls[0][1].params.after_seq).toBe(0);
+    });
+
+    it('clears delivered and pending outbound tracking on close', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        mockSocket.close.mockImplementation(() => {
+            emitSocketEvent('disconnect', 'io client disconnect');
+        });
+        mockNextPostAck(40, 'close-delivered-message');
+
+        await expect(client.sendSessionProtocolMessageWithDelivery({
+            id: 'close-delivered-envelope',
+            time: 40,
+            role: 'agent',
+            ev: { t: 'text', text: 'delivered before close' },
+        }, { localId: 'close-delivered-local' })).resolves.toEqual({
+            id: 'close-delivered-message',
+            seq: 40,
+        });
+        (client as any).enqueueMessageWithDelivery(
+            { role: 'agent', content: 'pending at close' },
+            false,
+            'close-pending-local',
+        );
+
+        expect((client as any).outboundDeliverySeqs).toEqual(new Map([
+            ['close-delivered-local', 40],
+            ['close-pending-local', null],
+        ]));
+        expect((client as any).seqResolvers.size).toBe(1);
+
+        await client.close();
+
+        expect((client as any).outboundDeliverySeqs.size).toBe(0);
+        expect((client as any).outboundDeliveryHeap).toHaveLength(0);
+        expect((client as any).seqResolvers.size).toBe(0);
+        expect((client as any).pendingOutbox).toHaveLength(0);
+        expect((client as any).pendingOutboxHead).toBe(0);
+        expect((client as any).reconnectInterval).toBeNull();
+    });
+
+    it('ignores GET and POST completions that arrive after close', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        const onUserMessage = vi.fn();
+        client.onUserMessage(onUserMessage);
+        (client as any).lastSeq = 1;
+
+        type PostResponse = {
+            data: {
+                messages: Array<{ id: string; seq: number; localId: string; createdAt: number; updatedAt: number }>;
+            };
+        };
+        type GetResponse = {
+            data: {
+                messages: Array<{
+                    id: string;
+                    seq: number;
+                    localId: null;
+                    content: { t: 'encrypted'; c: string };
+                    createdAt: number;
+                    updatedAt: number;
+                }>;
+                hasMore: boolean;
+            };
+        };
+        let resolvePost!: (value: PostResponse) => void;
+        let resolveGet!: (value: GetResponse) => void;
+        mockAxiosPost.mockImplementationOnce(() => new Promise<PostResponse>((resolve) => {
+            resolvePost = resolve;
+        }));
+        mockAxiosGet.mockImplementationOnce(() => new Promise<GetResponse>((resolve) => {
+            resolveGet = resolve;
+        }));
+
+        const deliveryPromise = client.sendSessionProtocolMessageWithDelivery({
+            id: 'late-post-envelope',
+            time: 2,
+            role: 'agent',
+            ev: { t: 'text', text: 'late post' },
+        }, { localId: 'late-post-local' });
+        const fetchPromise = (client as any).fetchMessages();
+        await waitForCheck(() => {
+            expect(mockAxiosPost).toHaveBeenCalledTimes(1);
+            expect(mockAxiosGet).toHaveBeenCalledTimes(1);
+        });
+
+        await client.close();
+        await expect(deliveryPromise).rejects.toThrow('Session closed before seq was assigned');
+        resolvePost({
+            data: {
+                messages: [{
+                    id: 'late-post-message',
+                    seq: 2,
+                    localId: 'late-post-local',
+                    createdAt: 2,
+                    updatedAt: 2,
+                }],
+            },
+        });
+        resolveGet({
+            data: {
+                messages: [{
+                    id: 'late-phone-message',
+                    seq: 2,
+                    localId: null,
+                    content: { t: 'encrypted', c: encryptContent(session, {
+                        role: 'user',
+                        content: { type: 'text', text: 'late phone row' },
+                    }) },
+                    createdAt: 2,
+                    updatedAt: 2,
+                }],
+                hasMore: false,
+            },
+        });
+        await fetchPromise;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+
+        expect(onUserMessage).not.toHaveBeenCalled();
+        expect((client as any).lastSeq).toBe(1);
+        expect((client as any).pendingOutbox).toHaveLength(0);
+        expect((client as any).pendingOutboxHead).toBe(0);
+        expect((client as any).seqResolvers.size).toBe(0);
+        expect((client as any).outboundDeliverySeqs.size).toBe(0);
+        expect((client as any).outboundDeliveryHeap).toHaveLength(0);
     });
 
     it('stops send and receive sync loops on close', async () => {
@@ -1438,12 +2026,22 @@ describe('ApiSessionClient v3 messages API migration', () => {
             content: { type: 'text', text: 'after-close' }
         })));
         client.sendCodexMessage({ type: 'after-close-send' });
+        await expect(client.sendSessionProtocolMessageWithDelivery({
+            id: 'after-close-envelope',
+            time: 1,
+            role: 'agent',
+            ev: { t: 'text', text: 'after close' },
+        }, { localId: 'after-close-local' })).rejects.toThrow('Session is closed');
 
         await new Promise((resolve) => setTimeout(resolve, 20));
 
         expect(mockSocket.close).toHaveBeenCalledTimes(1);
         expect(mockAxiosGet).not.toHaveBeenCalled();
         expect(mockAxiosPost).not.toHaveBeenCalled();
+        expect((client as any).pendingOutbox).toHaveLength(0);
+        expect((client as any).seqResolvers.size).toBe(0);
+        expect((client as any).outboundDeliverySeqs.size).toBe(0);
+        expect((client as any).outboundDeliveryHeap).toHaveLength(0);
     });
 
     it('sendContextBoundary returns within timeout when flushOutbox never resolves the seq', async () => {
@@ -1471,42 +2069,59 @@ describe('ApiSessionClient v3 messages API migration', () => {
         vi.useRealTimers();
     });
 
-    it('flushOutbox rejects seqResolvers for localIds absent from partial server response', async () => {
+    it('keeps unacknowledged rows queued and retries only the partial remainder', async () => {
         const client = new ApiSessionClient('fake-token', session);
 
-        // Only localId-A is returned; localId-B is omitted (partial server response)
-        mockAxiosPost.mockImplementationOnce(async (_url: string, body: { messages: Array<{ localId: string }> }) => ({
-            data: {
-                messages: [
-                    {
-                        id: 'msg-1',
+        mockAxiosPost
+            .mockImplementationOnce(async (_url: string, body: { messages: Array<{ localId: string }> }) => ({
+                data: {
+                    messages: [{
+                        id: 'msg-b',
                         seq: 1,
-                        localId: body.messages.find((m) => m.localId)?.localId ?? '',
+                        localId: body.messages[1].localId,
                         createdAt: 1,
                         updatedAt: 1,
-                    }
-                ]
-            }
-        }));
+                    }]
+                }
+            }))
+            .mockImplementationOnce(async (_url: string, body: { messages: Array<{ localId: string }> }) => ({
+                data: {
+                    messages: body.messages.map((message) => ({
+                        id: 'msg-b',
+                        seq: 2,
+                        localId: message.localId,
+                        createdAt: 2,
+                        updatedAt: 2,
+                    }))
+                }
+            }));
 
-        // Enqueue two messages so both get localIds; capture their seq promises
         const seqPromiseA = (client as any).enqueueMessage({ role: 'agent', content: 'a' }, false);
         const seqPromiseB = (client as any).enqueueMessage({ role: 'agent', content: 'b' }, false);
-
-        // Manually trigger flush
+        const seqPromiseC = (client as any).enqueueMessage({ role: 'agent', content: 'c' }, false);
         (client as any).sendSync.invalidate();
 
-        // seqPromiseA should resolve (its localId appears in the response)
-        // seqPromiseB should reject (its localId was NOT in the response)
+        await expect(seqPromiseA).resolves.toBe(2);
+        await expect(seqPromiseB).resolves.toBe(1);
+        await expect(seqPromiseC).resolves.toBe(2);
         await waitForCheck(() => {
-            expect(mockAxiosPost).toHaveBeenCalledTimes(1);
+            expect(mockAxiosPost).toHaveBeenCalledTimes(2);
+            expect((client as any).pendingOutbox).toHaveLength(0);
         });
 
-        // seqPromiseA resolves for whichever localId the server echoed back
-        const resultA = await Promise.race([seqPromiseA, seqPromiseB.then(() => 'B-resolved')]);
-        expect(typeof resultA).toBe('number');
-
-        await expect(seqPromiseB).rejects.toThrow(/did not return seq/);
+        const firstBatch = mockAxiosPost.mock.calls[0][1].messages;
+        const retryBatch = mockAxiosPost.mock.calls[1][1].messages;
+        expect(firstBatch).toHaveLength(3);
+        expect(retryBatch).toEqual([
+            {
+                content: firstBatch[0].content,
+                localId: firstBatch[0].localId,
+            },
+            {
+                content: firstBatch[2].content,
+                localId: firstBatch[2].localId,
+            },
+        ]);
     });
 
     it('resolves enqueueMessageWithConsumptionAck after message-consumption round-trip', async () => {
