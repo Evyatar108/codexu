@@ -2729,31 +2729,6 @@
           "prompt": "Implement only the Happy app/UI portion of M1a from plans/happy-copilot-native-local-controller-backend/plan.md after the CLI mirror and session lifecycle hardening land. Render Copilot mirror sessions truthfully read-only: disable/hide composer, quick actions, context controls, fork/spawn/files/plugins/skills/agents/message actions and other phone mutation affordances while preserving static e-ink-friendly history/pagination rendering and session labeling. Add focused UI/hook/storage tests and changelog updates. Do not add steering or alter backend protocol. Use Claude Opus 4.8 high for UI judgment and review; commit locally, no push/release."
         }
       ]
-    },
-    {
-      "id": "happy-copilot-m1a-session-lifecycle",
-      "writablePaths": [
-        "packages/happy-cli/src/api/api.ts",
-        "packages/happy-cli/src/api/api.test.ts",
-        "packages/happy-cli/src/api/apiSession.ts",
-        "packages/happy-cli/src/api/apiSession.test.ts",
-        "packages/happy-cli/src/api/apiSession.lifecycle.integration.test.ts",
-        "packages/happy-cli/vitest.config.ts"
-      ],
-      "validationCommand": "pnpm --filter happy typecheck",
-      "dependsOn": [
-        "happy-copilot-m1a-cli-readonly-mirror"
-      ],
-      "title": "Harden restricted Happy session client lifecycle for Copilot mirror",
-      "stage": "ready",
-      "lifecycle": "active",
-      "actions": [
-        {
-          "id": "implement",
-          "label": "Implement",
-          "prompt": "Apply the reviewed M1a lifecycle hardening: constructor-level restricted ApiSessionClient profile (never install common handlers), stage-isolated bounded mirror cleanup, teardown-before-fallible-logging, clear reconnect and pending flush timers/resolvers on close, ignore late ACKs, and real Socket.IO no-ACK/logger-failure lifecycle coverage. Preserve normal profile behavior. Commit locally after tests/review; no push/release."
-        }
-      ]
     }
   ]
 }

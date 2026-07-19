@@ -13150,6 +13150,37 @@
         "commit": "6abd83ff7ed02999e41a5b80b30609986887c6d3"
       },
       "lastTouchedAt": "2026-07-19T08:09:00Z"
+    },
+    {
+      "id": "happy-copilot-m1a-session-lifecycle",
+      "writablePaths": [
+        "packages/happy-cli/src/api/api.ts",
+        "packages/happy-cli/src/api/api.test.ts",
+        "packages/happy-cli/src/api/apiSession.ts",
+        "packages/happy-cli/src/api/apiSession.test.ts",
+        "packages/happy-cli/src/api/apiSession.lifecycle.integration.test.ts",
+        "packages/happy-cli/vitest.config.ts"
+      ],
+      "validationCommand": "pnpm --filter happy typecheck",
+      "dependsOn": [
+        "happy-copilot-m1a-cli-readonly-mirror"
+      ],
+      "title": "Harden restricted Happy session client lifecycle for Copilot mirror",
+      "stage": "done",
+      "lifecycle": "completed",
+      "actions": [
+        {
+          "id": "implement",
+          "label": "Implement",
+          "prompt": "Apply the reviewed M1a lifecycle hardening: constructor-level restricted ApiSessionClient profile (never install common handlers), stage-isolated bounded mirror cleanup, teardown-before-fallible-logging, clear reconnect and pending flush timers/resolvers on close, ignore late ACKs, and real Socket.IO no-ACK/logger-failure lifecycle coverage. Preserve normal profile behavior. Commit locally after tests/review; no push/release."
+        }
+      ],
+      "completion": {
+        "completedAt": "2026-07-19T08:20:00Z",
+        "summary": "Shipped restricted ApiSessionClient lifecycle hardening: constructor-level profile, bounded stage-isolated teardown, logger-safe close, reconnect/flush timer cancellation, late-ACK safety, and real Socket.IO lifecycle coverage.",
+        "commit": "4959088daf55bc6f6ef17b4b4f78117cefb890ee"
+      },
+      "lastTouchedAt": "2026-07-19T08:20:00Z"
     }
   ]
 }
