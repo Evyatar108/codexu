@@ -2657,7 +2657,8 @@
       ],
       "dependsOn": [
         "happy-copilot-m1a-session-lifecycle",
-        "happy-copilot-m1a-app-readonly-gating"
+        "happy-copilot-m1a-app-readonly-gating",
+        "happy-copilot-m1a-ask-user-readonly"
       ],
       "title": "Add Copilot CLI as a Happy backend via native local controller",
       "stage": "ready",
@@ -2666,7 +2667,7 @@
         {
           "id": "complete-m1a",
           "label": "Complete M1a",
-          "prompt": "Coordinate completion of session lifecycle hardening and app read-only gating after the CLI mirror core. Verify M0-delivery, CLI mirror, app gating, real managed-server smoke, >200-row pagination, restart replay, default-off behavior, and no Copilot runtime changes. Do not add steering or hardening scope."
+          "prompt": "Coordinate completion of session lifecycle, app gating and AskUserQuestion read-only follow-up. Verify M0-delivery, CLI mirror, app gating, real managed-server smoke, >200-row pagination, restart replay, default-off behavior, and no Copilot runtime changes. Do not add steering or hardening scope."
         }
       ]
     },
@@ -2708,6 +2709,7 @@
         "packages/happy-app/sources/components/ActiveSessionsGroupCompact.tsx",
         "packages/happy-app/sources/components/ActiveSessionsGroupCompact.test.tsx",
         "packages/happy-app/sources/hooks/useSessionQuickActions.ts",
+        "packages/happy-app/sources/hooks/useSessionQuickActions.test.tsx",
         "packages/happy-app/sources/hooks/useSessionQuickActions.copilotReadOnly.test.ts",
         "packages/happy-app/sources/app/(app)/session/[id]",
         "packages/happy-app/sources/sync/storage.ts",
@@ -2726,7 +2728,28 @@
         {
           "id": "implement",
           "label": "Implement",
-          "prompt": "Implement only the Happy app/UI portion of M1a from plans/happy-copilot-native-local-controller-backend/plan.md after the CLI mirror and session lifecycle hardening land. Render Copilot mirror sessions truthfully read-only: disable/hide composer, quick actions, context controls, fork/spawn/files/plugins/skills/agents/message actions and other phone mutation affordances while preserving static e-ink-friendly history/pagination rendering and session labeling. Add focused UI/hook/storage tests and changelog updates. Do not add steering or alter backend protocol. Use Claude Opus 4.8 high for UI judgment and review; commit locally, no push/release."
+          "prompt": "Implement the Happy app/UI portion of M1a from the reviewed plan after CLI/lifecycle completion. Render Copilot mirror sessions truthfully read-only across composer/actions/routes while preserving static e-ink history/pagination/tool display and non-Copilot behavior. AskUserQuestion visual disabled state is a separate dependent task. Use Claude Opus 4.8 high; tests/typecheck/audit/review, commit locally, no push."
+        }
+      ]
+    },
+    {
+      "id": "happy-copilot-m1a-ask-user-readonly",
+      "writablePaths": [
+        "packages/happy-app/sources/components/tools/views/AskUserQuestionView.tsx",
+        "packages/happy-app/sources/components/MessageView.copilotReadOnly.test.tsx"
+      ],
+      "validationCommand": "pnpm --filter happy-app typecheck",
+      "dependsOn": [
+        "happy-copilot-m1a-app-readonly-gating"
+      ],
+      "title": "Render AskUserQuestion read-only for Copilot mirrors",
+      "stage": "ready",
+      "lifecycle": "active",
+      "actions": [
+        {
+          "id": "implement",
+          "label": "Implement",
+          "prompt": "For read-only Copilot mirror tool rendering, make AskUserQuestion non-interactive when sessionId is absent by including !!sessionId in canInteract. Preserve all question/option content, hide Submit and disable option toggles; non-Copilot remains interactive. Add focused MessageView/AskUserQuestion tests, typecheck, fork audit and Opus UI review. Commit locally, no push."
         }
       ]
     }
