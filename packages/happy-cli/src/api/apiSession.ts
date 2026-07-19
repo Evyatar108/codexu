@@ -693,6 +693,9 @@ export class ApiSessionClient extends EventEmitter {
     }
 
     private enqueueMessageWithDelivery(content: unknown, invalidate: boolean = true, localId: string = randomUUID()): Promise<MessageDelivery> {
+        if (localId.length === 0) {
+            return Promise.reject(new Error('Session message localId must not be empty'));
+        }
         // FORK PATCH: RESTORE-R2-done send path routes through the fork codec seam encodeOutgoing() in sessionPayloadCodec.ts, which serializes plaintext JSON (local `encrypted` is a misnomer); fork performs NO E2E encryption on send — behavior-preserving relocation, bytes unchanged (invariant HC-1)
         const encrypted = encodeOutgoing(content);
         const existing = this.seqResolvers.get(localId);
@@ -834,10 +837,11 @@ export class ApiSessionClient extends EventEmitter {
 
     /**
      * Queues a session envelope under a caller-stable id and resolves when that
-     * exact outbound row is acknowledged. Reuse localId across retries or
-     * process restarts. Delivery acknowledgement does not itself advance the
-     * inbound receive watermark; normal receive scanning may advance through
-     * the acknowledged row.
+     * exact outbound row is acknowledged. localId must be non-empty; invalid
+     * ids reject without queueing. Reuse localId across retries or process
+     * restarts. Delivery acknowledgement does not itself advance the inbound
+     * receive watermark; normal receive scanning may advance through the
+     * acknowledged row.
      */
     sendSessionProtocolMessageWithDelivery(
         envelope: SessionEnvelope,

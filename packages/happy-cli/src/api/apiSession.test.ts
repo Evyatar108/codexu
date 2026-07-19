@@ -562,6 +562,34 @@ describe('ApiSessionClient v3 messages API migration', () => {
         await expect(second).resolves.toEqual({ id: 'duplicate-message', seq: 25 });
     });
 
+    it('rejects an empty caller localId before queue mutation and keeps later delivery usable', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        const envelope = {
+            id: 'validated-envelope',
+            time: 3,
+            role: 'agent' as const,
+            ev: { t: 'text' as const, text: 'validated' },
+        };
+
+        await expect(client.sendSessionProtocolMessageWithDelivery(
+            envelope,
+            { localId: '' },
+        )).rejects.toThrow('Session message localId must not be empty');
+        expect(mockAxiosPost).not.toHaveBeenCalled();
+        expect((client as any).pendingOutbox).toHaveLength(0);
+        expect((client as any).seqResolvers.size).toBe(0);
+        expect((client as any).outboundLocalIds.size).toBe(0);
+
+        mockNextPostAck(26, 'validated-message');
+        await expect(client.sendSessionProtocolMessageWithDelivery(
+            envelope,
+            { localId: 'validated-local-id' },
+        )).resolves.toEqual({ id: 'validated-message', seq: 26 });
+        expect(mockAxiosPost).toHaveBeenCalledTimes(1);
+        expect(mockAxiosPost.mock.calls[0][1].messages[0].localId).toBe('validated-local-id');
+        expect((client as any).pendingOutbox).toHaveLength(0);
+    });
+
     it('reuses a deterministic localId across retry and a new client instance', async () => {
         const envelope = {
             id: 'restart-envelope',
