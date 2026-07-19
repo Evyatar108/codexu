@@ -62,6 +62,23 @@ const integrationProjects = [
     {
         extends: true,
         test: {
+            name: 'integration-copilot-native',
+            fileParallelism: false,
+            hookTimeout: 120_000,
+            maxWorkers: 1,
+            minWorkers: 1,
+            testTimeout: 180_000,
+            include: [
+                'src/agent/copilot/copilot.integration.test.ts',
+            ],
+            sequence: {
+                groupOrder: 2,
+            },
+        },
+    },
+    {
+        extends: true,
+        test: {
             name: 'integration-authenticated',
             fileParallelism: false,
             hookTimeout: 120_000,

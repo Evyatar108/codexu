@@ -10,6 +10,10 @@ import * as daemonClient from '@/daemon/daemonClient';
 
 const SESSION_PATH = '/v1/sessions';
 
+export type ApiSessionClientOptions = {
+  rpcProfile?: 'full' | 'mirror-read-only';
+};
+
 export class ApiClient {
 
   static async create(credential: Credentials) {
@@ -131,8 +135,12 @@ export class ApiClient {
     }
   }
 
-  sessionSyncClient(session: Session): ApiSessionClient {
-    return new ApiSessionClient(this.credential.token, session);
+  sessionSyncClient(session: Session, options?: ApiSessionClientOptions): ApiSessionClient {
+    const client = new ApiSessionClient(this.credential.token, session);
+    if (options?.rpcProfile === 'mirror-read-only') {
+      client.rpcHandlerManager.clearHandlers();
+    }
+    return client;
   }
 
   machineSyncClient(machine: Machine): ApiMachineClient {

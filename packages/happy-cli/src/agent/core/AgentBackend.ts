@@ -45,10 +45,10 @@ export interface McpServerConfig {
 }
 
 /** Transport type for agent communication */
-export type AgentTransport = 'native-claude' | 'mcp-codex' | 'acp';
+export type AgentTransport = 'native-claude' | 'mcp-codex' | 'native-copilot' | 'acp';
 
 /** Agent identifier */
-export type AgentId = 'claude' | 'codex' | 'gemini' | 'opencode' | 'openclaw' | 'claude-acp' | 'codex-acp';
+export type AgentId = 'claude' | 'codex' | 'copilot' | 'gemini' | 'opencode' | 'openclaw' | 'claude-acp' | 'codex-acp';
 
 /**
  * Configuration for creating an agent backend
