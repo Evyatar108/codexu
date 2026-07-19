@@ -2653,49 +2653,20 @@
       "id": "happy-copilot-native-local-controller-backend",
       "writablePaths": [
         "plans/happy-copilot-native-local-controller-backend",
-        "docs/copilot-cli-integration.md",
-        "packages/happy-cli/src/index.ts",
-        "packages/happy-cli/src/api/api.ts",
-        "packages/happy-cli/src/api/api.test.ts",
-        "packages/happy-cli/vitest.config.ts",
-        "packages/happy-cli/src/utils/createSessionMetadata.ts",
-        "packages/happy-cli/src/utils/createSessionMetadata.test.ts",
-        "packages/happy-cli/src/commands/copilotCommand.ts",
-        "packages/happy-cli/src/commands/copilotCommand.test.ts",
-        "packages/happy-cli/src/agent/core/AgentBackend.ts",
-        "packages/happy-cli/src/agent/copilot",
-        "packages/happy-app/sources/-session/SessionView.tsx",
-        "packages/happy-app/sources/-session/SessionView.copilotReadOnly.test.tsx",
-        "packages/happy-app/sources/fork/session/useForkComposer.ts",
-        "packages/happy-app/sources/fork/session/useForkComposer.copilotReadOnly.test.ts",
-        "packages/happy-app/sources/fork/session/useSessionContextDrawer.tsx",
-        "packages/happy-app/sources/fork/session/useSessionContextDrawer.copilotReadOnly.test.tsx",
-        "packages/happy-app/sources/components/MessageView.tsx",
-        "packages/happy-app/sources/components/MessageView.copilotReadOnly.test.tsx",
-        "packages/happy-app/sources/components/ChatList.tsx",
-        "packages/happy-app/sources/components/ChatList.copilotReadOnly.test.tsx",
-        "packages/happy-app/sources/components/ActiveSessionsGroupCompact.tsx",
-        "packages/happy-app/sources/components/ActiveSessionsGroupCompact.test.tsx",
-        "packages/happy-app/sources/hooks/useSessionQuickActions.ts",
-        "packages/happy-app/sources/hooks/useSessionQuickActions.copilotReadOnly.test.ts",
-        "packages/happy-app/sources/app/(app)/session/[id]",
-        "packages/happy-app/sources/sync/storage.ts",
-        "packages/happy-app/sources/sync/storage.copilotSequenceOrder.test.ts",
-        "packages/happy-app/CHANGELOG.md",
-        "packages/happy-app/sources/changelog/changelog.json",
-        "packages/happy-wire"
+        "docs/copilot-cli-integration.md"
       ],
       "dependsOn": [
-        "happy-copilot-m0-delivery"
+        "happy-copilot-m1a-cli-readonly-mirror",
+        "happy-copilot-m1a-app-readonly-gating"
       ],
       "title": "Add Copilot CLI as a Happy backend via native local controller",
       "stage": "ready",
       "lifecycle": "active",
       "actions": [
         {
-          "id": "implement-m1a",
-          "label": "Implement M1a read-only mirror",
-          "prompt": "After happy-copilot-m0-delivery completes, implement only M1a from plans/happy-copilot-native-local-controller-backend/plan.md. Add a default-off Copilot agent/provider that directly spawns a managed-server target, validates loopback/token/PID/protocol/schema/version, connects and establishes routing, prebuffers session.event before resume, backfills persisted eventLog history, deduplicates by event id, establishes the live frontier, and then relays a small closed projected event allowlist into Happy with deterministic localIds and unchanged pagination. The phone surface must be truthfully read-only: restricted RPC profile, no composer/control/permission/receipt actions. Preserve persisted lane order and prebuffer arrival order; never invent chronology. Restart replays from start. No external attach, runtime patch, SEA/materialization, binary/DACL hardening, rich steering, interactive prompts, telemetry untag, or Copilot source edits. Complete focused and real managed-server tests plus code/docs review convergence; commit locally, no push/release."
+          "id": "complete-m1a",
+          "label": "Complete M1a",
+          "prompt": "Coordinate completion of the CLI read-only mirror and app read-only gating child tasks. Verify M0-delivery, CLI mirror, app gating, real managed-server smoke, >200-row pagination, restart replay, default-off behavior, and no Copilot runtime changes. Do not add steering or hardening scope."
         }
       ]
     },
@@ -2718,6 +2689,73 @@
           "id": "implement",
           "label": "Implement",
           "prompt": "Implement the independent M0-codec task from plans/happy-copilot-native-local-controller-backend/plan.md. Decode fetched current rows as canonical plaintext JSON first, fall back to the existing legacy decryption path only when plaintext parsing fails, and surface typed malformed-row behavior. Preserve outgoing bytes and live decoding. Cover plaintext, legacy encrypted, malformed, pagination/reconnect, and cross-provider regressions. This task is independent and does not block the Copilot mirror. Commit locally after review convergence; no push or release."
+        }
+      ]
+    },
+    {
+      "id": "happy-copilot-m1a-cli-readonly-mirror",
+      "writablePaths": [
+        "packages/happy-cli/src/index.ts",
+        "packages/happy-cli/src/api/api.ts",
+        "packages/happy-cli/src/api/api.test.ts",
+        "packages/happy-cli/vitest.config.ts",
+        "packages/happy-cli/src/utils/createSessionMetadata.ts",
+        "packages/happy-cli/src/utils/createSessionMetadata.test.ts",
+        "packages/happy-cli/src/commands/copilotCommand.ts",
+        "packages/happy-cli/src/commands/copilotCommand.test.ts",
+        "packages/happy-cli/src/agent/core/AgentBackend.ts",
+        "packages/happy-cli/src/agent/copilot"
+      ],
+      "validationCommand": "pnpm --filter happy typecheck",
+      "dependsOn": [
+        "happy-copilot-m0-delivery"
+      ],
+      "title": "Implement Copilot M1a CLI read-only mirror",
+      "stage": "ready",
+      "lifecycle": "active",
+      "actions": [
+        {
+          "id": "implement",
+          "label": "Implement",
+          "prompt": "Implement the CLI portion of M1a from plans/happy-copilot-native-local-controller-backend/plan.md after M0-delivery. Add the default-off Copilot agent/provider, direct managed-server spawn/discovery and token/PID/protocol/schema/version validation, restricted read-only ApiSessionClient profile, source-correct session.event prebuffer before resume plus eventLog backfill/dedup/frontier, small closed event projection, deterministic localIds, replay-from-start restart behavior, and real managed-server integration tests. No phone input/permissions/steering, UI changes, external attach, runtime patch, telemetry untag, SEA/DACL hardening, or codec fix. Review to clean and commit locally; no push/release."
+        }
+      ]
+    },
+    {
+      "id": "happy-copilot-m1a-app-readonly-gating",
+      "writablePaths": [
+        "packages/happy-app/sources/-session/SessionView.tsx",
+        "packages/happy-app/sources/-session/SessionView.copilotReadOnly.test.tsx",
+        "packages/happy-app/sources/fork/session/useForkComposer.ts",
+        "packages/happy-app/sources/fork/session/useForkComposer.copilotReadOnly.test.ts",
+        "packages/happy-app/sources/fork/session/useSessionContextDrawer.tsx",
+        "packages/happy-app/sources/fork/session/useSessionContextDrawer.copilotReadOnly.test.tsx",
+        "packages/happy-app/sources/components/MessageView.tsx",
+        "packages/happy-app/sources/components/MessageView.copilotReadOnly.test.tsx",
+        "packages/happy-app/sources/components/ChatList.tsx",
+        "packages/happy-app/sources/components/ChatList.copilotReadOnly.test.tsx",
+        "packages/happy-app/sources/components/ActiveSessionsGroupCompact.tsx",
+        "packages/happy-app/sources/components/ActiveSessionsGroupCompact.test.tsx",
+        "packages/happy-app/sources/hooks/useSessionQuickActions.ts",
+        "packages/happy-app/sources/hooks/useSessionQuickActions.copilotReadOnly.test.ts",
+        "packages/happy-app/sources/app/(app)/session/[id]",
+        "packages/happy-app/sources/sync/storage.ts",
+        "packages/happy-app/sources/sync/storage.copilotSequenceOrder.test.ts",
+        "packages/happy-app/CHANGELOG.md",
+        "packages/happy-app/sources/changelog/changelog.json"
+      ],
+      "validationCommand": "pnpm --filter happy-app typecheck",
+      "dependsOn": [
+        "happy-copilot-m1a-cli-readonly-mirror"
+      ],
+      "title": "Add read-only Happy app gating for Copilot mirror",
+      "stage": "ready",
+      "lifecycle": "active",
+      "actions": [
+        {
+          "id": "implement",
+          "label": "Implement",
+          "prompt": "Implement only the Happy app/UI portion of M1a from plans/happy-copilot-native-local-controller-backend/plan.md after the CLI mirror lands. Render Copilot mirror sessions truthfully read-only: disable/hide composer, quick actions, context controls, fork/spawn/files/plugins/skills/agents/message actions and other phone mutation affordances while preserving static e-ink-friendly history/pagination rendering and session labeling. Add focused UI/hook/storage tests and changelog updates. Do not add steering or alter backend protocol. Use Claude Opus 4.8 high for UI judgment and review; commit locally, no push/release."
         }
       ]
     }
