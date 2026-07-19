@@ -14,7 +14,9 @@ const {
     mockTunnelFetch,
     mockLoggerDebug,
     mockLoggerDebugLargeJson,
-    mockMapClaudeLogMessageToSessionEnvelopes
+    mockMapClaudeLogMessageToSessionEnvelopes,
+    mockRegisterCommonHandlers,
+    mockRpcOnSocketDisconnect,
 } = vi.hoisted(() => {
     const mockAxiosGet = vi.fn();
     const mockAxiosPost = vi.fn();
@@ -56,7 +58,9 @@ const {
         }),
         mockLoggerDebug: vi.fn(),
         mockLoggerDebugLargeJson: vi.fn(),
-        mockMapClaudeLogMessageToSessionEnvelopes: vi.fn()
+        mockMapClaudeLogMessageToSessionEnvelopes: vi.fn(),
+        mockRegisterCommonHandlers: vi.fn(),
+        mockRpcOnSocketDisconnect: vi.fn(),
     };
 });
 
@@ -105,13 +109,13 @@ vi.mock('@/claude/utils/sessionProtocolMapper', async (importOriginal) => {
 vi.mock('@/api/rpc/RpcHandlerManager', () => ({
     RpcHandlerManager: class {
         onSocketConnect = vi.fn();
-        onSocketDisconnect = vi.fn();
+        onSocketDisconnect = mockRpcOnSocketDisconnect;
         handleRequest = vi.fn(async () => '');
     }
 }));
 
 vi.mock('@/modules/common/registerCommonHandlers', () => ({
-    registerCommonHandlers: vi.fn()
+    registerCommonHandlers: mockRegisterCommonHandlers,
 }));
 
 vi.mock('@/utils/time', () => ({
@@ -239,6 +243,8 @@ describe('ApiSessionClient v3 messages API migration', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        mockLoggerDebug.mockReset();
+        mockLoggerDebugLargeJson.mockReset();
         socketHandlers = {};
         session = makeSession();
         mockSocket = {
@@ -280,6 +286,79 @@ describe('ApiSessionClient v3 messages API migration', () => {
         await waitForCheck(() => {
             expect(mockSocket.connect).toHaveBeenCalledTimes(1);
         });
+    });
+
+    it('never installs common handlers for the restricted profile', async () => {
+        const client = new ApiSessionClient('fake-token', session, { rpcProfile: 'mirror-read-only' });
+
+        await waitForSocketInit(mockSocket);
+        expect(mockRegisterCommonHandlers).not.toHaveBeenCalled();
+        await client.close();
+    });
+
+    it('preserves normal-profile handlers', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+
+        await waitForSocketInit(mockSocket);
+        expect(mockRegisterCommonHandlers).toHaveBeenCalledOnce();
+        await client.close();
+    });
+
+    it('tears down socket, RPC, and client listeners before fallible close logging', async () => {
+        const client = new ApiSessionClient('fake-token', session, { rpcProfile: 'mirror-read-only' });
+        const archived = vi.fn();
+        client.on('archived', archived);
+        await waitForSocketInit(mockSocket);
+        mockLoggerDebug.mockImplementation(() => {
+            throw new Error('logger unavailable');
+        });
+
+        await expect(Promise.race([
+            client.close(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('close timed out')), 250)),
+        ])).resolves.toBeUndefined();
+        expect(mockRpcOnSocketDisconnect).toHaveBeenCalledOnce();
+        expect(mockSocket.removeAllListeners).toHaveBeenCalledOnce();
+        expect(mockSocket.close).toHaveBeenCalledOnce();
+        expect(client.listenerCount('archived')).toBe(0);
+        expect(Object.values(socketHandlers).flat()).toHaveLength(0);
+    });
+
+    it('clears reconnect interval and timeout during logger-failure cleanup', async () => {
+        const client = new ApiSessionClient('fake-token', session, { rpcProfile: 'mirror-read-only' });
+        await waitForSocketInit(mockSocket);
+        mockSocket.connected = false;
+        vi.useFakeTimers();
+        try {
+            emitSocketEvent('disconnect', 'transport close');
+            expect(vi.getTimerCount()).toBeGreaterThan(0);
+            mockLoggerDebug.mockImplementation(() => {
+                throw new Error('logger unavailable');
+            });
+
+            await client.close();
+            expect(vi.getTimerCount()).toBe(0);
+            expect(mockSocket.removeAllListeners).toHaveBeenCalledOnce();
+            expect(mockSocket.close).toHaveBeenCalledOnce();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('clears successful flush deadline timers', async () => {
+        const client = new ApiSessionClient('fake-token', session, { rpcProfile: 'mirror-read-only' });
+        await waitForSocketInit(mockSocket);
+        mockSocket.emit.mockImplementation((event: string, callback?: () => void) => {
+            if (event === 'ping') callback?.();
+        });
+        vi.useFakeTimers();
+        try {
+            await client.flush();
+            expect(vi.getTimerCount()).toBe(0);
+            await client.close();
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it('queues agent configuration metadata diffs until a runner subscribes', async () => {

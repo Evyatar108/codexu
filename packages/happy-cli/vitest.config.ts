@@ -70,6 +70,7 @@ const integrationProjects = [
             testTimeout: 180_000,
             include: [
                 'src/agent/copilot/copilot.integration.test.ts',
+                'src/api/apiSession.lifecycle.integration.test.ts',
             ],
             sequence: {
                 groupOrder: 2,

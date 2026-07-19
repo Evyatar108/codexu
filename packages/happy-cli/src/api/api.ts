@@ -136,11 +136,7 @@ export class ApiClient {
   }
 
   sessionSyncClient(session: Session, options?: ApiSessionClientOptions): ApiSessionClient {
-    const client = new ApiSessionClient(this.credential.token, session);
-    if (options?.rpcProfile === 'mirror-read-only') {
-      client.rpcHandlerManager.clearHandlers();
-    }
-    return client;
+    return new ApiSessionClient(this.credential.token, session, options);
   }
 
   machineSyncClient(machine: Machine): ApiMachineClient {
