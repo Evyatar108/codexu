@@ -13115,6 +13115,41 @@
         "commit": "8427fcc1d49187e91857c83e53efdde0ecd2af56"
       },
       "lastTouchedAt": "2026-07-19T02:04:00Z"
+    },
+    {
+      "id": "happy-copilot-m1a-cli-readonly-mirror",
+      "writablePaths": [
+        "packages/happy-cli/src/index.ts",
+        "packages/happy-cli/src/api/api.ts",
+        "packages/happy-cli/src/api/api.test.ts",
+        "packages/happy-cli/vitest.config.ts",
+        "packages/happy-cli/src/utils/createSessionMetadata.ts",
+        "packages/happy-cli/src/utils/createSessionMetadata.test.ts",
+        "packages/happy-cli/src/commands/copilotCommand.ts",
+        "packages/happy-cli/src/commands/copilotCommand.test.ts",
+        "packages/happy-cli/src/agent/core/AgentBackend.ts",
+        "packages/happy-cli/src/agent/copilot"
+      ],
+      "validationCommand": "pnpm --filter happy typecheck",
+      "dependsOn": [
+        "happy-copilot-m0-delivery"
+      ],
+      "title": "Implement Copilot M1a CLI read-only mirror",
+      "stage": "done",
+      "lifecycle": "completed",
+      "actions": [
+        {
+          "id": "implement",
+          "label": "Implement",
+          "prompt": "Implement the CLI portion of M1a from plans/happy-copilot-native-local-controller-backend/plan.md after M0-delivery. Add the default-off Copilot agent/provider, direct managed-server spawn/discovery and token/PID/protocol/schema/version validation, restricted read-only ApiSessionClient profile, source-correct session.event prebuffer before resume plus eventLog backfill/dedup/frontier, small closed event projection, deterministic localIds, replay-from-start restart behavior, and real managed-server integration tests. No phone input/permissions/steering, UI changes, external attach, runtime patch, telemetry untag, SEA/DACL hardening, or codec fix. Review to clean and commit locally; no push/release."
+        }
+      ],
+      "completion": {
+        "completedAt": "2026-07-19T08:09:00Z",
+        "summary": "M1a CLI core shipped: default-off spawn-only Copilot managed-server mirror with restricted RPC factory, gap-free live/history relay, safe projection, deterministic delivery and restart replay. ApiSession lifecycle hardening is tracked separately.",
+        "commit": "6abd83ff7ed02999e41a5b80b30609986887c6d3"
+      },
+      "lastTouchedAt": "2026-07-19T08:09:00Z"
     }
   ]
 }
