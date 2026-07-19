@@ -484,6 +484,105 @@ describe('ApiSessionClient v3 messages API migration', () => {
             .toEqual(Array.from({ length: 5 }, (_, index) => `ordered-${index + 50}`));
     });
 
+    it('evicts delivered localId tracking as long-running inbound scanning catches up', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        const onMessage = vi.fn();
+        client.on('message', onMessage);
+        const messageCount = 120;
+        mockAxiosPost.mockImplementation(async (_url: string, body: { messages: Array<{ localId: string }> }) => ({
+            data: {
+                messages: body.messages.map((message) => {
+                    const seq = Number(message.localId.slice('long-run-'.length)) + 1;
+                    return {
+                        id: `msg-${seq}`,
+                        seq,
+                        localId: message.localId,
+                        createdAt: seq,
+                        updatedAt: seq,
+                    };
+                })
+            }
+        }));
+
+        const deliveries = Array.from({ length: messageCount }, (_, index) => (
+            (client as any).enqueueMessageWithDelivery(
+                { role: 'agent', content: { index } },
+                false,
+                `long-run-${index}`,
+            )
+        ));
+        (client as any).sendSync.invalidate();
+
+        await expect(Promise.all(deliveries)).resolves.toHaveLength(messageCount);
+        expect((client as any).lastSeq).toBe(0);
+        expect((client as any).outboundDeliverySeqs.size).toBe(messageCount);
+
+        const storedMessages = Array.from({ length: messageCount }, (_, index) => {
+            const seq = index + 1;
+            return {
+                id: `msg-${seq}`,
+                seq,
+                localId: `long-run-${index}`,
+                content: { t: 'encrypted', c: plaintextContent({ role: 'session' }) },
+                createdAt: seq,
+                updatedAt: seq,
+            };
+        });
+        mockAxiosGet
+            .mockResolvedValueOnce({
+                data: {
+                    messages: storedMessages.slice(0, 100),
+                    hasMore: true,
+                }
+            })
+            .mockResolvedValueOnce({
+                data: {
+                    messages: storedMessages.slice(100),
+                    hasMore: false,
+                }
+            });
+
+        await (client as any).fetchMessages();
+
+        expect((client as any).lastSeq).toBe(messageCount);
+        expect((client as any).outboundDeliverySeqs.size).toBe(0);
+        expect((client as any).outboundDeliveryHeap).toHaveLength(0);
+        expect(onMessage).not.toHaveBeenCalled();
+        expect(mockAxiosGet.mock.calls[1][1].params.after_seq).toBe(100);
+    });
+
+    it('evicts out-of-order delivered sequences in watermark order', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        const highDelivery = (client as any).enqueueMessageWithDelivery(
+            { role: 'agent', content: 'high' },
+            false,
+            'heap-high',
+        );
+        const lowDelivery = (client as any).enqueueMessageWithDelivery(
+            { role: 'agent', content: 'low' },
+            false,
+            'heap-low',
+        );
+
+        (client as any).resolveOutboundDelivery('heap-high', { id: 'msg-high', seq: 30 });
+        (client as any).resolveOutboundDelivery('heap-low', { id: 'msg-low', seq: 20 });
+        await expect(Promise.all([highDelivery, lowDelivery])).resolves.toEqual([
+            { id: 'msg-high', seq: 30 },
+            { id: 'msg-low', seq: 20 },
+        ]);
+
+        (client as any).lastSeq = 25;
+        (client as any).evictScannedOutboundDeliveries();
+        expect((client as any).outboundDeliverySeqs).toEqual(new Map([['heap-high', 30]]));
+        expect((client as any).outboundDeliveryHeap).toEqual([{ localId: 'heap-high', seq: 30 }]);
+
+        (client as any).lastSeq = 30;
+        (client as any).evictScannedOutboundDeliveries();
+        expect((client as any).outboundDeliverySeqs.size).toBe(0);
+        expect((client as any).outboundDeliveryHeap).toHaveLength(0);
+        await client.close();
+    });
+
     it('correlates out-of-order acknowledgements by caller-supplied localId', async () => {
         const client = new ApiSessionClient('fake-token', session);
         mockAxiosPost.mockImplementationOnce(async (_url: string, body: { messages: Array<{ localId: string }> }) => ({
@@ -578,7 +677,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
         expect(mockAxiosPost).not.toHaveBeenCalled();
         expect((client as any).pendingOutbox).toHaveLength(0);
         expect((client as any).seqResolvers.size).toBe(0);
-        expect((client as any).outboundLocalIds.size).toBe(0);
+        expect((client as any).outboundDeliverySeqs.size).toBe(0);
 
         mockNextPostAck(26, 'validated-message');
         await expect(client.sendSessionProtocolMessageWithDelivery(
@@ -1464,7 +1563,9 @@ describe('ApiSessionClient v3 messages API migration', () => {
     it('correlates a socket-before-HTTP self-echo without skipping an interleaved phone row', async () => {
         const client = new ApiSessionClient('fake-token', session);
         const onUserMessage = vi.fn();
+        const onMessage = vi.fn();
         client.onUserMessage(onUserMessage);
+        client.on('message', onMessage);
         (client as any).lastSeq = 10;
 
         type PostResponse = {
@@ -1510,6 +1611,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
 
         await expect(deliveryPromise).resolves.toEqual({ id: 'msg-11', seq: 11 });
         expect((client as any).lastSeq).toBe(10);
+        expect((client as any).outboundDeliverySeqs.get('socket-first-local')).toBe(11);
         await waitForCheck(() => expect(mockAxiosGet).toHaveBeenCalledTimes(1));
 
         const phoneMessage = {
@@ -1545,6 +1647,8 @@ describe('ApiSessionClient v3 messages API migration', () => {
             expect((client as any).lastSeq).toBe(12);
         });
         expect(onUserMessage).toHaveBeenCalledTimes(1);
+        expect(onMessage).not.toHaveBeenCalled();
+        expect((client as any).outboundDeliverySeqs.size).toBe(0);
 
         resolvePost({
             data: {
@@ -1558,6 +1662,78 @@ describe('ApiSessionClient v3 messages API migration', () => {
             }
         });
         await waitForCheck(() => expect((client as any).pendingOutbox).toHaveLength(0));
+        expect((client as any).outboundDeliverySeqs.size).toBe(0);
+    });
+
+    it('keeps ACK-before-socket tracking until the self-echo is scanned', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        const onUserMessage = vi.fn();
+        const onMessage = vi.fn();
+        client.onUserMessage(onUserMessage);
+        client.on('message', onMessage);
+        (client as any).lastSeq = 20;
+        mockAxiosPost.mockImplementationOnce(async (_url: string, body: { messages: Array<{ localId: string }> }) => ({
+            data: {
+                messages: [{
+                    id: 'msg-21',
+                    seq: 21,
+                    localId: body.messages[0].localId,
+                    createdAt: 21,
+                    updatedAt: 21,
+                }]
+            }
+        }));
+
+        await expect(client.sendSessionProtocolMessageWithDelivery({
+            id: 'ack-first-envelope',
+            time: 21,
+            role: 'agent',
+            ev: { t: 'text', text: 'ack first' },
+        }, { localId: 'ack-first-local' })).resolves.toEqual({ id: 'msg-21', seq: 21 });
+        expect((client as any).lastSeq).toBe(20);
+        expect((client as any).outboundDeliverySeqs.get('ack-first-local')).toBe(21);
+
+        const phoneMessage = {
+            role: 'user',
+            content: { type: 'text', text: 'after ack' }
+        };
+        mockAxiosGet.mockResolvedValueOnce({
+            data: {
+                messages: [
+                    {
+                        id: 'msg-21',
+                        seq: 21,
+                        localId: 'ack-first-local',
+                        content: { t: 'encrypted', c: plaintextContent({ role: 'session' }) },
+                        createdAt: 21,
+                        updatedAt: 21,
+                    },
+                    {
+                        id: 'msg-22',
+                        seq: 22,
+                        localId: null,
+                        content: { t: 'encrypted', c: encryptContent(session, phoneMessage) },
+                        createdAt: 22,
+                        updatedAt: 22,
+                    },
+                ],
+                hasMore: false,
+            }
+        });
+
+        emitSocketEvent('update', createNewMessageUpdate(
+            21,
+            plaintextContent({ role: 'session', content: { role: 'agent' } }),
+            'ack-first-local',
+        ));
+
+        await waitForCheck(() => {
+            expect(onUserMessage).toHaveBeenCalledWith(phoneMessage);
+            expect((client as any).lastSeq).toBe(22);
+        });
+        expect(onUserMessage).toHaveBeenCalledTimes(1);
+        expect(onMessage).not.toHaveBeenCalled();
+        expect((client as any).outboundDeliverySeqs.size).toBe(0);
     });
 
     it('invalidates receive sync and fetches on seq gap', async () => {
@@ -1704,6 +1880,130 @@ describe('ApiSessionClient v3 messages API migration', () => {
         expect(mockAxiosGet.mock.calls[0][1].params.after_seq).toBe(0);
     });
 
+    it('clears delivered and pending outbound tracking on close', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        mockSocket.close.mockImplementation(() => {
+            emitSocketEvent('disconnect', 'io client disconnect');
+        });
+        mockNextPostAck(40, 'close-delivered-message');
+
+        await expect(client.sendSessionProtocolMessageWithDelivery({
+            id: 'close-delivered-envelope',
+            time: 40,
+            role: 'agent',
+            ev: { t: 'text', text: 'delivered before close' },
+        }, { localId: 'close-delivered-local' })).resolves.toEqual({
+            id: 'close-delivered-message',
+            seq: 40,
+        });
+        (client as any).enqueueMessageWithDelivery(
+            { role: 'agent', content: 'pending at close' },
+            false,
+            'close-pending-local',
+        );
+
+        expect((client as any).outboundDeliverySeqs).toEqual(new Map([
+            ['close-delivered-local', 40],
+            ['close-pending-local', null],
+        ]));
+        expect((client as any).seqResolvers.size).toBe(1);
+
+        await client.close();
+
+        expect((client as any).outboundDeliverySeqs.size).toBe(0);
+        expect((client as any).outboundDeliveryHeap).toHaveLength(0);
+        expect((client as any).seqResolvers.size).toBe(0);
+        expect((client as any).pendingOutbox).toHaveLength(0);
+        expect((client as any).pendingOutboxHead).toBe(0);
+        expect((client as any).reconnectInterval).toBeNull();
+    });
+
+    it('ignores GET and POST completions that arrive after close', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        const onUserMessage = vi.fn();
+        client.onUserMessage(onUserMessage);
+        (client as any).lastSeq = 1;
+
+        type PostResponse = {
+            data: {
+                messages: Array<{ id: string; seq: number; localId: string; createdAt: number; updatedAt: number }>;
+            };
+        };
+        type GetResponse = {
+            data: {
+                messages: Array<{
+                    id: string;
+                    seq: number;
+                    localId: null;
+                    content: { t: 'encrypted'; c: string };
+                    createdAt: number;
+                    updatedAt: number;
+                }>;
+                hasMore: boolean;
+            };
+        };
+        let resolvePost!: (value: PostResponse) => void;
+        let resolveGet!: (value: GetResponse) => void;
+        mockAxiosPost.mockImplementationOnce(() => new Promise<PostResponse>((resolve) => {
+            resolvePost = resolve;
+        }));
+        mockAxiosGet.mockImplementationOnce(() => new Promise<GetResponse>((resolve) => {
+            resolveGet = resolve;
+        }));
+
+        const deliveryPromise = client.sendSessionProtocolMessageWithDelivery({
+            id: 'late-post-envelope',
+            time: 2,
+            role: 'agent',
+            ev: { t: 'text', text: 'late post' },
+        }, { localId: 'late-post-local' });
+        const fetchPromise = (client as any).fetchMessages();
+        await waitForCheck(() => {
+            expect(mockAxiosPost).toHaveBeenCalledTimes(1);
+            expect(mockAxiosGet).toHaveBeenCalledTimes(1);
+        });
+
+        await client.close();
+        await expect(deliveryPromise).rejects.toThrow('Session closed before seq was assigned');
+        resolvePost({
+            data: {
+                messages: [{
+                    id: 'late-post-message',
+                    seq: 2,
+                    localId: 'late-post-local',
+                    createdAt: 2,
+                    updatedAt: 2,
+                }],
+            },
+        });
+        resolveGet({
+            data: {
+                messages: [{
+                    id: 'late-phone-message',
+                    seq: 2,
+                    localId: null,
+                    content: { t: 'encrypted', c: encryptContent(session, {
+                        role: 'user',
+                        content: { type: 'text', text: 'late phone row' },
+                    }) },
+                    createdAt: 2,
+                    updatedAt: 2,
+                }],
+                hasMore: false,
+            },
+        });
+        await fetchPromise;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+
+        expect(onUserMessage).not.toHaveBeenCalled();
+        expect((client as any).lastSeq).toBe(1);
+        expect((client as any).pendingOutbox).toHaveLength(0);
+        expect((client as any).pendingOutboxHead).toBe(0);
+        expect((client as any).seqResolvers.size).toBe(0);
+        expect((client as any).outboundDeliverySeqs.size).toBe(0);
+        expect((client as any).outboundDeliveryHeap).toHaveLength(0);
+    });
+
     it('stops send and receive sync loops on close', async () => {
         const client = new ApiSessionClient('fake-token', session);
         await waitForSocketInit(mockSocket);
@@ -1726,12 +2026,22 @@ describe('ApiSessionClient v3 messages API migration', () => {
             content: { type: 'text', text: 'after-close' }
         })));
         client.sendCodexMessage({ type: 'after-close-send' });
+        await expect(client.sendSessionProtocolMessageWithDelivery({
+            id: 'after-close-envelope',
+            time: 1,
+            role: 'agent',
+            ev: { t: 'text', text: 'after close' },
+        }, { localId: 'after-close-local' })).rejects.toThrow('Session is closed');
 
         await new Promise((resolve) => setTimeout(resolve, 20));
 
         expect(mockSocket.close).toHaveBeenCalledTimes(1);
         expect(mockAxiosGet).not.toHaveBeenCalled();
         expect(mockAxiosPost).not.toHaveBeenCalled();
+        expect((client as any).pendingOutbox).toHaveLength(0);
+        expect((client as any).seqResolvers.size).toBe(0);
+        expect((client as any).outboundDeliverySeqs.size).toBe(0);
+        expect((client as any).outboundDeliveryHeap).toHaveLength(0);
     });
 
     it('sendContextBoundary returns within timeout when flushOutbox never resolves the seq', async () => {
@@ -1766,9 +2076,9 @@ describe('ApiSessionClient v3 messages API migration', () => {
             .mockImplementationOnce(async (_url: string, body: { messages: Array<{ localId: string }> }) => ({
                 data: {
                     messages: [{
-                        id: 'msg-a',
+                        id: 'msg-b',
                         seq: 1,
-                        localId: body.messages[0].localId,
+                        localId: body.messages[1].localId,
                         createdAt: 1,
                         updatedAt: 1,
                     }]
@@ -1788,10 +2098,12 @@ describe('ApiSessionClient v3 messages API migration', () => {
 
         const seqPromiseA = (client as any).enqueueMessage({ role: 'agent', content: 'a' }, false);
         const seqPromiseB = (client as any).enqueueMessage({ role: 'agent', content: 'b' }, false);
+        const seqPromiseC = (client as any).enqueueMessage({ role: 'agent', content: 'c' }, false);
         (client as any).sendSync.invalidate();
 
-        await expect(seqPromiseA).resolves.toBe(1);
-        await expect(seqPromiseB).resolves.toBe(2);
+        await expect(seqPromiseA).resolves.toBe(2);
+        await expect(seqPromiseB).resolves.toBe(1);
+        await expect(seqPromiseC).resolves.toBe(2);
         await waitForCheck(() => {
             expect(mockAxiosPost).toHaveBeenCalledTimes(2);
             expect((client as any).pendingOutbox).toHaveLength(0);
@@ -1799,12 +2111,16 @@ describe('ApiSessionClient v3 messages API migration', () => {
 
         const firstBatch = mockAxiosPost.mock.calls[0][1].messages;
         const retryBatch = mockAxiosPost.mock.calls[1][1].messages;
-        expect(firstBatch).toHaveLength(2);
+        expect(firstBatch).toHaveLength(3);
         expect(retryBatch).toEqual([
             {
-                content: firstBatch[1].content,
-                localId: firstBatch[1].localId,
-            }
+                content: firstBatch[0].content,
+                localId: firstBatch[0].localId,
+            },
+            {
+                content: firstBatch[2].content,
+                localId: firstBatch[2].localId,
+            },
         ]);
     });
 
