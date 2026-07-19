@@ -34,6 +34,7 @@ import { DAEMON_READY_POLL_INTERVAL_MS, DAEMON_READY_TIMEOUT_MS, ensureDaemonRun
 import { handleCodexCommand } from './commands/codexCommand'
 import { runInitCommand } from '@/tunnel/tunnelManager'
 import { handlePairCommand } from '@/commands/pair'
+import { handleCopilotCommand } from '@/commands/copilotCommand'
 
 
 (async () => {
@@ -141,6 +142,17 @@ Conversation history is preserved on the server, but in-flight tool calls are in
         console.error(error)
       }
       process.exit(1)
+    }
+    return;
+  } else if (subcommand === 'copilot') {
+    try {
+      await handleCopilotCommand(args.slice(1));
+    } catch (error) {
+      console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')
+      if (process.env.DEBUG) {
+        console.error(error)
+      }
+      process.exitCode = 1
     }
     return;
   } else if (subcommand === 'codex') {

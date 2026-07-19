@@ -115,4 +115,24 @@ describe('ApiClient daemon REST routing', () => {
         expect('registerVendorToken' in api).toBe(false);
         expect('getVendorToken' in api).toBe(false);
     });
+
+    it('constructs a restricted mirror client without common RPC handlers', async () => {
+        const session = {
+            id: 'session-1',
+            seq: 0,
+            metadata: testMetadata,
+            metadataVersion: 1,
+            agentState: null,
+            agentStateVersion: 1,
+            encryptionKey: new Uint8Array(32),
+            encryptionVariant: 'legacy' as const,
+        };
+        const full = api.sessionSyncClient(session);
+        const restricted = api.sessionSyncClient(session, { rpcProfile: 'mirror-read-only' });
+
+        expect(full.rpcHandlerManager.getHandlerCount()).toBeGreaterThan(0);
+        expect(restricted.rpcHandlerManager.getHandlerCount()).toBe(0);
+        await full.close();
+        await restricted.close();
+    });
 });

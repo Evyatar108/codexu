@@ -113,4 +113,21 @@ describe('createSessionMetadata', () => {
             flavor: 'codex',
         });
     });
+
+    it('creates canonical Copilot flavor metadata', () => {
+        const { metadata } = createSessionMetadata({
+            flavor: 'copilot',
+            machineId: 'machine-copilot',
+            startedBy: 'terminal',
+            dangerouslySkipPermissions: false,
+        });
+
+        expect(metadata).toMatchObject({
+            flavor: 'copilot',
+            machineId: 'machine-copilot',
+            startedBy: 'terminal',
+            dangerouslySkipPermissions: false,
+            lifecycleState: 'running',
+        });
+    });
 });
