@@ -13090,6 +13090,31 @@
         "sourceDigest": "fbfa9a3622d7a098b617cbb9c3c2d238ea83c5ba2432ba8f6f6c63804df2b465",
         "sourceTaskId": "copilot-instant-escape-cancel-experience"
       }
+    },
+    {
+      "id": "happy-copilot-m0-delivery",
+      "writablePaths": [
+        "packages/happy-cli/src/api/apiSession.ts",
+        "packages/happy-cli/src/api/apiSession.test.ts"
+      ],
+      "validationCommand": "pnpm --filter happy exec vitest run src/api/apiSession.test.ts",
+      "dependsOn": [],
+      "title": "Add deterministic oldest-first Happy delivery for Copilot mirror",
+      "stage": "done",
+      "lifecycle": "completed",
+      "actions": [
+        {
+          "id": "implement",
+          "label": "Implement",
+          "prompt": "Implement M0-delivery from plans/happy-copilot-native-local-controller-backend/plan.md only. Make outbound ApiSessionClient queue flushing deterministic oldest-first across batches larger than 50, isolate outbound ACK correlation from inbound receive watermark advancement, and add focused regression coverage. Preserve existing Claude/Codex/ACP behavior and wire formats. Do not implement the independent history codec fix or any Copilot managed-server code. Run focused tests, typecheck, and independent code/docs review convergence. Commit locally; no push or release."
+        }
+      ],
+      "completion": {
+        "completedAt": "2026-07-19T02:04:00Z",
+        "summary": "Shipped deterministic oldest-first outbound delivery with stable localId ACK correlation, inbound watermark isolation, socket-first echo handling, empty-ID rejection, and bounded outbound tracking. Focused suite: 56/56; typecheck and independent review clean.",
+        "commit": "8427fcc1d49187e91857c83e53efdde0ecd2af56"
+      },
+      "lastTouchedAt": "2026-07-19T02:04:00Z"
     }
   ]
 }
