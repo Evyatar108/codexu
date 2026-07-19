@@ -3,17 +3,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiClient } from './api';
 import { connectionState } from '@/utils/serverConnectionErrors';
 
-const { mockTunnelFetch } = vi.hoisted(() => ({
+const { mockTunnelFetch, mockLoggerDebug } = vi.hoisted(() => ({
     mockTunnelFetch: vi.fn(),
+    mockLoggerDebug: vi.fn(),
 }));
 
 vi.mock('@/daemon/daemonClient', () => ({
     tunnelFetch: mockTunnelFetch,
+    tunnelSocketIOOptions: vi.fn(async () => {
+        throw new Error('socket setup unavailable');
+    }),
 }));
 
 vi.mock('@/ui/logger', () => ({
     logger: {
-        debug: vi.fn(),
+        debug: mockLoggerDebug,
     },
 }));
 
@@ -53,6 +57,7 @@ describe('ApiClient daemon REST routing', () => {
 
     beforeEach(async () => {
         vi.clearAllMocks();
+        mockLoggerDebug.mockReset();
         connectionState.reset();
         api = await ApiClient.create({
             token: 'token',
@@ -134,5 +139,25 @@ describe('ApiClient daemon REST routing', () => {
         expect(restricted.rpcHandlerManager.getHandlerCount()).toBe(0);
         await full.close();
         await restricted.close();
+    });
+
+    it('returns and closes the real restricted client when logger diagnostics throw', async () => {
+        const session = {
+            id: 'session-logger-failure',
+            seq: 0,
+            metadata: testMetadata,
+            metadataVersion: 1,
+            agentState: null,
+            agentStateVersion: 1,
+            encryptionKey: new Uint8Array(32),
+            encryptionVariant: 'legacy' as const,
+        };
+        mockLoggerDebug.mockImplementation(() => {
+            throw new Error('logger unavailable');
+        });
+
+        const restricted = api.sessionSyncClient(session, { rpcProfile: 'mirror-read-only' });
+        expect(restricted.rpcHandlerManager.getHandlerCount()).toBe(0);
+        await expect(restricted.close()).resolves.toBeUndefined();
     });
 });

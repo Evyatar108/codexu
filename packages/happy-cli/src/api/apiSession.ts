@@ -190,6 +190,20 @@ function contextBoundaryFallbackMessage(kind: ContextBoundaryInput['kind']): str
     }
 }
 
+function safeDebug(...args: Parameters<typeof logger.debug>): void {
+    try {
+        logger.debug(...args);
+    } catch {
+        // Diagnostics must never affect session ownership or transport cleanup.
+    }
+}
+
+type PendingFlush = {
+    active: boolean;
+    timers: Set<NodeJS.Timeout>;
+    resolveClosed: () => void;
+};
+
 export class ApiSessionClient extends EventEmitter {
     private readonly token: string;
     readonly sessionId: string;
@@ -210,6 +224,8 @@ export class ApiSessionClient extends EventEmitter {
     private encryptionVariant: 'legacy' | 'dataKey';
     private closed = false;
     private reconnectInterval: NodeJS.Timeout | null = null;
+    private reconnectTimeout: NodeJS.Timeout | null = null;
+    private pendingFlushes = new Set<PendingFlush>();
     private ignoreArchiveSignal = false;
     private skipInitialMessages = false;
     private claudeSessionProtocolState: ClaudeSessionProtocolState = {
@@ -244,7 +260,11 @@ export class ApiSessionClient extends EventEmitter {
         };
     }
 
-    constructor(token: string, session: Session) {
+    constructor(
+        token: string,
+        session: Session,
+        options: { rpcProfile?: 'full' | 'mirror-read-only' } = {},
+    ) {
         super()
         this.token = token;
         this.sessionId = session.id;
@@ -261,16 +281,18 @@ export class ApiSessionClient extends EventEmitter {
         // Initialize RPC handler manager
         this.rpcHandlerManager = new RpcHandlerManager({
             scopePrefix: this.sessionId,
-            logger: (msg, data) => logger.debug(msg, data)
+            logger: (msg, data) => safeDebug(msg, data)
         });
-        registerCommonHandlers(this.rpcHandlerManager, this.metadata.path);
+        if (options.rpcProfile !== 'mirror-read-only') {
+            registerCommonHandlers(this.rpcHandlerManager, this.metadata.path);
+        }
 
         //
         // Connect (deferred until tunnel URL is resolved)
         //
 
         this.socketReady = this.connectWithFreshTunnelAuth().catch((error) => {
-            logger.debug('[API] Failed to prepare initial tunnel socket auth:', error);
+            safeDebug('[API] Failed to prepare initial tunnel socket auth:', error);
         });
     }
 
@@ -295,10 +317,14 @@ export class ApiSessionClient extends EventEmitter {
                 socket.close();
                 return;
             }
-            logger.debug('Socket connected successfully');
+            safeDebug('Socket connected successfully');
             if (this.reconnectInterval) {
                 clearInterval(this.reconnectInterval);
                 this.reconnectInterval = null;
+            }
+            if (this.reconnectTimeout) {
+                clearTimeout(this.reconnectTimeout);
+                this.reconnectTimeout = null;
             }
             this.rpcHandlerManager.onSocketConnect(socket);
             this.receiveSync.invalidate();
@@ -313,13 +339,13 @@ export class ApiSessionClient extends EventEmitter {
         });
 
         socket.on('disconnect', (reason) => {
-            logger.debug(`[API] Socket disconnected: ${reason}`);
+            safeDebug(`[API] Socket disconnected: ${reason}`);
             this.rpcHandlerManager.onSocketDisconnect();
             this.startSmartReconnect();
         });
 
         socket.on('connect_error', (error) => {
-            logger.debug('[API] Socket connection error:', error);
+            safeDebug('[API] Socket connection error:', error);
             this.rpcHandlerManager.onSocketDisconnect();
             this.startSmartReconnect();
         });
@@ -1213,29 +1239,68 @@ export class ApiSessionClient extends EventEmitter {
      * Wait for socket buffer to flush
      */
     async flush(): Promise<void> {
-        await Promise.race([
-            this.sendSync.invalidateAndAwait(),
-            delay(10000)
-        ]);
-        if (!this.socket || !this.socket.connected) {
-            return;
-        }
-        const socket = this.socket;
-        return new Promise((resolve) => {
-            socket.emit('ping', () => {
-                resolve();
-            });
-            setTimeout(() => {
-                resolve();
-            }, 10000);
+        if (this.closed) return;
+        let resolveClosed!: () => void;
+        const closed = new Promise<void>((resolve) => {
+            resolveClosed = resolve;
         });
+        const pending: PendingFlush = {
+            active: true,
+            timers: new Set(),
+            resolveClosed,
+        };
+        const withDeadline = <T>(promise: Promise<T>, timeoutMs: number): Promise<T | undefined> => {
+            let timer: NodeJS.Timeout;
+            const timeout = new Promise<undefined>((resolve) => {
+                timer = setTimeout(() => {
+                    pending.timers.delete(timer);
+                    resolve(undefined);
+                }, timeoutMs);
+                pending.timers.add(timer);
+            });
+            return Promise.race([promise, timeout]).finally(() => {
+                clearTimeout(timer);
+                pending.timers.delete(timer);
+            });
+        };
+        this.pendingFlushes.add(pending);
+        try {
+            await Promise.race([withDeadline(this.sendSync.invalidateAndAwait(), 10000), closed]);
+            if (!pending.active || this.closed || !this.socket?.connected) return;
+            const socket = this.socket;
+            await Promise.race([
+                new Promise<void>((resolve, reject) => {
+                    let timer: NodeJS.Timeout;
+                    const finish = (): void => {
+                        if (!pending.active) return;
+                        clearTimeout(timer);
+                        pending.timers.delete(timer);
+                        resolve();
+                    };
+                    timer = setTimeout(finish, 10000);
+                    pending.timers.add(timer);
+                    try {
+                        socket.emit('ping', finish);
+                    } catch (error) {
+                        clearTimeout(timer);
+                        pending.timers.delete(timer);
+                        reject(error);
+                    }
+                }),
+                closed,
+            ]);
+        } finally {
+            pending.active = false;
+            for (const timer of pending.timers) clearTimeout(timer);
+            pending.timers.clear();
+            this.pendingFlushes.delete(pending);
+        }
     }
 
     async close() {
-        logger.debug('[API] socket.close() called');
         this.closed = true;
-        this.sendSync.stop();
-        this.receiveSync.stop();
+        try { this.sendSync.stop(); } catch {}
+        try { this.receiveSync.stop(); } catch {}
         for (const deferred of this.seqResolvers.values()) {
             deferred.reject(new Error('Session closed before seq was assigned'));
         }
@@ -1249,9 +1314,24 @@ export class ApiSessionClient extends EventEmitter {
             clearInterval(this.reconnectInterval);
             this.reconnectInterval = null;
         }
-        if (this.socket) {
-            this.socket.close();
+        if (this.reconnectTimeout) {
+            clearTimeout(this.reconnectTimeout);
+            this.reconnectTimeout = null;
         }
+        for (const pending of this.pendingFlushes) {
+            pending.active = false;
+            for (const timer of pending.timers) clearTimeout(timer);
+            pending.timers.clear();
+            pending.resolveClosed();
+        }
+        this.pendingFlushes.clear();
+        const socket = this.socket;
+        this.socket = null;
+        try { this.rpcHandlerManager.onSocketDisconnect(); } catch {}
+        try { socket?.removeAllListeners(); } catch {}
+        try { socket?.close(); } catch {}
+        try { this.removeAllListeners(); } catch {}
+        safeDebug('[API] socket.close() called');
     }
 
     private startSmartReconnect() {
@@ -1269,21 +1349,22 @@ export class ApiSessionClient extends EventEmitter {
                 return;
             }
             if (!shouldReconnect()) {
-                logger.debug('[API] Still not ready to reconnect');
+                safeDebug('[API] Still not ready to reconnect');
                 return;
             }
-            logger.debug('[API] Attempting reconnect');
+            safeDebug('[API] Attempting reconnect');
             void this.connectWithFreshTunnelAuth().catch((error) => {
-                logger.debug('[API] Failed to refresh tunnel auth before reconnect:', error);
+                safeDebug('[API] Failed to refresh tunnel auth before reconnect:', error);
             });
         }, 3000);
 
         if (shouldReconnect()) {
-            logger.debug('[API] Network up + lid open — reconnecting in 1s');
-            setTimeout(() => {
+            safeDebug('[API] Network up + lid open — reconnecting in 1s');
+            this.reconnectTimeout = setTimeout(() => {
+                this.reconnectTimeout = null;
                 if (!this.closed && !this.socket?.connected) {
                     void this.connectWithFreshTunnelAuth().catch((error) => {
-                        logger.debug('[API] Failed to refresh tunnel auth before reconnect:', error);
+                        safeDebug('[API] Failed to refresh tunnel auth before reconnect:', error);
                     });
                 }
             }, 1000);
