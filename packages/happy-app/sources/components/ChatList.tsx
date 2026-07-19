@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { storage, useLocalSetting, useSession, useSessionMessages } from "@/sync/storage";
+import { storage, useLocalSetting, useSession, useSessionMessages, isCopilotSession } from "@/sync/storage";
 import { sync } from '@/sync/sync';
 import { AppState, FlatList, NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, View } from 'react-native';
 import { useCallback } from 'react';
@@ -25,7 +25,12 @@ export const ChatList = React.memo((props: { session: Session, messages?: Messag
     // stays the DEFAULT via the `chatToolGrouping` local setting. Only 'grouped'
     // selects the restored path below; see docs/happy-patch-surface.md HA-5.
     const chatToolGrouping = useLocalSetting('chatToolGrouping');
-    if (chatToolGrouping === 'grouped') {
+    // M1a: force flat rendering for read-only Copilot mirrors regardless of the
+    // `chatToolGrouping` setting. The grouped Tool/AgentWork views render tool
+    // content outside MessageView, which would bypass MessageView's read-only
+    // gating (option-send / session-file link / fork-from-message). The flat
+    // path routes every row through MessageView, where that gating lives.
+    if (chatToolGrouping === 'grouped' && !isCopilotSession(props.session)) {
         return <ChatListGrouped session={props.session} messages={props.messages} />;
     }
     return <ForkFlatChatList session={props.session} messages={props.messages} />;

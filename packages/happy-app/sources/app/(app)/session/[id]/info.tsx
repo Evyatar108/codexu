@@ -7,7 +7,7 @@ import { Item } from '@/components/Item';
 import { ItemGroup } from '@/components/ItemGroup';
 import { ItemList } from '@/components/ItemList';
 import { Avatar } from '@/components/Avatar';
-import { useSession, useIsDataReady } from '@/sync/storage';
+import { useSession, useIsDataReady, isCopilotSession, isPlaceholderSession } from '@/sync/storage';
 import { getSessionName, useSessionStatus, formatOSPlatform, formatPathRelativeToHome, getSessionAvatarId, getResumeCommand } from '@/utils/sessionUtils';
 import * as Clipboard from 'expo-clipboard';
 import { Modal } from '@/modal';
@@ -104,6 +104,9 @@ function SessionInfoContent({ session }: { session: Session }) {
     const { theme } = useUnistyles();
     const router = useRouter();
     const devModeEnabled = __DEV__;
+    // M1a: Copilot mirrors render Details as display-only metadata plus the safe
+    // Archive action. All copy/nav/resume/delete affordances are hidden below.
+    const readOnly = isCopilotSession(session);
     const sessionName = getSessionName(session);
     const sessionStatus = useSessionStatus(session);
     const handleAfterArchive = useCallback(() => {
@@ -231,7 +234,7 @@ function SessionInfoContent({ session }: { session: Session }) {
                 </View>
 
                 {/* CLI Version Warning */}
-                {isCliOutdated && (
+                {isCliOutdated && !readOnly && (
                     <ItemGroup>
                         <Item
                             title={t('sessionInfo.cliVersionOutdated')}
@@ -249,7 +252,8 @@ function SessionInfoContent({ session }: { session: Session }) {
                         title={t('sessionInfo.happySessionId')}
                         subtitle={`${session.id.substring(0, 8)}...${session.id.substring(session.id.length - 8)}`}
                         icon={<Ionicons name="finger-print-outline" size={29} color="#007AFF" />}
-                        onPress={handleCopySessionId}
+                        onPress={readOnly ? undefined : handleCopySessionId}
+                        showChevron={readOnly ? false : undefined}
                     />
                     {session.metadata?.claudeSessionId && (
                         <Item
@@ -283,7 +287,7 @@ function SessionInfoContent({ session }: { session: Session }) {
                     )}
                     {/* Resume command — shown for disconnected sessions with a backend session ID */}
                     {/* TODO: migrate to `happy resume <happy-session-id>` once it works without happy-agent auth */}
-                    {!sessionStatus.isConnected && getResumeCommand(session) && (
+                    {!sessionStatus.isConnected && !readOnly && getResumeCommand(session) && (
                         <CopyableItem
                             title="Resume Command"
                             subtitle={getResumeCommand(session)!}
@@ -319,25 +323,31 @@ function SessionInfoContent({ session }: { session: Session }) {
 
                 {/* Quick Actions */}
                 <ItemGroup title={t('sessionInfo.quickActions')}>
-                    <Item
-                        title={t('sessionInfo.plugins')}
-                        subtitle={t('sessionInfo.pluginsSubtitle')}
-                        icon={<Ionicons name="extension-puzzle-outline" size={29} color="#007AFF" />}
-                        onPress={() => router.push(`/session/${session.id}/plugins`)}
-                    />
-                    <Item
-                        title={t('sessionInfo.skills')}
-                        subtitle={t('sessionInfo.skillsSubtitle')}
-                        icon={<Ionicons name="library-outline" size={29} color="#007AFF" />}
-                        onPress={() => router.push(`/session/${session.id}/skills`)}
-                    />
-                    <Item
-                        title={t('sessionInfo.agents')}
-                        subtitle={t('sessionInfo.agentsSubtitle')}
-                        icon={<Ionicons name="people-outline" size={29} color="#007AFF" />}
-                        onPress={() => router.push(`/session/${session.id}/agents`)}
-                    />
-                    {session.metadata?.machineId && (
+                    {!readOnly && (
+                        <Item
+                            title={t('sessionInfo.plugins')}
+                            subtitle={t('sessionInfo.pluginsSubtitle')}
+                            icon={<Ionicons name="extension-puzzle-outline" size={29} color="#007AFF" />}
+                            onPress={() => router.push(`/session/${session.id}/plugins`)}
+                        />
+                    )}
+                    {!readOnly && (
+                        <Item
+                            title={t('sessionInfo.skills')}
+                            subtitle={t('sessionInfo.skillsSubtitle')}
+                            icon={<Ionicons name="library-outline" size={29} color="#007AFF" />}
+                            onPress={() => router.push(`/session/${session.id}/skills`)}
+                        />
+                    )}
+                    {!readOnly && (
+                        <Item
+                            title={t('sessionInfo.agents')}
+                            subtitle={t('sessionInfo.agentsSubtitle')}
+                            icon={<Ionicons name="people-outline" size={29} color="#007AFF" />}
+                            onPress={() => router.push(`/session/${session.id}/agents`)}
+                        />
+                    )}
+                    {!readOnly && session.metadata?.machineId && (
                         <Item
                             title={t('sessionInfo.viewMachine')}
                             subtitle={t('sessionInfo.viewMachineSubtitle')}
@@ -345,7 +355,7 @@ function SessionInfoContent({ session }: { session: Session }) {
                             onPress={() => router.push(`/machine/${session.metadata?.machineId}`)}
                         />
                     )}
-                    {canShowResume && (
+                    {!readOnly && canShowResume && (
                         <Item
                             title={t('sessionInfo.resumeSession')}
                             subtitle={resumeSessionSubtitle}
@@ -361,12 +371,14 @@ function SessionInfoContent({ session }: { session: Session }) {
                         disabled={archivingSession}
                         loading={archivingSession}
                     />
-                    <Item
-                        title={t('sessionInfo.deleteSession')}
-                        subtitle={t('sessionInfo.deleteSessionSubtitle')}
-                        icon={<Ionicons name="trash-outline" size={29} color="#FF3B30" />}
-                        onPress={handleDeleteSession}
-                    />
+                    {!readOnly && (
+                        <Item
+                            title={t('sessionInfo.deleteSession')}
+                            subtitle={t('sessionInfo.deleteSessionSubtitle')}
+                            icon={<Ionicons name="trash-outline" size={29} color="#FF3B30" />}
+                            onPress={handleDeleteSession}
+                        />
+                    )}
                 </ItemGroup>
 
                 {/* Metadata */}
@@ -442,16 +454,20 @@ function SessionInfoContent({ session }: { session: Session }) {
                                 showChevron={false}
                             />
                         )}
-                        <Item
-                            title={t('sessionInfo.copyMetadata')}
-                            icon={<Ionicons name="copy-outline" size={29} color="#007AFF" />}
-                            onPress={handleCopyMetadata}
-                        />
-                        <Item
-                            title={t('sessionInfo.copyMetadata') + '\n& Client Logs'}
-                            icon={<Ionicons name="document-text-outline" size={29} color="#007AFF" />}
-                            onPress={handleCopyMetadataAndLogs}
-                        />
+                        {!readOnly && (
+                            <Item
+                                title={t('sessionInfo.copyMetadata')}
+                                icon={<Ionicons name="copy-outline" size={29} color="#007AFF" />}
+                                onPress={handleCopyMetadata}
+                            />
+                        )}
+                        {!readOnly && (
+                            <Item
+                                title={t('sessionInfo.copyMetadata') + '\n& Client Logs'}
+                                icon={<Ionicons name="document-text-outline" size={29} color="#007AFF" />}
+                                onPress={handleCopyMetadataAndLogs}
+                            />
+                        )}
                     </ItemGroup>
                 )}
 
@@ -590,6 +606,18 @@ export default React.memo(() => {
                 <Ionicons name="trash-outline" size={48} color={theme.colors.textSecondary} />
                 <Text style={{ color: theme.colors.text, fontSize: 20, marginTop: 16, ...Typography.default('semiBold') }}>{t('errors.sessionDeleted')}</Text>
                 <Text style={{ color: theme.colors.textSecondary, fontSize: 15, marginTop: 8, textAlign: 'center', paddingHorizontal: 32, ...Typography.default() }}>{t('errors.sessionDeletedDescription')}</Text>
+            </View>
+        );
+    }
+
+    // M1a: an unknown placeholder session (synthesized before real metadata arrives)
+    // stays loading/non-interactive — it must expose no details or actions until the
+    // real session row supplies its flavor.
+    if (isPlaceholderSession(session)) {
+        return (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="hourglass-outline" size={48} color={theme.colors.textSecondary} />
+                <Text style={{ color: theme.colors.textSecondary, fontSize: 17, marginTop: 16, ...Typography.default('semiBold') }}>{t('common.loading')}</Text>
             </View>
         );
     }

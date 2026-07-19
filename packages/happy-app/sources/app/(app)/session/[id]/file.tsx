@@ -5,7 +5,7 @@ import { Text } from '@/components/StyledText';
 import { SimpleSyntaxHighlighter } from '@/components/SimpleSyntaxHighlighter';
 import { Typography } from '@/constants/Typography';
 import { sessionReadFile, sessionBash } from '@/sync/ops';
-import { storage, useSessionFileCache } from '@/sync/storage';
+import { storage, useSessionFileCache, useSession, isCopilotSession, isPlaceholderSession } from '@/sync/storage';
 import { Modal } from '@/modal';
 import { useUnistyles, StyleSheet } from 'react-native-unistyles';
 import { layout } from '@/components/layout';
@@ -83,7 +83,20 @@ const DiffDisplay: React.FC<{ diffContent: string }> = ({ diffContent }) => {
     );
 };
 
+// M1a split-gate: read-only Copilot mirrors and unknown placeholder sessions
+// fail closed BEFORE FileScreenInner mounts, so no file-content fetch/refresh,
+// diff load, or file-cache mutation effect runs. Deep links to a file view
+// therefore cannot bypass the phone allowlist.
 export default React.memo(function FileScreen() {
+    const { id: sessionId } = useLocalSearchParams<{ id: string }>();
+    const session = useSession(sessionId!);
+    if (isCopilotSession(session) || isPlaceholderSession(session)) {
+        return null;
+    }
+    return <FileScreenInner />;
+});
+
+function FileScreenInner() {
     const { theme } = useUnistyles();
     const { id: sessionId } = useLocalSearchParams<{ id: string }>();
     const searchParams = useLocalSearchParams();
@@ -542,7 +555,7 @@ export default React.memo(function FileScreen() {
             </ScrollView>
         </View>
     );
-});
+}
 
 const styles = StyleSheet.create((theme) => ({
     container: {

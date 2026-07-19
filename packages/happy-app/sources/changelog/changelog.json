@@ -1,6 +1,17 @@
 {
   "entries": [
     {
+      "version": 34,
+      "date": "2026-07-19",
+      "summary": "Sessions mirrored from GitHub Copilot now show up as read-only. You can read the full history, scroll, and open tool results just like any other session, but every way to change or steer the session from your phone or tablet is turned off — so a mirror can never accidentally send input back to Copilot. Everything stays on the static, e-ink-friendly view with no spinners or animations.",
+      "changes": [
+        "Added truthful read-only rendering for Copilot mirror sessions: the composer, quick actions, context drawer edits, fork/spawn, file browsing, plugins, skills, agents, and per-message actions are all hidden.",
+        "Added the same read-only treatment for sessions that haven't finished loading yet, so a brand-new session never briefly exposes actions before its details arrive.",
+        "Improved message ordering to break ties by sequence number, keeping the newest in-flight output in the right place in history."
+      ],
+      "rawMarkdown": "## Version 34 - 2026-07-19\n\n\nSessions mirrored from GitHub Copilot now show up as read-only. You can read the full history, scroll, and open tool results just like any other session, but every way to change or steer the session from your phone or tablet is turned off — so a mirror can never accidentally send input back to Copilot. Everything stays on the static, e-ink-friendly view with no spinners or animations.\n\n- Added truthful read-only rendering for Copilot mirror sessions: the composer, quick actions, context drawer edits, fork/spawn, file browsing, plugins, skills, agents, and per-message actions are all hidden.\n- Added the same read-only treatment for sessions that haven't finished loading yet, so a brand-new session never briefly exposes actions before its details arrive.\n- Improved message ordering to break ties by sequence number, keeping the newest in-flight output in the right place in history."
+    },
+    {
       "version": 33,
       "date": "2026-07-10",
       "summary": "The app can now pair directly with a local native Happy session as well as a public server. Local connections use device-bound request proofs, reconnect over browser-compatible polling, and show the latest full session output through the existing static chat renderer without smooth-streaming effects.",
@@ -380,5 +391,5 @@
       "rawMarkdown": "## Version 1 - 2025-05-12\n\n\nWelcome to Happy - your secure, encrypted mobile companion for Claude Code. This inaugural release establishes the foundation for private, powerful AI interactions on the go.\n\n- Implemented end-to-end encrypted session management ensuring complete privacy\n- Integrated intelligent voice assistant with natural conversation capabilities\n- Added experimental file manager with syntax highlighting and tree navigation\n- Built seamless real-time synchronization across all your devices\n- Established native support for iOS, Android, and responsive web interfaces"
     }
   ],
-  "latestVersion": 33
+  "latestVersion": 34
 }

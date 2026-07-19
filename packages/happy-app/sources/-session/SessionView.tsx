@@ -20,7 +20,7 @@ import { getActiveSessionPathSurfaces } from './SessionViewPathSurfaces';
 import { Modal } from '@/modal';
 import { gitStatusSync } from '@/sync/gitStatusSync';
 import { cancelPendingSwitch, requestSwitch, sessionAbort, sessionEmitAgentConfiguration } from '@/sync/ops';
-import { storage, useIsDataReady, useLatestBoundary, useLocalSetting, useSessionMessages, useSessionOutputSnapshots, useSessionUsage, useSetting } from '@/sync/storage';
+import { storage, useIsDataReady, useLatestBoundary, useLocalSetting, useSessionMessages, useSessionOutputSnapshots, useSessionUsage, useSetting, isReadOnlySession, isPlaceholderSession } from '@/sync/storage';
 import { useSession } from '@/sync/storage';
 import { Session } from '@/sync/storageTypes';
 import { sync } from '@/sync/sync';
@@ -65,10 +65,14 @@ export const SessionView = React.memo((props: { id: string }) => {
     const unifiedNewSessionComposer = useLocalSetting('unifiedNewSessionComposer');
 
     // FORK PATCH: [RESTORE-R8a] collapsible files-sidebar wiring relocated (invariant HA-4)
+    // M1a: read-only Copilot mirrors (and unknown placeholder sessions) suppress the
+    // files-diff sidebar entirely — the sidebar exposes file-open/diff mutations that
+    // must not be reachable for observation-only sessions.
+    const suppressMutations = isReadOnlySession(session);
     const sidebar = useSessionSidebar({
         sessionId,
         isDataReady,
-        hasSession: !!session,
+        hasSession: !!session && !suppressMutations,
         windowWidth,
     });
 
@@ -107,7 +111,7 @@ export const SessionView = React.memo((props: { id: string }) => {
             title: getSessionName(session),
             subtitle: pathSurfaces.chatHeaderSubtitle,
             avatarId: getSessionAvatarId(session),
-            onAvatarPress: () => router.push(`/session/${sessionId}/info`),
+            onAvatarPress: isPlaceholderSession(session) ? undefined : () => router.push(`/session/${sessionId}/info`),
             isConnected: isConnected,
             flavor: session.metadata?.flavor || null,
             summaryText: session.metadata?.summary?.text,
@@ -167,6 +171,12 @@ function SessionViewLoaded({ sessionId, session, projectPathHeader }: { sessionI
 
     // FORK PATCH: [RESTORE-R8a] controlled-draft composer + pre-send intercept relocated (invariant HA-4)
     const composer = useForkComposer(sessionId, session);
+
+    // M1a: read-only Copilot mirrors (and unknown placeholder sessions) render no
+    // composer, context drawer, boundary/pending banners, or CLI-update affordance —
+    // history is observation-only. Gating lives here (not just in child props) so no
+    // send/switch/drawer surface is mounted at all.
+    const suppressMutations = isReadOnlySession(session);
 
     const { messages, isLoaded } = useSessionMessages(sessionId);
     const snapshots = useSessionOutputSnapshots(sessionId);
@@ -466,7 +476,7 @@ function SessionViewLoaded({ sessionId, session, projectPathHeader }: { sessionI
         </CenteredInputWidth>
     );
 
-    const input = drawer.isInactiveArchivedSession ? (
+    const input = suppressMutations ? null : drawer.isInactiveArchivedSession ? (
         <>
             {archivedHint}
             {boundaryAdvisory}
@@ -487,7 +497,7 @@ function SessionViewLoaded({ sessionId, session, projectPathHeader }: { sessionI
     return (
         <>
             {/* CLI Version Warning Overlay - Subtle centered pill */}
-            {shouldShowCliWarning && !(isLandscape && deviceType === 'phone') && (
+            {shouldShowCliWarning && !suppressMutations && !(isLandscape && deviceType === 'phone') && (
                 <Pressable
                     onPress={handleDismissCliWarning}
                     style={{

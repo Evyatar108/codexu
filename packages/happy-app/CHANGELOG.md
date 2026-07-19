@@ -1,5 +1,13 @@
 # Changelog
 
+## Version 34 - 2026-07-19
+
+Sessions mirrored from GitHub Copilot now show up as read-only. You can read the full history, scroll, and open tool results just like any other session, but every way to change or steer the session from your phone or tablet is turned off — so a mirror can never accidentally send input back to Copilot. Everything stays on the static, e-ink-friendly view with no spinners or animations.
+
+- Added truthful read-only rendering for Copilot mirror sessions: the composer, quick actions, context drawer edits, fork/spawn, file browsing, plugins, skills, agents, and per-message actions are all hidden.
+- Added the same read-only treatment for sessions that haven't finished loading yet, so a brand-new session never briefly exposes actions before its details arrive.
+- Improved message ordering to break ties by sequence number, keeping the newest in-flight output in the right place in history.
+
 ## Version 33 - 2026-07-10
 
 The app can now pair directly with a local native Happy session as well as a public server. Local connections use device-bound request proofs, reconnect over browser-compatible polling, and show the latest full session output through the existing static chat renderer without smooth-streaming effects.

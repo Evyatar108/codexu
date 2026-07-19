@@ -376,12 +376,20 @@ export function ActiveSessionsGroupCompact({ sessions, selectedSessionId }: Acti
 const CompactSessionRowSwipeInner = ({ session, children }: { session: Session; children: React.ReactNode }) => {
     const styles = stylesheet;
     const swipeableRef = React.useRef<Swipeable | null>(null);
-    const { archiveSession, archivingSession } = useSessionQuickActions(session);
+    const { archiveSession, archivingSession, canArchive } = useSessionQuickActions(session);
 
     const handleArchive = React.useCallback(() => {
         swipeableRef.current?.close();
         archiveSession();
     }, [archiveSession]);
+
+    // M1a: only mount the swipe-to-archive action when the shared action gate
+    // permits archiving. Placeholder (unknown, not-yet-hydrated) rows and
+    // inactive/archived Copilot rows render plain children with no swipe action,
+    // so the compact list cannot bypass `useSessionQuickActions`.
+    if (!canArchive) {
+        return <>{children}</>;
+    }
 
     const renderRightActions = () => (
         <Pressable

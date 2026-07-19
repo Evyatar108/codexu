@@ -9,7 +9,7 @@ import { ItemList } from '@/components/ItemList';
 import { Typography } from '@/constants/Typography';
 import { GitFileStatus } from '@/sync/gitStatusFiles';
 import { searchFiles, FileItem } from '@/sync/suggestionFile';
-import { useSessionGitStatus } from '@/sync/storage';
+import { useSessionGitStatus, useSession, isCopilotSession, isPlaceholderSession } from '@/sync/storage';
 import { useGitStatusFiles } from '@/hooks/useGitStatusFiles';
 import { useUnistyles, StyleSheet } from 'react-native-unistyles';
 import { layout } from '@/components/layout';
@@ -17,7 +17,20 @@ import { FileIcon } from '@/components/FileIcon';
 import { usePrefetchFileContents } from '@/hooks/usePrefetchFileContents';
 import { encodeBase64Url } from '@/utils/base64url';
 
+// M1a split-gate: read-only Copilot mirrors and unknown placeholder sessions
+// fail closed BEFORE FilesScreenInner mounts, so the git-status/search prefetch
+// effects, file catalog, and navigation-into-file affordances never run. Deep
+// links to this route therefore cannot bypass the phone allowlist.
 export default React.memo(function FilesScreen() {
+    const { id: sessionId } = useLocalSearchParams<{ id: string }>();
+    const session = useSession(sessionId!);
+    if (isCopilotSession(session) || isPlaceholderSession(session)) {
+        return null;
+    }
+    return <FilesScreenInner />;
+});
+
+function FilesScreenInner() {
     const router = useRouter();
     const { id: sessionId } = useLocalSearchParams<{ id: string }>();
 
@@ -407,7 +420,7 @@ export default React.memo(function FilesScreen() {
             </ItemList>
         </View>
     );
-});
+}
 
 const styles = StyleSheet.create((theme) => ({
     container: {

@@ -11,7 +11,7 @@ import { Modal } from '@/modal';
 import { compositeSessionId, parseCompositeSessionId } from '@/sync/machineSessionId';
 import { machineForkSession } from '@/sync/ops';
 import { sync } from '@/sync/sync';
-import { useAllMachines, useSession } from '@/sync/storage';
+import { useAllMachines, useSession, isCopilotSession, isPlaceholderSession } from '@/sync/storage';
 import type { Machine, Session } from '@/sync/storageTypes';
 import { t } from '@/text';
 import {
@@ -429,4 +429,18 @@ const styles = StyleSheet.create((theme) => ({
     },
 }));
 
-export default React.memo(ForkComposerScreen);
+// M1a split-gate: fork-composer is a mutation surface (fork/send). Read-only
+// Copilot mirrors and unknown placeholder sessions fail closed BEFORE
+// ForkComposerScreen mounts, so no fork/send/config effects run. Deep links
+// cannot bypass the phone allowlist.
+function ForkComposerScreenGate() {
+    const params = useLocalSearchParams<{ id?: string | string[] }>();
+    const sessionId = Array.isArray(params.id) ? params.id[0] : params.id;
+    const session = useSession(sessionId ?? '');
+    if (isCopilotSession(session) || isPlaceholderSession(session)) {
+        return null;
+    }
+    return <ForkComposerScreen />;
+}
+
+export default React.memo(ForkComposerScreenGate);

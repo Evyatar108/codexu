@@ -103,6 +103,8 @@ vi.mock('@/sync/sync', () => ({
 vi.mock('@/sync/storage', () => ({
     useAllMachines: () => shared.machine ? [shared.machine] : [],
     useSession: () => shared.session,
+    isCopilotSession: (s: { metadata?: { flavor?: string } | null } | null | undefined) => s?.metadata?.flavor === 'copilot',
+    isPlaceholderSession: (s: { metadata?: unknown } | null | undefined) => !!s && (s as { metadata?: unknown }).metadata === null,
 }));
 
 vi.mock('@/text', () => ({
@@ -124,6 +126,9 @@ vi.mock('@/utils/worktree', () => ({
 }));
 
 const { ForkComposerScreen } = await import('./fork-composer');
+const ForkComposerGate = (await import('./fork-composer')).default as unknown as {
+    type: () => React.ReactElement | null;
+};
 
 function createSession(): Session {
     return {
@@ -305,5 +310,31 @@ describe('ForkComposerScreen', () => {
         expect(shared.machineForkSessionMock).not.toHaveBeenCalled();
         expect(shared.refreshSessionsMock).not.toHaveBeenCalled();
         expect(shared.navigateToSessionMock).not.toHaveBeenCalled();
+    });
+});
+
+describe('ForkComposerScreenGate (M1a fail-closed)', () => {
+    beforeEach(() => {
+        shared.session = createSession();
+        shared.routeId = 'machine-1:parent-session';
+    });
+
+    it('renders the composer for a normal (codex) session', () => {
+        shared.session = createSession();
+        expect(ForkComposerGate.type()).not.toBeNull();
+    });
+
+    it('fails closed (null) for a Copilot mirror session', () => {
+        const copilot = createSession();
+        copilot.metadata = { ...copilot.metadata!, flavor: 'copilot' };
+        shared.session = copilot;
+        expect(ForkComposerGate.type()).toBeNull();
+    });
+
+    it('fails closed (null) for an unknown placeholder session', () => {
+        const placeholder = createSession();
+        (placeholder as unknown as { metadata: null }).metadata = null;
+        shared.session = placeholder;
+        expect(ForkComposerGate.type()).toBeNull();
     });
 });

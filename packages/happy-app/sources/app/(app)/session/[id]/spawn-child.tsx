@@ -24,7 +24,7 @@ import { Modal } from '@/modal';
 import { parseCompositeSessionId } from '@/sync/machineSessionId';
 import { machineSpawnSessionFromSession, type SupportedAgent } from '@/sync/ops';
 import { sync } from '@/sync/sync';
-import { useAllMachines, useSession } from '@/sync/storage';
+import { useAllMachines, useSession, isCopilotSession, isPlaceholderSession } from '@/sync/storage';
 import type { Machine, Session } from '@/sync/storageTypes';
 import { t } from '@/text';
 import { formatPathRelativeToHome, getSessionName } from '@/utils/sessionUtils';
@@ -464,4 +464,18 @@ const styles = StyleSheet.create((theme) => ({
     },
 }));
 
-export default React.memo(SpawnChildScreen);
+// M1a split-gate: spawn-child is a mutation surface (machineSpawnSessionFromSession).
+// Read-only Copilot mirrors and unknown placeholder sessions fail closed BEFORE
+// SpawnChildScreen mounts, so no spawn/config effects run. Deep links cannot bypass
+// the phone allowlist.
+function SpawnChildScreenGate() {
+    const params = useLocalSearchParams<{ id?: string | string[] }>();
+    const sessionId = Array.isArray(params.id) ? params.id[0] : params.id;
+    const session = useSession(sessionId ?? '');
+    if (isCopilotSession(session) || isPlaceholderSession(session)) {
+        return null;
+    }
+    return <SpawnChildScreen />;
+}
+
+export default React.memo(SpawnChildScreenGate);

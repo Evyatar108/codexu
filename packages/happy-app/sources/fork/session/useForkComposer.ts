@@ -25,6 +25,7 @@ import { t } from '@/text';
 import { getSessionMode } from '@/utils/sessionUtils';
 import { buildMessageWithAttachmentRefs } from '@/components/composer/AttachmentChip';
 import type { FileAttachment } from '@/hooks/useFileAttachmentCore';
+import { isReadOnlySession } from '@/sync/storage';
 import { runForkComposerSend } from './forkComposerSend';
 
 /**
@@ -65,6 +66,11 @@ export function useForkComposer(sessionId: string, session: Session): ForkCompos
     const { clearDraft } = useDraft(sessionId, message, setMessage);
     const canSendWhenIdle = getCanSendWhenIdle(session);
 
+    // M1a: Copilot mirrors (and not-yet-hydrated placeholders) are read-only.
+    // SessionView never mounts AgentInput for them, but block send here too as
+    // defense in depth so no alternate caller of this seam can dispatch input.
+    const readOnly = isReadOnlySession(session);
+
     const handleChangeMessage = React.useCallback((nextMessage: string) => {
         messageRef.current = nextMessage;
         setMessage((previousMessage) => {
@@ -79,29 +85,35 @@ export function useForkComposer(sessionId: string, session: Session): ForkCompos
     }, []);
 
     const onSend = React.useCallback(
-        (switchMode: 'now' | 'when-idle', attachments: readonly FileAttachment[]) => runForkComposerSend(
-            {
-                sessionId,
-                message,
-                preSendCommand,
-                composeStartAtRef,
-                messageRef,
-                setMessage,
-                clearDraft,
-                generateLocalMessageId,
-                writeFile: sessionWriteFile,
-                sendMessage: async (id, body, options) => {
-                    await sync.sendMessage(id, body, options);
+        (switchMode: 'now' | 'when-idle', attachments: readonly FileAttachment[]) => {
+            // Defense in depth: a read-only mirror must never dispatch user input.
+            if (readOnly) {
+                return Promise.resolve<boolean | undefined>(undefined);
+            }
+            return runForkComposerSend(
+                {
+                    sessionId,
+                    message,
+                    preSendCommand,
+                    composeStartAtRef,
+                    messageRef,
+                    setMessage,
+                    clearDraft,
+                    generateLocalMessageId,
+                    writeFile: sessionWriteFile,
+                    sendMessage: async (id, body, options) => {
+                        await sync.sendMessage(id, body, options);
+                    },
+                    buildMessageWithAttachmentRefs,
+                    alertUploadError: (error) => {
+                        Modal.alert(t('common.error'), error || t('errors.attachmentUploadFailed'), [{ text: t('common.ok') }]);
+                    },
                 },
-                buildMessageWithAttachmentRefs,
-                alertUploadError: (error) => {
-                    Modal.alert(t('common.error'), error || t('errors.attachmentUploadFailed'), [{ text: t('common.ok') }]);
-                },
-            },
-            switchMode,
-            attachments,
-        ),
-        [sessionId, message, preSendCommand, clearDraft],
+                switchMode,
+                attachments,
+            );
+        },
+        [readOnly, sessionId, message, preSendCommand, clearDraft],
     );
 
     return {
@@ -113,7 +125,7 @@ export function useForkComposer(sessionId: string, session: Session): ForkCompos
         inputProps: {
             value: message,
             onChangeText: handleChangeMessage,
-            blockSend: false,
+            blockSend: readOnly,
             canSendWhenIdle,
             onSend,
         },

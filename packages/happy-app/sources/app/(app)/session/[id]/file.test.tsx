@@ -27,7 +27,7 @@ const shared = {
                 os: 'linux',
             },
         },
-    } as Record<string, { metadata: { path: string; os?: string } }>,
+    } as Record<string, { metadata: { path?: string; os?: string; flavor?: string } | null }>,
     applyFileCache: vi.fn(),
 };
 
@@ -91,6 +91,9 @@ vi.mock('@/sync/storage', () => ({
         }),
     },
     useSessionFileCache: () => shared.cache,
+    useSession: (id: string) => shared.sessions[id] ?? null,
+    isCopilotSession: (s: { metadata?: { flavor?: string } | null } | null | undefined) => s?.metadata?.flavor === 'copilot',
+    isPlaceholderSession: (s: { metadata?: unknown } | null | undefined) => !!s && s.metadata === null,
 }));
 
 vi.mock('@/modal', () => ({
@@ -218,5 +221,48 @@ describe('FileScreen', () => {
         });
 
         expect(sessionReadFile).toHaveBeenCalledWith('session-1', filePath);
+    });
+});
+
+describe('FileScreen gate (M1a fail-closed)', () => {
+    beforeEach(() => {
+        shared.cache = null;
+        sessionReadFile.mockReset();
+        sessionBash.mockReset();
+        routeParams.mockReturnValue({
+            id: 'session-1',
+            path: encode('/repo/src/file.ts'),
+            view: 'file',
+        });
+    });
+
+    it('renders (non-null) for a normal session', async () => {
+        shared.sessions['session-1'] = { metadata: { path: '/repo', os: 'linux' } };
+        sessionReadFile.mockReturnValue(readFileResponse('file content'));
+        let renderer!: ReturnType<typeof TestRenderer.create>;
+        await act(async () => {
+            renderer = TestRenderer.create(<FileScreen />);
+        });
+        expect(renderer!.toJSON()).not.toBeNull();
+    });
+
+    it('fails closed (null) for a Copilot mirror session', async () => {
+        shared.sessions['session-1'] = { metadata: { path: '/repo', os: 'linux', flavor: 'copilot' } };
+        let renderer!: ReturnType<typeof TestRenderer.create>;
+        await act(async () => {
+            renderer = TestRenderer.create(<FileScreen />);
+        });
+        expect(renderer!.toJSON()).toBeNull();
+        expect(sessionReadFile).not.toHaveBeenCalled();
+    });
+
+    it('fails closed (null) for an unknown placeholder session', async () => {
+        shared.sessions['session-1'] = { metadata: null };
+        let renderer!: ReturnType<typeof TestRenderer.create>;
+        await act(async () => {
+            renderer = TestRenderer.create(<FileScreen />);
+        });
+        expect(renderer!.toJSON()).toBeNull();
+        expect(sessionReadFile).not.toHaveBeenCalled();
     });
 });

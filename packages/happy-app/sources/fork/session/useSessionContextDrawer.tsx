@@ -25,6 +25,7 @@ import {
 import { ResumeCommandCopyBlock, SessionContextDrawer } from '@/components/SessionContextDrawer';
 import { useSessionQuickActions } from '@/hooks/useSessionQuickActions';
 import { useMachine } from '@/sync/storage';
+import { isReadOnlySession } from '@/sync/storage';
 import { Session } from '@/sync/storageTypes';
 import { t } from '@/text';
 import { getResumeCommandBlock } from '@/utils/sessionUtils';
@@ -141,7 +142,13 @@ export function useSessionContextDrawer(params: {
         router.push(`/session/${sessionId}/fork-composer`);
     }, [router, sessionId]);
 
-    const drawer = (
+    // M1a: Copilot mirrors (and not-yet-hydrated placeholders) are read-only.
+    // The context drawer and archived-resume hint expose fork / resume / model /
+    // permission / take-over / cancel controls, so suppress both entirely. This
+    // backs SessionView's own suppression as defense in depth.
+    const readOnly = isReadOnlySession(session);
+
+    const drawer = readOnly ? null : (
         <SessionContextDrawer
             machineName={machineName}
             workdirPath={session.metadata?.path}
@@ -157,7 +164,7 @@ export function useSessionContextDrawer(params: {
         />
     );
 
-    const archivedHint = isInactiveArchivedSession ? (
+    const archivedHint = (!readOnly && isInactiveArchivedSession) ? (
         <InactiveArchivedHint
             resumeCommandBlock={resumeCommandBlock}
             canResume={canResume}
@@ -166,5 +173,5 @@ export function useSessionContextDrawer(params: {
         />
     ) : null;
 
-    return { isInactiveArchivedSession, drawer, archivedHint };
+    return { isInactiveArchivedSession: !readOnly && isInactiveArchivedSession, drawer, archivedHint };
 }

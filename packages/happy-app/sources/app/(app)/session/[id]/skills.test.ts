@@ -10,6 +10,8 @@ vi.mock('expo-router', () => ({
 
 vi.mock('@/sync/storage', () => ({
     useSession: mockUseSession,
+    isCopilotSession: (s: { metadata?: { flavor?: string } | null } | null | undefined) => s?.metadata?.flavor === 'copilot',
+    isPlaceholderSession: (s: { metadata?: unknown } | null | undefined) => !!s && !s.metadata,
 }));
 
 vi.mock('@/components/Item', () => ({
@@ -133,5 +135,15 @@ describe('SkillsScreen', () => {
             title: EMPTY_STATE_TITLE,
             showChevron: false,
         });
+    });
+
+    it('renders nothing for a read-only Copilot mirror', () => {
+        mockUseSession.mockReturnValue({ metadata: { flavor: 'copilot', skills: ['compact'] } as never });
+        expect(SkillsScreen()).toBeNull();
+    });
+
+    it('renders nothing for an unknown placeholder session', () => {
+        mockUseSession.mockReturnValue({ metadata: null });
+        expect(SkillsScreen()).toBeNull();
     });
 });

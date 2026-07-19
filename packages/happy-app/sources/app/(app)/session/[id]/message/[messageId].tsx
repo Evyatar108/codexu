@@ -2,7 +2,7 @@ import * as React from 'react';
 import { useLocalSearchParams, Stack, useRouter } from "expo-router";
 import { Text, View, ActivityIndicator } from "react-native";
 import { useSharedValue } from 'react-native-reanimated';
-import { useMessage, useSession, useSessionMessages } from "@/sync/storage";
+import { useMessage, useSession, useSessionMessages, isCopilotSession, isPlaceholderSession } from "@/sync/storage";
 import { sync } from '@/sync/sync';
 import { Deferred } from "@/components/Deferred";
 import { ToolFullView } from '@/components/tools/ToolFullView';
@@ -33,6 +33,20 @@ const stylesheet = StyleSheet.create((theme) => ({
 }));
 
 export default React.memo(() => {
+    // M1a split-gate: read-only Copilot mirrors and unknown placeholder sessions
+    // fail closed BEFORE the inner component mounts, so message lookup, the
+    // prefetch/active-session effects, ToolFullView, and content rendering never
+    // run. Deep/direct links to this route therefore cannot bypass the phone
+    // allowlist. Only the parent session row is read here (no message hooks).
+    const { id: sessionId } = useLocalSearchParams<{ id: string; messageId: string }>();
+    const session = useSession(sessionId!);
+    if (isCopilotSession(session) || isPlaceholderSession(session)) {
+        return null;
+    }
+    return <MessageDetailInner />;
+});
+
+const MessageDetailInner = React.memo(() => {
     const { id: sessionId, messageId } = useLocalSearchParams<{ id: string; messageId: string }>();
     const router = useRouter();
     const session = useSession(sessionId!);

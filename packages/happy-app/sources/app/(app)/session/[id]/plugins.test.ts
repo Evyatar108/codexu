@@ -12,6 +12,8 @@ vi.mock('expo-router', () => ({
 
 vi.mock('@/sync/storage', () => ({
     useSession: mockUseSession,
+    isCopilotSession: (s: { metadata?: { flavor?: string } | null } | null | undefined) => s?.metadata?.flavor === 'copilot',
+    isPlaceholderSession: (s: { metadata?: unknown } | null | undefined) => !!s && !s.metadata,
 }));
 
 vi.mock('@/components/Item', () => ({
@@ -143,5 +145,15 @@ describe('PluginsScreen', () => {
             loading: true,
             showChevron: false,
         });
+    });
+
+    it('renders nothing for a read-only Copilot mirror', () => {
+        mockUseSession.mockReturnValue({ metadata: { flavor: 'copilot', plugins: [{ name: 'p', path: '/p' }] } as never });
+        expect(PluginsScreen()).toBeNull();
+    });
+
+    it('renders nothing for an unknown placeholder session', () => {
+        mockUseSession.mockReturnValue({ metadata: null });
+        expect(PluginsScreen()).toBeNull();
     });
 });

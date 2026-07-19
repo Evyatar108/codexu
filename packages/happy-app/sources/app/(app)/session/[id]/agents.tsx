@@ -3,7 +3,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { Item } from '@/components/Item';
 import { ItemGroup } from '@/components/ItemGroup';
 import { ItemList } from '@/components/ItemList';
-import { useSession } from '@/sync/storage';
+import { useSession, isCopilotSession, isPlaceholderSession } from '@/sync/storage';
 import type { Session } from '@/sync/storageTypes';
 import { t } from '@/text';
 
@@ -47,6 +47,11 @@ export function AgentsScreenContent({ agents, isLoading }: { agents?: AgentEntry
 export function AgentsScreen() {
     const { id: sessionId } = useLocalSearchParams<{ id: string }>();
     const session = useSession(sessionId!);
+    // M1a: agents are a Copilot-mirror mutation/introspection surface. Fail closed
+    // (render nothing) for read-only Copilot mirrors and unknown placeholder sessions.
+    if (isCopilotSession(session) || isPlaceholderSession(session)) {
+        return null;
+    }
     const isLoading = !!session && session.metadata?.tools === undefined;
 
     return <AgentsScreenContent agents={session?.metadata?.agents} isLoading={isLoading} />;

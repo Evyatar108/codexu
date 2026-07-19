@@ -100,6 +100,8 @@ vi.mock('@/sync/sync', () => ({
 vi.mock('@/sync/storage', () => ({
     useAllMachines: () => shared.machine ? [shared.machine] : [],
     useSession: () => shared.session,
+    isCopilotSession: (s: { metadata?: { flavor?: string } | null } | null | undefined) => s?.metadata?.flavor === 'copilot',
+    isPlaceholderSession: (s: { metadata?: unknown } | null | undefined) => !!s && !s.metadata,
 }));
 
 vi.mock('@/text', () => ({
@@ -107,6 +109,9 @@ vi.mock('@/text', () => ({
 }));
 
 const { SpawnChildScreen } = await import('./spawn-child');
+const SpawnChildGate = (await import('./spawn-child')).default as unknown as {
+    type: () => React.ReactElement | null;
+};
 
 function createSession(): Session {
     return {
@@ -287,5 +292,30 @@ describe('SpawnChildScreen', () => {
         expect(shared.machineSpawnSessionFromSessionMock).toHaveBeenCalledWith('machine-1:parent-session', expect.objectContaining({
             agent: 'claude',
         }));
+    });
+});
+
+describe('SpawnChildScreenGate (M1a fail-closed)', () => {
+    beforeEach(() => {
+        shared.session = createSession();
+    });
+
+    it('renders the spawn screen for a normal (codex) session', () => {
+        shared.session = createSession();
+        expect(SpawnChildGate.type()).not.toBeNull();
+    });
+
+    it('fails closed (null) for a read-only Copilot mirror', () => {
+        const copilot = createSession();
+        copilot.metadata = { ...copilot.metadata!, flavor: 'copilot' };
+        shared.session = copilot;
+        expect(SpawnChildGate.type()).toBeNull();
+    });
+
+    it('fails closed (null) for an unknown placeholder session', () => {
+        const placeholder = createSession();
+        placeholder.metadata = null;
+        shared.session = placeholder;
+        expect(SpawnChildGate.type()).toBeNull();
     });
 });

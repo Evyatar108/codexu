@@ -45,6 +45,81 @@ import {
 } from "./sessionOutputSnapshot";
 
 /**
+ * M1a Copilot read-only mirror predicates.
+ *
+ * The Happy app treats `metadata.flavor === 'copilot'` sessions as read-only
+ * observation mirrors: every phone-side mutation affordance (composer, quick
+ * actions, context/drawer controls, fork/spawn, files, plugins/skills/agents,
+ * message actions) is suppressed, and only Back/navigation, read-only Details,
+ * an Archive lifecycle request, scrolling, and existing pagination remain.
+ * See plans/happy-copilot-native-local-controller-backend/plan.md §5.
+ */
+export function isCopilotSession(session: Session | null | undefined): boolean {
+    return session?.metadata?.flavor === 'copilot';
+}
+
+/**
+ * The sync layer briefly synthesizes an unknown-session placeholder
+ * (`metadata:{path:'',host:'',machineId}`, `metadataVersion: 0`, no flavor)
+ * before the authoritative session row arrives (see
+ * `sync.ts#synthesizePlaceholderSession`). Until real metadata replaces it, the
+ * session's provider is unknown, so every provider's mutation affordances must
+ * stay closed. A `null` metadata row is likewise not-yet-hydrated. This is
+ * scoped to the exact synthesized shape so fully-hydrated non-Copilot sessions
+ * are never affected.
+ */
+export function isPlaceholderSession(session: Session | null | undefined): boolean {
+    if (!session) {
+        return false;
+    }
+    const metadata = session.metadata;
+    if (!metadata) {
+        return true;
+    }
+    if (metadata.flavor) {
+        return false;
+    }
+    return session.metadataVersion === 0
+        && !metadata.path
+        && !metadata.host;
+}
+
+/**
+ * A session whose phone-side mutation affordances must be suppressed: read-only
+ * Copilot mirrors and not-yet-hydrated placeholders.
+ */
+export function isReadOnlySession(session: Session | null | undefined): boolean {
+    return isCopilotSession(session) || isPlaceholderSession(session);
+}
+
+/**
+ * Total-order comparators for durable messages.
+ *
+ * Copilot mirrors can emit several durable events within the same millisecond,
+ * so `createdAt` alone is not a total order. Tie-break on Happy's server-assigned
+ * `seq` (source-delivery order) so reducer replay and display order stay
+ * deterministic. These are strict refinements of the previous createdAt-only
+ * sorts: when `createdAt` differs the result is unchanged, and when both keys
+ * are equal the comparator returns 0 so `Array.prototype.sort` keeps stable
+ * input order. Pending optimistic rows carry `DEFAULT_UNSEQUENCED_MESSAGE_SEQ`
+ * (`Number.MAX_SAFE_INTEGER`) but also the newest `createdAt`, so `createdAt`
+ * still dominates their placement.
+ */
+export function compareMessagesAscending(a: { createdAt: number; seq: number }, b: { createdAt: number; seq: number }): number {
+    if (a.createdAt !== b.createdAt) {
+        return a.createdAt - b.createdAt;
+    }
+    return a.seq - b.seq;
+}
+
+export function compareMessagesDescending(a: { createdAt: number; seq: number }, b: { createdAt: number; seq: number }): number {
+    if (b.createdAt !== a.createdAt) {
+        return b.createdAt - a.createdAt;
+    }
+    return b.seq - a.seq;
+}
+
+/**
  * Centralized session online state resolver
  * Returns either "online" (string) or a timestamp (number) for last seen
  */
@@ -672,7 +747,7 @@ export const storage = create<StorageState>()((set, get) => {
                     });
 
                     const messagesArray = Object.values(mergedMessagesMap)
-                        .sort((a, b) => b.createdAt - a.createdAt);
+                        .sort(compareMessagesDescending);
                     updatedSessionMessages[session.id] = {
                         messages: messagesArray,
                         messagesMap: mergedMessagesMap,
@@ -791,7 +866,7 @@ export const storage = create<StorageState>()((set, get) => {
                 // Messages are already normalized, no need to process them again
                 // Reducer phases assume oldest-to-newest within each batch so tool calls,
                 // results, and latestUsage/todo updates replay deterministically.
-                const normalizedMessages = [...messages].sort((left, right) => left.createdAt - right.createdAt);
+                const normalizedMessages = [...messages].sort(compareMessagesAscending);
 
                 // Run reducer with agentState
                 const reducerResult = reducer(existingSession.reducerState, normalizedMessages, agentState);
@@ -811,7 +886,7 @@ export const storage = create<StorageState>()((set, get) => {
 
                 // Convert to array and sort by createdAt
                 const messagesArray = Object.values(mergedMessagesMap)
-                    .sort((a, b) => b.createdAt - a.createdAt);
+                    .sort(compareMessagesDescending);
                 let sessionOutputSnapshots = state.sessionOutputSnapshots;
                 for (const message of processedMessages) {
                     sessionOutputSnapshots = clearSessionOutputSnapshotForDurableMessage(
@@ -935,7 +1010,7 @@ export const storage = create<StorageState>()((set, get) => {
                     });
 
                     messages = Object.values(messagesMap)
-                        .sort((a, b) => b.createdAt - a.createdAt);
+                        .sort(compareMessagesDescending);
                 }
 
                 // Extract latestUsage from reducerState if available and update session

@@ -1,10 +1,16 @@
 import * as React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 (
     globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
+
+const swipeShared = vi.hoisted(() => ({
+    sessionForActions: null as unknown,
+    canArchive: false,
+    platformOS: 'web' as 'web' | 'ios',
+}));
 
 const theme = {
     colors: {
@@ -24,7 +30,7 @@ const theme = {
 vi.mock('react-native', () => ({
     View: 'View',
     Pressable: 'Pressable',
-    Platform: { OS: 'web', select: (s: any) => s.default ?? s.ios },
+    Platform: { get OS() { return swipeShared.platformOS; }, select: (s: any) => s.default ?? s.ios },
     StyleSheet: { hairlineWidth: 1 },
 }));
 
@@ -60,7 +66,7 @@ vi.mock('./StatusDot', () => ({
 
 vi.mock('@/sync/storage', () => ({
     useAllMachines: () => [],
-    useSession: () => null,
+    useSession: () => swipeShared.sessionForActions,
     useSessionProjectGitStatus: () => null,
     useSessionGitStatus: () => ({
         branch: 'main',
@@ -97,7 +103,7 @@ vi.mock('./SessionActionsPopover', () => ({
 
 vi.mock('@/hooks/useSessionQuickActions', () => ({
     useSessionActionAlert: () => () => {},
-    useSessionQuickActions: () => ({ archiveSession: () => {}, archivingSession: false }),
+    useSessionQuickActions: () => ({ archiveSession: () => {}, archivingSession: false, canArchive: swipeShared.canArchive }),
 }));
 
 vi.mock('@/hooks/useNewSessionDraft', () => ({
@@ -186,5 +192,24 @@ describe('ActiveSessionsGroupCompact header layout', () => {
             (node: { type: unknown }) => typeof node.type === 'string' && (node.type as string).includes('CompactGitStatus')
         );
         expect(found).toHaveLength(0);
+    });
+});
+
+describe('ActiveSessionsGroupCompact swipe-to-archive gating (M1a)', () => {
+    beforeEach(() => {
+        swipeShared.sessionForActions = { id: 'session-1', metadata: { flavor: 'copilot' } };
+        swipeShared.platformOS = 'ios';
+    });
+
+    it('mounts the Swipeable archive action when the action gate permits archiving', () => {
+        swipeShared.canArchive = true;
+        const tree = render();
+        expect(tree.root.findAllByType('Swipeable').length).toBeGreaterThan(0);
+    });
+
+    it('renders plain rows with no Swipeable when the action gate forbids archiving (read-only Copilot mirror)', () => {
+        swipeShared.canArchive = false;
+        const tree = render();
+        expect(tree.root.findAllByType('Swipeable')).toHaveLength(0);
     });
 });

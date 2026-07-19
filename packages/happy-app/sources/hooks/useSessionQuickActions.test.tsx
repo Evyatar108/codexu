@@ -74,6 +74,8 @@ vi.mock('@/sync/storage', () => ({
     useLocalSetting: () => false,
     useMachine: () => shared.machine,
     useSession: vi.fn(),
+    isCopilotSession: (s: { metadata?: { flavor?: string } | null } | null | undefined) => s?.metadata?.flavor === 'copilot',
+    isPlaceholderSession: (s: { metadata?: unknown } | null | undefined) => !!s && !s.metadata,
 }));
 
 vi.mock('@/utils/machineUtils', () => ({

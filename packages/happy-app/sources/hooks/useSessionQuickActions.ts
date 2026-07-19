@@ -6,6 +6,7 @@ import { Modal } from '@/modal';
 import { machineResumeSession, sessionArchive, sessionKill } from '@/sync/ops';
 import { maybeCleanupWorktree } from '@/hooks/useWorktreeCleanup';
 import { storage, useLocalSetting, useMachine } from '@/sync/storage';
+import { isCopilotSession, isPlaceholderSession } from '@/sync/storage';
 import { Session } from '@/sync/storageTypes';
 import { sync } from '@/sync/sync';
 import { t } from '@/text';
@@ -50,6 +51,19 @@ export function useSessionQuickActions(
         [machine, session, sessionStatus.isConnected],
     );
     const canFork = forkAvailability(session, machine);
+
+    // M1a read-only Copilot mirror gating. This hook is the single header/list
+    // action gate: the web header popover, the mobile long-press alert, and the
+    // compact-list swipe all derive their actions (and archivability) from here.
+    //  - placeholder (unknown, not-yet-hydrated): no actions at all.
+    //  - active Copilot mirror: Details + Archive only.
+    //  - inactive/archived Copilot mirror: Details only.
+    //  - every other (non-Copilot) session: unchanged.
+    const isCopilotMirror = isCopilotSession(session);
+    const isPlaceholder = isPlaceholderSession(session);
+    const isArchivedLifecycle = session.metadata?.lifecycleState === 'archived';
+    const copilotArchivable = isCopilotMirror && sessionStatus.isConnected && !isArchivedLifecycle;
+    const canArchive = isPlaceholder ? false : (isCopilotMirror ? copilotArchivable : true);
 
     const openDetails = React.useCallback(() => {
         router.push(`/session/${session.id}/info`);
@@ -123,6 +137,20 @@ export function useSessionQuickActions(
     });
 
     const [archivingSession, performArchive] = useHappyAction(async () => {
+        // Copilot Archive is a pure provider lifecycle request: it must never
+        // touch worktree/shell/filesystem cleanup and must never fall back to the
+        // server-only archive endpoint (which deactivates storage without waking
+        // the relay). It calls only the provider `killSession` RPC; on failure we
+        // surface the error and leave the session active for retry.
+        if (isCopilotMirror) {
+            const killResult = await sessionKill(session.id);
+            if (!killResult.success) {
+                throw new HappyError(t('sessionInfo.failedToArchiveSession'), false);
+            }
+            onAfterArchive?.();
+            return;
+        }
+
         await maybeCleanupWorktree(session.id, session.metadata?.path, session.metadata?.machineId);
 
         // Try to kill the CLI process; if it's already dead, force-archive via server
@@ -164,9 +192,24 @@ export function useSessionQuickActions(
     const canCopySessionMetadata = __DEV__ || devModeEnabled;
 
     const actionItems = React.useMemo<SessionActionItem[]>(() => {
+        // Placeholder (unknown, not-yet-hydrated) sessions expose no actions.
+        if (isPlaceholder) {
+            return [];
+        }
+
         const items: SessionActionItem[] = [
             { id: 'details', icon: 'information-circle-outline', label: t('profile.details'), onPress: openDetails },
         ];
+
+        // Read-only Copilot mirror: Details, plus Archive only while active. It
+        // omits resume, fork, spawn-child, and metadata copy entirely, so neither
+        // the web popover nor the mobile/list long-press can reach them.
+        if (isCopilotMirror) {
+            if (copilotArchivable) {
+                items.push({ id: 'archive', icon: 'archive-outline', label: t('sessionInfo.archiveSession'), onPress: archiveSession, destructive: true });
+            }
+            return items;
+        }
 
         if (resumeAvailability.canShowResume) {
             items.push({ id: 'resume', icon: 'play-circle-outline', label: t('sessionInfo.resumeSession'), onPress: resumeSession });
@@ -190,9 +233,12 @@ export function useSessionQuickActions(
         archiveSession,
         canFork,
         canCopySessionMetadata,
+        copilotArchivable,
         copySessionMetadata,
         copySessionMetadataAndLogs,
         forkSession,
+        isCopilotMirror,
+        isPlaceholder,
         openDetails,
         resumeAvailability.canShowResume,
         resumeSession,
@@ -214,7 +260,7 @@ export function useSessionQuickActions(
         showActionAlert,
         archiveSession,
         archivingSession,
-        canArchive: true,
+        canArchive,
         canCopySessionMetadata,
         canFork,
         canResume: resumeAvailability.canResume,

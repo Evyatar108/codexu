@@ -43,6 +43,12 @@ export const MessageView = React.memo((props: {
 }) => {
   const messageContentWidthStyle = React.useMemo(() => ({ maxWidth: props.chatBodyWidth }), [props.chatBodyWidth]);
 
+  // M1a: Copilot mirror messages render truthfully read-only. The message body
+  // supplies no option-send callback, no session id for session-file/link
+  // actions, and no fork-from-message action. Tool/result rendering is preserved
+  // for observation.
+  const readOnly = props.metadata?.flavor === 'copilot';
+
   const content = (
     <View style={[styles.messageContent, messageContentWidthStyle]}>
       <RenderBlock
@@ -50,7 +56,8 @@ export const MessageView = React.memo((props: {
         metadata={props.metadata}
         sessionId={props.sessionId}
         getMessageById={props.getMessageById}
-        onForkFromUserMessage={props.onForkFromUserMessage}
+        onForkFromUserMessage={readOnly ? undefined : props.onForkFromUserMessage}
+        readOnly={readOnly}
       />
     </View>
   );
@@ -70,6 +77,7 @@ function RenderBlock(props: {
   sessionId: string;
   getMessageById?: (id: string) => Message | null;
   onForkFromUserMessage?: (messageId: string, rewindPointId: string | undefined, messageText: string) => void;
+  readOnly?: boolean;
   depth?: number;
 }): React.ReactElement {
   const depth = props.depth ?? 0;
@@ -84,11 +92,12 @@ function RenderBlock(props: {
         message={props.message}
         metadata={props.metadata}
         sessionId={props.sessionId}
-        onForkFromUserMessage={props.onForkFromUserMessage}
+        onForkFromUserMessage={props.readOnly ? undefined : props.onForkFromUserMessage}
+        readOnly={props.readOnly}
       />;
 
     case 'agent-text':
-      return <AgentTextBlock message={props.message} sessionId={props.sessionId} />;
+      return <AgentTextBlock message={props.message} sessionId={props.sessionId} readOnly={props.readOnly} />;
 
     case 'tool-call':
       return <ToolCallBlock
@@ -115,14 +124,23 @@ function UserTextBlock(props: {
   metadata: Metadata | null;
   sessionId: string;
   onForkFromUserMessage?: (messageId: string, rewindPointId: string | undefined, messageText: string) => void;
+  readOnly?: boolean;
 }) {
   // Hooks must run unconditionally and BEFORE any early return (skillBody guard
   // below), so keep every hook at the top of the component.
   const messageCommandChips = useLocalSetting('messageCommandChips');
 
+  const readOnly = props.readOnly ?? false;
+  // Read-only mirrors never scope link/session-file actions and never send.
+  const effectiveSessionId = readOnly ? undefined : props.sessionId;
   const handleOptionPress = React.useCallback((option: Option) => {
+    if (readOnly) {
+      return;
+    }
     sync.sendMessage(props.sessionId, option.title, { source: 'option' });
-  }, [props.sessionId]);
+  }, [props.sessionId, readOnly]);
+  // Supply no option-send callback at all for read-only mirrors.
+  const effectiveOnOptionPress = readOnly ? undefined : handleOptionPress;
 
   // Fork type adaptation: upstream's UserTextMessage carries `claudeUuid` /
   // `codexItemId` rewind anchors that the fork's flattened type does not have
@@ -130,7 +148,8 @@ function UserTextBlock(props: {
   // it can only fork Codex sessions (which rewind by session position). The
   // handler + parent wiring are deferred to R8 stage 5.
   const rewindPointId: string | undefined = undefined;
-  const canFork = Boolean(props.onForkFromUserMessage)
+  const canFork = !readOnly
+    && Boolean(props.onForkFromUserMessage)
     && (Boolean(rewindPointId) || props.metadata?.flavor === 'codex');
   const handleLongPress = React.useCallback(() => {
     if (props.onForkFromUserMessage) {
@@ -156,7 +175,7 @@ function UserTextBlock(props: {
     return (
       <View style={einkMessageStyles.userMessageContainer}>
         <View style={einkMessageStyles.userMessageBubble}>
-          <MarkdownView markdown={text} onOptionPress={handleOptionPress} sessionId={props.sessionId} />
+          <MarkdownView markdown={text} onOptionPress={effectiveOnOptionPress} sessionId={effectiveSessionId} />
         </View>
         <MessageAttachmentChips attachmentRefs={props.message.meta?.attachmentRefs} />
       </View>
@@ -196,7 +215,7 @@ function UserTextBlock(props: {
           delayLongPress={400}
           style={[styles.upstreamUserMessageBubble, styles.goalMessageBubble]}
         >
-          <MarkdownView markdown={parsed.goal} onOptionPress={handleOptionPress} sessionId={props.sessionId} />
+          <MarkdownView markdown={parsed.goal} onOptionPress={effectiveOnOptionPress} sessionId={effectiveSessionId} />
         </Pressable>
         <View style={styles.goalSentRow}>
           <Ionicons name="locate-outline" size={16} color={styles.goalSentText.color} />
@@ -214,7 +233,7 @@ function UserTextBlock(props: {
             delayLongPress={400}
             style={[styles.upstreamUserMessageBubble, styles.commandMessageBubble]}
           >
-            <MarkdownView markdown={parsed.args} onOptionPress={handleOptionPress} sessionId={props.sessionId} />
+            <MarkdownView markdown={parsed.args} onOptionPress={effectiveOnOptionPress} sessionId={effectiveSessionId} />
           </Pressable>
         ) : null}
         <View style={styles.commandChip}>
@@ -231,7 +250,7 @@ function UserTextBlock(props: {
         delayLongPress={400}
         style={styles.upstreamUserMessageBubble}
       >
-        <MarkdownView markdown={parsed.text} onOptionPress={handleOptionPress} sessionId={props.sessionId} />
+        <MarkdownView markdown={parsed.text} onOptionPress={effectiveOnOptionPress} sessionId={effectiveSessionId} />
       </Pressable>
     </View>
   );
@@ -240,10 +259,17 @@ function UserTextBlock(props: {
 function AgentTextBlock(props: {
   message: AgentTextMessage;
   sessionId: string;
+  readOnly?: boolean;
 }) {
+  const readOnly = props.readOnly ?? false;
+  const effectiveSessionId = readOnly ? undefined : props.sessionId;
   const handleOptionPress = React.useCallback((option: Option) => {
+    if (readOnly) {
+      return;
+    }
     sync.sendMessage(props.sessionId, option.title, { source: 'option' });
-  }, [props.sessionId]);
+  }, [props.sessionId, readOnly]);
+  const effectiveOnOptionPress = readOnly ? undefined : handleOptionPress;
 
   // Hide thinking messages
   if (props.message.isThinking) {
@@ -260,7 +286,7 @@ function AgentTextBlock(props: {
 
   return (
     <View style={styles.agentMessageContainer}>
-      <MarkdownView markdown={props.message.text} onOptionPress={handleOptionPress} sessionId={props.sessionId} />
+      <MarkdownView markdown={props.message.text} onOptionPress={effectiveOnOptionPress} sessionId={effectiveSessionId} />
     </View>
   );
 }
