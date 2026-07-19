@@ -60,6 +60,32 @@ function withDeadline<T>(promise: Promise<T>, timeoutMs: number): Promise<T | un
   ]);
 }
 
+async function cleanupStage(
+  name: string,
+  action: () => void | Promise<unknown>,
+  timeoutMs = 5_000,
+): Promise<void> {
+  let completed = false;
+  try {
+    await Promise.race([
+      Promise.resolve().then(action).then(() => {
+        completed = true;
+      }),
+      new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, timeoutMs);
+        timer.unref?.();
+      }),
+    ]);
+    if (!completed) throw new Error(`Cleanup stage timed out: ${name}`);
+  } catch (error) {
+    try {
+      logger.debug('[Copilot] Cleanup stage failed', { category: 'cleanup', stage: name, error });
+    } catch {
+      // Cleanup diagnostics must never interrupt later release stages.
+    }
+  }
+}
+
 async function updateMetadataBounded(
   session: ApiSessionClient,
   update: (metadata: Metadata) => Metadata,
@@ -165,6 +191,10 @@ export async function runCopilotMirror(
   const nativeShutdownPromise = new Promise<void>((resolve) => {
     resolveNativeShutdown = resolve;
   });
+  let resolveFinalizationComplete!: () => void;
+  const finalizationCompletePromise = new Promise<void>((resolve) => {
+    resolveFinalizationComplete = resolve;
+  });
 
   const finalizeOnce = (reason: string): Promise<void> => {
     quiescing = true;
@@ -173,40 +203,40 @@ export async function runCopilotMirror(
       await startupPromise;
       relay?.quiesce();
       if (native && reason !== 'native-shutdown') {
-        await withDeadline(native.shutdown().catch(() => undefined), 3_000);
-        if (relay && !nativeShutdownObserved) await withDeadline(nativeShutdownPromise, 3_000);
+        await cleanupStage('native-shutdown-request', () => native!.shutdown(), 3_000);
+        if (relay && !nativeShutdownObserved) {
+          await cleanupStage('native-shutdown-observation', () => nativeShutdownPromise, 3_000);
+        }
       }
       if (relay && reason !== 'native-shutdown') {
-        await relay.drainCurrentDelivery();
+        await cleanupStage('active-delivery-drain', () => relay!.drainCurrentDelivery(), 5_000);
       }
       relay?.stop();
       if (session && activated && !stopDelivered) {
         stopDelivered = true;
         const time = Date.now();
-        const id = stableCopilotId('copilot-stop', session.sessionId);
-        await withDeadline(session.sendSessionProtocolMessageWithDelivery(
+        const sessionId = session.sessionId;
+        const id = stableCopilotId('copilot-stop', sessionId);
+        await cleanupStage('stop-delivery', () => session!.sendSessionProtocolMessageWithDelivery(
           createEnvelope('agent', { t: 'stop' }, {
             id,
             time,
-            turn: stableCopilotId('copilot-lifecycle-turn', session.sessionId),
+            turn: stableCopilotId('copilot-lifecycle-turn', sessionId),
           }),
           { localId: id },
         ), 5_000);
       }
       if (session) {
-        if (activated) await archiveMetadataBounded(session, reason).catch((error) => {
-          logger.debug('[Copilot] Failed to archive mirror metadata', { category: 'metadata-update', error });
-        });
-        try {
-          session.sendSessionDeath();
-        } finally {
-          await withDeadline(session.flush().catch(() => undefined), 5_000);
-          await session.close().catch(() => undefined);
+        if (activated) {
+          await cleanupStage('metadata-archive', () => archiveMetadataBounded(session!, reason), 5_000);
         }
+        await cleanupStage('session-death', () => session!.sendSessionDeath());
+        await cleanupStage('session-flush', () => session!.flush(), 5_000);
+        await cleanupStage('session-close', () => session!.close(), 5_000);
       }
-      native?.close();
-      await target?.terminate();
-    })();
+      await cleanupStage('native-client-close', () => native?.close());
+      await cleanupStage('managed-child-terminate', () => target?.terminate(), 5_000);
+    })().finally(resolveFinalizationComplete);
     return finalization;
   };
 
@@ -274,7 +304,7 @@ export async function runCopilotMirror(
       target!.child.once('error', reject);
     });
     resolveStartup();
-    await Promise.race([relay.run(), childExit]);
+    await Promise.race([relay.run(), childExit, finalizationCompletePromise]);
     if (finalization) await finalization;
   } catch (error) {
     resolveStartup();

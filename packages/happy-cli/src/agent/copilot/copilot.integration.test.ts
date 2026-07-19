@@ -10,8 +10,10 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { spawnManagedTarget } from './managedServer';
 import { CopilotEventRelay } from './eventRelay';
+import { stableCopilotId } from './eventProjection';
 import { NativeLocalRpcClient } from './nativeLocalRpcClient';
 import { COPILOT_NATIVE_VERSION, type EventLogPage, type NativeEvent, type NativeNotificationHandler } from './types';
+import { sendManagedServerStimulus } from './__tests__/managedServerStimulus';
 
 function frame(value: unknown): Buffer {
   const body = Buffer.from(JSON.stringify(value), 'utf8');
@@ -101,12 +103,14 @@ describe('Copilot fake managed-server integration', () => {
     class FakeNative {
       handler: NativeNotificationHandler | null = null;
       pages: EventLogPage[] = [];
+      reads = 0;
       onSessionEvent(handler: NativeNotificationHandler): () => void {
         this.handler = handler;
         return () => { this.handler = null; };
       }
       async resume(): Promise<void> {}
       async readEventLog(): Promise<EventLogPage> {
+        this.reads++;
         const page = this.pages.shift();
         if (!page) throw new Error('Unexpected integration read');
         return page;
@@ -115,6 +119,7 @@ describe('Copilot fake managed-server integration', () => {
     const native = new FakeNative();
     const refill = (): void => {
       native.pages = [
+        { events: [], cursor: 'c0', cursorStatus: 'ok', hasMore: false },
         { events: events.slice(0, 100), cursor: 'c1', cursorStatus: 'ok', hasMore: true },
         { events: events.slice(100, 200), cursor: 'c2', cursorStatus: 'ok', hasMore: true },
         { events: events.slice(200), cursor: 'c3', cursorStatus: 'ok', hasMore: false },
@@ -136,28 +141,101 @@ describe('Copilot fake managed-server integration', () => {
     await new CopilotEventRelay(native as never, happy as never, process.cwd()).bootstrapFromStart();
     expect([...rows.values()]).toEqual(events.map((event) => (event.data!.content as string)));
     expect(rows.size).toBe(205);
+    expect(native.reads).toBe(6);
 
     refill();
     await new CopilotEventRelay(native as never, happy as never, process.cwd()).bootstrapFromStart();
     expect(rows.size).toBe(205);
     expect(new Set(rows.keys()).size).toBe(205);
+    expect(native.reads).toBe(12);
   });
 });
 
 describe.skipIf(process.env.RUN_COPILOT_NATIVE_SMOKE !== '1')('Copilot managed-server smoke', () => {
-  it('spawns, validates, handshakes, establishes history buffering, and shuts down', async () => {
+  it('relays a real durable event and restart-replays it without duplicate Happy rows', async () => {
     const target = await spawnManagedTarget({ startupTimeoutMs: 60_000 });
-    const client = new NativeLocalRpcClient(target.registry.host, target.registry.port, 30_000);
+    const client = new NativeLocalRpcClient(target.registry.host, target.registry.port, 120_000);
+    const stimulus = new NativeLocalRpcClient(target.registry.host, target.registry.port, 120_000);
     try {
       expect(target.registry.copilotVersion).toBe(COPILOT_NATIVE_VERSION);
       expect(target.registry.pid).toBe(target.child.pid);
       await client.connect(target.registry.token, target.registry.sessionId);
-      client.onSessionEvent(() => undefined);
+      await stimulus.connect(target.registry.token, target.registry.sessionId);
+
+      const marker = 'HAPPY_COPILOT_M1A_SMOKE';
+      const rows = new Map<string, string>();
+      const attemptsByLocalId = new Map<string, number>();
+      let deliveryAttempts = 0;
+      const happy = {
+        sessionId: 'happy-real-smoke',
+        sendSessionProtocolMessageWithDelivery: vi.fn(async (envelope, options) => {
+          deliveryAttempts++;
+          attemptsByLocalId.set(options.localId, (attemptsByLocalId.get(options.localId) ?? 0) + 1);
+          const serialized = JSON.stringify(envelope);
+          if (!rows.has(options.localId)) rows.set(options.localId, serialized);
+          return { id: options.localId, seq: rows.size };
+        }),
+      };
+      let resolveLiveAssistant!: (event: NativeEvent) => void;
+      const liveAssistant = new Promise<NativeEvent>((resolve) => {
+        resolveLiveAssistant = resolve;
+      });
+      const detachLiveCapture = client.onSessionEvent((event) => {
+        if (event.type === 'assistant.message') resolveLiveAssistant(event);
+      });
       await client.resume();
-      const page = await client.readEventLog({ waitMs: 0 });
-      expect(page.cursorStatus).toBe('ok');
+      await sendManagedServerStimulus(
+        stimulus,
+        target.registry.sessionId,
+        `Reply with exactly ${marker} and no other text.`,
+      );
+      const realLiveEvent = await Promise.race([
+        liveAssistant,
+        new Promise<never>((_, reject) => setTimeout(
+          () => reject(new Error('Timed out waiting for real Copilot assistant notification')),
+          30_000,
+        )),
+      ]);
+      detachLiveCapture();
+
+      let overlapHandler: NativeNotificationHandler | null = null;
+      const overlapNative = {
+        onSessionEvent(handler: NativeNotificationHandler): () => void {
+          overlapHandler = handler;
+          return () => { overlapHandler = null; };
+        },
+        async resume(): Promise<void> {
+          await client.resume();
+          overlapHandler?.(realLiveEvent);
+        },
+        readEventLog: client.readEventLog.bind(client),
+      };
+      await new CopilotEventRelay(overlapNative as never, happy as never, process.cwd()).bootstrapFromStart();
+
+      const assistantLocalId = stableCopilotId(
+        'copilot-local',
+        happy.sessionId,
+        realLiveEvent.id,
+        0,
+      );
+      expect(rows.get(assistantLocalId)).toContain(marker);
+      expect(attemptsByLocalId.get(assistantLocalId)).toBe(1);
+      const firstIds = [...rows.keys()];
+      const firstSize = rows.size;
+      const replay = new CopilotEventRelay(client, happy as never, process.cwd());
+      await replay.bootstrapFromStart();
+      expect(rows.size).toBe(firstSize);
+      expect([...rows.keys()]).toEqual(firstIds);
+      expect(deliveryAttempts).toBeGreaterThan(firstSize);
+      expect(attemptsByLocalId.get(assistantLocalId)).toBe(2);
+
+      const retained = [...rows.values()].join('\n');
+      expect(retained).not.toContain(target.registry.token);
+      expect(retained).not.toContain(target.registry.sessionId);
+      expect(retained).not.toContain('transformedContent');
       await client.shutdown();
     } finally {
+      stimulus.close();
       client.close();
       await target.terminate();
     }

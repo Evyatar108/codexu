@@ -2,6 +2,8 @@ import { EventEmitter } from 'node:events';
 
 import { describe, expect, it, vi } from 'vitest';
 
+import { logger } from '@/ui/logger';
+
 import { runCopilotMirror } from './runCopilotMirror';
 
 function target() {
@@ -28,6 +30,97 @@ const options = {
   },
   machineId: 'machine-1',
 };
+
+function activeHarness(overrides: {
+  send?: (envelope: { ev: { t: string } }) => Promise<unknown>;
+  metadataAck?: (call: number) => Promise<unknown>;
+  flush?: () => Promise<void>;
+  close?: () => Promise<void>;
+} = {}) {
+  const ownedTarget = target();
+  const registered = new Map<string, (params?: unknown) => unknown>();
+  let metadata: Record<string, unknown> = {};
+  let metadataVersion = 0;
+  let metadataAckCalls = 0;
+  const socket = {
+    connected: true,
+    once: vi.fn(),
+    off: vi.fn(),
+    timeout: vi.fn(() => ({
+      emitWithAck: vi.fn(async (_event, body) => {
+        metadataAckCalls++;
+        if (overrides.metadataAck) {
+          const overridden = await overrides.metadataAck(metadataAckCalls);
+          if (overridden !== undefined) return overridden;
+        }
+        metadata = JSON.parse(body.metadata);
+        metadataVersion++;
+        return { result: 'success', metadata: body.metadata, version: metadataVersion };
+      }),
+    })),
+  };
+  const session = {
+    sessionId: 'happy-1',
+    socketReady: Promise.resolve(),
+    socket,
+    metadata,
+    metadataVersion,
+    rpcHandlerManager: {
+      registerHandler: vi.fn((name: string, handler: (params?: unknown) => unknown) => {
+        registered.set(name, handler);
+      }),
+    },
+    onUserMessage: vi.fn(),
+    sendSessionProtocolMessageWithDelivery: vi.fn(overrides.send ?? (async () => ({ id: 'delivery', seq: 1 }))),
+    sendSessionDeath: vi.fn(),
+    flush: vi.fn(overrides.flush ?? (async () => undefined)),
+    close: vi.fn(overrides.close ?? (async () => undefined)),
+  };
+  const api = {
+    getOrCreateSession: vi.fn(async (value) => {
+      metadata = value.metadata;
+      session.metadata = metadata;
+      return { id: 'happy-1' };
+    }),
+    sessionSyncClient: vi.fn(() => session),
+  };
+  const pages = [
+    {
+      events: [{ id: 'message', type: 'user.message', timestamp: '2026-07-19T00:00:00Z', data: { content: 'hello' } }],
+      cursor: 'c1',
+      cursorStatus: 'ok',
+      hasMore: false,
+    },
+    { events: [], cursor: 'c2', cursorStatus: 'ok', hasMore: false },
+    { events: [], cursor: 'c3', cursorStatus: 'ok', hasMore: false },
+    {
+      events: [{ id: 'shutdown', type: 'session.shutdown', timestamp: '2026-07-19T00:00:01Z' }],
+      cursor: 'c4',
+      cursorStatus: 'ok',
+      hasMore: false,
+    },
+  ];
+  const native = {
+    connect: vi.fn(async () => undefined),
+    onSessionEvent: vi.fn(() => () => undefined),
+    resume: vi.fn(async () => undefined),
+    readEventLog: vi.fn(async () => pages.shift()),
+    reconnect: vi.fn(async () => undefined),
+    shutdown: vi.fn(async () => undefined),
+    close: vi.fn(),
+  };
+  return {
+    ownedTarget,
+    registered,
+    session,
+    native,
+    dependencies: {
+      createApi: vi.fn(async () => api as never),
+      spawnTarget: vi.fn(async () => ownedTarget) as never,
+      createNativeClient: vi.fn(() => native as never),
+    },
+  };
+}
 
 describe('runCopilotMirror lifecycle', () => {
   it('quiesces startup and terminates a target acquired after a stop signal', async () => {
@@ -181,5 +274,79 @@ describe('runCopilotMirror lifecycle', () => {
     expect(session.close).toHaveBeenCalledOnce();
     expect(ownedTarget.terminate).toHaveBeenCalledOnce();
     expect(api.getOrCreateSession.mock.calls[0][0].tag).not.toContain('native-private-id');
+  });
+
+  it('bounds a hung active delivery and still releases every owned resource', async () => {
+    vi.useFakeTimers();
+    try {
+      const harness = activeHarness({
+        send: async (envelope) => envelope.ev.t === 'text'
+          ? new Promise(() => undefined)
+          : Promise.reject(new Error('Happy ACK rejected')),
+      });
+      const run = runCopilotMirror(options, harness.dependencies);
+      await vi.waitFor(() => expect(harness.session.sendSessionProtocolMessageWithDelivery).toHaveBeenCalledOnce());
+      harness.registered.get('killSession')?.();
+
+      await vi.advanceTimersByTimeAsync(12_000);
+      await expect(run).resolves.toBeUndefined();
+      expect(harness.native.close).toHaveBeenCalledOnce();
+      expect(harness.session.close).toHaveBeenCalledOnce();
+      expect(harness.ownedTarget.terminate).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('isolates rejected ACK and Happy outage cleanup failures from child termination', async () => {
+    const metadataAck = vi.fn(async (call: number) => {
+      if (call === 1) return undefined;
+      throw new Error('metadata outage');
+    });
+    const harness = activeHarness({
+      send: async (envelope) => {
+        if (envelope.ev.t === 'stop') throw new Error('stop ACK rejected');
+        return { id: 'delivery', seq: 1 };
+      },
+      metadataAck,
+      flush: async () => {
+        throw new Error('flush outage');
+      },
+      close: async () => {
+        throw new Error('close outage');
+      },
+    });
+
+    await expect(runCopilotMirror(options, harness.dependencies)).resolves.toBeUndefined();
+    expect(harness.session.sendSessionProtocolMessageWithDelivery.mock.calls.some(
+      ([envelope]) => envelope.ev.t === 'stop',
+    )).toBe(true);
+    expect(metadataAck).toHaveBeenCalledTimes(2);
+    expect(harness.session.sendSessionDeath).toHaveBeenCalledOnce();
+    expect(harness.session.flush).toHaveBeenCalledOnce();
+    expect(harness.session.close).toHaveBeenCalledOnce();
+    expect(harness.native.close).toHaveBeenCalledOnce();
+    expect(harness.ownedTarget.terminate).toHaveBeenCalledOnce();
+  });
+
+  it('preserves the primary runtime error while cleanup failures remain diagnostic', async () => {
+    const debug = vi.spyOn(logger, 'debug').mockImplementation(() => {
+      throw new Error('diagnostic logger failure');
+    });
+    const harness = activeHarness({
+      close: async () => {
+        throw new Error('secondary close failure');
+      },
+    });
+    harness.native.readEventLog.mockRejectedValue(new Error('primary relay failure'));
+
+    try {
+      await expect(runCopilotMirror(options, harness.dependencies)).rejects.toThrow('primary relay failure');
+      expect(harness.session.close).toHaveBeenCalledOnce();
+      expect(harness.native.close).toHaveBeenCalledOnce();
+      expect(harness.ownedTarget.terminate).toHaveBeenCalledOnce();
+    } finally {
+      debug.mockRestore();
+    }
   });
 });
