@@ -198,19 +198,11 @@ function safeDebug(...args: Parameters<typeof logger.debug>): void {
     }
 }
 
-async function withClearedDeadline<T>(promise: Promise<T>, timeoutMs: number): Promise<T | undefined> {
-    let timer: NodeJS.Timeout | null = null;
-    try {
-        return await Promise.race([
-            promise,
-            new Promise<undefined>((resolve) => {
-                timer = setTimeout(() => resolve(undefined), timeoutMs);
-            }),
-        ]);
-    } finally {
-        if (timer) clearTimeout(timer);
-    }
-}
+type PendingFlush = {
+    active: boolean;
+    timers: Set<NodeJS.Timeout>;
+    resolveClosed: () => void;
+};
 
 export class ApiSessionClient extends EventEmitter {
     private readonly token: string;
@@ -233,6 +225,7 @@ export class ApiSessionClient extends EventEmitter {
     private closed = false;
     private reconnectInterval: NodeJS.Timeout | null = null;
     private reconnectTimeout: NodeJS.Timeout | null = null;
+    private pendingFlushes = new Set<PendingFlush>();
     private ignoreArchiveSignal = false;
     private skipInitialMessages = false;
     private claudeSessionProtocolState: ClaudeSessionProtocolState = {
@@ -1246,25 +1239,62 @@ export class ApiSessionClient extends EventEmitter {
      * Wait for socket buffer to flush
      */
     async flush(): Promise<void> {
-        await withClearedDeadline(this.sendSync.invalidateAndAwait(), 10000);
-        if (!this.socket || !this.socket.connected) {
-            return;
-        }
-        const socket = this.socket;
-        return new Promise((resolve, reject) => {
-            const timer = setTimeout(() => {
-                resolve();
-            }, 10000);
-            try {
-                socket.emit('ping', () => {
-                    clearTimeout(timer);
-                    resolve();
-                });
-            } catch (error) {
-                clearTimeout(timer);
-                reject(error);
-            }
+        if (this.closed) return;
+        let resolveClosed!: () => void;
+        const closed = new Promise<void>((resolve) => {
+            resolveClosed = resolve;
         });
+        const pending: PendingFlush = {
+            active: true,
+            timers: new Set(),
+            resolveClosed,
+        };
+        const withDeadline = <T>(promise: Promise<T>, timeoutMs: number): Promise<T | undefined> => {
+            let timer: NodeJS.Timeout;
+            const timeout = new Promise<undefined>((resolve) => {
+                timer = setTimeout(() => {
+                    pending.timers.delete(timer);
+                    resolve(undefined);
+                }, timeoutMs);
+                pending.timers.add(timer);
+            });
+            return Promise.race([promise, timeout]).finally(() => {
+                clearTimeout(timer);
+                pending.timers.delete(timer);
+            });
+        };
+        this.pendingFlushes.add(pending);
+        try {
+            await Promise.race([withDeadline(this.sendSync.invalidateAndAwait(), 10000), closed]);
+            if (!pending.active || this.closed || !this.socket?.connected) return;
+            const socket = this.socket;
+            await Promise.race([
+                new Promise<void>((resolve, reject) => {
+                    let timer: NodeJS.Timeout;
+                    const finish = (): void => {
+                        if (!pending.active) return;
+                        clearTimeout(timer);
+                        pending.timers.delete(timer);
+                        resolve();
+                    };
+                    timer = setTimeout(finish, 10000);
+                    pending.timers.add(timer);
+                    try {
+                        socket.emit('ping', finish);
+                    } catch (error) {
+                        clearTimeout(timer);
+                        pending.timers.delete(timer);
+                        reject(error);
+                    }
+                }),
+                closed,
+            ]);
+        } finally {
+            pending.active = false;
+            for (const timer of pending.timers) clearTimeout(timer);
+            pending.timers.clear();
+            this.pendingFlushes.delete(pending);
+        }
     }
 
     async close() {
@@ -1288,6 +1318,13 @@ export class ApiSessionClient extends EventEmitter {
             clearTimeout(this.reconnectTimeout);
             this.reconnectTimeout = null;
         }
+        for (const pending of this.pendingFlushes) {
+            pending.active = false;
+            for (const timer of pending.timers) clearTimeout(timer);
+            pending.timers.clear();
+            pending.resolveClosed();
+        }
+        this.pendingFlushes.clear();
         const socket = this.socket;
         this.socket = null;
         try { this.rpcHandlerManager.onSocketDisconnect(); } catch {}
