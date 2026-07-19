@@ -105,6 +105,7 @@ function RenderBlock(props: {
         metadata={props.metadata}
         sessionId={props.sessionId}
         getMessageById={props.getMessageById}
+        readOnly={props.readOnly}
         depth={depth}
       />;
 
@@ -350,6 +351,7 @@ function ToolCallBlock(props: {
   metadata: Metadata | null;
   sessionId: string;
   getMessageById?: (id: string) => Message | null;
+  readOnly?: boolean;
   depth: number;
 }) {
   if (!props.message.tool) {
@@ -361,11 +363,16 @@ function ToolCallBlock(props: {
 
   return (
     <View style={styles.toolContainer}>
+      {/* M1a read-only: withhold the actionable sessionId from ToolView so the
+          permission footer (Allow/Deny/Abort), AskUserQuestion Submit, and
+          file/message deep-nav cannot steer a Copilot mirror. Tool display and
+          nested content are preserved; readOnly is threaded into nested children
+          so they suppress their own steering too. */}
       <ToolView
         tool={props.message.tool}
         metadata={props.metadata}
         messages={props.message.children}
-        sessionId={props.sessionId}
+        sessionId={props.readOnly ? undefined : props.sessionId}
         messageId={props.message.id}
       />
       {nestedStepCount > 0 && (
@@ -380,6 +387,7 @@ function ToolCallBlock(props: {
                 metadata={props.metadata}
                 sessionId={props.sessionId}
                 getMessageById={props.getMessageById}
+                readOnly={props.readOnly}
                 depth={childDepth}
               />
             ))
