@@ -203,7 +203,12 @@ export const AskUserQuestionView = React.memo<ToolViewProps>(({ tool, sessionId 
     }
 
     const isRunning = tool.state === 'running';
-    const canInteract = isRunning && !isSubmitted;
+    // A truthy sessionId is required to interact: read-only Copilot mirror tool
+    // rendering passes no actionable sessionId, so options must be non-tappable
+    // and Submit must be absent even while the tool is running. All question,
+    // option, and description content stays visible. Sessions with a live
+    // sessionId (e.g. Claude) remain fully interactive.
+    const canInteract = isRunning && !isSubmitted && !!sessionId;
 
     // Check if all questions have at least one selection
     const allQuestionsAnswered = questions.every((_, qIndex) => {
