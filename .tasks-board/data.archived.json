@@ -13181,6 +13181,51 @@
         "commit": "4959088daf55bc6f6ef17b4b4f78117cefb890ee"
       },
       "lastTouchedAt": "2026-07-19T08:20:00Z"
+    },
+    {
+      "id": "happy-copilot-m1a-app-readonly-gating",
+      "writablePaths": [
+        "packages/happy-app/sources/-session/SessionView.tsx",
+        "packages/happy-app/sources/-session/SessionView.copilotReadOnly.test.tsx",
+        "packages/happy-app/sources/fork/session/useForkComposer.ts",
+        "packages/happy-app/sources/fork/session/useForkComposer.copilotReadOnly.test.ts",
+        "packages/happy-app/sources/fork/session/useSessionContextDrawer.tsx",
+        "packages/happy-app/sources/fork/session/useSessionContextDrawer.copilotReadOnly.test.tsx",
+        "packages/happy-app/sources/components/MessageView.tsx",
+        "packages/happy-app/sources/components/MessageView.copilotReadOnly.test.tsx",
+        "packages/happy-app/sources/components/ChatList.tsx",
+        "packages/happy-app/sources/components/ChatList.copilotReadOnly.test.tsx",
+        "packages/happy-app/sources/components/ActiveSessionsGroupCompact.tsx",
+        "packages/happy-app/sources/components/ActiveSessionsGroupCompact.test.tsx",
+        "packages/happy-app/sources/hooks/useSessionQuickActions.ts",
+        "packages/happy-app/sources/hooks/useSessionQuickActions.test.tsx",
+        "packages/happy-app/sources/hooks/useSessionQuickActions.copilotReadOnly.test.ts",
+        "packages/happy-app/sources/app/(app)/session/[id]",
+        "packages/happy-app/sources/sync/storage.ts",
+        "packages/happy-app/sources/sync/storage.copilotSequenceOrder.test.ts",
+        "packages/happy-app/CHANGELOG.md",
+        "packages/happy-app/sources/changelog/changelog.json"
+      ],
+      "validationCommand": "pnpm --filter happy-app typecheck",
+      "dependsOn": [
+        "happy-copilot-m1a-session-lifecycle"
+      ],
+      "title": "Add read-only Happy app gating for Copilot mirror",
+      "stage": "done",
+      "lifecycle": "completed",
+      "actions": [
+        {
+          "id": "implement",
+          "label": "Implement",
+          "prompt": "Implement the Happy app/UI portion of M1a from the reviewed plan after CLI/lifecycle completion. Render Copilot mirror sessions truthfully read-only across composer/actions/routes while preserving static e-ink history/pagination/tool display and non-Copilot behavior. AskUserQuestion visual disabled state is a separate dependent task. Use Claude Opus 4.8 high; tests/typecheck/audit/review, commit locally, no push."
+        }
+      ],
+      "completion": {
+        "completedAt": "2026-07-21T22:22:00Z",
+        "summary": "Core Copilot read-only app gating shipped on main: functional guards across composer/actions/routes, static e-ink UX, history/pagination/tool display preservation, deterministic storage ordering and non-Copilot regressions. AskUserQuestion visual disabled-state is tracked separately.",
+        "commit": "245a73a886a4b2373a31372f040025b8526b9f67"
+      },
+      "lastTouchedAt": "2026-07-21T22:22:00Z"
     }
   ]
 }
