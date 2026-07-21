@@ -2,8 +2,10 @@ import * as React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MessageView } from './MessageView';
+import { AskUserQuestionView } from './tools/views/AskUserQuestionView';
 import type { Message } from '@/sync/typesMessage';
 import type { Metadata } from '@/sync/storageTypes';
+import type { ToolCall } from '@/sync/typesMessage';
 
 /**
  * M1a: Copilot mirror messages render truthfully read-only. The message body
@@ -27,12 +29,18 @@ vi.mock('react-native', () => ({
     View: 'View',
     Text: 'Text',
     Pressable: 'Pressable',
+    TouchableOpacity: 'TouchableOpacity',
+    ActivityIndicator: 'ActivityIndicator',
+    StyleSheet: {
+        flatten: () => ({}),
+    },
 }));
 
 vi.mock('react-native-unistyles', () => ({
     StyleSheet: {
         create: () => new Proxy({}, { get: () => ({}) }),
     },
+    useUnistyles: () => ({ theme: { colors: { button: { primary: { tint: '#fff' } } } } }),
 }));
 
 vi.mock('@expo/vector-icons', () => ({
@@ -91,6 +99,14 @@ vi.mock('../fork/message/nestedStepsCap', () => ({
 
 vi.mock('@/text', () => ({
     t: (key: string) => key,
+}));
+
+vi.mock('./tools/ToolSectionView', () => ({
+    ToolSectionView: 'ToolSectionView',
+}));
+
+vi.mock('@/sync/ops', () => ({
+    sessionAllow: vi.fn(),
 }));
 
 function userTextMessage(): Message {
@@ -221,5 +237,119 @@ describe('MessageView Copilot read-only gating', () => {
         expect(markdown.length).toBeGreaterThan(0);
         expect(markdown[0].props.onOptionPress).toBeTypeOf('function');
         expect(markdown[0].props.sessionId).toBe('session-1');
+    });
+});
+
+/**
+ * AskUserQuestion read-only rendering for Copilot mirrors. A read-only mirror
+ * passes no actionable sessionId, so the prompt must be fully observable
+ * (question / header / option label / option description text) while every
+ * option control is disabled, Submit is absent, and a tap cannot mutate the
+ * local selection. A session with a live sessionId stays fully interactive.
+ */
+const SUBMIT_KEY = 'tools.askUserQuestion.submit';
+
+function askUserQuestionTool(): ToolCall {
+    return {
+        name: 'AskUserQuestion',
+        state: 'running',
+        input: {
+            questions: [
+                {
+                    question: 'Which color do you prefer?',
+                    header: 'COLOR',
+                    multiSelect: false,
+                    options: [
+                        { label: 'Crimson', description: 'a warm red' },
+                        { label: 'Cerulean', description: 'a cool blue' },
+                    ],
+                },
+            ],
+        },
+        permission: { id: 'perm-ask-1', status: 'pending' },
+    } as unknown as ToolCall;
+}
+
+function renderAskUserQuestion(sessionId: string | undefined) {
+    let renderer: ReturnType<typeof TestRenderer.create>;
+    act(() => {
+        renderer = TestRenderer.create(
+            React.createElement(AskUserQuestionView, {
+                tool: askUserQuestionTool(),
+                metadata: null,
+                messages: [],
+                sessionId,
+            }),
+        );
+    });
+    return renderer!;
+}
+
+function animatedTexts(renderer: ReturnType<typeof TestRenderer.create>): string[] {
+    return renderer.root.findAllByType('AnimatedText' as never).map((node: { props: { children: unknown } }) => {
+        const children = node.props.children;
+        return Array.isArray(children) ? children.join('') : String(children);
+    });
+}
+
+function countViews(renderer: ReturnType<typeof TestRenderer.create>): number {
+    return renderer.root.findAllByType('View' as never).length;
+}
+
+describe('AskUserQuestion read-only rendering for Copilot mirrors', () => {
+    beforeEach(() => {
+        reactActEnvironment.IS_REACT_ACT_ENVIRONMENT = true;
+    });
+
+    it('keeps all question/option/description content visible for a Copilot mirror (no sessionId)', () => {
+        const renderer = renderAskUserQuestion(undefined);
+        const texts = animatedTexts(renderer);
+        expect(texts).toContain('COLOR');
+        expect(texts).toContain('Which color do you prefer?');
+        expect(texts).toContain('Crimson');
+        expect(texts).toContain('a warm red');
+        expect(texts).toContain('Cerulean');
+        expect(texts).toContain('a cool blue');
+    });
+
+    it('disables every option control and offers no Submit for a Copilot mirror (no sessionId)', () => {
+        const renderer = renderAskUserQuestion(undefined);
+        const touchables = renderer.root.findAllByType('TouchableOpacity' as never);
+        // Only the two option buttons render; the Submit action is gated out.
+        expect(touchables.length).toBe(2);
+        for (const touchable of touchables) {
+            expect(touchable.props.disabled).toBe(true);
+        }
+        expect(animatedTexts(renderer)).not.toContain(SUBMIT_KEY);
+    });
+
+    it('does not mutate local selection when a Copilot mirror option is tapped (no sessionId)', () => {
+        const renderer = renderAskUserQuestion(undefined);
+        const before = countViews(renderer);
+        const firstOption = renderer.root.findAllByType('TouchableOpacity' as never)[0];
+        act(() => {
+            firstOption.props.onPress();
+        });
+        // Selection would add the radio dot + selected accent; the read-only
+        // guard must leave the tree unchanged.
+        expect(countViews(renderer)).toBe(before);
+        expect(animatedTexts(renderer)).not.toContain(SUBMIT_KEY);
+    });
+
+    it('stays fully interactive for a normal session with a live sessionId', () => {
+        const renderer = renderAskUserQuestion('session-1');
+        const touchables = renderer.root.findAllByType('TouchableOpacity' as never);
+        // Option buttons render before Submit and are enabled.
+        expect(touchables[0].props.disabled).toBe(false);
+        expect(touchables[1].props.disabled).toBe(false);
+        // Submit is present for an interactive session.
+        expect(animatedTexts(renderer)).toContain(SUBMIT_KEY);
+
+        const before = countViews(renderer);
+        act(() => {
+            touchables[0].props.onPress();
+        });
+        // Selecting the option adds the radio dot + selected accent views.
+        expect(countViews(renderer)).toBeGreaterThan(before);
     });
 });
