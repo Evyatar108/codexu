@@ -13226,6 +13226,61 @@
         "commit": "245a73a886a4b2373a31372f040025b8526b9f67"
       },
       "lastTouchedAt": "2026-07-21T22:22:00Z"
+    },
+    {
+      "id": "happy-copilot-m1a-ask-user-readonly",
+      "writablePaths": [
+        "packages/happy-app/sources/components/tools/views/AskUserQuestionView.tsx",
+        "packages/happy-app/sources/components/MessageView.copilotReadOnly.test.tsx"
+      ],
+      "validationCommand": "pnpm --filter happy-app typecheck",
+      "dependsOn": [
+        "happy-copilot-m1a-app-readonly-gating"
+      ],
+      "title": "Render AskUserQuestion read-only for Copilot mirrors",
+      "stage": "done",
+      "lifecycle": "completed",
+      "actions": [
+        {
+          "id": "implement",
+          "label": "Implement",
+          "prompt": "For read-only Copilot mirror tool rendering, make AskUserQuestion non-interactive when sessionId is absent by including !!sessionId in canInteract. Preserve all question/option content, hide Submit and disable option toggles; non-Copilot remains interactive. Add focused MessageView/AskUserQuestion tests, typecheck, fork audit and Opus UI review. Commit locally, no push."
+        }
+      ],
+      "completion": {
+        "completedAt": "2026-07-21T22:48:00Z",
+        "summary": "Shipped canonical AskUserQuestion read-only behavior for Copilot mirrors: content remains visible, option controls disabled, Submit hidden and taps inert without sessionId; non-Copilot stays interactive. Tests/typecheck/audit and independent Opus review clean.",
+        "commit": "3b103e1fbdf557c3c8f6a690cb302ee46f1049f4"
+      },
+      "lastTouchedAt": "2026-07-21T22:48:00Z"
+    },
+    {
+      "id": "happy-copilot-native-local-controller-backend",
+      "writablePaths": [
+        "plans/happy-copilot-native-local-controller-backend",
+        "docs/copilot-cli-integration.md"
+      ],
+      "dependsOn": [
+        "happy-copilot-m1a-session-lifecycle",
+        "happy-copilot-m1a-app-readonly-gating",
+        "happy-copilot-m1a-ask-user-readonly"
+      ],
+      "title": "Add Copilot CLI as a Happy backend via native local controller",
+      "stage": "done",
+      "lifecycle": "completed",
+      "actions": [
+        {
+          "id": "complete-m1a",
+          "label": "Complete M1a",
+          "prompt": "Coordinate completion of session lifecycle, app gating and AskUserQuestion read-only follow-up. Verify M0-delivery, CLI mirror, app gating, real managed-server smoke, >200-row pagination, restart replay, default-off behavior, and no Copilot runtime changes. Do not add steering or hardening scope."
+        }
+      ],
+      "completion": {
+        "completedAt": "2026-07-21T22:48:00Z",
+        "summary": "Completed M1a read-only Copilot remote support through Happy: deterministic delivery, native managed-server CLI mirror, restricted leak-free session lifecycle, static e-ink app read-only gating and truthful AskUserQuestion rendering. Real managed-server smoke, focused tests, typechecks, fork audit and independent reviews passed. No Copilot runtime patch required.",
+        "commit": "3b103e1fbdf557c3c8f6a690cb302ee46f1049f4"
+      },
+      "lastTouchedAt": "2026-07-21T22:48:00Z"
     }
   ]
 }
