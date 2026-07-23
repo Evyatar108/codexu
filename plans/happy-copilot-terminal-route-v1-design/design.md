@@ -81,6 +81,63 @@ box is the summary; the detail lives in the cited sections.
 
 ---
 
+## Rev. 3 — final correction from independent source review
+
+A second independent review confirmed **Option B** again but found one more
+load‑bearing error that Rev. 1/2 carried: **the interactive `--ui-server` path
+does not wire a `RegistryPublisher` at all**, so it publishes **no** discovery
+entry today, and Rev. 2's B1 fix was insufficient. Re‑verified against source
+and corrected in §2.6, §2.7, §2.8, §4.1, §4.3, §4.4, §4.5, §5, T1, F‑1, F‑3,
+F‑6, and §10.
+
+- **N2 (the ui-server publisher does not exist — must be wired by the seam).**
+  Rev. 1/2 cited `RegistryPublisher`'s class docstring — *"Two callers use
+  this: `EmbeddedServer` for `--ui-server` … `startServerMode` for
+  `--server --managed-server`"* (`src/core/remoteRegistry/registryPublisher.ts:10‑20`)
+  — as if the ui-server caller were implemented. It is **not**. A grep of the
+  whole non‑test tree finds exactly **one** `new RegistryPublisher`, in the
+  **managed** bootstrap (`src/core/sdkServer.ts:6047`), and the only
+  `.setSession(...)` caller is that same block (`sdkServer.ts:6080`).
+  `EmbeddedServer.start()` merely calls `this.server.start()`
+  (`src/cli/embeddedServer.ts:152‑163`); `interactiveMode.ts` only *reads* the
+  registry dir for the (gated‑off) `AgentRegistryWatcher`
+  (`interactiveMode.ts:75, 678‑690`) and never constructs a publisher. The
+  docstring describes the *intended* contract, not the shipped wiring.
+- **N2 corollary — two token sinks, and threading the SDKServer token is not
+  enough.** Adding `connectionToken` to the inner `SDKServer` (Rev. 2 B1)
+  authenticates the **TCP listener** but populates **no** registry entry,
+  because there is no publisher to write one. `RegistryPublisher` takes its
+  **own** `connectionToken` constructor arg and stores it verbatim in the
+  `<pid>.json` entry (`registryPublisher.ts:53‑66, 79‑90, 83‑84`). The managed
+  path proves the pattern: the **same** token value is threaded to **both** the
+  `SDKServer` (`sdkServer.ts:5889`, listener auth) **and** the
+  `RegistryPublisher` (`sdkServer.ts:6050`, entry token). The ui-server seam
+  must replicate both sinks.
+- **N2 fix — wire the publisher lifecycle, modeled on the managed block.** The
+  seam must construct `new RegistryPublisher({ kind: "ui-server", host,
+  connectionToken, pid })`, register its `stop()` cleanup **before** `start()`,
+  call `start(port, startedAt)`, call `setSession(foregroundSession)` on the
+  initial foreground **and every foreground transition**, install a
+  `REGISTRY_HEARTBEAT_INTERVAL_MS` heartbeat (`unref`'d), and `stop()` on
+  shutdown — exactly the shape of the managed lifecycle at
+  `sdkServer.ts:6039‑6091`. The natural owner is `EmbeddedServer` (it already
+  tracks the foreground via `registerSession` and already registers a shutdown
+  callback, `embeddedServer.ts:143‑145, 241‑278`), gated so it runs only when
+  the TCP listener is actually started. No duplicate/stale entry: the filename
+  is `<pid>.json` (one publisher per process), `stop()` unconditionally unlinks
+  and is shutdown‑flag‑guarded (`registryPublisher.ts:249‑266, 25‑27`), and a
+  crash without `stop()` is swept by the ~5‑min stale‑mtime backstop once
+  heartbeats cease (`registryPublisher.ts:45‑49`). See §2.8, §4.1, §4.3, T1,
+  F‑1, F‑6.
+
+**Net effect:** the recommendation is unchanged (Option B, read‑mirror first),
+but the fork seam is honestly **larger than Rev. 2 stated** — it adds a full
+`RegistryPublisher` lifecycle to the interactive path, not just a token field.
+It remains bounded (it re‑uses the existing, tested publisher class and copies
+the managed block's proven lifecycle), and Option A's cost is still far higher.
+
+---
+
 ## 0. Executive summary and recommendation
 
 The P0 contract is a single sentence with teeth: *preserve the **ordinary
@@ -114,16 +171,20 @@ phrasing:
    derivation, and — the hardest part — Copilot's *argv grammar*. Every one of
    those is a perpetual fidelity tax that drifts every Copilot release.
 2. **The Option B seam is genuinely thin** (though not a one‑line env toggle —
-   see Rev. 2 B1), contradicting the natural assumption that "mirror a live TUI"
-   requires deep forking. Copilot already ships the entire attach surface: an
-   interactive‑TUI‑plus‑embedded‑JSON‑RPC mode (`--ui-server`), a discovery
-   registry, and a **complete in‑product controller** (`LocalRpcSession` + the
-   Agents tab) that attaches to such a session, renders it, and answers its
-   approvals/elicitation. The fork change reduces to *"let the ordinary
-   interactive launch expose its embedded server on loopback behind a token,
-   without changing anything the user sees"* — concretely a small multi‑file
-   change: synthesize the embedded‑server config at the launch site and thread a
-   `connectionToken` through `EmbeddedServerOptions` into the inner `SDKServer`
+   see Rev. 2 B1 and Rev. 3 N2), contradicting the natural assumption that
+   "mirror a live TUI" requires deep forking. Copilot already ships almost the
+   entire attach surface: an interactive‑TUI‑plus‑embedded‑JSON‑RPC mode
+   (`--ui-server`), a discovery registry **format + a reusable
+   `RegistryPublisher` class**, and a **complete in‑product controller**
+   (`LocalRpcSession` + the Agents tab) that attaches to such a session, renders
+   it, and answers its approvals/elicitation. The one piece that is **not**
+   wired is a `RegistryPublisher` on the interactive path (Rev. 3 N2). The fork
+   change is *"let the ordinary interactive launch expose its embedded server on
+   loopback behind a token **and publish a discovery entry**, without changing
+   anything the user sees"* — concretely a small multi‑file change: synthesize
+   the embedded‑server config at the launch site, thread a `connectionToken`
+   through `EmbeddedServerOptions` into the inner `SDKServer`, **and wire a
+   `ui-server` `RegistryPublisher` lifecycle** copied from the managed block
    (§2.8, §4.1).
 3. **Option A's genuine advantages are real but off‑target here.** Zero fork
    change, perfectly symmetric mirroring (Happy owns both ends), and the
@@ -134,11 +195,13 @@ phrasing:
 **Recommended shape (v1, read‑mirror first):** ordinary `copilot <args>` runs
 the real interactive TUI; a **narrow fork env‑seam** (`COPILOT_HAPPY_EMBED=1`
 + a generated loopback token) makes that interactive process start its
-already‑existing embedded server and publish a registry entry; Happy's daemon
-attaches **read‑only** (observe + mirror to the phone, human at the terminal
-still owns approvals) and projects events to the embedded happy‑server exactly
-as M1a already does. Phone‑originated input and phone‑answered approvals are
-**additive later milestones**, not part of the v1 preservation contract.
+embedded server (the listener already exists) **and wire a `ui-server`
+discovery‑registry publisher (which does not exist today, Rev. 3 N2)**; Happy's
+daemon attaches **read‑only** (observe + mirror to the phone, human at the
+terminal still owns approvals) and projects events to the embedded
+happy‑server exactly as M1a already does. Phone‑originated input and
+phone‑answered approvals are **additive later milestones**, not part of the v1
+preservation contract.
 
 The remainder of this document is the evidence, the conflict surface, the
 security/ownership/failure semantics for both options, the argv policy P0
@@ -323,9 +386,11 @@ M1a already has its **own pure‑TS** Content‑Length JSON‑RPC client
 option Happy extends its own TS client — the Copilot controller is a *behavioral
 reference*, not a dependency.
 
-### 2.6 The `--ui-server` embedded server (Option B's seam already exists)
+### 2.6 The `--ui-server` embedded server (Option B's seam: listener exists, publisher does NOT)
 
-The interactive TUI can already publish the same RPC surface:
+The interactive TUI already hosts the same RPC **listener**, but it does **not**
+publish itself to the discovery registry — the publisher wiring is missing (Rev.
+3 N2):
 
 - The interactive path constructs an `EmbeddedServer` and starts its TCP
   listener **only when `--ui-server` is enabled**
@@ -335,17 +400,26 @@ The interactive TUI can already publish the same RPC surface:
   (`src/cli/index.ts:4275‑4282`). **(S1)** Note the ternary: with `--ui-server`
   **absent** the value is `undefined` — so a B‑env seam must *synthesize the
   whole config object*, not flip a pre‑existing `enabled` field (§4.1).
-- `RegistryPublisher` writes a `kind:"ui-server"` v1 entry "as soon as
-  `start(port, startedAt)` is called; re‑publishes on every `setSession()` so
-  foreground session transitions surface to controllers"
-  (`src/core/remoteRegistry/registryPublisher.ts:12‑15`). **(B1)** The token in
-  that entry is **not** sourced from env here: the publisher "captures
-  [`connectionToken`] at construction … never re‑reads `COPILOT_CONNECTION_TOKEN`
-  from env" (`registryPublisher.ts:30‑33`), and the embedded server currently
-  passes it none — so today the entry's `token` is `null` (see §2.8).
+- **(N2) No `RegistryPublisher` is wired on this path.** `EmbeddedServer.start()`
+  merely calls `this.server.start()` and returns the port
+  (`src/cli/embeddedServer.ts:152‑163`); it constructs no publisher and writes
+  no `<pid>.json`. The `RegistryPublisher` class docstring lists *"`EmbeddedServer`
+  for `--ui-server`"* as a caller (`src/core/remoteRegistry/registryPublisher.ts:10‑20`),
+  but that is the **intended** contract, not the shipped code: the only
+  non‑test `new RegistryPublisher` in the tree is the **managed** bootstrap
+  (`src/core/sdkServer.ts:6047`), and the only `.setSession(...)` caller is that
+  same block (`sdkServer.ts:6080`) — grep‑verified. **(B1)** Even if a publisher
+  were wired, the token it writes is a **separate** constructor arg
+  (`registryPublisher.ts:53‑66, 83‑84`) that the interactive path supplies to
+  nothing today, so the entry's `token` would be `null` (see §2.8). The seam
+  must therefore **add** the publisher lifecycle *and* feed it the token.
 - `LocalRpcSession` is documented as attaching to "a local `--ui-server`
   target" (`src/core/sharedApi/localRpcSession.ts:319, 386`). The Agents tab
-  attaches one TUI to another TUI's `--ui-server`.
+  attaches one TUI to another TUI's `--ui-server` — but that flow spawns its
+  targets through the managed/`spawnLiveTarget` path (which *does* publish),
+  not the plain interactive launch. This is why the missing interactive
+  publisher has gone unnoticed: no shipped feature attaches to a *bare*
+  interactive TUI.
 - **(B2) The `local-attach` foreground‑refusal guard is NOT load‑bearing for
   this design.** `EmbeddedServer.registerSession` refuses to register a
   `kind === "local-attach"` session as foreground, but **only when
@@ -363,12 +437,15 @@ The interactive TUI can already publish the same RPC surface:
   discipline** (never call `setForeground`/`send`/`abort`), defined in §4.1/§4.4,
   not reliance on this inactive guard.
 
-**Decisive contrast for the two options:** ordinary `copilot` (no
-`--ui-server`) does **not** start the listener
-(`src/cli/interactiveMode.ts:627`) and publishes **no** registry entry — so
-today there is nothing for Happy to attach to. Enabling the embedded server for
-the ordinary interactive launch is precisely the "minimal fork seam" Option B
-needs, and the entire machinery it plugs into already exists.
+**Decisive contrast for the two options:** ordinary `copilot` (no `--ui-server`)
+starts **no** listener (`src/cli/interactiveMode.ts:627`), and even `--ui-server`
+today starts the listener but wires **no** publisher, so in **neither** case is
+there a `<pid>.json` for Happy to discover. Enabling the embedded server **and
+wiring its `ui-server` publisher** for the ordinary interactive launch is
+precisely the "minimal fork seam" Option B needs. Most of the machinery
+(listener, publisher *class*, registry format, controller precedent) already
+exists; the one genuinely new line of wiring is the publisher lifecycle on the
+interactive path, and it is a near‑copy of the managed block (§2.8).
 
 ### 2.7 Discovery registry shape and boundary
 
@@ -390,8 +467,10 @@ Happy's validator must handle it explicitly (`serverRegistry.ts:93‑111,
   `"ui-server"` on read" (97‑99, 108‑111, 156‑161). A validator that requires
   `entry.kind === "ui-server"` **on the raw file** would reject every real v1
   entry. Accept `schemaVersion === 1` with omitted kind and normalize it.
-- **`sessionId` is populated only after the first `setSession()`** (the
-  publisher republishes then, `registryPublisher.ts:12‑15`); the picker must
+- **`sessionId` is populated only after the first `setSession()`** — which the
+  seam‑added `ui-server` publisher must call once the foreground session exists
+  (N2; the managed picker already relies on this republish,
+  `sdkServer.ts:6080`, `registryPublisher.ts:123‑140`). The picker must
   **poll** for a populated `sessionId` rather than assume it at first publish
   (the same race the managed picker already handles).
 
@@ -404,36 +483,84 @@ accepts connections from any local client** (warning at `sdkServer.ts:1690‑169
 The native TCP gate that enforces the token lives in the Rust engine and rejects
 unauthenticated traffic before dispatch (`sdkServer.ts:1665‑1668, 1670‑1700`).
 
-**(B1) The interactive `EmbeddedServer` does NOT participate in that token
-sourcing today.** `EmbeddedServerOptions` has **no** token field
+**(B1 + N2) The interactive `EmbeddedServer` neither authenticates its listener
+nor publishes an entry today.** `EmbeddedServerOptions` has **no** token field
 (`src/cli/embeddedServer.ts:31‑64`), and the inner `SDKServer` is constructed
 **without** `connectionToken` (`src/cli/embeddedServer.ts:101‑119`) even though
 `SDKServer` accepts one (`connectionToken?: string`, `sdkServer.ts:236`). The
 env read at `sdkServer.ts:5840` is on the *server‑mode* bootstrap only, never on
-the interactive path. Consequently, with the seam merely enabling the listener:
-`this.options.connectionToken` is undefined → the native gate is **off**
-(anonymous listener, `sdkServer.ts:1690‑1691`) **and** the published `ui-server`
-entry's `token` is **null** — which M1a's fail‑closed validator rejects
-(`managedServer.ts:110‑122`).
+the interactive path. And **no `RegistryPublisher` is constructed on this path
+at all** (N2, §2.6): `EmbeddedServer.start()` only calls `this.server.start()`
+(`embeddedServer.ts:152‑163`). Consequently, with the seam merely enabling the
+listener: `this.options.connectionToken` is undefined → the native gate is
+**off** (anonymous listener, `sdkServer.ts:1690‑1691`), **and** there is no
+`<pid>.json` entry for Happy to discover at all — so the "entry's token is null"
+framing of Rev. 2 was itself optimistic; there is no entry.
 
-**Therefore the fork seam is a real, multi‑file change (not one env toggle):**
+**Two independent token sinks (the Rev. 2 fix touched only one).** Threading a
+`connectionToken` into the inner `SDKServer` authenticates the **TCP listener**
+but does **not** populate any registry entry. `RegistryPublisher` reads the
+token it writes into the `<pid>.json` from its **own** `connectionToken`
+constructor option, stored verbatim in the entry (`registryPublisher.ts:53‑66,
+79‑90, 83‑84`), and never re‑reads env (`registryPublisher.ts:30‑33`). The
+managed path proves both sinks must be fed the same value: the captured token
+goes to the top‑level `SDKServer` (`sdkServer.ts:5889`) **and** to
+`new RegistryPublisher({ …, connectionToken })` (`sdkServer.ts:6050`).
+
+**Therefore the fork seam is a real, multi‑file change (not one env toggle, and
+larger than Rev. 2 stated):**
 
 1. Add `connectionToken?: string` to `EmbeddedServerOptions`
    (`embeddedServer.ts:31‑64`).
 2. Thread it into the inner `SDKServer` construction
    (`embeddedServer.ts:101‑119`, add `connectionToken: options.connectionToken`)
-   so the native Rust gate enforces it (`sdkServer.ts:1670‑1700`) **and** the
-   registry entry's `token` is populated (the publisher captures the token from
-   its caller and never re‑reads env, `registryPublisher.ts:30‑33`).
-3. At the interactive launch site (`index.ts:4275‑4282`), **synthesize** the
+   so the native Rust gate enforces it (`sdkServer.ts:1670‑1700`). **This alone
+   does not publish an entry.**
+3. **(N2) Wire a `ui-server` `RegistryPublisher` lifecycle into the interactive
+   path**, gated to run only when the TCP listener is actually started. Model it
+   on the managed block (`sdkServer.ts:6039‑6091`):
+   - Construct `new RegistryPublisher({ kind: "ui-server", host,
+     connectionToken, pid: process.pid })` — the **second** token sink
+     (`registryPublisher.ts:53‑66, 79‑90`).
+   - Register `publisher.stop()` on the shutdown service **before** calling
+     `start()` (managed ordering, comment `sdkServer.ts:6042‑6046`;
+     `EmbeddedServer` already owns a shutdown callback at
+     `embeddedServer.ts:143‑145`).
+   - `await publisher.start(port, new Date().toISOString())` — for
+     `kind:"ui-server"` this enqueues the initial write immediately, before a
+     session exists (`registryPublisher.ts:97‑116`).
+   - `publisher.setSession(foregroundSession)` on the initial foreground **and
+     on every foreground transition** so `sessionId`/status stay fresh
+     (`registryPublisher.ts:123‑140`). The hook is `EmbeddedServer.registerSession`
+     (`embeddedServer.ts:241‑278`), which today takes a `sessionId` string —
+     the seam must resolve the `Session` (via `options.sessionManager`) to hand
+     to `setSession`, an implementation detail called out in T1.
+   - Install a `REGISTRY_HEARTBEAT_INTERVAL_MS` (`unref`'d) heartbeat
+     (`registryPublisher.ts:51, 240‑247`; managed sets one at
+     `sdkServer.ts:6082‑6087`).
+4. At the interactive launch site (`index.ts:4275‑4282`), **synthesize** the
    embedded config *including a token* — reading `COPILOT_CONNECTION_TOKEN` (the
    env the launcher sets) or generating one there, because nothing on the
    interactive path reads it today.
 
-With those three edits the interactive embedded listener reaches the same
-security posture M1a already has for the managed child (per‑spawn loopback token
-+ localhost bind + `0600/0700` perms). Absent them, Option B would ship an
-anonymous local RPC listener inside a user‑facing process — unacceptable.
+**No duplicate / stale entry on shutdown or crash.** The entry filename is
+`<pid>.json` and there is exactly one interactive `EmbeddedServer` per process,
+so no duplicate is possible; a managed sibling in a *different* process has a
+different pid. `publisher.stop()` sets the shutdown flag, detaches listeners,
+and unconditionally unlinks (`registryPublisher.ts:249‑266`); the flag is
+re‑checked before and after every async metadata read so a write queued before
+`stop()` cannot republish a stale entry after the unlink
+(`registryPublisher.ts:25‑27, 269‑277`). A hard crash that skips `stop()` leaves
+an orphan that the ~5‑minute stale‑mtime backstop reaps once heartbeats cease
+(`registryPublisher.ts:45‑49`) — identical to the managed path's crash
+semantics. Registering the cleanup **before** `start()` closes the narrow
+orphan window between `start()` and heartbeat setup.
+
+With these edits the interactive embedded listener reaches the same security +
+discovery posture M1a already has for the managed child (per‑spawn loopback
+token + localhost bind + `0600/0700` perms + a published, self‑cleaning entry).
+Absent the publisher wiring there is nothing to attach to; absent the token the
+listener is anonymous — both unacceptable.
 
 ---
 
@@ -531,13 +658,14 @@ legitimate product — it is simply **not** the P0 contract, which is about
 
 The user runs the **genuine** interactive `copilot <args>` (the
 `runInteractiveMode` path). The launcher/daemon arranges for that process to
-expose its **already‑existing** embedded server so Happy can attach:
+expose its embedded server (the **listener** already exists; the **publisher**
+does not — N2) so Happy can attach:
 
 1. **Fork seam (the only Copilot change — small but multi‑file, not one env
    toggle).** Make the ordinary interactive launch start its embedded server
-   **with a connection token** and publish a `ui-server` registry entry when
-   opted in, **without** altering user‑visible behavior. The seam has three
-   parts (all confirmed necessary by the B1 analysis in §2.8):
+   **with a connection token** and **publish a `ui-server` registry entry** when
+   opted in, **without** altering user‑visible behavior. The seam has four
+   parts (all confirmed necessary by the B1/N2 analysis in §2.6/§2.8):
    - **(a) Config synthesis at the launch site.** Today
      `embeddedServer: options.uiServer ? { enabled, port, host } : undefined`
      (`src/cli/index.ts:4275‑4282`); with `--ui-server` absent it is
@@ -550,26 +678,40 @@ expose its **already‑existing** embedded server so Happy can attach:
      `connectionToken?: string` (`src/cli/embeddedServer.ts:31‑64`) and thread
      it into the inner `SDKServer` (`embeddedServer.ts:101‑119`;
      `SDKServer` already accepts `connectionToken`, `sdkServer.ts:236`). **(B1)**
-     Without this the listener is anonymous and the registry entry's `token` is
-     null (§2.8).
-   - **(c) No new protocol/render/session semantics.** The listener, publisher,
-     and event surface all already exist; the seam only *enables and
-     authenticates* them.
+     This authenticates the listener; on its own it publishes nothing (§2.8).
+   - **(c) Wire a `ui-server` `RegistryPublisher` lifecycle. (N2)** This wiring
+     does **not** exist today — `EmbeddedServer.start()` only starts the listener
+     (`embeddedServer.ts:152‑163`) and the sole `new RegistryPublisher` is the
+     managed block (`sdkServer.ts:6047`). Add, gated on the listener being
+     started: construct `new RegistryPublisher({ kind: "ui-server", host,
+     connectionToken, pid })` (the **second** token sink,
+     `registryPublisher.ts:53‑90`), register `stop()` before `start()`, call
+     `start(port, startedAt)`, `setSession(foregroundSession)` on the initial
+     foreground and every transition, and an `unref`'d heartbeat — a near‑copy
+     of `sdkServer.ts:6039‑6091`. Filename `<pid>.json` + unconditional unlink on
+     `stop()` guarantee no duplicate/stale entry (§2.8).
+   - **(d) No new protocol/render/session semantics.** The listener, the
+     publisher *class*, the registry format, and the event surface all already
+     exist; the seam only *enables, authenticates, and publishes* them — it adds
+     no new RPC methods, render paths, or session behavior.
    Two forms for triggering (a):
    - **(B‑env, recommended)** the fork reads `COPILOT_HAPPY_EMBED=1` and does the
      synthesis internally. Keeps the user's **argv byte‑identical** to what they
      typed (strictly honoring the "original argv" contract, P0 line 997).
    - **(B‑flag)** the launcher injects `--ui-server --host 127.0.0.1 --port 0`
      into the child argv (no config‑synthesis fork edit, but still needs the
-     token‑threading edits (b), and the injected flag is observable in
-     argv/`--help` and must be proven inert for every ordinary arg combination).
+     token‑threading (b) **and** publisher‑wiring (c) edits, and the injected
+     flag is observable in argv/`--help` and must be proven inert for every
+     ordinary arg combination). Note: `--ui-server` alone still publishes
+     nothing today (N2), so (c) is required under **both** forms.
 2. **Happy daemon attaches read‑only.** Extend Happy's discovery + validator to
    accept a `ui-server` entry. **(S2)** The contract is explicit: accept
    `schemaVersion === 1` with the **`kind` field omitted on disk** (normalize to
    `"ui-server"`; M1a today hard‑rejects because it requires
    `kind === "managed-server"` + schema 2, `managedServer.ts:110‑122`), and
-   **poll for a populated `sessionId`** (published on first `setSession()`,
-   `registryPublisher.ts:12‑15`). Then run the M1a handshake with
+   **poll for a populated `sessionId`** (published on the seam‑added publisher's
+   first `setSession()`, N2; `registryPublisher.ts:123‑140`). Then run the M1a
+   handshake with
    `observePromptEvents:true` **but `requestPermission:false`** — Happy watches
    and mirrors; the human at the terminal remains the sole approver. Project to
    the embedded happy‑server via the existing `eventProjection`/`eventRelay`.
@@ -605,17 +747,21 @@ a side‑attached mirror.
 ### 4.3 Conflict surface
 
 - **Copilot source (fork):** small but **multi‑file** (not one env read; see B1
-  in §2.8). It adds: (a) config synthesis + token read/generate at the
-  interactive‑launch site (`src/cli/index.ts:4275‑4282`), (b) a
+  in §2.8 and N2 in §2.6). It adds: (a) config synthesis + token read/generate
+  at the interactive‑launch site (`src/cli/index.ts:4275‑4282`), (b) a
   `connectionToken` field on `EmbeddedServerOptions` threaded into the inner
   `SDKServer` (`src/cli/embeddedServer.ts:31‑64, 101‑119`; option at
-  `sdkServer.ts:236`). It does **not** touch the typed‑context/ownership
-  controller files P4 edits — satisfying P0's co‑edit prohibition (lines
-  993‑995) *provided the seam stays in the launch/option‑assembly + embedded‑
-  server‑options path, not the controller*. This placement is a hard design
-  constraint (see §8 staged tasks). Optionally, a Copilot‑side hardening (§4.4)
-  makes the `local-attach` foreground guard unconditional — a separate, small
-  edit in `embeddedServer.ts:264‑268`.
+  `sdkServer.ts:236`), and **(c) a `ui-server` `RegistryPublisher` lifecycle on
+  the interactive path** (construct/start/`setSession`/heartbeat/stop), which
+  does not exist today and is modeled on the managed block
+  (`sdkServer.ts:6039‑6091`); its natural home is `EmbeddedServer`
+  (`embeddedServer.ts:143‑145, 152‑163, 241‑278`). None of this touches the
+  typed‑context/ownership controller files P4 edits — satisfying P0's co‑edit
+  prohibition (lines 993‑995) *provided the seam stays in the launch/option‑
+  assembly + embedded‑server path, not the controller*. This placement is a hard
+  design constraint (see §8 staged tasks). Optionally, a Copilot‑side hardening
+  (§4.4) makes the `local-attach` foreground guard unconditional — a separate,
+  small edit in `embeddedServer.ts:264‑268`.
 - **Happy source — OVERLAPS P4 (N1).** The discovery/validator generalization
   lives in `managedServer.ts` (today managed‑only, `managedServer.ts:102‑126`),
   and the mirror extension lives in the `runCopilotMirror.ts`/client path — **the
@@ -632,17 +778,29 @@ a side‑attached mirror.
 
 ### 4.4 Security / ownership / failure semantics
 
-- **Security — token is mandatory AND currently absent (B1).** The embedded
-  listener is anonymous today because `EmbeddedServerOptions` carries no token
-  and the inner `SDKServer` gets none (§2.8; `embeddedServer.ts:31‑64,
-  101‑119`). The seam **must** add the token field, thread it, and
-  generate/inject `COPILOT_CONNECTION_TOKEN` at the interactive launch —
-  otherwise Option B ships an any‑client‑accepting RPC listener inside a
-  user‑facing process (`sdkServer.ts:1690‑1691`). With the token + loopback bind
-  + localhost registry filter + `0600/0700` perms (§2.7‑2.8), the boundary
-  matches M1a's managed posture. The token is generated by the launcher and
-  passed via env to the child (same pattern as `managedServer.ts:150‑156`),
-  never written to argv/logs.
+- **Security — token is mandatory AND currently absent, on BOTH sinks (B1 +
+  N2).** The embedded listener is anonymous today because `EmbeddedServerOptions`
+  carries no token and the inner `SDKServer` gets none (§2.8;
+  `embeddedServer.ts:31‑64, 101‑119`), **and** no publisher writes an entry at
+  all (§2.6). The seam **must** (i) add the token field + thread it into the
+  inner `SDKServer` (listener auth), and (ii) pass the **same** token to the
+  seam‑added `RegistryPublisher` constructor (`registryPublisher.ts:53‑66,
+  83‑84`) so the discovery entry carries it — two sinks, one value, exactly as
+  the managed path does (`sdkServer.ts:5889` + `6050`). The token is generated
+  by the launcher and passed via env to the child (same pattern as
+  `managedServer.ts:150‑156`), never written to argv/logs; the child clears it
+  from its own env after capture so tools/subagents never inherit it
+  (`sdkServer.ts:5836‑5841`). With the token + loopback bind + localhost registry
+  filter + `0600/0700` perms (§2.7‑2.8), the boundary matches M1a's managed
+  posture.
+- **Failure — registry entry is self‑cleaning (N2).** The seam‑added publisher
+  writes exactly one `<pid>.json`; `stop()` (wired on the shutdown service
+  before `start()`) unconditionally unlinks it and is shutdown‑flag‑guarded
+  against a late republish (`registryPublisher.ts:249‑266, 25‑27`). A hard crash
+  leaves an orphan that the ~5‑minute stale‑mtime backstop reaps once heartbeats
+  cease (`registryPublisher.ts:45‑49`) — no duplicate entry is possible (one
+  publisher per pid), and Happy's poll‑for‑`sessionId` + liveness check tolerate
+  a briefly‑stale entry.
 - **Ownership — clean, single foreground, guaranteed Happy‑side (B2).** The
   interactive session is the sole foreground. Ownership safety rests on the
   **v1 read‑only invariant** (§4.1 item 3): Happy never calls
@@ -680,11 +838,16 @@ a side‑attached mirror.
 
 ### 4.5 Honest costs of Option B (not a rubber‑stamp)
 
-1. **The seam is thin but not zero — and it is multi‑file (B1).** It is a real
-   Copilot fork change (config synthesis at the launch site + a `connectionToken`
-   field threaded through `EmbeddedServerOptions`→inner `SDKServer`) plus Happy
-   discovery/client work. Rev. 1's "one env read" framing was wrong; the claim is
-   "minimal," not "free," and it touches `embeddedServer.ts`.
+1. **The seam is thin but not zero — and it is multi‑file (B1 + N2).** It is a
+   real Copilot fork change: config synthesis at the launch site, a
+   `connectionToken` field threaded through `EmbeddedServerOptions`→inner
+   `SDKServer`, **and a `ui-server` `RegistryPublisher` lifecycle wired into the
+   interactive path** (which does not exist today — the only publisher is the
+   managed block, `sdkServer.ts:6047`), plus Happy discovery/client work. Rev. 1's
+   "one env read" framing and Rev. 2's "just add a token field" framing were both
+   too small; the claim is "minimal and near‑copied from the managed block," not
+   "free," and it touches `embeddedServer.ts` (and possibly a small helper in
+   `interactiveMode.ts` to resolve the foreground `Session` for `setSession`).
 2. **`--ui-server`/embed behavior‑equivalence must be proven.** The seam must
    set only `embeddedServer.enabled` + `connectionToken` and nothing else; in
    particular it must **not** enable the Agents‑tab watcher or any UX plain
@@ -697,7 +860,7 @@ a side‑attached mirror.
 3. **Happy validator must learn the v1 entry shape (S2).** `ui-server` is
    schema‑v1 with `kind` **omitted on disk** (normalized on read) and `sessionId`
    populated only after the first `setSession()` (`serverRegistry.ts:97‑99,
-   108‑111, 156‑161`; `registryPublisher.ts:12‑15`). Happy's discovery must
+   108‑111, 156‑161`; `registryPublisher.ts:123‑140`). Happy's discovery must
    accept omitted‑kind + `schemaVersion === 1` and poll for a populated
    `sessionId`, rather than requiring `kind === "managed-server"` as M1a does
    today (`managedServer.ts:110‑122`).
@@ -718,7 +881,7 @@ a side‑attached mirror.
 | Ctrl+C semantics | ✗ Happy re‑derives cancel‑vs‑exit | ✓ native signal handling (`interactiveMode.ts:1068`) |
 | Reconnect/resume | ~ supported, UX‑owned | ✓ native + non‑owning re‑attach |
 | One session + mirror | ✓ | ✓ (Happy read‑only invariant — never `setForeground`/`send`/`abort`, §4.1/§4.4) |
-| Copilot fork change | **none** | **small, multi‑file** (synthesize embed config + token; add `connectionToken` to `EmbeddedServerOptions`→inner `SDKServer`) |
+| Copilot fork change | **none** | **small, multi‑file** (synthesize embed config + token; add `connectionToken` to `EmbeddedServerOptions`→inner `SDKServer`; **wire a `ui-server` `RegistryPublisher` lifecycle**, near‑copied from the managed block) |
 | Happy new‑code volume | **large** (renderer/input/approvals/argv/exit) | **bounded** (discovery+client deltas) |
 | Drift risk after Copilot upgrades | **high** (imitation, no compiler) | **low** (stable published RPC) |
 | Permission‑provider disconnect race | **exposed** (`sdkServer.ts:4625‑4628`) | **not in v1** (read‑only attach) |
@@ -774,11 +937,12 @@ client is required* (lines 1004‑1006). Tests are written against the
 
 | ID | Test | Assertion |
 |---|---|---|
-| F‑1 | `COPILOT_HAPPY_EMBED=1` + ordinary interactive launch | Embedded listener starts, `ui-server` registry entry appears with populated `sessionId`, and the entry's `token` equals the injected token (`registryPublisher.ts:12‑15, 30‑33`; `serverRegistry.ts:104‑152`). |
+| F‑1 | `COPILOT_HAPPY_EMBED=1` + ordinary interactive launch | The seam‑wired `ui-server` `RegistryPublisher` (N2) writes a `<pid>.json` entry (none exists without the seam — `EmbeddedServer.start` publishes nothing, `embeddedServer.ts:152‑163`); the entry appears with `schemaVersion 1`, populated `sessionId` after the first `setSession()`, and a `token` equal to the injected token (`registryPublisher.ts:79‑90, 109‑140`; `serverRegistry.ts:104‑152`). |
 | F‑2 | Seam **off** vs **on** UX equivalence | Interactive experience identical modulo the loopback listener; Agents‑tab watcher **not** enabled by the seam (`interactiveMode.ts:626‑651, 678‑690`). |
-| F‑3 | **Token threading (B1)** | `EmbeddedServerOptions.connectionToken` is set from the launch site (`index.ts:4275‑4282`) and threaded into the inner `SDKServer` (`embeddedServer.ts:101‑119`; option `sdkServer.ts:236`). Assert: (a) a `connect` **without** the token is rejected by the native gate (`sdkServer.ts:1665‑1668, 1670‑1700`); (b) with no token supplied to the seam the launch **fails closed** rather than starting an anonymous listener (`sdkServer.ts:1690‑1691`); (c) the published entry's `token` is non‑null. |
+| F‑3 | **Token threading — both sinks (B1 + N2)** | The single injected token reaches **both** the inner `SDKServer` (listener auth) **and** the `RegistryPublisher` constructor (entry token). `EmbeddedServerOptions.connectionToken` is set from the launch site (`index.ts:4275‑4282`), threaded into the inner `SDKServer` (`embeddedServer.ts:101‑119`; option `sdkServer.ts:236`), **and** passed to `new RegistryPublisher({…, connectionToken})` (`registryPublisher.ts:79‑90`). Assert: (a) a `connect` **without** the token is rejected by the native gate (`sdkServer.ts:1665‑1668, 1670‑1700`); (b) with no token supplied to the seam the launch **fails closed** rather than starting an anonymous listener / publishing a null‑token entry (`sdkServer.ts:1690‑1691`); (c) the published entry's `token` is non‑null and equals the listener's token. |
 | F‑4 | Placement guard | Seam edits live only in the launch/option‑assembly path + `EmbeddedServerOptions`/inner‑`SDKServer` threading, **not** P4's controller files (P0 lines 993‑995) — enforced by a codeowners/path check in the PR. |
 | F‑5 | **Foreground‑guard decision (B2), optional** | If the optional unconditional `local-attach` refusal is adopted, assert `registerSession` refuses a `local-attach` session **regardless of `isAgentsTabEnabled`** (`embeddedServer.ts:264‑268`) **and** that `AgentRegistryWatcher` stays off (`interactiveMode.ts:678‑690`). If not adopted, this test is N/A and v1 relies solely on the Happy‑side read‑only invariant (H‑10). |
+| F‑6 | **Publisher lifecycle + no orphan/stale entry (N2)** | Assert the seam‑wired publisher: (a) writes exactly one `<pid>.json`; (b) refreshes `sessionId`/status on foreground transitions via `setSession` (`registryPublisher.ts:123‑140`); (c) on clean shutdown, `stop()` unlinks the entry (`registryPublisher.ts:249‑266`) and no file remains; (d) on a simulated crash (skip `stop()`), the entry is reaped by the stale‑mtime backstop and never causes a duplicate on the next launch (`registryPublisher.ts:45‑49`); (e) the cleanup callback is registered **before** `start()` (`sdkServer.ts:6042‑6046` ordering) so no orphan survives a `start`‑time failure. |
 
 ### 7.2 Happy attach/mirror tests (Option B, real surface — no stimulus client)
 
@@ -823,17 +987,25 @@ work (T2/T3) **edits the very files P4 rewrites** (`managedServer.ts`,
 
 - **T0 (this document).** Source‑verified design + recommendation. *Done on
   commit of this file.*
-- **T1 — Copilot fork seam (`COPILOT_HAPPY_EMBED`), multi‑file (B1/S1).** Three
+- **T1 — Copilot fork seam (`COPILOT_HAPPY_EMBED`), multi‑file (B1/S1/N2).** Four
   edits, all outside P4's controller files: (a) **synthesize** the embedded
   config + read/generate the token at the interactive launch site
   (`src/cli/index.ts:4275‑4282` — today `undefined` when `--ui-server` absent);
   (b) add `connectionToken?: string` to `EmbeddedServerOptions` and thread it
   into the inner `SDKServer` (`src/cli/embeddedServer.ts:31‑64, 101‑119`; option
-  `sdkServer.ts:236`); (c) **optional** hardening — make the `local-attach`
-  foreground refusal unconditional (`embeddedServer.ts:264‑268`) **without**
-  enabling `AgentRegistryWatcher` (§4.4 B2). **Constraint:** new/isolated code
-  paths only; no edits to the typed‑context/ownership controller files P4
-  touches. Ships behind the env, default‑off. Tests F‑1…F‑5. *Starts after P4.*
+  `sdkServer.ts:236`); (c) **wire a `ui-server` `RegistryPublisher` lifecycle**
+  into the interactive path (construct with the **second** token sink,
+  register `stop()` before `start()`, `start`, `setSession` on foreground +
+  transitions, `unref`'d heartbeat, `stop` on shutdown) — this does not exist
+  today and is a near‑copy of the managed block `sdkServer.ts:6039‑6091`; owner
+  is `EmbeddedServer` (`embeddedServer.ts:143‑145, 152‑163, 241‑278`), with a
+  small `Session`‑resolution helper so `registerSession(sessionId)` can drive
+  `publisher.setSession(session)`; (d) **optional** hardening — make the
+  `local-attach` foreground refusal unconditional (`embeddedServer.ts:264‑268`)
+  **without** enabling `AgentRegistryWatcher` (§4.4 B2). **Constraint:**
+  new/isolated code paths only; no edits to the typed‑context/ownership
+  controller files P4 touches. Ships behind the env, default‑off. Tests
+  F‑1…F‑6. *Starts after P4.*
 - **T2 — Happy discovery + validator for `ui-server` entries (S2), REBASES ON
   P4 (N1).** Generalize `managedServer.ts` to accept `schemaVersion === 1` with
   **omitted‑on‑disk kind** (normalized to `"ui-server"`) + non‑null token, and to
@@ -915,14 +1087,28 @@ work (T2/T3) **edits the very files P4 rewrites** (`managedServer.ts`,
   2389‑2408, 4220, 4275‑4282`.
 - Managed bootstrap + permissions: `src/core/sdkServer.ts:5840‑5841,
   5895‑5906, 5955‑5959, 6047, 6094‑6172`.
-- **Token model (B1):** `SDKServer` `connectionToken` option
+- **Token model (B1 + N2 — two sinks):** `SDKServer` `connectionToken` option
   `src/core/sdkServer.ts:236`; native TCP token gate `1665‑1668, 1670‑1700`;
   no‑token warning `1690‑1691`; server‑mode env read (interactive path does NOT
   read this) `5840‑5841`. `EmbeddedServerOptions` has no token field
   `src/cli/embeddedServer.ts:31‑64`; inner `SDKServer` built without token
-  `101‑119`; `EmbeddedServer.start` delegates to inner start `152‑163`.
-  Publisher captures token from caller, never re‑reads env
-  `src/core/remoteRegistry/registryPublisher.ts:30‑33`.
+  `101‑119`; `EmbeddedServer.start` delegates to inner start and publishes
+  nothing `152‑163`. Managed path feeds the **same** token to both sinks —
+  `SDKServer` `sdkServer.ts:5889` and `RegistryPublisher` `sdkServer.ts:6050`.
+  `RegistryPublisher` takes its **own** `connectionToken` constructor arg,
+  stored verbatim in the entry `src/core/remoteRegistry/registryPublisher.ts:53‑66,
+  79‑90, 83‑84`, and never re‑reads env `30‑33`.
+- **Registry publisher wiring (N2):** the only non‑test `new RegistryPublisher`
+  is the managed block `src/core/sdkServer.ts:6047` (lifecycle
+  cleanup‑before‑start / start / setStatus / setSession / heartbeat `6039‑6091`;
+  sole `.setSession` caller `6080`); the class docstring's "two callers …
+  `EmbeddedServer` for `--ui-server`" is **aspirational, not wired**
+  `src/core/remoteRegistry/registryPublisher.ts:10‑20` (grep‑verified: no
+  `new RegistryPublisher` in `embeddedServer.ts`/`interactiveMode.ts`). Publisher
+  lifecycle API: options `registryPublisher.ts:53‑66`; ctor `79‑90`; `start`
+  (ui‑server writes immediately) `97‑116`; `setSession` `123‑140`; heartbeat
+  interval const + method `51, 240‑247`; `stop` unconditional unlink + shutdown
+  guard `249‑266, 25‑27`; stale‑mtime backstop `45‑49`.
 - **Foreground guard + setForeground (B2):** `registerSession` `local-attach`
   refusal gated on `isAgentsTabEnabled` `src/cli/embeddedServer.ts:241‑278`
   (guard + comment `245‑273`, condition `264‑268`); external `session.setForeground`
@@ -940,8 +1126,10 @@ work (T2/T3) **edits the very files P4 rewrites** (`managedServer.ts`,
 - Interactive embedded server + signals + exit:
   `src/cli/interactiveMode.ts:626‑651, 678‑690, 1068, 1282`;
   `src/cli/embeddedServer.ts:74, 152, 241‑278`.
-- Registry: `src/core/remoteRegistry/registryPublisher.ts:12‑15, 30‑33`;
-  `src/core/remoteRegistry/serverRegistry.ts:14‑18, 43, 93‑111, 104‑152,
+- Registry: `src/core/remoteRegistry/registryPublisher.ts:10‑20` (docstring —
+  aspirational two‑caller contract), `53‑66, 79‑90` (options/ctor incl. own
+  `connectionToken`), `97‑116, 123‑140, 240‑247, 249‑266` (lifecycle), `30‑33,
+  45‑49`; `src/core/remoteRegistry/serverRegistry.ts:14‑18, 43, 93‑111, 104‑152,
   156‑161` (**S2:** v1 `kind` omitted on disk, normalized on read `97‑99,
   108‑111, 156‑161`).
 - Managed‑server has no TUI: `src/cli/sessions/spawnLiveTarget.ts:10‑14`.
