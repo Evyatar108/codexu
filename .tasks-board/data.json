@@ -2714,32 +2714,6 @@
       "lifecycle": "active",
       "title": "Build a clean portable Happy Windows payload",
       "id": "happy-portable-onedrive-payload-builder"
-    },
-    {
-      "scope": "happy-cli",
-      "actions": [
-        {
-          "id": "implement",
-          "label": "Implement",
-          "prompt": "Implement P4 from plans/happy-evcopilot-onedrive-launcher-integration/plan.md: strict versioned local launch-context parsing; exact executable plus fixed-argument managed spawn with shell=false; runtime/package compatibility; non-secret session provenance; monotonic pre/post-ownership status; daemon payload artifact id/hash and version-equal/artifact-different handling. Preserve M1a default-off behavior and HAPPY_COPILOT_BINARY development compatibility, never log argv/tokens/paths, and do not implement terminal routing or packaging. Use an isolated worktree, run focused tests/typecheck, converge code and docs review to clean, and commit locally without push."
-        }
-      ],
-      "writablePaths": [
-        "packages/happy-cli/src/agent/copilot",
-        "packages/happy-cli/src/commands/copilotCommand.ts",
-        "packages/happy-cli/src/api/types.ts",
-        "packages/happy-cli/src/persistence.ts",
-        "packages/happy-cli/src/configuration.ts",
-        "packages/happy-cli/src/daemon"
-      ],
-      "dependsOn": [
-        "happy-copilot-native-local-controller-backend"
-      ],
-      "validationCommand": "pnpm --filter \"{packages/happy-cli}\" exec vitest run --project unit",
-      "stage": "backlog",
-      "lifecycle": "active",
-      "title": "Add typed EvCopilot launch context and daemon payload identity",
-      "id": "happy-copilot-launch-context-daemon-identity"
     }
   ]
 }
