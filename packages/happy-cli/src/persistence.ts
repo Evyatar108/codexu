@@ -83,6 +83,8 @@ export interface DaemonLocallyPersistedState {
   httpPort: number;
   startTime: string;
   startedWithCliVersion: string;
+  startedWithPayloadArtifactId?: string;
+  startedWithPayloadManifestSha256?: string;
   lastHeartbeat?: string;
   daemonLogPath?: string;
 }

@@ -29,6 +29,17 @@ export type ManagedServerDependencies = {
   resolveExecutable?: () => string;
 };
 
+export type CopilotManagedLaunch = {
+  executable: string;
+  fixedArguments: readonly [string];
+  packageVersion: typeof COPILOT_NATIVE_VERSION;
+  edition: {
+    name: string;
+    version: string;
+    sourceCommit: string;
+  };
+};
+
 function isLoopback(host: string): boolean {
   const normalized = host.toLowerCase();
   return normalized === '127.0.0.1' || normalized === '::1' || normalized === 'localhost';
@@ -92,7 +103,12 @@ function assertConfigAllowsManagedServer(readFile: (path: string) => string, fil
   ];
   for (const path of candidates) {
     if (!fileExists(path)) continue;
-    const parsed = parseJsonConfig(readFile(path));
+    let parsed: { enabledFeatureFlags?: Record<string, unknown> };
+    try {
+      parsed = parseJsonConfig(readFile(path));
+    } catch {
+      throw new Error('Copilot config could not be validated');
+    }
     if (parsed.enabledFeatureFlags?.COPILOT_AGENTS_TAB === false) {
       throw new Error('Copilot config disables COPILOT_AGENTS_TAB; managed-server is unavailable');
     }
@@ -126,7 +142,10 @@ export function validateRegistryEntry(value: unknown, expected: {
 }
 
 export async function spawnManagedTarget(
-  options: { startupTimeoutMs?: number } = {},
+  options: {
+    startupTimeoutMs?: number;
+    launch?: CopilotManagedLaunch;
+  } = {},
   dependencies: ManagedServerDependencies = {},
 ): Promise<ManagedTarget> {
   const spawnProcess = dependencies.spawnProcess ?? spawn;
@@ -134,7 +153,16 @@ export async function spawnManagedTarget(
   const fileExists = dependencies.fileExists ?? existsSync;
   const sleep = dependencies.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
   const token = (dependencies.randomToken ?? (() => randomBytes(32).toString('base64url')))();
-  const executable = (dependencies.resolveExecutable ?? resolveCopilotExecutable)();
+  if (options.launch && (dependencies.resolveExecutable || process.env.HAPPY_COPILOT_BINARY)) {
+    throw new Error('HAPPY_COPILOT_BINARY cannot be combined with a production launch context');
+  }
+  if (options.launch?.packageVersion !== undefined
+    && options.launch.packageVersion !== COPILOT_NATIVE_VERSION) {
+    throw new Error('Copilot launch package version is not supported');
+  }
+  const executable = options.launch?.executable
+    ?? (dependencies.resolveExecutable ?? resolveCopilotExecutable)();
+  const fixedArguments = options.launch?.fixedArguments ?? [];
   assertConfigAllowsManagedServer(readFile, fileExists);
 
   const inheritedFlags = (process.env.COPILOT_CLI_ENABLED_FEATURE_FLAGS || '')
@@ -154,8 +182,18 @@ export async function spawnManagedTarget(
     COPILOT_AGENTS_TAB: 'true',
     COPILOT_CLI_ENABLED_FEATURE_FLAGS: enabledFlags,
   });
+  if (options.launch) {
+    Object.assign(env, {
+      COPILOT_AUTO_UPDATE: 'false',
+      COPILOT_LOCAL_BUILD: '1',
+      COPILOT_EDITION_NAME: options.launch.edition.name,
+      COPILOT_EDITION_VERSION: options.launch.edition.version,
+      COPILOT_EDITION_SOURCE_COMMIT: options.launch.edition.sourceCommit,
+    });
+  }
 
   const child = spawnProcess(executable, [
+    ...fixedArguments,
     '--server',
     '--port', '0',
     '--managed-server',
@@ -166,9 +204,12 @@ export async function spawnManagedTarget(
     stdio: 'ignore',
     windowsHide: true,
     detached: false,
+    shell: false,
   });
   let childFailure: Error | null = null;
-  child.on('error', (error) => { childFailure = error; });
+  child.on('error', () => {
+    childFailure = new Error('Copilot managed-server failed to start');
+  });
   child.on('exit', (code, signal) => {
     childFailure = new Error(`Copilot managed-server exited early (${code ?? signal ?? 'unknown'})`);
   });
@@ -187,7 +228,13 @@ export async function spawnManagedTarget(
     while (Date.now() < deadline) {
       if (childFailure) throw childFailure;
       if (fileExists(registryPath)) {
-        const registry = validateRegistryEntry(JSON.parse(readFile(registryPath)), { pid: child.pid, token });
+        let decoded: unknown;
+        try {
+          decoded = JSON.parse(readFile(registryPath));
+        } catch {
+          throw new Error('Copilot registry entry could not be validated');
+        }
+        const registry = validateRegistryEntry(decoded, { pid: child.pid, token });
         return { child, registry, terminate };
       }
       await sleep(50);

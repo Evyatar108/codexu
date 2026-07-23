@@ -16,11 +16,19 @@ import { CopilotEventRelay } from './eventRelay';
 import { stableCopilotId } from './eventProjection';
 import { spawnManagedTarget, type ManagedTarget } from './managedServer';
 import { NativeLocalRpcClient } from './nativeLocalRpcClient';
+import type { EvCopilotHappyLaunchContextV1 } from './launchContext';
+import {
+  launchContextProvenance,
+  markLaunchCompleted,
+  markLaunchFailedBeforeOwnership,
+  markLaunchOwned,
+} from './launchContext';
 
 type RunCopilotMirrorOptions = {
   credentials: Credentials;
   machineId: string;
   startedBy?: 'daemon' | 'terminal';
+  launchContext?: EvCopilotHappyLaunchContextV1;
 };
 
 type CopilotMirrorDependencies = {
@@ -77,9 +85,9 @@ async function cleanupStage(
       }),
     ]);
     if (!completed) throw new Error(`Cleanup stage timed out: ${name}`);
-  } catch (error) {
+  } catch {
     try {
-      logger.debug('[Copilot] Cleanup stage failed', { category: 'cleanup', stage: name, error });
+      logger.debug('[Copilot] Cleanup stage failed', { category: 'cleanup', stage: name });
     } catch {
       // Cleanup diagnostics must never interrupt later release stages.
     }
@@ -178,6 +186,7 @@ export async function runCopilotMirror(
   let nativeShutdownObserved = false;
   let quiescing = false;
   let startupResolved = false;
+  let ownershipWritten = false;
   let resolveStartup!: () => void;
   const startupPromise = new Promise<void>((resolve) => {
     resolveStartup = () => {
@@ -245,7 +254,14 @@ export async function runCopilotMirror(
   process.once('SIGTERM', onSignal);
 
   try {
-    target = await (dependencies.spawnTarget ?? spawnManagedTarget)();
+    target = await (dependencies.spawnTarget ?? spawnManagedTarget)({
+      launch: options.launchContext ? {
+        executable: options.launchContext.evCopilot.executablePath,
+        fixedArguments: options.launchContext.evCopilot.fixedArguments,
+        packageVersion: options.launchContext.evCopilot.packageVersion,
+        edition: options.launchContext.evCopilot.edition,
+      } : undefined,
+    });
     if (quiescing) throw new Error('Copilot mirror startup cancelled');
     native = (dependencies.createNativeClient ?? ((host, port) => new NativeLocalRpcClient(host, port)))(
       target.registry.host,
@@ -253,6 +269,10 @@ export async function runCopilotMirror(
     );
     await native.connect(target.registry.token, target.registry.sessionId, target.registry.copilotVersion);
     if (quiescing) throw new Error('Copilot mirror startup cancelled');
+    if (options.launchContext) {
+      await markLaunchOwned(options.launchContext, target.child.pid!);
+      ownershipWritten = true;
+    }
 
     const { state, metadata: createdMetadata } = createSessionMetadata({
       flavor: 'copilot',
@@ -266,6 +286,9 @@ export async function runCopilotMirror(
       lifecycleStateSince: Date.now(),
       archivedBy: 'cli',
       archiveReason: 'startup-pending',
+      ...(options.launchContext
+        ? { copilotIntegration: launchContextProvenance(options.launchContext) }
+        : {}),
     };
     const created = await api.getOrCreateSession({
       tag: `copilot-native-${randomUUID()}`,
@@ -306,10 +329,19 @@ export async function runCopilotMirror(
     resolveStartup();
     await Promise.race([relay.run(), childExit, finalizationCompletePromise]);
     if (finalization) await finalization;
+    if (options.launchContext && ownershipWritten) {
+      await markLaunchCompleted(options.launchContext, { exitCode: 0 });
+    }
   } catch (error) {
     resolveStartup();
     const shutdownWasAlreadyInProgress = finalization !== null;
     await finalizeOnce('runtime-failure');
+    if (options.launchContext) {
+      const recordFailure = ownershipWritten
+        ? markLaunchCompleted(options.launchContext, { exitCode: 1, failureCode: 'runtime-failure' })
+        : markLaunchFailedBeforeOwnership(options.launchContext, 'startup-failure');
+      await recordFailure.catch(() => undefined);
+    }
     if (!shutdownWasAlreadyInProgress
       && (!quiescing || (error instanceof Error && error.message !== 'Copilot mirror startup cancelled'))) {
       throw error;

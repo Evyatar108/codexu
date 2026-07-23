@@ -6,6 +6,7 @@
 import type { AgentCommsChannel, AgentCommsKind, AgentCommsTo } from '@slopus/happy-wire';
 import { logger } from '@/ui/logger';
 import { clearDaemonState, readDaemonState } from '@/persistence';
+import type { DaemonLocallyPersistedState } from '@/persistence';
 import { Metadata } from '@/api/types';
 import { configuration } from '@/configuration';
 import type { SpawnSessionFromSessionRpcOptions } from '@/api/apiMachine';
@@ -113,6 +114,27 @@ export async function notifyDaemonSessionStarted(
 export async function listDaemonSessions(): Promise<any[]> {
   const result = await daemonPost('/list');
   return result.children || [];
+}
+
+export async function daemonHasTrackedChildren(): Promise<boolean> {
+  const result = await daemonPost('/list');
+  if (result?.error) throw new Error('Unable to inspect running daemon sessions');
+  if (Number.isInteger(result?.trackedCount)) return result.trackedCount > 0;
+  return Array.isArray(result?.children) && result.children.length > 0;
+}
+
+export function isDaemonStateCompatible(
+  state: Pick<
+    DaemonLocallyPersistedState,
+    'startedWithCliVersion' | 'startedWithPayloadArtifactId' | 'startedWithPayloadManifestSha256'
+  >,
+  currentCliVersion: string,
+  payloadIdentity: { artifactId: string; manifestSha256: string } | null,
+): boolean {
+  if (state.startedWithCliVersion !== currentCliVersion) return false;
+  return payloadIdentity === null
+    || (payloadIdentity.artifactId === state.startedWithPayloadArtifactId
+      && payloadIdentity.manifestSha256 === state.startedWithPayloadManifestSha256);
 }
 
 export async function stopDaemonSession(sessionId: string): Promise<boolean> {
@@ -280,8 +302,17 @@ export async function isDaemonRunningCurrentlyInstalledHappyVersion(): Promise<b
   // reader agree whenever they're executing the same `dist/` bundle, and still
   // correctly detects real npm upgrades (the new bundle has a new baked version).
   const currentCliVersion = configuration.currentCliVersion;
-  logger.debug(`[DAEMON CONTROL] Current CLI version: ${currentCliVersion}, Daemon started with version: ${state.startedWithCliVersion}`);
-  return currentCliVersion === state.startedWithCliVersion;
+  const payloadIdentity = configuration.currentPayloadIdentity;
+  const versionMatches = currentCliVersion === state.startedWithCliVersion;
+  const payloadMatches = payloadIdentity === null
+    || (payloadIdentity.artifactId === state.startedWithPayloadArtifactId
+      && payloadIdentity.manifestSha256 === state.startedWithPayloadManifestSha256);
+  logger.debug('[DAEMON CONTROL] Daemon compatibility checked', {
+    versionMatches,
+    payloadIdentityRequired: payloadIdentity !== null,
+    payloadMatches,
+  });
+  return isDaemonStateCompatible(state, currentCliVersion, payloadIdentity);
 }
 
 export async function cleanupDaemonState(): Promise<void> {

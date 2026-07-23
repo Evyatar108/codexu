@@ -9,6 +9,38 @@ import { chmodSync, existsSync, mkdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import packageJson from '../package.json'
+import {
+  HAPPY_PAYLOAD_ARTIFACT_ID,
+  HAPPY_PAYLOAD_MANIFEST_SHA256,
+} from '@/utils/envNames'
+
+const PAYLOAD_ARTIFACT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/
+const SHA256_PATTERN = /^[A-F0-9]{64}$/
+
+export type HappyPayloadIdentity = {
+  artifactId: string
+  manifestSha256: string
+}
+
+/**
+ * Reads the optional immutable-payload identity supplied by a verified launcher.
+ * The pair is all-or-nothing so a partially configured process cannot claim the
+ * stronger artifact-aware daemon compatibility contract.
+ */
+export function parseHappyPayloadIdentity(
+  env: NodeJS.ProcessEnv,
+): HappyPayloadIdentity | null {
+  const artifactId = env[HAPPY_PAYLOAD_ARTIFACT_ID]
+  const manifestSha256 = env[HAPPY_PAYLOAD_MANIFEST_SHA256]
+  if (artifactId === undefined && manifestSha256 === undefined) return null
+  if (!artifactId
+    || !manifestSha256
+    || !PAYLOAD_ARTIFACT_ID_PATTERN.test(artifactId)
+    || !SHA256_PATTERN.test(manifestSha256)) {
+    throw new Error('Invalid Happy payload identity')
+  }
+  return { artifactId, manifestSha256 }
+}
 
 class Configuration {
   public readonly serverUrl: string
@@ -32,6 +64,7 @@ class Configuration {
   public readonly serverStorageKeyFile: string
   public readonly githubConnectionFile: string
   public readonly currentCliVersion: string
+  public readonly currentPayloadIdentity: HappyPayloadIdentity | null
 
   public readonly isExperimentalEnabled: boolean
   public readonly disableCaffeinate: boolean
@@ -79,6 +112,7 @@ class Configuration {
     this.disableCaffeinate = ['true', '1', 'yes'].includes(process.env.HAPPY_DISABLE_CAFFEINATE?.toLowerCase() || '');
 
     this.currentCliVersion = packageJson.version
+    this.currentPayloadIdentity = parseHappyPayloadIdentity(process.env)
 
     // Visual indicator on CLI startup (only if not daemon process to avoid log clutter)
     const variant = process.env.HAPPY_VARIANT || 'stable'

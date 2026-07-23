@@ -776,6 +776,10 @@ export async function startDaemon(): Promise<void> {
       httpPort: controlPort,
       startTime: new Date().toLocaleString(),
       startedWithCliVersion: packageJson.version,
+      ...(configuration.currentPayloadIdentity ? {
+        startedWithPayloadArtifactId: configuration.currentPayloadIdentity.artifactId,
+        startedWithPayloadManifestSha256: configuration.currentPayloadIdentity.manifestSha256,
+      } : {}),
       daemonLogPath: logger.logFilePath
     };
     writeDaemonState(fileState);
@@ -968,6 +972,10 @@ export async function startDaemon(): Promise<void> {
           httpPort: controlPort,
           startTime: fileState.startTime,
           startedWithCliVersion: packageJson.version,
+          ...(configuration.currentPayloadIdentity ? {
+            startedWithPayloadArtifactId: configuration.currentPayloadIdentity.artifactId,
+            startedWithPayloadManifestSha256: configuration.currentPayloadIdentity.manifestSha256,
+          } : {}),
           lastHeartbeat: new Date().toLocaleString(),
           daemonLogPath: fileState.daemonLogPath
         };

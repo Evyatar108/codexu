@@ -1,14 +1,22 @@
 import { EventEmitter } from 'node:events';
+import { mkdir, readFile, rm } from 'node:fs/promises';
+import { join } from 'node:path';
 
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { logger } from '@/ui/logger';
 
 import { runCopilotMirror } from './runCopilotMirror';
+import {
+  initializeLaunchStatus,
+  type EvCopilotHappyLaunchContextV1,
+} from './launchContext';
+
+const scratchRoots: string[] = [];
 
 function target() {
   return {
-    child: new EventEmitter(),
+    child: Object.assign(new EventEmitter(), { pid: 123 }),
     registry: {
       schemaVersion: 2 as const,
       kind: 'managed-server' as const,
@@ -114,6 +122,8 @@ function activeHarness(overrides: {
     registered,
     session,
     native,
+    api,
+    currentMetadata: () => metadata,
     dependencies: {
       createApi: vi.fn(async () => api as never),
       spawnTarget: vi.fn(async () => ownedTarget) as never,
@@ -121,6 +131,51 @@ function activeHarness(overrides: {
     },
   };
 }
+
+async function launchContext(): Promise<EvCopilotHappyLaunchContextV1> {
+  const root = join(
+    process.cwd(),
+    '.test-artifacts',
+    `run-copilot-mirror-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  );
+  scratchRoots.push(root);
+  await mkdir(root, { recursive: true });
+  const context: EvCopilotHappyLaunchContextV1 = {
+    schemaVersion: 1,
+    invocationId: 'invocation-1',
+    channel: 'local-preview',
+    releaseSetId: 'release-1',
+    statusPath: join(root, 'happy-status.json'),
+    evCopilot: {
+      artifactId: 'ev-artifact',
+      manifestSha256: 'A'.repeat(64),
+      packageVersion: '1.0.71-3',
+      executablePath: join(root, 'private-runtime-path', 'node.exe'),
+      fixedArguments: [join(root, 'private-runtime-path', 'index.js')],
+      edition: {
+        name: 'owner-preview',
+        version: '2026.07',
+        sourceCommit: 'a'.repeat(40),
+      },
+    },
+    happy: {
+      artifactId: 'happy-artifact',
+      manifestSha256: 'B'.repeat(64),
+      cliVersion: '1.2.3',
+    },
+  };
+  await initializeLaunchStatus(context);
+  return context;
+}
+
+afterEach(async () => {
+  await Promise.all(scratchRoots.splice(0).map((root) => rm(root, {
+    recursive: true,
+    force: true,
+    maxRetries: 5,
+    retryDelay: 50,
+  })));
+});
 
 describe('runCopilotMirror lifecycle', () => {
   it('quiesces startup and terminates a target acquired after a stop signal', async () => {
@@ -348,5 +403,48 @@ describe('runCopilotMirror lifecycle', () => {
     } finally {
       debug.mockRestore();
     }
+  });
+
+  it('publishes path-free provenance and completes ownership monotonically', async () => {
+    const context = await launchContext();
+    const harness = activeHarness();
+
+    await expect(runCopilotMirror(
+      { ...options, launchContext: context },
+      harness.dependencies,
+    )).resolves.toBeUndefined();
+
+    const status = JSON.parse(await readFile(context.statusPath, 'utf8'));
+    expect(status).toMatchObject({
+      phase: 'completed',
+      targetPid: 123,
+      exitCode: 0,
+    });
+    const provenance = harness.api.getOrCreateSession.mock.calls[0][0].metadata.copilotIntegration;
+    expect(provenance).toMatchObject({
+      launcher: { channel: 'local-preview', releaseSetId: 'release-1' },
+      happyPayload: { artifactId: 'happy-artifact', manifestSha256: 'B'.repeat(64) },
+      copilotRuntime: { artifactId: 'ev-artifact', packageVersion: '1.0.71-3' },
+    });
+    expect(JSON.stringify(provenance)).not.toContain('private-runtime-path');
+    expect(JSON.stringify(provenance)).not.toContain('fixedArguments');
+    expect(JSON.stringify(provenance)).not.toContain('secret');
+  });
+
+  it('leaves pre-ownership handshake failure eligible for fallback', async () => {
+    const context = await launchContext();
+    const harness = activeHarness();
+    harness.native.connect.mockRejectedValueOnce(new Error('handshake rejected'));
+
+    await expect(runCopilotMirror(
+      { ...options, launchContext: context },
+      harness.dependencies,
+    )).rejects.toThrow('handshake rejected');
+
+    expect(JSON.parse(await readFile(context.statusPath, 'utf8'))).toMatchObject({
+      phase: 'initializing',
+      failureCode: 'startup-failure',
+    });
+    expect(harness.ownedTarget.terminate).toHaveBeenCalledOnce();
   });
 });

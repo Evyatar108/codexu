@@ -299,6 +299,27 @@ export const MessageContentSchema = z.union([UserMessageSchema, AgentMessageSche
 
 export type MessageContent = z.infer<typeof MessageContentSchema>
 
+export type CopilotIntegrationProvenanceV1 = {
+  schemaVersion: 1,
+  launcher: {
+    channel: 'local-preview',
+    releaseSetId: string,
+  },
+  happyPayload: {
+    artifactId: string,
+    manifestSha256: string,
+    cliVersion: string,
+  },
+  copilotRuntime: {
+    artifactId: string,
+    manifestSha256: string,
+    packageVersion: string,
+    editionName: string,
+    editionVersion: string,
+    sourceCommit: string,
+  },
+}
+
 export type Metadata = {
   /**
    * ACP session config option value (normalized for UI metadata consumers).
@@ -376,6 +397,7 @@ export type Metadata = {
   lifecycleStateSince?: number,
   archivedBy?: string,
   archiveReason?: string,
+  copilotIntegration?: CopilotIntegrationProvenanceV1,
   flavor?: string
   sandbox?: SandboxConfig | null
   dangerouslySkipPermissions?: boolean | null

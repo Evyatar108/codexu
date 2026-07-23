@@ -168,6 +168,7 @@ export function startDaemonControlServer({
       schema: {
         response: {
           200: z.object({
+            trackedCount: z.number().int().nonnegative(),
             children: z.array(z.object({
               startedBy: z.string(),
               happySessionId: z.string(),
@@ -180,6 +181,7 @@ export function startDaemonControlServer({
       const children = getChildren();
       logger.debug(`[CONTROL SERVER] Listing ${children.length} sessions`);
       return { 
+        trackedCount: children.length,
         children: children
           .filter(child => child.happySessionId !== undefined)
           .map(child => ({

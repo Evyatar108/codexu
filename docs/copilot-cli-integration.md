@@ -1079,6 +1079,38 @@ dual-repo implementation PRD.
   keeps it open through the event-log frontier handoff, and projects no
   ephemeral event types.
 
+## 14. Post-M1a verified-launch context
+
+The EvCopilot launcher integration extends the default-off M1a command with a
+schema-v1 local launch context. The full cross-repository contract is in
+`plans/happy-evcopilot-onedrive-launcher-integration/plan.md`, especially P4.
+Happy accepts `--launch-context` only while
+`HAPPY_ENABLE_COPILOT_NATIVE=1` is explicitly set. The context contains no
+Copilot argv, prompt, token, credential, or provider secret.
+
+Before spawning, Happy requires the context to be a regular non-reparse file
+and the status location (and any existing status file) to be local under
+`%LOCALAPPDATA%\EvCopilot\run\<invocationId>`. It requires the Ev executable
+and single fixed entry point at the exact immutable artifact paths, pins Copilot
+package `1.0.71-3`/registry schema 2/protocol 3, and checks the executing Happy
+payload against both its validated id/hash environment pair and
+payload-relative cache receipt. The managed target is then spawned as the exact
+executable plus that one fixed argument and the existing managed-server flags,
+always with `shell: false`. `HAPPY_COPILOT_BINARY` remains available for
+explicit development/tests but cannot be mixed with a verified launch context.
+
+The local status transition is monotonic:
+`initializing -> owned -> completed`. `owned` is written only after a retained
+child passes registry and native handshake checks, so Happy is responsible for
+terminating it; later cleanup failure cannot re-enable native fallback. Session
+metadata receives only path-free artifact/release/version provenance. Daemon
+state additionally records the Happy artifact id and manifest hash, and routed
+readiness requires those values as well as the CLI version to match. Ordinary
+global/npm Happy invocations without payload identity retain version-only
+compatibility. This remains one per-machine daemon embedding its own
+happy-server; it introduces no central broker, terminal routing, publishing, or
+cache-selection behavior.
+
 ## Common pitfalls
 - The source pin for this plan is
   `C:\efforts\copilot-agent-runtime@1f19c0c1ccd2502b1cce8372419a831cf533f37f`.

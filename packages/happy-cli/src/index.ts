@@ -42,7 +42,12 @@ import { handleCopilotCommand } from '@/commands/copilotCommand'
 
   // If --version is passed - do not log, its likely daemon inquiring about our version
   if (!args.includes('--version')) {
-    logger.debug('Starting happy CLI with args: ', process.argv)
+    if (args[0] === 'copilot') {
+      // Copilot argv can contain prompts and the local verified-context path.
+      logger.debug('Starting happy CLI Copilot command')
+    } else {
+      logger.debug('Starting happy CLI with args: ', process.argv)
+    }
   }
 
   // Check if first argument is a subcommand
@@ -147,11 +152,10 @@ Conversation history is preserved on the server, but in-flight tool calls are in
   } else if (subcommand === 'copilot') {
     try {
       await handleCopilotCommand(args.slice(1));
-    } catch (error) {
-      console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')
-      if (process.env.DEBUG) {
-        console.error(error)
-      }
+    } catch {
+      // Never render Copilot errors/stacks here: native errors can contain local
+      // executable paths, and a stack always contains checkout paths.
+      console.error(chalk.red('Error:'), 'Copilot session failed')
       process.exitCode = 1
     }
     return;
