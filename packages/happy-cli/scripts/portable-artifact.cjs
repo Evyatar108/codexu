@@ -55,12 +55,39 @@ const DEVELOPMENT_PACKAGE_NAMES = [
 ];
 const FORBIDDEN_EXACT_NAMES = new Set([
     '.env',
+    '.modules.yaml',
     '.npmrc',
     '.pnpmfile.cjs',
+    '.pnpm-workspace-state-v1.json',
     '.yarnrc',
     'credentials',
     'credentials.json',
+    'lock.yaml',
     'providers.json'
+]);
+const PNPM_METADATA_NAMES = new Set([
+    '.modules.yaml',
+    '.pnpm-workspace-state-v1.json',
+    'lock.yaml'
+]);
+const SPDX_LICENSE_IDS = new Set([
+    '0BSD',
+    'AFL-2.1',
+    'Apache-2.0',
+    'BlueOak-1.0.0',
+    'BSD-2-Clause',
+    'BSD-3-Clause',
+    'CC0-1.0',
+    'ISC',
+    'LGPL-3.0-or-later',
+    'MIT',
+    'Unlicense'
+]);
+const SPDX_EXCEPTION_IDS = new Set([
+    'Autoconf-exception-3.0',
+    'Bison-exception-2.2',
+    'Classpath-exception-2.0',
+    'LLVM-exception'
 ]);
 const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i;
 
@@ -72,12 +99,75 @@ function ensure(condition, message) {
     if (!condition) fail(message);
 }
 
+function pathKey(target) {
+    return path.resolve(target).replace(/[\\/]+$/, '').toLowerCase();
+}
+
+function isPathInside(target, root, allowRoot = false) {
+    const candidate = pathKey(target);
+    const parent = pathKey(root);
+    return (allowRoot && candidate === parent) || candidate.startsWith(`${parent}${path.sep}`);
+}
+
+function realpathOrResolved(target) {
+    const fullPath = path.resolve(target);
+    if (fs.existsSync(fullPath)) return fs.realpathSync.native(fullPath);
+    let existing = fullPath;
+    while (!fs.existsSync(existing)) {
+        const parent = path.dirname(existing);
+        ensure(parent !== existing, `Unable to find an existing parent for ${fullPath}.`);
+        existing = parent;
+    }
+    return path.resolve(fs.realpathSync.native(existing), path.relative(existing, fullPath));
+}
+
+function inspectPathComponents(target, inspect = (component) => {
+    const stats = fs.lstatSync(component);
+    const resolved = fs.realpathSync.native(component);
+    return {
+        isReparse: stats.isSymbolicLink() || pathKey(resolved) !== pathKey(component),
+        resolved
+    };
+}) {
+    const fullPath = path.resolve(target);
+    const parsed = path.parse(fullPath);
+    const components = [];
+    let current = parsed.root;
+    if (fs.existsSync(current)) components.push({ path: current, ...inspect(current) });
+    for (const segment of fullPath.slice(parsed.root.length).split(path.sep).filter(Boolean)) {
+        current = path.join(current, segment);
+        if (!fs.existsSync(current)) break;
+        components.push({ path: current, ...inspect(current) });
+    }
+    return components;
+}
+
+function assertPathComponentsSafe(components) {
+    const redirected = components.find((component) => component.isReparse);
+    ensure(!redirected, `Reparse/junction path component is forbidden: ${redirected?.path}`);
+}
+
+function assertSafeOwnedPath(target, repoRoot, options = {}) {
+    const fullPath = path.resolve(target);
+    const fullRoot = path.resolve(repoRoot);
+    ensure(isPathInside(fullPath, fullRoot, Boolean(options.allowRoot)),
+        `Path must be inside the repository worktree: ${fullPath}`);
+    const components = inspectPathComponents(fullPath);
+    assertPathComponentsSafe(components);
+    const resolvedRoot = fs.realpathSync.native(fullRoot);
+    const resolvedTarget = realpathOrResolved(fullPath);
+    ensure(isPathInside(resolvedTarget, resolvedRoot, Boolean(options.allowRoot)),
+        `Resolved path escapes the repository worktree: ${resolvedTarget}`);
+    ensure(!isUnderOneDrive(resolvedTarget), `Resolved path must not be inside OneDrive: ${resolvedTarget}`);
+    return { path: fullPath, resolvedPath: resolvedTarget };
+}
+
 function isUnderOneDrive(target) {
-    const candidate = `${path.resolve(target).toLowerCase()}${path.sep}`;
+    const candidate = realpathOrResolved(target);
     return ['OneDrive', 'OneDriveCommercial', 'OneDriveConsumer']
         .map((name) => process.env[name])
         .filter(Boolean)
-        .some((root) => candidate.startsWith(`${path.resolve(root).toLowerCase()}${path.sep}`));
+        .some((root) => isPathInside(candidate, realpathOrResolved(root), true));
 }
 
 function isTypeScriptSource(name) {
@@ -167,8 +257,18 @@ function enumerateRegularFiles(root) {
     return output;
 }
 
-function removeTree(target) {
+function removeTree(target, confinementRoot) {
+    assertSafeOwnedPath(target, confinementRoot, { allowRoot: false });
+    if (fs.existsSync(target)) {
+        const stats = fs.lstatSync(target);
+        ensure(!stats.isSymbolicLink(), `Refusing to delete a reparse/junction root: ${target}`);
+        if (stats.isDirectory()) enumerateRegularFiles(target);
+    }
     fs.rmSync(target, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+}
+
+function cleanupExternalPaths(paths, confinementRoot) {
+    for (const target of paths) removeTree(target, confinementRoot);
 }
 
 function pruneDeployment(deployRoot) {
@@ -195,7 +295,7 @@ function pruneDeployment(deployRoot) {
         const files = enumerateRegularFiles(directory);
         removedFiles += files.length;
         removedBytes += files.reduce((sum, file) => sum + fs.statSync(file).size, 0);
-        removeTree(directory);
+        removeTree(directory, deployRoot);
     }
 
     for (const packageName of DEVELOPMENT_PACKAGE_NAMES) {
@@ -204,14 +304,14 @@ function pruneDeployment(deployRoot) {
         const files = enumerateRegularFiles(packagePath);
         removedFiles += files.length;
         removedBytes += files.reduce((sum, file) => sum + fs.statSync(file).size, 0);
-        removeTree(packagePath);
+        removeTree(packagePath, deployRoot);
     }
     const virtualStoreMetadata = path.join(deployRoot, 'node_modules', '.pnpm');
     if (fs.existsSync(virtualStoreMetadata)) {
         const files = enumerateRegularFiles(virtualStoreMetadata);
         removedFiles += files.length;
         removedBytes += files.reduce((sum, file) => sum + fs.statSync(file).size, 0);
-        removeTree(virtualStoreMetadata);
+        removeTree(virtualStoreMetadata, deployRoot);
     }
     for (const builderScript of ['portable-artifact.cjs', 'portable-zip.ps1']) {
         const builderPath = path.join(deployRoot, 'scripts', builderScript);
@@ -239,7 +339,8 @@ function pruneDeployment(deployRoot) {
         const removeCompiledSource = name.endsWith('.map') || isTypeScriptSource(name);
         const removeTestFile = /\.(test|spec)\.[^.]+$/i.test(name)
             || /\.spec\.json$/i.test(name);
-        if (name === '.env'
+        if (PNPM_METADATA_NAMES.has(name)
+            || name === '.env'
             || name.startsWith('.env.')
             || name.endsWith('.log')
             || name.endsWith('.tmp')
@@ -291,6 +392,38 @@ function scanForbidden(root) {
         }
     }
     ensure(findings.length === 0, `Forbidden payload content:\n${findings.slice(0, 30).join('\n')}`);
+}
+
+function scanMachineMetadata(root, markers) {
+    const findings = [];
+    const normalizedMarkers = [...new Set(markers
+        .filter(Boolean)
+        .flatMap((marker) => {
+            const resolved = path.resolve(marker);
+            return [resolved, resolved.replace(/\\/g, '/'), resolved.replace(/\//g, '\\')];
+        })
+        .map((marker) => marker.toLowerCase()))];
+    for (const file of enumerateRegularFiles(root)) {
+        const relative = path.relative(root, file).split(path.sep).join('/');
+        const base = path.basename(file).toLowerCase();
+        if (PNPM_METADATA_NAMES.has(base)) {
+            findings.push(`${relative} (pnpm metadata)`);
+            continue;
+        }
+        const stats = fs.statSync(file);
+        if (stats.size > 5 * 1024 * 1024
+            || !/\.(?:json|ya?ml|ini|cfg|conf|txt|cjs|mjs|js)$/i.test(base)) continue;
+        const text = fs.readFileSync(file, 'utf8').toLowerCase();
+        if (normalizedMarkers.some((marker) => marker.length >= 3 && text.includes(marker))) {
+            findings.push(`${relative} (machine path)`);
+        }
+        if (/(?:storeDir|virtualStoreDir)\s*[:=]/i.test(text)
+            || /node_modules[\\/]\.pnpm[\\/](?:store|v\d+)/i.test(text)) {
+            findings.push(`${relative} (pnpm store path)`);
+        }
+    }
+    ensure(findings.length === 0,
+        `Machine-specific package-manager metadata found:\n${findings.slice(0, 30).join('\n')}`);
 }
 
 function createLockPins(repoRoot, workRoot) {
@@ -414,9 +547,11 @@ function verifyDeployedVersions(deployRoot, expectedPairs) {
     return seen.size;
 }
 
-function downloadNode(downloadRoot) {
+function downloadNode(downloadRoot, confinementRoot) {
+    assertSafeOwnedPath(downloadRoot, confinementRoot, { allowRoot: false });
     fs.mkdirSync(downloadRoot, { recursive: true });
     const archivePath = path.join(downloadRoot, NODE_ARCHIVE);
+    assertSafeOwnedPath(archivePath, confinementRoot, { allowRoot: false });
     if (!fs.existsSync(archivePath) || sha256File(archivePath) !== NODE_SHA256) {
         fs.rmSync(archivePath, { force: true });
         const response = spawnSync('curl.exe', [
@@ -457,10 +592,124 @@ function spdxId(value) {
     return `SPDXRef-Package-${clean}-${sha256Bytes(value).slice(0, 12)}`;
 }
 
+function isValidSpdxExpression(expression) {
+    if (typeof expression !== 'string' || expression.trim() === '') return false;
+    const tokens = [];
+    for (let index = 0; index < expression.length;) {
+        if (/\s/.test(expression[index])) {
+            index += 1;
+            continue;
+        }
+        if (expression[index] === '(' || expression[index] === ')') {
+            tokens.push(expression[index]);
+            index += 1;
+            continue;
+        }
+        const match = /^[A-Za-z0-9.+-]+/.exec(expression.slice(index));
+        if (!match) return false;
+        tokens.push(match[0]);
+        index += match[0].length;
+    }
+    let position = 0;
+    const parsePrimary = () => {
+        if (tokens[position] === '(') {
+            position += 1;
+            if (!parseOr() || tokens[position] !== ')') return false;
+            position += 1;
+            return true;
+        }
+        const license = tokens[position];
+        if (!license || (!SPDX_LICENSE_IDS.has(license) && !/^LicenseRef-[A-Za-z0-9.-]+$/.test(license))) {
+            return false;
+        }
+        position += 1;
+        if (tokens[position] === 'WITH') {
+            position += 1;
+            if (!SPDX_EXCEPTION_IDS.has(tokens[position])) return false;
+            position += 1;
+        }
+        return true;
+    };
+    const parseAnd = () => {
+        if (!parsePrimary()) return false;
+        while (tokens[position] === 'AND') {
+            position += 1;
+            if (!parsePrimary()) return false;
+        }
+        return true;
+    };
+    const parseOr = () => {
+        if (!parseAnd()) return false;
+        while (tokens[position] === 'OR') {
+            position += 1;
+            if (!parseAnd()) return false;
+        }
+        return true;
+    };
+    return parseOr() && position === tokens.length;
+}
+
+function normalizeLicense(packageRoot, manifest, identity) {
+    const rawDeclared = typeof manifest.license === 'string' && manifest.license.trim()
+        ? manifest.license.trim()
+        : null;
+    const evidenceFiles = fs.readdirSync(packageRoot, { withFileTypes: true })
+        .filter((entry) => entry.isFile() && /^(LICENSE|LICENCE|COPYING|NOTICE)(\..*)?$/i.test(entry.name))
+        .map((entry) => path.join(packageRoot, entry.name));
+    const referenced = rawDeclared && /^SEE LICEN[CS]E IN (.+)$/i.exec(rawDeclared);
+    if (referenced) {
+        const reference = referenced[1].trim();
+        const referencedPath = path.resolve(packageRoot, reference);
+        if (isPathInside(referencedPath, packageRoot, false)
+            && fs.existsSync(referencedPath)
+            && fs.lstatSync(referencedPath).isFile()) {
+            evidenceFiles.push(referencedPath);
+        }
+    }
+    const uniqueEvidence = [...new Map(evidenceFiles.map((file) => [pathKey(file), file])).values()];
+    if (!rawDeclared) {
+        ensure(uniqueEvidence.length > 0, `Package has no declared license or license evidence: ${identity}`);
+        return {
+            declared: 'NOASSERTION',
+            rawDeclared: null,
+            normalization: 'missing-declaration',
+            evidenceFiles: uniqueEvidence,
+            extractedLicense: null
+        };
+    }
+    if (isValidSpdxExpression(rawDeclared)) {
+        return {
+            declared: rawDeclared,
+            rawDeclared,
+            normalization: 'valid-spdx',
+            evidenceFiles: uniqueEvidence,
+            extractedLicense: null
+        };
+    }
+    const licenseId = `LicenseRef-Npm-${sha256Bytes(`${identity}\n${rawDeclared}`).slice(0, 16)}`;
+    const evidenceText = uniqueEvidence.map((file) => {
+        const relative = path.relative(packageRoot, file).split(path.sep).join('/');
+        const content = fs.readFileSync(file, 'utf8');
+        return `--- ${relative} ---\n${content}`;
+    }).join('\n\n');
+    return {
+        declared: licenseId,
+        rawDeclared,
+        normalization: 'invalid-npm-declaration',
+        evidenceFiles: uniqueEvidence,
+        extractedLicense: {
+            licenseId,
+            extractedText: evidenceText || rawDeclared,
+            comment: `Normalized invalid npm license declaration: ${rawDeclared}`
+        }
+    };
+}
+
 function buildSbom(deployRoot, payloadRoot, source, artifactId, outputPath, licenseInventoryPath) {
     const packages = [];
     const relationships = [];
     const licenseInventory = [];
+    const extractedLicenses = [];
     const seen = new Set();
     for (const item of readPackageRoots(deployRoot)) {
         const version = normalizeVersion(item.manifest.version);
@@ -468,14 +717,8 @@ function buildSbom(deployRoot, payloadRoot, source, artifactId, outputPath, lice
         if (seen.has(identity)) continue;
         seen.add(identity);
         const packageRoot = path.dirname(item.file);
-        const licenseFiles = fs.readdirSync(packageRoot, { withFileTypes: true })
-            .filter((entry) => entry.isFile() && /^(LICENSE|LICENCE|COPYING|NOTICE)(\..*)?$/i.test(entry.name))
-            .map((entry) => path.join(packageRoot, entry.name));
-        const declared = typeof item.manifest.license === 'string' && item.manifest.license.trim()
-            ? item.manifest.license.trim()
-            : 'NOASSERTION';
-        ensure(declared !== 'NOASSERTION' || licenseFiles.length > 0,
-            `Package has no declared license or license file: ${identity}`);
+        const license = normalizeLicense(packageRoot, item.manifest, identity);
+        if (license.extractedLicense) extractedLicenses.push(license.extractedLicense);
         const id = spdxId(identity);
         packages.push({
             name: item.manifest.name,
@@ -484,7 +727,7 @@ function buildSbom(deployRoot, payloadRoot, source, artifactId, outputPath, lice
             downloadLocation: 'NOASSERTION',
             filesAnalyzed: false,
             licenseConcluded: 'NOASSERTION',
-            licenseDeclared: declared,
+            licenseDeclared: license.declared,
             copyrightText: 'NOASSERTION',
             externalRefs: [{
                 referenceCategory: 'PACKAGE-MANAGER',
@@ -500,8 +743,10 @@ function buildSbom(deployRoot, payloadRoot, source, artifactId, outputPath, lice
         licenseInventory.push({
             name: item.manifest.name,
             version,
-            declared,
-            files: licenseFiles.map((file) => ({
+            declared: license.declared,
+            rawDeclared: license.rawDeclared,
+            normalization: license.normalization,
+            files: license.evidenceFiles.map((file) => ({
                 relativePath: `payload/${path.relative(payloadRoot, file).split(path.sep).join('/')}`,
                 sha256: sha256File(file),
                 length: fs.statSync(file).size
@@ -536,6 +781,8 @@ function buildSbom(deployRoot, payloadRoot, source, artifactId, outputPath, lice
         name: 'node',
         version: NODE_VERSION.slice(1),
         declared: 'MIT',
+        rawDeclared: 'MIT',
+        normalization: 'valid-spdx',
         files: [{
             relativePath: 'payload/NODE-LICENSE.txt',
             sha256: sha256File(nodeLicense),
@@ -544,6 +791,7 @@ function buildSbom(deployRoot, payloadRoot, source, artifactId, outputPath, lice
     });
     packages.sort((left, right) => `${left.name}@${left.versionInfo}`.localeCompare(`${right.name}@${right.versionInfo}`));
     licenseInventory.sort((left, right) => `${left.name}@${left.version}`.localeCompare(`${right.name}@${right.version}`));
+    extractedLicenses.sort((left, right) => left.licenseId.localeCompare(right.licenseId));
     const created = new Date().toISOString();
     const sbom = {
         spdxVersion: 'SPDX-2.3',
@@ -556,7 +804,8 @@ function buildSbom(deployRoot, payloadRoot, source, artifactId, outputPath, lice
             creators: ['Tool: happy-portable-artifact-builder']
         },
         packages,
-        relationships
+        relationships,
+        hasExtractedLicensingInfos: extractedLicenses
     };
     writeJson(outputPath, sbom);
     writeJson(licenseInventoryPath, {
@@ -589,7 +838,8 @@ function assertZipPath(entryName, seen) {
     return name;
 }
 
-function verifyAndExtractArchive(archivePath, manifestPath, extractionRoot) {
+function verifyAndExtractArchive(archivePath, manifestPath, extractionRoot, confinementRoot) {
+    assertSafeOwnedPath(extractionRoot, confinementRoot, { allowRoot: false });
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
     ensure(fs.statSync(archivePath).size === manifest.archive.length, 'Archive length mismatch.');
     ensure(sha256File(archivePath) === manifest.archive.sha256, 'Archive SHA-256 mismatch.');
@@ -605,7 +855,11 @@ function verifyAndExtractArchive(archivePath, manifestPath, extractionRoot) {
         '-ManifestPath',
         manifestPath,
         '-ExtractionRoot',
-        extractionRoot
+        extractionRoot,
+        '-ConfinementRoot',
+        confinementRoot,
+        '-ExpectedTimestampUtc',
+        manifest.archive.entryTimestampUtc
     ]);
 
     const actualFiles = enumerateRegularFiles(extractionRoot);
@@ -619,19 +873,60 @@ function verifyAndExtractArchive(archivePath, manifestPath, extractionRoot) {
     }
 }
 
-function createArchive(payloadRoot, archivePath, inventory) {
+function normalizePayloadMetadata(payloadRoot, timestampUtc) {
+    const timestamp = new Date(timestampUtc);
+    ensure(Number.isFinite(timestamp.getTime()), `Invalid source timestamp: ${timestampUtc}`);
+    const paths = enumerateRegularFiles(payloadRoot);
+    const directories = [];
+    const pending = [payloadRoot];
+    while (pending.length) {
+        const current = pending.pop();
+        directories.push(current);
+        for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+            if (entry.isDirectory()) pending.push(path.join(current, entry.name));
+        }
+    }
+    for (const file of paths) {
+        fs.chmodSync(file, 0o644);
+        fs.utimesSync(file, timestamp, timestamp);
+    }
+    directories.sort((left, right) => right.length - left.length);
+    for (const directory of directories) fs.utimesSync(directory, timestamp, timestamp);
+}
+
+function createArchive(payloadRoot, archivePath, inventory, entryTimestampUtc, confinementRoot) {
+    assertSafeOwnedPath(archivePath, confinementRoot, { allowRoot: false });
     fs.rmSync(archivePath, { force: true });
     const fileListPath = path.join(path.dirname(payloadRoot), 'archive-files.txt');
     const fileList = inventory.files.map((file) => file.relativePath).join('\n');
     fs.writeFileSync(fileListPath, `${fileList}\n`, 'utf8');
-    run('tar.exe', ['-a', '-c', '-f', archivePath, '--options', 'compression-level=9', '-C',
-        path.dirname(payloadRoot), '-T', fileListPath]);
-    fs.unlinkSync(fileListPath);
+    try {
+        run('pwsh', [
+            '-NoProfile',
+            '-ExecutionPolicy',
+            'Bypass',
+            '-File',
+            path.join(__dirname, 'portable-zip.ps1'),
+            '-Create',
+            '-PayloadRoot',
+            payloadRoot,
+            '-ArchivePath',
+            archivePath,
+            '-FileListPath',
+            fileListPath,
+            '-ConfinementRoot',
+            confinementRoot,
+            '-ExpectedTimestampUtc',
+            entryTimestampUtc
+        ]);
+    } finally {
+        fs.rmSync(fileListPath, { force: true });
+    }
     ensure(fs.existsSync(archivePath), 'ZIP creation did not produce an archive.');
 }
 
-function runExternalSmoke(extractionRoot, smokeRoot) {
-    removeTree(smokeRoot);
+function runExternalSmoke(extractionRoot, smokeRoot, confinementRoot) {
+    removeTree(smokeRoot, confinementRoot);
     fs.mkdirSync(smokeRoot, { recursive: true });
     const payload = path.join(extractionRoot, 'payload');
     const node = path.join(payload, 'node.exe');
@@ -674,7 +969,7 @@ function runExternalSmoke(extractionRoot, smokeRoot) {
         return !/^logs\/[^/]+\.log$/i.test(relative);
     });
     ensure(unexpectedState.length === 0, `Help smoke wrote unexpected Happy state: ${unexpectedState.join(', ')}`);
-    removeTree(happyHome);
+    removeTree(happyHome, smokeRoot);
     return `${result.stdout || ''}${result.stderr || ''}`.trim();
 }
 
@@ -695,11 +990,19 @@ function inventoryPayload(payloadRoot) {
 async function build(options) {
     const repoRoot = path.resolve(options.repoRoot);
     const outputRoot = path.resolve(options.outputRoot);
-    ensure(outputRoot.startsWith(`${repoRoot}${path.sep}`), 'Output must be inside the repository worktree.');
-    ensure(!isUnderOneDrive(outputRoot), 'Output path must not be inside OneDrive.');
+    assertSafeOwnedPath(outputRoot, repoRoot, { allowRoot: false });
+    fs.mkdirSync(outputRoot, { recursive: true });
+    assertSafeOwnedPath(outputRoot, repoRoot, { allowRoot: false });
+    const resultPath = options.resultPath ? path.resolve(options.resultPath) : null;
+    if (resultPath) assertSafeOwnedPath(resultPath, repoRoot, { allowRoot: false });
+    if (resultPath) ensure(!fs.existsSync(resultPath), `Result path already exists: ${resultPath}`);
     const source = assertCleanSource(repoRoot);
+    const commitEpochSeconds = Number(git(repoRoot, ['show', '-s', '--format=%ct', source.commit]));
+    ensure(Number.isSafeInteger(commitEpochSeconds), 'Unable to resolve the source commit timestamp.');
+    source.timestampUtc = new Date(Math.floor(commitEpochSeconds / 2) * 2000).toISOString();
     const packageManifest = JSON.parse(fs.readFileSync(path.join(repoRoot, 'packages', 'happy-cli', 'package.json'), 'utf8'));
     const lockSha256 = sha256File(path.join(repoRoot, 'pnpm-lock.yaml'));
+    const pnpmStorePath = run('pnpm', ['store', 'path'], { cwd: repoRoot, capture: true }).stdout.trim();
     const startedAt = new Date().toISOString();
     const artifactId = `${startedAt.replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')}-${source.commit.slice(0, 12)}`;
     const workRoot = path.join(outputRoot, '.work');
@@ -707,22 +1010,28 @@ async function build(options) {
     const payloadRoot = path.join(workRoot, 'payload');
     const artifactRoot = path.join(outputRoot, artifactId);
     const downloadRoot = path.join(outputRoot, '.downloads');
-    removeTree(workRoot);
+    const extractionRoot = path.join(outputRoot, '.external-smoke', artifactId);
+    const smokeRoot = path.join(outputRoot, '.smoke-state', artifactId);
+    for (const ownedPath of [workRoot, artifactRoot, downloadRoot, extractionRoot, smokeRoot]) {
+        assertSafeOwnedPath(ownedPath, repoRoot, { allowRoot: false });
+    }
+    removeTree(workRoot, repoRoot);
     ensure(!fs.existsSync(artifactRoot), `Immutable artifact already exists: ${artifactRoot}`);
     fs.mkdirSync(workRoot, { recursive: true });
     fs.mkdirSync(payloadRoot, { recursive: true });
     fs.mkdirSync(artifactRoot, { recursive: true });
-
-    run('pnpm', ['--filter', '@slopus/happy-wire', 'build'], { cwd: repoRoot });
-    run('pnpm', ['--filter', 'happy-server', 'build'], { cwd: repoRoot });
-    run('pnpm', ['--filter', 'happy', 'build'], { cwd: repoRoot });
-
-    const pins = createLockPins(repoRoot, workRoot);
-    const deployEnv = {
-        ...process.env,
-        HAPPY_PORTABLE_DEPLOY_PINS: pins.pinsPath
-    };
+    let result;
+    let completed = false;
     try {
+        run('pnpm', ['--filter', '@slopus/happy-wire', 'build'], { cwd: repoRoot });
+        run('pnpm', ['--filter', 'happy-server', 'build'], { cwd: repoRoot });
+        run('pnpm', ['--filter', 'happy', 'build'], { cwd: repoRoot });
+
+        const pins = createLockPins(repoRoot, workRoot);
+        const deployEnv = {
+            ...process.env,
+            HAPPY_PORTABLE_DEPLOY_PINS: pins.pinsPath
+        };
         run('pnpm', [
             '--prefer-offline',
             '--config.auto-install-peers=false',
@@ -735,168 +1044,247 @@ async function build(options) {
             '--legacy',
             deployRoot
         ], { cwd: repoRoot, env: deployEnv });
-    } finally {
         git(repoRoot, ['checkout', '--', 'packages/happy-wire/dist']);
-    }
-    const deployedPackages = verifyDeployedVersions(deployRoot, pins.pairs);
-    const pruning = pruneDeployment(deployRoot);
-    scanForbidden(deployRoot);
 
-    const nodeArchive = downloadNode(downloadRoot);
-    const nodeExtractRoot = path.join(workRoot, 'node');
-    fs.mkdirSync(nodeExtractRoot, { recursive: true });
-    run('tar.exe', ['-xf', nodeArchive, '-C', nodeExtractRoot], { cwd: repoRoot });
-    const nodeDirectory = path.join(nodeExtractRoot, NODE_ARCHIVE.replace(/\.zip$/, ''));
-    const nodeExecutable = path.join(nodeDirectory, 'node.exe');
-    const nodeLicense = path.join(nodeDirectory, 'LICENSE');
-    ensure(fs.existsSync(nodeExecutable), 'Pinned Node archive did not contain node.exe.');
-    ensure(fs.existsSync(nodeLicense), 'Pinned Node archive did not contain its LICENSE.');
-    fs.copyFileSync(nodeExecutable, path.join(payloadRoot, 'node.exe'));
-    fs.copyFileSync(nodeLicense, path.join(payloadRoot, 'NODE-LICENSE.txt'));
-    fs.renameSync(deployRoot, path.join(payloadRoot, 'happy'));
-    scanForbidden(payloadRoot);
+        const deployedPackages = verifyDeployedVersions(deployRoot, pins.pairs);
+        const pruning = pruneDeployment(deployRoot);
+        const machineMarkers = [
+            repoRoot,
+            pnpmStorePath,
+            process.env.USERPROFILE,
+            process.env.LOCALAPPDATA,
+            process.env.APPDATA
+        ];
+        scanForbidden(deployRoot);
+        scanMachineMetadata(deployRoot, machineMarkers);
 
-    const licenseInventoryPath = path.join(artifactRoot, 'licenses.json');
-    const sbomPath = path.join(artifactRoot, 'sbom.spdx.json');
-    const packageCount = buildSbom(
-        path.join(payloadRoot, 'happy'),
-        payloadRoot,
-        source,
-        artifactId,
-        sbomPath,
-        licenseInventoryPath
-    );
-    const inventory = inventoryPayload(payloadRoot);
-    const archivePath = path.join(artifactRoot, ARCHIVE_NAME);
-    createArchive(payloadRoot, archivePath, inventory);
-    const archiveSha256 = sha256File(archivePath);
-    const archiveLength = fs.statSync(archivePath).size;
-    const publishedAtUtc = new Date().toISOString();
-    const manifest = {
-        schemaVersion: 1,
-        artifactId,
-        version: artifactId,
-        channel: 'local-preview',
-        payloadLabel: 'unsigned-owner-only',
-        platform: 'win32-x64',
-        publishedAtUtc,
-        happyCliVersion: packageManifest.version,
-        source: {
-            repository: 'Evyatar108/happy',
-            commit: source.commit,
-            branch: source.branch,
-            dirty: false,
-            pnpmLockSha256: lockSha256
-        },
-        node: {
-            version: NODE_VERSION,
-            distributionSha256: NODE_SHA256
-        },
-        archive: {
+        assertSafeOwnedPath(downloadRoot, repoRoot, { allowRoot: false });
+        const nodeArchive = downloadNode(downloadRoot, repoRoot);
+        const nodeExtractRoot = path.join(workRoot, 'node');
+        fs.mkdirSync(nodeExtractRoot, { recursive: true });
+        run('tar.exe', ['-xf', nodeArchive, '-C', nodeExtractRoot], { cwd: repoRoot });
+        const nodeDirectory = path.join(nodeExtractRoot, NODE_ARCHIVE.replace(/\.zip$/, ''));
+        const nodeExecutable = path.join(nodeDirectory, 'node.exe');
+        const nodeLicense = path.join(nodeDirectory, 'LICENSE');
+        ensure(fs.existsSync(nodeExecutable), 'Pinned Node archive did not contain node.exe.');
+        ensure(fs.existsSync(nodeLicense), 'Pinned Node archive did not contain its LICENSE.');
+        fs.copyFileSync(nodeExecutable, path.join(payloadRoot, 'node.exe'));
+        fs.copyFileSync(nodeLicense, path.join(payloadRoot, 'NODE-LICENSE.txt'));
+        fs.renameSync(deployRoot, path.join(payloadRoot, 'happy'));
+        scanForbidden(payloadRoot);
+        scanMachineMetadata(payloadRoot, machineMarkers);
+
+        const licenseInventoryPath = path.join(artifactRoot, 'licenses.json');
+        const sbomPath = path.join(artifactRoot, 'sbom.spdx.json');
+        const packageCount = buildSbom(
+            path.join(payloadRoot, 'happy'),
+            payloadRoot,
+            source,
+            artifactId,
+            sbomPath,
+            licenseInventoryPath
+        );
+        normalizePayloadMetadata(payloadRoot, source.timestampUtc);
+        const inventory = inventoryPayload(payloadRoot);
+        const archivePath = path.join(artifactRoot, ARCHIVE_NAME);
+        createArchive(payloadRoot, archivePath, inventory, source.timestampUtc, repoRoot);
+        const archiveSha256 = sha256File(archivePath);
+        const archiveLength = fs.statSync(archivePath).size;
+        const archiveEvidence = {
             name: ARCHIVE_NAME,
             sha256: archiveSha256,
             length: archiveLength,
             fileCount: inventory.files.length,
-            expandedLength: inventory.expandedLength
-        },
-        entrypoints: {
-            node: 'payload/node.exe',
-            happy: 'payload/happy/dist/index.mjs'
-        },
-        files: inventory.files,
-        compatibility: {
-            launcherSchemaVersions: [1],
-            evCopilot: [],
-            controller: {
-                registrySchema: 2,
-                protocolVersion: 3,
-                copilotPackageVersions: ['1.0.71-3']
+            expandedLength: inventory.expandedLength,
+            entryTimestampUtc: source.timestampUtc,
+            entryExternalAttributes: 0
+        };
+        const verificationManifestPath = path.join(workRoot, 'verification-manifest.json');
+        writeJson(verificationManifestPath, {
+            schemaVersion: 1,
+            artifactId,
+            archive: archiveEvidence,
+            files: inventory.files
+        });
+        let smokeOutput;
+        try {
+            await verifyAndExtractArchive(
+                archivePath,
+                verificationManifestPath,
+                extractionRoot,
+                repoRoot
+            );
+            smokeOutput = runExternalSmoke(extractionRoot, smokeRoot, repoRoot);
+        } finally {
+            cleanupExternalPaths([extractionRoot, smokeRoot], repoRoot);
+        }
+
+        const completedAtUtc = new Date().toISOString();
+        const report = {
+            schemaVersion: 1,
+            artifactId,
+            evidenceOnly: true,
+            localOnly: true,
+            publishAttempted: false,
+            oneDriveWritten: false,
+            source,
+            startedAtUtc: startedAt,
+            completedAtUtc,
+            archive: archiveEvidence,
+            dependencies: {
+                pnpmVersion: run('pnpm', ['--version'], { cwd: repoRoot, capture: true }).stdout.trim(),
+                lockSha256,
+                deployedPackageIdentities: deployedPackages,
+                sbomPackages: packageCount
+            },
+            pruning,
+            checks: {
+                forbiddenContent: 'clean',
+                machineMetadata: 'clean',
+                reproducibleZipMetadata: 'clean',
+                archivePreflight: 'clean',
+                expandedInventory: 'clean',
+                externalSmoke: 'clean',
+                externalSmokeCleanup: 'clean',
+                smokeOutput
             }
-        },
-        capabilities: ['copilot-terminal-route-v1'],
-        sbom: {
-            path: 'sbom.spdx.json',
-            sha256: sha256File(sbomPath)
-        },
-        licenses: {
-            path: 'licenses.json',
-            sha256: sha256File(licenseInventoryPath)
-        }
-    };
-    const manifestPath = path.join(artifactRoot, 'manifest.json');
-    writeJson(manifestPath, manifest);
-
-    const extractionRoot = path.join(outputRoot, '.external-smoke', artifactId);
-    await verifyAndExtractArchive(archivePath, manifestPath, extractionRoot);
-    const smokeOutput = runExternalSmoke(extractionRoot, path.join(outputRoot, '.smoke-state', artifactId));
-    const manifestSha256 = sha256File(manifestPath);
-    ensure(sha256File(sbomPath) === manifest.sbom.sha256, 'SBOM changed before completion.');
-    ensure(sha256File(licenseInventoryPath) === manifest.licenses.sha256, 'License inventory changed before completion.');
-    ensure(sha256File(archivePath) === archiveSha256, 'Archive changed before completion.');
-
-    const report = {
-        schemaVersion: 1,
-        artifactId,
-        localOnly: true,
-        publishAttempted: false,
-        oneDriveWritten: false,
-        source,
-        startedAtUtc: startedAt,
-        completedAtUtc: new Date().toISOString(),
-        archive: {
-            path: archivePath,
-            length: archiveLength,
-            sha256: archiveSha256,
-            fileCount: inventory.files.length,
-            expandedLength: inventory.expandedLength
-        },
-        dependencies: {
-            pnpmVersion: run('pnpm', ['--version'], { cwd: repoRoot, capture: true }).stdout.trim(),
-            lockSha256,
-            deployedPackageIdentities: deployedPackages,
-            sbomPackages: packageCount
-        },
-        pruning,
-        checks: {
-            forbiddenContent: 'clean',
-            archivePreflight: 'clean',
-            expandedInventory: 'clean',
-            externalSmoke: 'clean',
-            smokeOutput
-        }
-    };
-    writeJson(path.join(artifactRoot, 'build-report.json'), report);
-    const completePath = path.join(artifactRoot, 'COMPLETE.json');
-    writeJson(completePath, {
-        schemaVersion: 1,
-        artifactId,
-        version: artifactId,
-        channel: 'local-preview',
-        payloadLabel: 'unsigned-owner-only',
-        manifestSha256,
-        archiveSha256,
-        completedAtUtc: new Date().toISOString()
-    });
-    removeTree(workRoot);
-    removeTree(path.join(outputRoot, '.smoke-state', artifactId));
-    console.log(JSON.stringify(report.archive));
+        };
+        const reportPath = path.join(artifactRoot, 'build-report.json');
+        writeJson(reportPath, report);
+        const manifest = {
+            schemaVersion: 1,
+            artifactId,
+            version: artifactId,
+            channel: 'local-preview',
+            payloadLabel: 'unsigned-owner-only',
+            platform: 'win32-x64',
+            publishedAtUtc: completedAtUtc,
+            happyCliVersion: packageManifest.version,
+            source: {
+                repository: 'Evyatar108/happy',
+                commit: source.commit,
+                branch: source.branch,
+                timestampUtc: source.timestampUtc,
+                dirty: false,
+                pnpmLockSha256: lockSha256
+            },
+            node: {
+                version: NODE_VERSION,
+                distributionSha256: NODE_SHA256
+            },
+            archive: archiveEvidence,
+            entrypoints: {
+                node: 'payload/node.exe',
+                happy: 'payload/happy/dist/index.mjs'
+            },
+            files: inventory.files,
+            compatibility: {
+                launcherSchemaVersions: [1],
+                evCopilot: [],
+                controller: {
+                    registrySchema: 2,
+                    protocolVersion: 3,
+                    copilotPackageVersions: ['1.0.71-3']
+                }
+            },
+            capabilities: ['copilot-terminal-route-v1'],
+            report: {
+                path: 'build-report.json',
+                sha256: sha256File(reportPath)
+            },
+            sbom: {
+                path: 'sbom.spdx.json',
+                sha256: sha256File(sbomPath)
+            },
+            licenses: {
+                path: 'licenses.json',
+                sha256: sha256File(licenseInventoryPath)
+            }
+        };
+        const manifestPath = path.join(artifactRoot, 'manifest.json');
+        writeJson(manifestPath, manifest);
+        ensure(sha256File(reportPath) === manifest.report.sha256, 'Build report changed before completion.');
+        ensure(sha256File(sbomPath) === manifest.sbom.sha256, 'SBOM changed before completion.');
+        ensure(sha256File(licenseInventoryPath) === manifest.licenses.sha256, 'License inventory changed before completion.');
+        ensure(sha256File(archivePath) === archiveSha256, 'Archive changed before completion.');
+        const manifestSha256 = sha256File(manifestPath);
+        const completePath = path.join(artifactRoot, 'COMPLETE.json');
+        writeJson(completePath, {
+            schemaVersion: 1,
+            artifactId,
+            version: artifactId,
+            channel: 'local-preview',
+            payloadLabel: 'unsigned-owner-only',
+            manifestSha256,
+            archiveSha256,
+            completedAtUtc: new Date().toISOString()
+        });
+        result = {
+            schemaVersion: 1,
+            artifactId,
+            artifactRoot,
+            sourceCommit: source.commit,
+            archive: archiveEvidence
+        };
+        completed = true;
+    } finally {
+        git(repoRoot, ['checkout', '--', 'packages/happy-wire/dist']);
+        cleanupExternalPaths([extractionRoot, smokeRoot], repoRoot);
+        removeTree(workRoot, repoRoot);
+        if (!completed) removeTree(artifactRoot, repoRoot);
+    }
+    if (resultPath) {
+        assertSafeOwnedPath(resultPath, repoRoot, { allowRoot: false });
+        writeJson(resultPath, result);
+    }
+    console.log(`HAPPY_PORTABLE_RESULT=${JSON.stringify(result)}`);
 }
 
 async function verify(options) {
+    const repoRoot = path.resolve(options.repoRoot);
     const artifactRoot = path.resolve(options.artifactRoot);
+    const extractionRoot = path.resolve(options.extractionRoot);
+    assertSafeOwnedPath(artifactRoot, repoRoot, { allowRoot: false });
+    assertSafeOwnedPath(extractionRoot, repoRoot, { allowRoot: false });
     const manifestPath = path.join(artifactRoot, 'manifest.json');
     const completePath = path.join(artifactRoot, 'COMPLETE.json');
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
     const complete = JSON.parse(fs.readFileSync(completePath, 'utf8'));
     ensure(complete.manifestSha256 === sha256File(manifestPath), 'COMPLETE manifest hash mismatch.');
     ensure(complete.archiveSha256 === manifest.archive.sha256, 'COMPLETE archive hash mismatch.');
+    ensure(manifest.report.sha256 === sha256File(path.join(artifactRoot, manifest.report.path)),
+        'Build report hash mismatch.');
     ensure(manifest.sbom.sha256 === sha256File(path.join(artifactRoot, manifest.sbom.path)), 'SBOM hash mismatch.');
     ensure(manifest.licenses.sha256 === sha256File(path.join(artifactRoot, manifest.licenses.path)), 'License hash mismatch.');
+    const report = JSON.parse(fs.readFileSync(path.join(artifactRoot, manifest.report.path), 'utf8'));
+    ensure(report.artifactId === manifest.artifactId && report.evidenceOnly === true,
+        'Build report identity or evidence role mismatch.');
+    const sbom = JSON.parse(fs.readFileSync(path.join(artifactRoot, manifest.sbom.path), 'utf8'));
+    const extractedLicenseIds = new Set(
+        (sbom.hasExtractedLicensingInfos || []).map((item) => item.licenseId)
+    );
+    for (const item of sbom.packages || []) {
+        ensure(item.licenseDeclared === 'NOASSERTION' || isValidSpdxExpression(item.licenseDeclared),
+            `Invalid SPDX licenseDeclared value: ${item.name}@${item.versionInfo} (${item.licenseDeclared})`);
+        if (String(item.licenseDeclared).startsWith('LicenseRef-')) {
+            ensure(extractedLicenseIds.has(item.licenseDeclared),
+                `SPDX LicenseRef has no extracted evidence: ${item.licenseDeclared}`);
+        }
+    }
     await verifyAndExtractArchive(
         path.join(artifactRoot, manifest.archive.name),
         manifestPath,
-        path.resolve(options.extractionRoot)
+        extractionRoot,
+        repoRoot
     );
+    scanForbidden(extractionRoot);
+    scanMachineMetadata(extractionRoot, [
+        repoRoot,
+        run('pnpm', ['store', 'path'], { cwd: repoRoot, capture: true }).stdout.trim(),
+        process.env.USERPROFILE,
+        process.env.LOCALAPPDATA,
+        process.env.APPDATA
+    ]);
 }
 
 function testPaths() {
@@ -934,7 +1322,66 @@ function testPaths() {
         duplicateFailed = true;
     }
     ensure(duplicateFailed, 'Case-colliding ZIP fixture was accepted.');
+    let mockedReparseRejected = false;
+    try {
+        assertPathComponentsSafe([
+            { path: 'C:\\safe', isReparse: false },
+            { path: 'C:\\safe\\redirect', isReparse: true }
+        ]);
+    } catch {
+        mockedReparseRejected = true;
+    }
+    ensure(mockedReparseRejected, 'Mocked reparse path component was accepted.');
+    ensure(isValidSpdxExpression('(MIT OR CC0-1.0)'), 'Valid SPDX expression fixture was rejected.');
+    ensure(!isValidSpdxExpression('SEE LICENSE IN README.md'),
+        'Invalid Anthropic npm license declaration was accepted as SPDX.');
     console.log('ZIP path fixtures passed.');
+}
+
+function testSecurity(options) {
+    const repoRoot = path.resolve(options.repoRoot);
+    const testRoot = path.resolve(options.testRoot);
+    assertSafeOwnedPath(testRoot, repoRoot, { allowRoot: false });
+    removeTree(testRoot, repoRoot);
+    fs.mkdirSync(testRoot, { recursive: true });
+    const cleanupProbe = path.join(testRoot, 'cleanup-probe');
+    const cleanupExtraction = path.join(cleanupProbe, 'external-smoke');
+    const cleanupState = path.join(cleanupProbe, 'smoke-state');
+    fs.mkdirSync(cleanupExtraction, { recursive: true });
+    fs.mkdirSync(cleanupState, { recursive: true });
+    let expectedFailure = false;
+    try {
+        throw new Error('cleanup fixture');
+    } catch {
+        expectedFailure = true;
+    } finally {
+        cleanupExternalPaths([cleanupExtraction, cleanupState], repoRoot);
+    }
+    ensure(expectedFailure && !fs.existsSync(cleanupExtraction) && !fs.existsSync(cleanupState),
+        'External smoke cleanup did not run after a failure.');
+
+    const junctionTarget = path.join(testRoot, 'junction-target');
+    const junctionPath = path.join(testRoot, 'junction');
+    fs.mkdirSync(junctionTarget, { recursive: true });
+    const junction = spawnSync(process.env.ComSpec || 'cmd.exe', [
+        '/d', '/s', '/c', 'mklink', '/J', junctionPath, junctionTarget
+    ], { encoding: 'utf8', windowsHide: true, shell: false });
+    if (junction.status === 0) {
+        let junctionRejected = false;
+        try {
+            assertSafeOwnedPath(path.join(junctionPath, 'child'), repoRoot, { allowRoot: false });
+        } catch {
+            junctionRejected = true;
+        } finally {
+            fs.rmdirSync(junctionPath);
+        }
+        ensure(junctionRejected, 'Live Windows junction output path was accepted.');
+        console.log('Live Windows junction confinement probe passed.');
+    } else {
+        console.log('Live Windows junction probe unavailable; deterministic reparse fixture passed.');
+    }
+    removeTree(testRoot, repoRoot);
+    console.log('Output confinement and cleanup fixtures passed.');
 }
 
 function parseArguments(argv) {
@@ -955,13 +1402,25 @@ async function main() {
         ensure(options.repoRoot && options.outputRoot, 'build requires --repoRoot and --outputRoot.');
         await build(options);
     } else if (command === 'verify') {
-        ensure(options.artifactRoot && options.extractionRoot,
-            'verify requires --artifactRoot and --extractionRoot.');
+        ensure(options.repoRoot && options.artifactRoot && options.extractionRoot,
+            'verify requires --repoRoot, --artifactRoot, and --extractionRoot.');
         await verify(options);
     } else if (command === 'test-paths') {
         testPaths();
+    } else if (command === 'test-security') {
+        ensure(options.repoRoot && options.testRoot,
+            'test-security requires --repoRoot and --testRoot.');
+        testSecurity(options);
+    } else if (command === 'assert-output') {
+        ensure(options.repoRoot && options.target,
+            'assert-output requires --repoRoot and --target.');
+        console.log(JSON.stringify(assertSafeOwnedPath(options.target, options.repoRoot, { allowRoot: false })));
+    } else if (command === 'cleanup-output') {
+        ensure(options.repoRoot && options.target,
+            'cleanup-output requires --repoRoot and --target.');
+        removeTree(options.target, options.repoRoot);
     } else {
-        fail('Usage: portable-artifact.cjs build|verify|test-paths [options]');
+        fail('Usage: portable-artifact.cjs build|verify|test-paths|test-security|assert-output|cleanup-output [options]');
     }
 }
 
