@@ -22,6 +22,65 @@ cited:
 
 ---
 
+## Rev. 2 — corrections from independent source review
+
+An independent source review confirmed the **Option B** recommendation but
+found five items that were wrong or under‑specified in Rev. 1. All are
+re‑verified against source and the affected sections below are corrected. This
+box is the summary; the detail lives in the cited sections.
+
+- **B1 (token — Rev. 1 was wrong).** Rev. 1 claimed the interactive embedded
+  server sources `COPILOT_CONNECTION_TOKEN` "the same way." It does **not**.
+  `EmbeddedServerOptions` has **no** token field
+  (`src/cli/embeddedServer.ts:31‑64`) and the inner `SDKServer` is constructed
+  **without** `connectionToken` (`src/cli/embeddedServer.ts:101‑119`). The env
+  var is read **only** on the top‑level managed/headless bootstrap
+  (`src/core/sdkServer.ts:5840`), not on the interactive path. So today the
+  embedded listener is **anonymous** (`this.options.connectionToken` is
+  undefined → the Rust TCP gate is off and the "accepts from any client"
+  warning fires, `src/core/sdkServer.ts:1670‑1700`), and the published
+  `ui-server` entry carries `token: null` — which M1a's validator would reject.
+  **Fix (real, multi‑file):** add `connectionToken?: string` to
+  `EmbeddedServerOptions`; thread it into the inner `SDKServer`
+  (`connectionToken` option, `src/core/sdkServer.ts:236`) so the native gate
+  enforces it *and* the publisher (which captures the token from its caller and
+  never re‑reads env, `src/core/remoteRegistry/registryPublisher.ts:30‑33`)
+  writes a real token; generate/read the token at the interactive launch site.
+  The seam therefore touches `embeddedServer.ts` (and the launch site), **not
+  just one env toggle**. See §2.8, §4.1, §4.4, T1, F‑3.
+- **B2 (foreground‑refusal guard — Rev. 1 over‑claimed).** The
+  `registerSession` refusal of a `local-attach` session is **gated on
+  `isAgentsTabEnabled`** (`src/cli/embeddedServer.ts:264‑268`: the defense
+  "only activates when the feature flag is on"). Since this design keeps
+  Agents‑tab **off**, that guard is **inactive** and cannot be cited as the
+  ownership‑safety mechanism. Reframed: the v1 invariant is a **Happy‑side
+  discipline** — the read‑only attach connects, reads, and **never** calls any
+  foreground‑registration path (`session.setForeground`, which would fire the
+  TUI's `onForegroundSessionChangeCallback`,
+  `src/core/sdkServer.ts:1465‑1472`), nor `session.send`/`session.abort`. See
+  §2.6, §4.1, §4.4, H‑8.
+- **N1 (P4 overlap — Rev. 1 under‑stated).** Rev. 1 only checked the P0/P4
+  co‑edit constraint against *Copilot* controller files and called T2
+  "parallelizable." But P4 (parent plan lines 1051‑1064) **rewrites the same
+  Happy files** T2/T3 touch — `managedServer.ts` spawn/validator (line 1056‑1057)
+  and `runCopilotMirror.ts` provenance/ownership (line 1058). So **T2/T3 must
+  rebase after P4**, not parallelize. See §4.3, §8.
+- **S1 (B‑env synthesizes, not flips).** Ordinary interactive passes
+  `embeddedServer: options.uiServer ? {…} : undefined`
+  (`src/cli/index.ts:4275‑4282`) — with `--ui-server` absent the value is
+  **`undefined`**. B‑env must **synthesize the whole config object**
+  (`{ enabled, port, host, connectionToken }`), not merely flip an `enabled`
+  boolean. See §2.6, §4.1.
+- **S2 (ui-server validator contract made explicit).** v1 `ui-server` entries
+  have the **`kind` field absent on disk**, normalized to `"ui-server"` on read
+  (`src/core/remoteRegistry/serverRegistry.ts:97‑99, 108‑111, 156‑161`). Happy
+  must accept `schemaVersion === 1` with **omitted kind** (not require
+  `kind === "ui-server"` on disk, which would reject every real v1 entry) and
+  **poll for a populated `sessionId`** (published on first `setSession()`). See
+  §2.7, §4.1, H‑1.
+
+---
+
 ## 0. Executive summary and recommendation
 
 The P0 contract is a single sentence with teeth: *preserve the **ordinary
@@ -54,14 +113,18 @@ phrasing:
    render stack, input box, approval UI, Ctrl+C semantics, exit‑code
    derivation, and — the hardest part — Copilot's *argv grammar*. Every one of
    those is a perpetual fidelity tax that drifts every Copilot release.
-2. **The Option B seam is genuinely thin**, contradicting the natural
-   assumption that "mirror a live TUI" requires deep forking. Copilot already
-   ships the entire attach surface: an interactive‑TUI‑plus‑embedded‑JSON‑RPC
-   mode (`--ui-server`), a discovery registry, and a **complete in‑product
-   controller** (`LocalRpcSession` + the Agents tab) that attaches to such a
-   session, renders it, and answers its approvals/elicitation. The fork change
-   reduces to *"let the ordinary interactive launch expose its embedded server
-   on loopback behind a token, without changing anything the user sees."*
+2. **The Option B seam is genuinely thin** (though not a one‑line env toggle —
+   see Rev. 2 B1), contradicting the natural assumption that "mirror a live TUI"
+   requires deep forking. Copilot already ships the entire attach surface: an
+   interactive‑TUI‑plus‑embedded‑JSON‑RPC mode (`--ui-server`), a discovery
+   registry, and a **complete in‑product controller** (`LocalRpcSession` + the
+   Agents tab) that attaches to such a session, renders it, and answers its
+   approvals/elicitation. The fork change reduces to *"let the ordinary
+   interactive launch expose its embedded server on loopback behind a token,
+   without changing anything the user sees"* — concretely a small multi‑file
+   change: synthesize the embedded‑server config at the launch site and thread a
+   `connectionToken` through `EmbeddedServerOptions` into the inner `SDKServer`
+   (§2.8, §4.1).
 3. **Option A's genuine advantages are real but off‑target here.** Zero fork
    change, perfectly symmetric mirroring (Happy owns both ends), and the
    simplest one‑session‑ownership story. Those matter for a *Happy‑native
@@ -141,7 +204,8 @@ JSON‑RPC server**. Mode is chosen in `src/cli/index.ts`:
   server (details in §2.6).
 - Otherwise → the ordinary interactive TUI via `runInteractiveMode(...)`
   (`src/cli/index.ts:~4220`, invoked with the `embeddedServer` option at
-  `src/cli/index.ts:4275‑4281`).
+  `src/cli/index.ts:4275‑4282` — the `options.uiServer ? {…} : undefined`
+  ternary, see §2.6 S1).
 
 ### 2.2 The managed‑server bootstrap (Option A's target)
 
@@ -267,22 +331,37 @@ The interactive TUI can already publish the same RPC surface:
   listener **only when `--ui-server` is enabled**
   (`src/cli/interactiveMode.ts:626‑651`: "Only start the TCP listener when
   --ui-server mode is enabled"). It is passed to `runInteractiveMode` as
-  `embeddedServer: options.uiServer ? {...} : undefined`
-  (`src/cli/index.ts:4275‑4281`).
+  `embeddedServer: options.uiServer ? { enabled: true, port, host } : undefined`
+  (`src/cli/index.ts:4275‑4282`). **(S1)** Note the ternary: with `--ui-server`
+  **absent** the value is `undefined` — so a B‑env seam must *synthesize the
+  whole config object*, not flip a pre‑existing `enabled` field (§4.1).
 - `RegistryPublisher` writes a `kind:"ui-server"` v1 entry "as soon as
-  `start(...)` is called; re‑publishes on every `setSession()` so foreground
-  session transitions surface to controllers"
-  (`src/core/remoteRegistry/registryPublisher.ts:12‑15`). The token is sourced
-  the same way (`src/core/sdkServer.ts:5840`).
+  `start(port, startedAt)` is called; re‑publishes on every `setSession()` so
+  foreground session transitions surface to controllers"
+  (`src/core/remoteRegistry/registryPublisher.ts:12‑15`). **(B1)** The token in
+  that entry is **not** sourced from env here: the publisher "captures
+  [`connectionToken`] at construction … never re‑reads `COPILOT_CONNECTION_TOKEN`
+  from env" (`registryPublisher.ts:30‑33`), and the embedded server currently
+  passes it none — so today the entry's `token` is `null` (see §2.8).
 - `LocalRpcSession` is documented as attaching to "a local `--ui-server`
   target" (`src/core/sharedApi/localRpcSession.ts:319, 386`). The Agents tab
   attaches one TUI to another TUI's `--ui-server`.
-- The embedded server **refuses to register a JSON‑RPC‑attached controller
-  session (`kind === "local-attach"`, e.g. a `LocalRpcSession`) as its own
-  foreground** (`src/cli/embeddedServer.ts:245‑270`, guard at 268‑270) — attach
-  loops are structurally prevented, so a side‑attached controller is a
-  *secondary consumer*, never a competing owner of the single foreground
-  session.
+- **(B2) The `local-attach` foreground‑refusal guard is NOT load‑bearing for
+  this design.** `EmbeddedServer.registerSession` refuses to register a
+  `kind === "local-attach"` session as foreground, but **only when
+  `isAgentsTabEnabled` is true** (`src/cli/embeddedServer.ts:245‑273`; the guard
+  at 264‑268 and its comment state the defense "only activates when the feature
+  flag is on"). Since this design keeps Agents‑tab **off**, the guard is
+  **inactive**. It also protects the wrong surface for us: `registerSession` is
+  an **in‑process** method the owning TUI calls for *its own* foreground
+  session; an external JSON‑RPC client (Happy) never reaches it. The path an
+  external client *can* reach is `session.setForeground`
+  (`ProtocolMethods.SESSION_SET_FOREGROUND`, `protocol/types.ts:2386`), which
+  fires the TUI's `onForegroundSessionChangeCallback`
+  (`src/core/sdkServer.ts:1465‑1472`) — i.e. it would *steer the terminal's
+  foreground*. The v1 ownership invariant is therefore a **Happy‑side
+  discipline** (never call `setForeground`/`send`/`abort`), defined in §4.1/§4.4,
+  not reliance on this inactive guard.
 
 **Decisive contrast for the two options:** ordinary `copilot` (no
 `--ui-server`) does **not** start the listener
@@ -302,17 +381,59 @@ plaintext on disk, and **listing filters to localhost‑only hosts** (`127.0.0.1
 `localhost`, `::1`) (14‑18). This is the baseline security boundary shared by
 both options.
 
+**(S2) The v1 `ui-server` on‑disk shape differs from v2 `managed-server`**, and
+Happy's validator must handle it explicitly (`serverRegistry.ts:93‑111,
+156‑161`):
+
+- **`schemaVersion: 1`** for ui-server; **`2`** for managed-server (105‑106).
+- **The `kind` field is *absent on disk* for v1** and "normalized to
+  `"ui-server"` on read" (97‑99, 108‑111, 156‑161). A validator that requires
+  `entry.kind === "ui-server"` **on the raw file** would reject every real v1
+  entry. Accept `schemaVersion === 1` with omitted kind and normalize it.
+- **`sessionId` is populated only after the first `setSession()`** (the
+  publisher republishes then, `registryPublisher.ts:12‑15`); the picker must
+  **poll** for a populated `sessionId` rather than assume it at first publish
+  (the same race the managed picker already handles).
+
 ### 2.8 Security posture of the RPC surface
 
-The token is sourced from `COPILOT_CONNECTION_TOKEN` for both managed and
-ui‑server modes; **if unset the server accepts connections from any local
-client** (`src/core/sdkServer.ts:5840‑5841`, warning at 1690‑1691). The
-defense‑in‑depth baseline is therefore: loopback‑only bind + localhost registry
-filter + `0600/0700` file permissions + optional connection token. M1a already
-does the secure thing for Option A — it generates a per‑spawn token and passes
-it in the child env (`managedServer.ts:136, 150‑156`). Option B must do the
-same for the interactive launch (the fork seam must generate + inject a token,
-not leave the embedded server anonymous).
+For the **top‑level managed/headless** server, the token is read from
+`COPILOT_CONNECTION_TOKEN` (`src/core/sdkServer.ts:5840‑5841`: read then
+`delete`d from env), passed to that `SDKServer`, and **if unset the server
+accepts connections from any local client** (warning at `sdkServer.ts:1690‑1691`).
+The native TCP gate that enforces the token lives in the Rust engine and rejects
+unauthenticated traffic before dispatch (`sdkServer.ts:1665‑1668, 1670‑1700`).
+
+**(B1) The interactive `EmbeddedServer` does NOT participate in that token
+sourcing today.** `EmbeddedServerOptions` has **no** token field
+(`src/cli/embeddedServer.ts:31‑64`), and the inner `SDKServer` is constructed
+**without** `connectionToken` (`src/cli/embeddedServer.ts:101‑119`) even though
+`SDKServer` accepts one (`connectionToken?: string`, `sdkServer.ts:236`). The
+env read at `sdkServer.ts:5840` is on the *server‑mode* bootstrap only, never on
+the interactive path. Consequently, with the seam merely enabling the listener:
+`this.options.connectionToken` is undefined → the native gate is **off**
+(anonymous listener, `sdkServer.ts:1690‑1691`) **and** the published `ui-server`
+entry's `token` is **null** — which M1a's fail‑closed validator rejects
+(`managedServer.ts:110‑122`).
+
+**Therefore the fork seam is a real, multi‑file change (not one env toggle):**
+
+1. Add `connectionToken?: string` to `EmbeddedServerOptions`
+   (`embeddedServer.ts:31‑64`).
+2. Thread it into the inner `SDKServer` construction
+   (`embeddedServer.ts:101‑119`, add `connectionToken: options.connectionToken`)
+   so the native Rust gate enforces it (`sdkServer.ts:1670‑1700`) **and** the
+   registry entry's `token` is populated (the publisher captures the token from
+   its caller and never re‑reads env, `registryPublisher.ts:30‑33`).
+3. At the interactive launch site (`index.ts:4275‑4282`), **synthesize** the
+   embedded config *including a token* — reading `COPILOT_CONNECTION_TOKEN` (the
+   env the launcher sets) or generating one there, because nothing on the
+   interactive path reads it today.
+
+With those three edits the interactive embedded listener reaches the same
+security posture M1a already has for the managed child (per‑spawn loopback token
++ localhost bind + `0600/0700` perms). Absent them, Option B would ship an
+anonymous local RPC listener inside a user‑facing process — unacceptable.
 
 ---
 
@@ -412,29 +533,55 @@ The user runs the **genuine** interactive `copilot <args>` (the
 `runInteractiveMode` path). The launcher/daemon arranges for that process to
 expose its **already‑existing** embedded server so Happy can attach:
 
-1. **Fork seam (the only Copilot change).** Make the ordinary interactive
-   launch start its embedded server + publish a `ui-server` registry entry when
-   opted in, **without** altering user‑visible behavior. Two viable forms:
-   - **(B‑env, recommended)** a fork env `COPILOT_HAPPY_EMBED=1` that the fork
-     reads to set `embeddedServer.enabled = true` (the field consumed at
-     `src/cli/interactiveMode.ts:643‑651`) and to generate + install a loopback
-     `COPILOT_CONNECTION_TOKEN` if one is not already present. This keeps the
-     user's **argv byte‑identical** to what they typed (strictly honoring the
-     "original argv" contract, P0 line 997).
-   - **(B‑flag)** have the launcher inject the existing hidden `--ui-server
-     --host 127.0.0.1 --port 0` into the child argv. Simpler (no new code path)
-     but the injected flag is observable in argv/`--help` and must be proven
-     inert for every ordinary arg combination.
-   Either way the seam is *"enable the embedded server that already exists"* —
-   not new protocol, not new rendering, not new session semantics.
-2. **Happy daemon attaches read‑only.** Extend Happy's discovery + client to
-   accept a `kind:"ui-server"` schema‑v1 entry (M1a's validator currently
-   hard‑rejects anything but `managed-server`/schema‑2,
-   `managedServer.ts:110‑122`), then run the M1a handshake with
+1. **Fork seam (the only Copilot change — small but multi‑file, not one env
+   toggle).** Make the ordinary interactive launch start its embedded server
+   **with a connection token** and publish a `ui-server` registry entry when
+   opted in, **without** altering user‑visible behavior. The seam has three
+   parts (all confirmed necessary by the B1 analysis in §2.8):
+   - **(a) Config synthesis at the launch site.** Today
+     `embeddedServer: options.uiServer ? { enabled, port, host } : undefined`
+     (`src/cli/index.ts:4275‑4282`); with `--ui-server` absent it is
+     `undefined`. The seam **synthesizes** the config object when
+     `COPILOT_HAPPY_EMBED=1`: `{ enabled: true, host: "127.0.0.1", port: 0,
+     connectionToken: <token> }`, where `<token>` is read from
+     `COPILOT_CONNECTION_TOKEN` (set by the launcher) or generated there. **(S1)**
+     This is synthesis, not flipping a boolean.
+   - **(b) A token field on `EmbeddedServerOptions`.** Add
+     `connectionToken?: string` (`src/cli/embeddedServer.ts:31‑64`) and thread
+     it into the inner `SDKServer` (`embeddedServer.ts:101‑119`;
+     `SDKServer` already accepts `connectionToken`, `sdkServer.ts:236`). **(B1)**
+     Without this the listener is anonymous and the registry entry's `token` is
+     null (§2.8).
+   - **(c) No new protocol/render/session semantics.** The listener, publisher,
+     and event surface all already exist; the seam only *enables and
+     authenticates* them.
+   Two forms for triggering (a):
+   - **(B‑env, recommended)** the fork reads `COPILOT_HAPPY_EMBED=1` and does the
+     synthesis internally. Keeps the user's **argv byte‑identical** to what they
+     typed (strictly honoring the "original argv" contract, P0 line 997).
+   - **(B‑flag)** the launcher injects `--ui-server --host 127.0.0.1 --port 0`
+     into the child argv (no config‑synthesis fork edit, but still needs the
+     token‑threading edits (b), and the injected flag is observable in
+     argv/`--help` and must be proven inert for every ordinary arg combination).
+2. **Happy daemon attaches read‑only.** Extend Happy's discovery + validator to
+   accept a `ui-server` entry. **(S2)** The contract is explicit: accept
+   `schemaVersion === 1` with the **`kind` field omitted on disk** (normalize to
+   `"ui-server"`; M1a today hard‑rejects because it requires
+   `kind === "managed-server"` + schema 2, `managedServer.ts:110‑122`), and
+   **poll for a populated `sessionId`** (published on first `setSession()`,
+   `registryPublisher.ts:12‑15`). Then run the M1a handshake with
    `observePromptEvents:true` **but `requestPermission:false`** — Happy watches
    and mirrors; the human at the terminal remains the sole approver. Project to
    the embedded happy‑server via the existing `eventProjection`/`eventRelay`.
-3. **Later, additive:** phone→terminal input via `session.send`, and
+3. **v1 ownership invariant (B2).** Happy's attach is a **pure read‑only
+   consumer**: it calls `connect` → `session.getForeground` → `session.resume`
+   (read‑only flags) → `session.getMessages` → subscribe to `session.event`, and
+   **never** calls `session.setForeground`, `session.send`, or `session.abort`.
+   This — not the inactive `isAgentsTabEnabled`‑gated `registerSession` guard
+   (§2.6) — is what guarantees the terminal keeps sole ownership of its single
+   foreground session. See §4.4 for whether an additional Copilot‑side guard is
+   warranted.
+4. **Later, additive:** phone→terminal input via `session.send`, and
    phone‑answered approvals by attaching as a *second* permission provider
    (§4.4 covers the dual‑provider race this introduces).
 
@@ -448,8 +595,8 @@ expose its **already‑existing** embedded server so Happy can attach:
 | **Prompt input** | ✓ Native at terminal | Copilot's own input box. (Phone input is a later additive `session.send` path.) |
 | **Tool approvals / elicitation** | ✓ Native at terminal | Answered in Copilot's own `permissionRequest.tsx`. Happy mirrors the `permission.requested`/`elicitation.requested` events to the phone read‑only in v1. |
 | **Ctrl+C / cancellation** | ✓ Native | Handled by the interactive session's own signal handling ("shut down active session on signal‑driven exits (SIGINT/SIGTERM/SIGHUP)", `src/cli/interactiveMode.ts:1068`). |
-| **Reconnect / resume** | ✓ Native + independent attach | Terminal resume is native; Happy's attach can reconnect independently against the persistent registry entry, and the embedded server refuses to register the attached controller as foreground (`src/cli/embeddedServer.ts:245‑270`), so re‑attach cannot hijack ownership. |
-| **Exactly one session + mirror** | ✓ | The interactive TUI's session is the single foreground; Happy is a secondary consumer that mirrors to the embedded happy‑server. |
+| **Reconnect / resume** | ✓ Native + independent attach | Terminal resume is native; Happy's attach can reconnect independently against the persistent registry entry. Ownership is preserved by the **Happy‑side read‑only invariant** (§4.1 item 3): the attach never calls `session.setForeground`/`send`/`abort`, so a re‑attach cannot hijack the terminal's single foreground. (The `embeddedServer.ts` `local-attach` guard is inactive with Agents‑tab off and is *not* relied upon — see §2.6 B2.) |
+| **Exactly one session + mirror** | ✓ | The interactive TUI's session is the single foreground; Happy is a read‑only secondary consumer that mirrors to the embedded happy‑server. |
 
 **Net:** Option B satisfies the P0 contract **by construction** — the ordinary
 experience is preserved because it *is* the ordinary experience, with Happy as
@@ -457,36 +604,62 @@ a side‑attached mirror.
 
 ### 4.3 Conflict surface
 
-- **Copilot source (fork):** small and **isolated by design**. B‑env adds a
-  read of one env var at the interactive‑launch site (near
-  `src/cli/index.ts:4275‑4281` where `embeddedServer` is already assembled, and
-  the token‑source at `src/core/sdkServer.ts:5840`). It does **not** touch the
-  typed‑context/ownership controller files P4 edits — satisfying P0's
-  co‑edit prohibition (lines 993‑995) *provided the seam is placed in the
-  launch/option‑assembly path, not the controller*. This placement is a hard
-  design constraint (see §7 staged tasks).
-- **Happy source:** discovery/validator changes to accept `ui-server`/schema‑1
-  entries (`managedServer.ts:102‑126` today is managed‑only), plus the client
-  changes for `observePromptEvents` + streaming deltas. Bounded; reuses the
-  existing projection/relay.
+- **Copilot source (fork):** small but **multi‑file** (not one env read; see B1
+  in §2.8). It adds: (a) config synthesis + token read/generate at the
+  interactive‑launch site (`src/cli/index.ts:4275‑4282`), (b) a
+  `connectionToken` field on `EmbeddedServerOptions` threaded into the inner
+  `SDKServer` (`src/cli/embeddedServer.ts:31‑64, 101‑119`; option at
+  `sdkServer.ts:236`). It does **not** touch the typed‑context/ownership
+  controller files P4 edits — satisfying P0's co‑edit prohibition (lines
+  993‑995) *provided the seam stays in the launch/option‑assembly + embedded‑
+  server‑options path, not the controller*. This placement is a hard design
+  constraint (see §8 staged tasks). Optionally, a Copilot‑side hardening (§4.4)
+  makes the `local-attach` foreground guard unconditional — a separate, small
+  edit in `embeddedServer.ts:264‑268`.
+- **Happy source — OVERLAPS P4 (N1).** The discovery/validator generalization
+  lives in `managedServer.ts` (today managed‑only, `managedServer.ts:102‑126`),
+  and the mirror extension lives in the `runCopilotMirror.ts`/client path — **the
+  same Happy files P4 rewrites** ("generalize managed spawn to executable plus
+  fixed arguments" + "validate exact runtime/package identity" +
+  "add session provenance and monotonic ownership status", parent plan lines
+  1056‑1058). This is a **real collision**: T2/T3 must **rebase after P4** and
+  build on its `{executable, fixedArguments}` spawn + provenance/ownership seams,
+  **not** parallelize with it (corrected from Rev. 1, which wrongly called T2
+  parallelizable). See §8.
 - **Ongoing:** low. Happy attaches to a *stable published protocol* (the same
   one the Agents tab consumes), so Copilot upgrades that keep the RPC contract
   don't break Happy — unlike Option A's imitation‑by‑renderer.
 
 ### 4.4 Security / ownership / failure semantics
 
-- **Security — token is mandatory.** The fork seam **must** generate + inject
-  `COPILOT_CONNECTION_TOKEN`; an anonymous embedded server accepts any local
-  client (`src/core/sdkServer.ts:5840‑5841, 1690‑1691`). With the token +
-  loopback bind + localhost registry filter + `0600/0700` perms (§2.7‑2.8), the
-  boundary matches M1a's managed posture. **New consideration vs Option A:** the
-  embedded server now lives inside a *user‑facing interactive process*, so the
-  token must be generated by the launcher and passed via env to the child
-  (same pattern as `managedServer.ts:150‑156`), never written to argv/logs.
-- **Ownership — clean, single foreground.** The interactive session is the sole
-  foreground; Happy's attach is explicitly non‑owning
-  (`embeddedServer.ts:245‑270`). This directly satisfies "exactly one
-  target/session."
+- **Security — token is mandatory AND currently absent (B1).** The embedded
+  listener is anonymous today because `EmbeddedServerOptions` carries no token
+  and the inner `SDKServer` gets none (§2.8; `embeddedServer.ts:31‑64,
+  101‑119`). The seam **must** add the token field, thread it, and
+  generate/inject `COPILOT_CONNECTION_TOKEN` at the interactive launch —
+  otherwise Option B ships an any‑client‑accepting RPC listener inside a
+  user‑facing process (`sdkServer.ts:1690‑1691`). With the token + loopback bind
+  + localhost registry filter + `0600/0700` perms (§2.7‑2.8), the boundary
+  matches M1a's managed posture. The token is generated by the launcher and
+  passed via env to the child (same pattern as `managedServer.ts:150‑156`),
+  never written to argv/logs.
+- **Ownership — clean, single foreground, guaranteed Happy‑side (B2).** The
+  interactive session is the sole foreground. Ownership safety rests on the
+  **v1 read‑only invariant** (§4.1 item 3): Happy never calls
+  `session.setForeground` (which would fire the TUI's
+  `onForegroundSessionChangeCallback`, `sdkServer.ts:1465‑1472`), `session.send`,
+  or `session.abort`. It does **not** rest on the `embeddedServer.ts`
+  `registerSession` `local-attach` refusal, which is gated on `isAgentsTabEnabled`
+  and therefore **inactive** in this design (§2.6). **Decision — is a Copilot‑side
+  guard needed?** For v1, **no**: an external read‑only client that never issues
+  a write/foreground RPC cannot take ownership, and adding the guard would not
+  change v1 behavior. If defense‑in‑depth against a *future* buggy or malicious
+  local client is wanted, the minimal hardening is to make the existing
+  `local-attach` refusal **unconditional** (drop the `isAgentsTabEnabled` gate at
+  `embeddedServer.ts:264‑268`) — which does **not** enable `AgentRegistryWatcher`
+  (that watcher is gated separately on `agentsTabEnabled`,
+  `interactiveMode.ts:678‑690`). Recommended as an optional T1 sub‑item, not a v1
+  blocker.
 - **Failure — read‑only v1 has no permission‑race.** Because v1 attaches with
   `requestPermission:false`, Happy is never a permission provider, so the
   provider‑disconnect clobber (`sdkServer.ts:4625‑4628`) **cannot** occur in
@@ -507,24 +680,29 @@ a side‑attached mirror.
 
 ### 4.5 Honest costs of Option B (not a rubber‑stamp)
 
-1. **The seam is thin but not zero.** It is a real Copilot fork change plus
-   Happy discovery/client work. The claim being made is "minimal," not "free."
-2. **`--ui-server` behavior‑equivalence must be proven.** B‑env must set only
-   `embeddedServer.enabled` (+ token) and nothing else; in particular it must
-   **not** silently enable the Agents‑tab watcher or any UX that plain
+1. **The seam is thin but not zero — and it is multi‑file (B1).** It is a real
+   Copilot fork change (config synthesis at the launch site + a `connectionToken`
+   field threaded through `EmbeddedServerOptions`→inner `SDKServer`) plus Happy
+   discovery/client work. Rev. 1's "one env read" framing was wrong; the claim is
+   "minimal," not "free," and it touches `embeddedServer.ts`.
+2. **`--ui-server`/embed behavior‑equivalence must be proven.** The seam must
+   set only `embeddedServer.enabled` + `connectionToken` and nothing else; in
+   particular it must **not** enable the Agents‑tab watcher or any UX plain
    interactive lacks. The interactive path constructs `EmbeddedServer`
    unconditionally but only starts the listener when enabled
    (`interactiveMode.ts:626‑651`); the Agents‑tab watcher is gated separately on
-   `agentsTabEnabled` (`interactiveMode.ts:678‑690`). The seam must flip the
-   listener **without** flipping the watcher — an acceptance test must confirm a
-   byte‑for‑byte identical interactive experience with the seam on vs off,
-   modulo the loopback listener.
-3. **Happy validator must learn a second entry shape.** `ui-server` is
-   schema‑v1 with `kind` omitted‑on‑disk and `sessionId` populated only after
-   the first `setSession()` (`serverRegistry.ts:97‑100, 156‑158`;
-   `registryPublisher.ts:12‑15`). Happy's discovery must poll for a populated
-   `sessionId` (the same race the managed picker handles) rather than assuming
-   it is present at first publish.
+   `agentsTabEnabled` (`interactiveMode.ts:678‑690`). An acceptance test must
+   confirm a byte‑for‑byte identical interactive experience with the seam on vs
+   off, modulo the loopback listener.
+3. **Happy validator must learn the v1 entry shape (S2).** `ui-server` is
+   schema‑v1 with `kind` **omitted on disk** (normalized on read) and `sessionId`
+   populated only after the first `setSession()` (`serverRegistry.ts:97‑99,
+   108‑111, 156‑161`; `registryPublisher.ts:12‑15`). Happy's discovery must
+   accept omitted‑kind + `schemaVersion === 1` and poll for a populated
+   `sessionId`, rather than requiring `kind === "managed-server"` as M1a does
+   today (`managedServer.ts:110‑122`).
+4. **T2/T3 are gated on P4 (N1).** They rebase on P4's Happy‑side
+   spawn/validator/provenance rewrite; they cannot land in parallel.
 
 ---
 
@@ -539,8 +717,8 @@ a side‑attached mirror.
 | Approvals/elicitation | ~ answerable, UI re‑implemented; sole‑provider race | ✓ native at terminal; mirrored to phone |
 | Ctrl+C semantics | ✗ Happy re‑derives cancel‑vs‑exit | ✓ native signal handling (`interactiveMode.ts:1068`) |
 | Reconnect/resume | ~ supported, UX‑owned | ✓ native + non‑owning re‑attach |
-| One session + mirror | ✓ | ✓ (`embeddedServer.ts:245‑270`) |
-| Copilot fork change | **none** | **small, isolated** (enable existing embedded server) |
+| One session + mirror | ✓ | ✓ (Happy read‑only invariant — never `setForeground`/`send`/`abort`, §4.1/§4.4) |
+| Copilot fork change | **none** | **small, multi‑file** (synthesize embed config + token; add `connectionToken` to `EmbeddedServerOptions`→inner `SDKServer`) |
 | Happy new‑code volume | **large** (renderer/input/approvals/argv/exit) | **bounded** (discovery+client deltas) |
 | Drift risk after Copilot upgrades | **high** (imitation, no compiler) | **low** (stable published RPC) |
 | Permission‑provider disconnect race | **exposed** (`sdkServer.ts:4625‑4628`) | **not in v1** (read‑only attach) |
@@ -571,6 +749,11 @@ straight to Copilot's own parser:
   error opaquely.
 - **Env, not argv:** the seam itself travels as `COPILOT_HAPPY_EMBED` +
   `COPILOT_CONNECTION_TOKEN` env (B‑env), so the user's argv is never mutated.
+  Note (B1): because nothing on the interactive path reads
+  `COPILOT_CONNECTION_TOKEN` today (only the server‑mode bootstrap does,
+  `sdkServer.ts:5840`), the seam must **explicitly** read it at the interactive
+  launch site and thread it into the synthesized embedded config — it is not
+  inherited for free.
 
 **Under Option A** the policy is a large allow‑list Happy must maintain: only
 the handful of bootstrap‑expressible flags (model/agent/cwd/resume) can be
@@ -591,24 +774,26 @@ client is required* (lines 1004‑1006). Tests are written against the
 
 | ID | Test | Assertion |
 |---|---|---|
-| F‑1 | `COPILOT_HAPPY_EMBED=1` + ordinary interactive launch | Embedded listener starts, `ui-server` registry entry appears with populated `sessionId`, token matches env (`registryPublisher.ts:12‑15`, `serverRegistry.ts:104‑152`). |
-| F‑2 | Seam **off** vs **on** UX equivalence | Interactive experience identical modulo the loopback listener; Agents‑tab watcher **not** enabled by the seam (`interactiveMode.ts:626‑690`). |
-| F‑3 | Anonymous‑server guard | With the seam on but no token, either a token is generated or the bind fails closed; never an anonymous listener (`sdkServer.ts:5840‑5841, 1690‑1691`). |
-| F‑4 | Placement guard | Seam edits live in the launch/option‑assembly path, not P4's controller files (P0 lines 993‑995) — enforced by a codeowners/path check in the PR. |
+| F‑1 | `COPILOT_HAPPY_EMBED=1` + ordinary interactive launch | Embedded listener starts, `ui-server` registry entry appears with populated `sessionId`, and the entry's `token` equals the injected token (`registryPublisher.ts:12‑15, 30‑33`; `serverRegistry.ts:104‑152`). |
+| F‑2 | Seam **off** vs **on** UX equivalence | Interactive experience identical modulo the loopback listener; Agents‑tab watcher **not** enabled by the seam (`interactiveMode.ts:626‑651, 678‑690`). |
+| F‑3 | **Token threading (B1)** | `EmbeddedServerOptions.connectionToken` is set from the launch site (`index.ts:4275‑4282`) and threaded into the inner `SDKServer` (`embeddedServer.ts:101‑119`; option `sdkServer.ts:236`). Assert: (a) a `connect` **without** the token is rejected by the native gate (`sdkServer.ts:1665‑1668, 1670‑1700`); (b) with no token supplied to the seam the launch **fails closed** rather than starting an anonymous listener (`sdkServer.ts:1690‑1691`); (c) the published entry's `token` is non‑null. |
+| F‑4 | Placement guard | Seam edits live only in the launch/option‑assembly path + `EmbeddedServerOptions`/inner‑`SDKServer` threading, **not** P4's controller files (P0 lines 993‑995) — enforced by a codeowners/path check in the PR. |
+| F‑5 | **Foreground‑guard decision (B2), optional** | If the optional unconditional `local-attach` refusal is adopted, assert `registerSession` refuses a `local-attach` session **regardless of `isAgentsTabEnabled`** (`embeddedServer.ts:264‑268`) **and** that `AgentRegistryWatcher` stays off (`interactiveMode.ts:678‑690`). If not adopted, this test is N/A and v1 relies solely on the Happy‑side read‑only invariant (H‑10). |
 
 ### 7.2 Happy attach/mirror tests (Option B, real surface — no stimulus client)
 
 | ID | Test | Assertion |
 |---|---|---|
-| H‑1 | Discover + validate a `ui-server`/schema‑1 entry | Happy accepts it (today's validator rejects it, `managedServer.ts:110‑122`); waits for populated `sessionId`. |
+| H‑1 | Discover + validate a `ui-server` entry **(S2)** | Happy accepts `schemaVersion === 1` with the **`kind` field omitted on disk** (normalized to `"ui-server"`) and a non‑null `token`, then **polls** for a populated `sessionId` before attaching. Today's validator rejects it because it requires `kind === "managed-server"` + schema 2 (`managedServer.ts:110‑122`); the fix is the S2 contract (`serverRegistry.ts:97‑99, 108‑111, 156‑161`). |
 | H‑2 | Read‑only attach handshake | `connect`→`getForeground`→`resume(observePromptEvents:true, requestPermission:false)`→`getMessages`; transcript hydrated (`localRpcSession.ts:320‑347`). |
 | H‑3 | Live mirror of a **real** typed turn | Operator types in the terminal; final events (`user.message`…`assistant.turn_end`) project to the embedded happy‑server and render on the phone (M1a projection). |
 | H‑4 | Approval mirrored read‑only | A real tool‑approval prompt at the terminal surfaces as `permission.requested` on the phone (read‑only); the human answers at the terminal; no phone answer path in v1. |
 | H‑5 | Ctrl+C at terminal | Cancels the turn / exits per native semantics; Happy observes `abort`/`session.shutdown` and updates the mirror; Happy does not crash or wedge. |
 | H‑6 | Exit code fidelity | The interactive process's exit code is unchanged with the seam on (compare to seam off). |
 | H‑7 | Attach‑after‑start | Happy attaches mid‑session; `getMessages` replay yields a complete mirror (`localRpcSession.ts:613‑627`). |
-| H‑8 | Detach/reconnect | Happy disconnects and re‑attaches without disturbing the terminal; embedded server never registers the controller as foreground (`embeddedServer.ts:245‑270`). |
+| H‑8 | Detach/reconnect | Happy disconnects and re‑attaches without disturbing the terminal's foreground; the terminal keeps sole ownership. (Ownership rests on the Happy‑side read‑only invariant, H‑10 — **not** on the inactive `embeddedServer.ts` guard, §2.6 B2.) |
 | H‑9 | Idle longevity | An idle interactive terminal is **not** reaped by a managed idle‑timeout (managed‑only path, `sdkServer.ts:5895‑5906`) — confirms Option B avoids A's idle‑reap. |
+| H‑10 | **Read‑only invariant (B2)** | Over a full real session, assert Happy's client issues **zero** write/foreground RPCs — never `session.setForeground` (`protocol/types.ts:2386`), `session.send` (2380), or `session.abort` (2379). This is the v1 ownership guarantee; enforce it with a client‑side allow‑list + a test that fails if any write method is emitted. |
 
 ### 7.3 Capability‑gate tests (both options)
 
@@ -628,24 +813,43 @@ and illustrate A's larger surface.
 
 ## 8. Staged implementation tasks
 
-Sequencing honors P0: **design now, implement after P4, and do not co‑edit P4's
-Copilot controller files** (lines 993‑995). All tasks assume Option B.
+Sequencing honors P0: **design now, implement after P4.** Two distinct
+P0/P4 relationships apply: (i) the Copilot fork seam (T1) must **not co‑edit
+P4's Copilot controller files** (P0 lines 993‑995) — satisfied by keeping T1 in
+the launch/option‑assembly + `EmbeddedServerOptions` path; and (ii) the Happy
+work (T2/T3) **edits the very files P4 rewrites** (`managedServer.ts`,
+`runCopilotMirror.ts`), so it **rebases on P4** rather than running in parallel
+(N1). All tasks assume Option B.
 
 - **T0 (this document).** Source‑verified design + recommendation. *Done on
   commit of this file.*
-- **T1 — Copilot fork seam (`COPILOT_HAPPY_EMBED`).** Add the env‑gated enable
-  of the existing embedded server + token generation at the interactive
-  launch/option‑assembly site (near `src/cli/index.ts:4275‑4281`; token at
-  `src/core/sdkServer.ts:5840`). **Constraint:** new code path only; no edits to
-  the typed‑context/ownership controller files P4 touches. Ships behind the env,
-  default‑off. Tests F‑1…F‑4. *Starts after P4.*
-- **T2 — Happy discovery + validator for `ui-server` entries.** Generalize
-  `managedServer.ts:102‑126` to accept `kind:"ui-server"`/schema‑1 and to wait
-  for a populated `sessionId`. Tests H‑1. *Parallelizable with T1 (Happy tree).*
-- **T3 — Happy read‑only attach client.** Extend `nativeLocalRpcClient.ts` to
-  resume with `observePromptEvents:true`, subscribe to streaming deltas +
-  request events, and project via the existing `eventProjection`/`eventRelay`.
-  Tests H‑2…H‑9. *Depends on T1+T2.*
+- **T1 — Copilot fork seam (`COPILOT_HAPPY_EMBED`), multi‑file (B1/S1).** Three
+  edits, all outside P4's controller files: (a) **synthesize** the embedded
+  config + read/generate the token at the interactive launch site
+  (`src/cli/index.ts:4275‑4282` — today `undefined` when `--ui-server` absent);
+  (b) add `connectionToken?: string` to `EmbeddedServerOptions` and thread it
+  into the inner `SDKServer` (`src/cli/embeddedServer.ts:31‑64, 101‑119`; option
+  `sdkServer.ts:236`); (c) **optional** hardening — make the `local-attach`
+  foreground refusal unconditional (`embeddedServer.ts:264‑268`) **without**
+  enabling `AgentRegistryWatcher` (§4.4 B2). **Constraint:** new/isolated code
+  paths only; no edits to the typed‑context/ownership controller files P4
+  touches. Ships behind the env, default‑off. Tests F‑1…F‑5. *Starts after P4.*
+- **T2 — Happy discovery + validator for `ui-server` entries (S2), REBASES ON
+  P4 (N1).** Generalize `managedServer.ts` to accept `schemaVersion === 1` with
+  **omitted‑on‑disk kind** (normalized to `"ui-server"`) + non‑null token, and to
+  **poll** for a populated `sessionId` (`serverRegistry.ts:97‑99, 108‑111,
+  156‑161`). **This edits the same `managedServer.ts` spawn/validator P4 rewrites
+  (parent plan lines 1056‑1057), so it must rebase on P4's `{executable,
+  fixedArguments}` + identity‑validation seams — NOT parallelize** (corrected
+  from Rev. 1). Tests H‑1. *Depends on P4.*
+- **T3 — Happy read‑only attach client (B2), REBASES ON P4 (N1).** Extend the
+  TS client (`nativeLocalRpcClient.ts`) to resume with `observePromptEvents:true,
+  requestPermission:false`, subscribe to streaming deltas + request events, and
+  project via the existing `eventProjection`/`eventRelay`. Enforce the
+  **read‑only invariant** (never `setForeground`/`send`/`abort`). Because the
+  provenance/ownership write lands in `runCopilotMirror.ts` which **P4 also
+  edits** (parent plan line 1058), T3 rebases on P4. Tests H‑2…H‑10.
+  *Depends on P4 + T1 + T2.*
 - **T4 — Launcher wiring + capability gate.** Teach the daemon/launcher to set
   the env, generate the token, discover the entry, and only then advertise
   `copilot-terminal-route-v1`. Tests C‑1, C‑2. *Depends on T3.*
@@ -667,24 +871,36 @@ Copilot controller files** (lines 993‑995). All tasks assume Option B.
    Happy‑native cross‑device UI (phone co‑equal/primary), A becomes viable and
    the recommendation flips. *Decision needed before T1.*
 2. **Seam form: B‑env (`COPILOT_HAPPY_EMBED`) vs B‑flag (inject `--ui-server`).**
-   B‑env keeps argv byte‑identical (strictest "original argv" reading) at the
-   cost of a small new fork code path; B‑flag reuses an existing hidden flag but
-   is observable in argv. Recommendation: **B‑env**. *Decision needed before T1.*
-3. **v1 scope = read‑only mirror?** This design scopes v1 to preserve + mirror,
+   Both require the B1 token‑threading edits to `EmbeddedServerOptions`/inner
+   `SDKServer`; they differ only in how the config is triggered. B‑env keeps
+   argv byte‑identical (strictest "original argv" reading) and adds the small
+   config‑synthesis code path; B‑flag reuses the existing hidden flag (no
+   synthesis edit) but is observable in argv/`--help`. Recommendation: **B‑env**.
+   *Decision needed before T1.*
+3. **Copilot‑side foreground guard: adopt the unconditional `local-attach`
+   refusal, or rely on the Happy‑side read‑only invariant alone? (B2)** The
+   existing `registerSession` guard is inactive with Agents‑tab off. v1 is safe
+   without it because Happy never issues a write/foreground RPC (H‑10). Optional
+   defense‑in‑depth: drop the `isAgentsTabEnabled` gate at
+   `embeddedServer.ts:264‑268` (must not enable `AgentRegistryWatcher`).
+   Recommendation: **rely on the Happy‑side invariant for v1; adopt the
+   unconditional guard only as a cheap hardening if desired.** *Decision needed
+   before T1 (affects whether F‑5 is in scope).*
+4. **v1 scope = read‑only mirror?** This design scopes v1 to preserve + mirror,
    with phone input/approvals deferred to T6. Confirm that "an ordinary
    interactive session with phone mirroring" (P0 line 1004) is satisfied by a
    read‑only phone mirror, or whether phone‑originated input is required for the
    capability to flip. *Decision needed before T4/T5.*
-4. **Token lifetime + storage.** The embedded server's token sits in the
+5. **Token lifetime + storage.** The embedded server's token sits in the
    `0600` registry file in plaintext (`serverRegistry.ts:14‑15`). Confirm the
    loopback‑only + file‑perms boundary is acceptable for the interactive process
    (it is the same boundary M1a already accepts for the managed child), or
    whether an additional rotation policy is wanted.
-5. **Interaction with the launcher's default‑off posture.** The seam is
-   default‑off; confirm the launcher only sets `COPILOT_HAPPY_EMBED` when the
-   Happy route is explicitly enabled, so a plain `copilot` invocation outside
-   Happy is byte‑identical to today.
-6. **Later remote‑approval ownership model (T6).** If/when the phone answers
+6. **Interaction with the launcher's default‑off posture.** The seam is
+   default‑off; confirm the launcher only sets `COPILOT_HAPPY_EMBED` +
+   `COPILOT_CONNECTION_TOKEN` when the Happy route is explicitly enabled, so a
+   plain `copilot` invocation outside Happy is byte‑identical to today.
+7. **Later remote‑approval ownership model (T6).** If/when the phone answers
    approvals, define terminal‑vs‑phone authority and the disconnect‑safe restore
    (the `sdkServer.ts:4625‑4628` race). *Decision needed only if T6 is
    scheduled.*
@@ -696,9 +912,22 @@ Copilot controller files** (lines 993‑995). All tasks assume Option B.
 **Copilot runtime (`C:\efforts\copilot-agent-runtime`):**
 
 - Mode selection / interactive invocation: `src/cli/index.ts:1409, 1827,
-  2389‑2408, 4220, 4275‑4281`.
+  2389‑2408, 4220, 4275‑4282`.
 - Managed bootstrap + permissions: `src/core/sdkServer.ts:5840‑5841,
   5895‑5906, 5955‑5959, 6047, 6094‑6172`.
+- **Token model (B1):** `SDKServer` `connectionToken` option
+  `src/core/sdkServer.ts:236`; native TCP token gate `1665‑1668, 1670‑1700`;
+  no‑token warning `1690‑1691`; server‑mode env read (interactive path does NOT
+  read this) `5840‑5841`. `EmbeddedServerOptions` has no token field
+  `src/cli/embeddedServer.ts:31‑64`; inner `SDKServer` built without token
+  `101‑119`; `EmbeddedServer.start` delegates to inner start `152‑163`.
+  Publisher captures token from caller, never re‑reads env
+  `src/core/remoteRegistry/registryPublisher.ts:30‑33`.
+- **Foreground guard + setForeground (B2):** `registerSession` `local-attach`
+  refusal gated on `isAgentsTabEnabled` `src/cli/embeddedServer.ts:241‑278`
+  (guard + comment `245‑273`, condition `264‑268`); external `session.setForeground`
+  fires the TUI callback `src/core/sdkServer.ts:1465‑1472`; protocol method
+  `src/core/protocol/types.ts:2385‑2386`, request/response `2194‑2198`.
 - Capability/permission provider routing:
   `src/core/sdkServer.ts:900‑903, 2379‑2384, 3262‑3263, 3356, 3432‑3441,
   3642‑3645, 4549‑4610, 4625‑4628`.
@@ -711,19 +940,23 @@ Copilot controller files** (lines 993‑995). All tasks assume Option B.
 - Interactive embedded server + signals + exit:
   `src/cli/interactiveMode.ts:626‑651, 678‑690, 1068, 1282`;
   `src/cli/embeddedServer.ts:74, 152, 241‑278`.
-- Registry: `src/core/remoteRegistry/registryPublisher.ts:12‑15`;
-  `src/core/remoteRegistry/serverRegistry.ts:14‑18, 43, 97‑100, 104‑152,
-  156‑158`.
+- Registry: `src/core/remoteRegistry/registryPublisher.ts:12‑15, 30‑33`;
+  `src/core/remoteRegistry/serverRegistry.ts:14‑18, 43, 93‑111, 104‑152,
+  156‑161` (**S2:** v1 `kind` omitted on disk, normalized on read `97‑99,
+  108‑111, 156‑161`).
 - Managed‑server has no TUI: `src/cli/sessions/spawnLiveTarget.ts:10‑14`.
 
 **Happy CLI (M1a, this repo):**
 
 - Managed spawn + validator + token: `packages/happy-cli/src/agent/copilot/managedServer.ts:102‑126,
-  136, 150‑156, 158‑200`.
+  136, 150‑156, 158‑200` (validator hard‑rejects non‑managed/schema‑2 at
+  `110‑122`).
 - Constants + projected event types + entry type:
   `packages/happy-cli/src/agent/copilot/types.ts:7‑9, 11‑22, 36‑52`.
 - Client / projection / relay: `packages/happy-cli/src/agent/copilot/nativeLocalRpcClient.ts`,
   `eventProjection.ts`, `eventRelay.ts`, `runCopilotMirror.ts`.
 
 **Parent launcher plan:**
-`plans/happy-evcopilot-onedrive-launcher-integration/plan.md:62‑87, 980‑1006`.
+`plans/happy-evcopilot-onedrive-launcher-integration/plan.md:62‑87, 980‑1006`
+(P0 `988‑1006`; **N1** P4 rewrites Happy spawn/validator/provenance `1051‑1064`,
+esp. `1056‑1058`).
