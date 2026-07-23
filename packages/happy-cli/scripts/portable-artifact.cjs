@@ -111,9 +111,20 @@ function isPathInside(target, root, allowRoot = false) {
 
 function realpathOrResolved(target) {
     const fullPath = path.resolve(target);
-    if (fs.existsSync(fullPath)) return fs.realpathSync.native(fullPath);
+    try {
+        fs.lstatSync(fullPath);
+        return fs.realpathSync.native(fullPath);
+    } catch (error) {
+        if (error?.code !== 'ENOENT') throw error;
+    }
     let existing = fullPath;
-    while (!fs.existsSync(existing)) {
+    while (true) {
+        try {
+            fs.lstatSync(existing);
+            break;
+        } catch (error) {
+            if (error?.code !== 'ENOENT') throw error;
+        }
         const parent = path.dirname(existing);
         ensure(parent !== existing, `Unable to find an existing parent for ${fullPath}.`);
         existing = parent;
@@ -123,9 +134,12 @@ function realpathOrResolved(target) {
 
 function inspectPathComponents(target, inspect = (component) => {
     const stats = fs.lstatSync(component);
+    if (stats.isSymbolicLink()) {
+        return { isReparse: true, resolved: null };
+    }
     const resolved = fs.realpathSync.native(component);
     return {
-        isReparse: stats.isSymbolicLink() || pathKey(resolved) !== pathKey(component),
+        isReparse: pathKey(resolved) !== pathKey(component),
         resolved
     };
 }) {
@@ -133,10 +147,21 @@ function inspectPathComponents(target, inspect = (component) => {
     const parsed = path.parse(fullPath);
     const components = [];
     let current = parsed.root;
-    if (fs.existsSync(current)) components.push({ path: current, ...inspect(current) });
+    try {
+        fs.lstatSync(current);
+        components.push({ path: current, ...inspect(current) });
+    } catch (error) {
+        if (error?.code !== 'ENOENT') throw error;
+        return components;
+    }
     for (const segment of fullPath.slice(parsed.root.length).split(path.sep).filter(Boolean)) {
         current = path.join(current, segment);
-        if (!fs.existsSync(current)) break;
+        try {
+            fs.lstatSync(current);
+        } catch (error) {
+            if (error?.code === 'ENOENT') break;
+            throw error;
+        }
         components.push({ path: current, ...inspect(current) });
     }
     return components;
@@ -160,6 +185,41 @@ function assertSafeOwnedPath(target, repoRoot, options = {}) {
         `Resolved path escapes the repository worktree: ${resolvedTarget}`);
     ensure(!isUnderOneDrive(resolvedTarget), `Resolved path must not be inside OneDrive: ${resolvedTarget}`);
     return { path: fullPath, resolvedPath: resolvedTarget };
+}
+
+function assertCanonicalArtifactRelativePath(value, label) {
+    ensure(typeof value === 'string' && value.length > 0,
+        `${label} must be a non-empty relative path.`);
+    ensure(!value.includes('\\'), `${label} must use canonical forward slashes.`);
+    ensure(!value.startsWith('/') && !value.startsWith('//') && !/^[A-Za-z]:/.test(value),
+        `${label} must not be rooted.`);
+    const segments = value.split('/');
+    ensure(segments.every((segment) => segment !== '' && segment !== '.' && segment !== '..'),
+        `${label} contains an empty or dot segment.`);
+    for (const segment of segments) {
+        ensure(!segment.includes(':'), `${label} contains ADS or URI syntax.`);
+        ensure(!/[\u0000-\u001F<>"|?*]/.test(segment), `${label} contains an invalid Windows character.`);
+        ensure(!/[ .]$/.test(segment), `${label} has a trailing dot or space.`);
+        ensure(!WINDOWS_RESERVED.test(segment), `${label} contains a reserved Windows name.`);
+    }
+    ensure(path.posix.normalize(value) === value, `${label} is not canonical.`);
+    return value;
+}
+
+function resolveArtifactFile(artifactRoot, relativePath, label) {
+    const canonical = assertCanonicalArtifactRelativePath(relativePath, label);
+    const target = path.resolve(artifactRoot, ...canonical.split('/'));
+    ensure(isPathInside(target, artifactRoot, false), `${label} escapes the artifact root.`);
+    assertSafeOwnedPath(target, artifactRoot, { allowRoot: false });
+    let stats;
+    try {
+        stats = fs.lstatSync(target);
+    } catch (error) {
+        if (error?.code === 'ENOENT') fail(`${label} does not exist: ${canonical}`);
+        throw error;
+    }
+    ensure(!stats.isSymbolicLink() && stats.isFile(), `${label} must be a regular non-reparse file.`);
+    return target;
 }
 
 function isUnderOneDrive(target) {
@@ -592,6 +652,21 @@ function spdxId(value) {
     return `SPDXRef-Package-${clean}-${sha256Bytes(value).slice(0, 12)}`;
 }
 
+function npmPurl(name, version) {
+    ensure(typeof name === 'string' && name.length > 0, 'npm package name is missing.');
+    let packagePath;
+    if (name.startsWith('@')) {
+        const separator = name.indexOf('/');
+        ensure(separator > 1 && separator < name.length - 1,
+            `Invalid scoped npm package name: ${name}`);
+        packagePath = `${encodeURIComponent(name.slice(0, separator))}/${encodeURIComponent(name.slice(separator + 1))}`;
+    } else {
+        ensure(!name.includes('/'), `Invalid unscoped npm package name: ${name}`);
+        packagePath = encodeURIComponent(name);
+    }
+    return `pkg:npm/${packagePath}@${encodeURIComponent(version)}`;
+}
+
 function isValidSpdxExpression(expression) {
     if (typeof expression !== 'string' || expression.trim() === '') return false;
     const tokens = [];
@@ -732,7 +807,7 @@ function buildSbom(deployRoot, payloadRoot, source, artifactId, outputPath, lice
             externalRefs: [{
                 referenceCategory: 'PACKAGE-MANAGER',
                 referenceType: 'purl',
-                referenceLocator: `pkg:npm/${encodeURIComponent(item.manifest.name)}@${encodeURIComponent(version)}`
+                referenceLocator: npmPurl(item.manifest.name, version)
             }]
         });
         relationships.push({
@@ -1246,20 +1321,26 @@ async function verify(options) {
     const extractionRoot = path.resolve(options.extractionRoot);
     assertSafeOwnedPath(artifactRoot, repoRoot, { allowRoot: false });
     assertSafeOwnedPath(extractionRoot, repoRoot, { allowRoot: false });
-    const manifestPath = path.join(artifactRoot, 'manifest.json');
-    const completePath = path.join(artifactRoot, 'COMPLETE.json');
+    const manifestPath = resolveArtifactFile(artifactRoot, 'manifest.json', 'Manifest path');
+    const completePath = resolveArtifactFile(artifactRoot, 'COMPLETE.json', 'Completion path');
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
     const complete = JSON.parse(fs.readFileSync(completePath, 'utf8'));
+    ensure(manifest.report && manifest.sbom && manifest.licenses && manifest.archive,
+        'Manifest sidecar declarations are incomplete.');
+    const reportPath = resolveArtifactFile(artifactRoot, manifest.report.path, 'Build report path');
+    const sbomPath = resolveArtifactFile(artifactRoot, manifest.sbom.path, 'SBOM path');
+    const licensesPath = resolveArtifactFile(artifactRoot, manifest.licenses.path, 'License inventory path');
+    const archivePath = resolveArtifactFile(artifactRoot, manifest.archive.name, 'Archive path');
     ensure(complete.manifestSha256 === sha256File(manifestPath), 'COMPLETE manifest hash mismatch.');
     ensure(complete.archiveSha256 === manifest.archive.sha256, 'COMPLETE archive hash mismatch.');
-    ensure(manifest.report.sha256 === sha256File(path.join(artifactRoot, manifest.report.path)),
+    ensure(manifest.report.sha256 === sha256File(reportPath),
         'Build report hash mismatch.');
-    ensure(manifest.sbom.sha256 === sha256File(path.join(artifactRoot, manifest.sbom.path)), 'SBOM hash mismatch.');
-    ensure(manifest.licenses.sha256 === sha256File(path.join(artifactRoot, manifest.licenses.path)), 'License hash mismatch.');
-    const report = JSON.parse(fs.readFileSync(path.join(artifactRoot, manifest.report.path), 'utf8'));
+    ensure(manifest.sbom.sha256 === sha256File(sbomPath), 'SBOM hash mismatch.');
+    ensure(manifest.licenses.sha256 === sha256File(licensesPath), 'License hash mismatch.');
+    const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
     ensure(report.artifactId === manifest.artifactId && report.evidenceOnly === true,
         'Build report identity or evidence role mismatch.');
-    const sbom = JSON.parse(fs.readFileSync(path.join(artifactRoot, manifest.sbom.path), 'utf8'));
+    const sbom = JSON.parse(fs.readFileSync(sbomPath, 'utf8'));
     const extractedLicenseIds = new Set(
         (sbom.hasExtractedLicensingInfos || []).map((item) => item.licenseId)
     );
@@ -1272,7 +1353,7 @@ async function verify(options) {
         }
     }
     await verifyAndExtractArchive(
-        path.join(artifactRoot, manifest.archive.name),
+        archivePath,
         manifestPath,
         extractionRoot,
         repoRoot
@@ -1332,6 +1413,28 @@ function testPaths() {
         mockedReparseRejected = true;
     }
     ensure(mockedReparseRejected, 'Mocked reparse path component was accepted.');
+    for (const unsafeSidecar of [
+        '../report.json',
+        'C:/outside/report.json',
+        '/absolute/report.json',
+        '//server/share/report.json',
+        'mixed\\separator.json',
+        'nested/../report.json',
+        'report.json:stream'
+    ]) {
+        let rejected = false;
+        try {
+            assertCanonicalArtifactRelativePath(unsafeSidecar, 'Fixture sidecar');
+        } catch {
+            rejected = true;
+        }
+        ensure(rejected, `Unsafe manifest sidecar path was accepted: ${unsafeSidecar}`);
+    }
+    ensure(
+        npmPurl('@anthropic-ai/claude-agent-sdk', '0.2.96')
+            === 'pkg:npm/%40anthropic-ai/claude-agent-sdk@0.2.96',
+        'Scoped npm PURL fixture was encoded incorrectly.'
+    );
     ensure(isValidSpdxExpression('(MIT OR CC0-1.0)'), 'Valid SPDX expression fixture was rejected.');
     ensure(!isValidSpdxExpression('SEE LICENSE IN README.md'),
         'Invalid Anthropic npm license declaration was accepted as SPDX.');
@@ -1363,22 +1466,60 @@ function testSecurity(options) {
     const junctionTarget = path.join(testRoot, 'junction-target');
     const junctionPath = path.join(testRoot, 'junction');
     fs.mkdirSync(junctionTarget, { recursive: true });
+    fs.writeFileSync(path.join(junctionTarget, 'report.json'), '{}\n', 'ascii');
     const junction = spawnSync(process.env.ComSpec || 'cmd.exe', [
         '/d', '/s', '/c', 'mklink', '/J', junctionPath, junctionTarget
     ], { encoding: 'utf8', windowsHide: true, shell: false });
     if (junction.status === 0) {
         let junctionRejected = false;
+        let reparseSidecarRejected = false;
         try {
             assertSafeOwnedPath(path.join(junctionPath, 'child'), repoRoot, { allowRoot: false });
         } catch {
             junctionRejected = true;
+        }
+        ensure(junctionRejected, 'Live Windows junction output path was accepted.');
+        try {
+            resolveArtifactFile(testRoot, 'junction/report.json', 'Reparse sidecar fixture');
+        } catch {
+            reparseSidecarRejected = true;
+        }
+        ensure(reparseSidecarRejected, 'Manifest sidecar under a live junction was accepted.');
+
+        removeTree(junctionTarget, repoRoot);
+        ensure(!fs.existsSync(junctionPath),
+            'Dangling junction fixture unexpectedly resolves through existsSync.');
+        let danglingLstatSucceeded = false;
+        try {
+            fs.lstatSync(junctionPath);
+            danglingLstatSucceeded = true;
+        } catch {
+            // The deterministic component fixture below remains the fallback.
+        }
+        let danglingRejected = false;
+        try {
+            assertSafeOwnedPath(path.join(junctionPath, 'child'), repoRoot, { allowRoot: false });
+        } catch {
+            danglingRejected = true;
         } finally {
             fs.rmdirSync(junctionPath);
         }
-        ensure(junctionRejected, 'Live Windows junction output path was accepted.');
-        console.log('Live Windows junction confinement probe passed.');
+        ensure(danglingLstatSucceeded && danglingRejected,
+            'Dangling Windows junction bypass regression was not rejected.');
+        console.log('Live Windows junction, dangling-junction, and sidecar probes passed.');
     } else {
-        console.log('Live Windows junction probe unavailable; deterministic reparse fixture passed.');
+        let deterministicDanglingRejected = false;
+        try {
+            assertPathComponentsSafe([
+                { path: 'C:\\safe', isReparse: false },
+                { path: 'C:\\safe\\dangling', isReparse: true, resolved: null }
+            ]);
+        } catch {
+            deterministicDanglingRejected = true;
+        }
+        ensure(deterministicDanglingRejected,
+            'Deterministic dangling-junction component fixture was accepted.');
+        console.log('Live Windows junction probe unavailable; deterministic dangling fixture passed.');
     }
     removeTree(testRoot, repoRoot);
     console.log('Output confinement and cleanup fixtures passed.');

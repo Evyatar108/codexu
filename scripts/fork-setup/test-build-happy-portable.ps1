@@ -168,6 +168,12 @@ try {
         -not ($sbom.hasExtractedLicensingInfos.licenseId -contains $anthropic.declared)) {
         throw 'Anthropic SPDX LicenseRef is missing extracted evidence.'
     }
+    $anthropicPurl = $anthropicSpdx.externalRefs |
+        Where-Object { $_.referenceType -eq 'purl' } |
+        Select-Object -ExpandProperty referenceLocator -First 1
+    if ($anthropicPurl -ne 'pkg:npm/%40anthropic-ai/claude-agent-sdk@0.2.96') {
+        throw "Scoped npm PURL is not canonical: $anthropicPurl"
+    }
     if (-not $report.localOnly -or $report.publishAttempted -or $report.oneDriveWritten -or
         $report.checks.machineMetadata -ne 'clean' -or
         $report.checks.reproducibleZipMetadata -ne 'clean' -or
