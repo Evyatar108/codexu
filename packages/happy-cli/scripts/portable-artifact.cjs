@@ -99,6 +99,10 @@ function ensure(condition, message) {
     if (!condition) fail(message);
 }
 
+function ordinalCompare(left, right) {
+    return left < right ? -1 : left > right ? 1 : 0;
+}
+
 function pathKey(target) {
     return path.resolve(target).replace(/[\\/]+$/, '').toLowerCase();
 }
@@ -228,6 +232,62 @@ function isUnderOneDrive(target) {
         .map((name) => process.env[name])
         .filter(Boolean)
         .some((root) => isPathInside(candidate, realpathOrResolved(root), true));
+}
+
+function lstatIfPresent(target) {
+    try {
+        return fs.lstatSync(target);
+    } catch (error) {
+        if (error?.code === 'ENOENT') return null;
+        throw error;
+    }
+}
+
+function assertNoAncestorNodeModules(target) {
+    let current = path.resolve(target);
+    while (true) {
+        ensure(path.basename(current).toLowerCase() !== 'node_modules',
+            `External smoke path is inside node_modules: ${target}`);
+        const candidate = path.join(current, 'node_modules');
+        const stats = lstatIfPresent(candidate);
+        ensure(!stats, `External smoke ancestor exposes node_modules: ${candidate}`);
+        const parent = path.dirname(current);
+        if (parent === current) break;
+        current = parent;
+    }
+}
+
+function createExternalSmokeSession(repoRoot, artifactId) {
+    const externalParent = path.parse(repoRoot).root;
+    const baseRoot = path.join(externalParent, '.happy-portable-smoke');
+    const sessionRoot = path.join(baseRoot, `${artifactId}-${crypto.randomUUID()}`);
+    ensure(!isPathInside(baseRoot, repoRoot, true) && !isPathInside(repoRoot, baseRoot, true),
+        'External smoke root must be disjoint from the repository.');
+    assertSafeOwnedPath(baseRoot, externalParent, { allowRoot: false });
+    assertNoAncestorNodeModules(baseRoot);
+    fs.mkdirSync(sessionRoot, { recursive: true });
+    assertSafeOwnedPath(sessionRoot, baseRoot, { allowRoot: false });
+    assertNoAncestorNodeModules(baseRoot);
+    return {
+        externalParent,
+        baseRoot,
+        sessionRoot,
+        extractionRoot: path.join(sessionRoot, 'extracted'),
+        smokeRoot: path.join(sessionRoot, 'state')
+    };
+}
+
+function cleanupExternalSmokeSession(session) {
+    if (!session) return;
+    removeTree(session.sessionRoot, session.baseRoot);
+    if (lstatIfPresent(session.baseRoot)) {
+        assertSafeOwnedPath(session.baseRoot, session.externalParent, { allowRoot: false });
+        try {
+            fs.rmdirSync(session.baseRoot);
+        } catch (error) {
+            if (error?.code !== 'ENOTEMPTY' && error?.code !== 'ENOENT') throw error;
+        }
+    }
 }
 
 function isTypeScriptSource(name) {
@@ -607,6 +667,43 @@ function verifyDeployedVersions(deployRoot, expectedPairs) {
     return seen.size;
 }
 
+function generateDeployedPrismaClient(deployRoot) {
+    const prismaCli = path.join(deployRoot, 'node_modules', 'prisma', 'build', 'index.js');
+    const serverRoot = path.join(deployRoot, 'node_modules', 'happy-server');
+    const schemaPath = path.join(serverRoot, 'prisma', 'schema.prisma');
+    ensure(fs.existsSync(prismaCli) && fs.existsSync(schemaPath),
+        'Deployed Prisma generator or happy-server schema is missing.');
+    run(process.execPath, [prismaCli, 'generate', '--schema', schemaPath], {
+        cwd: serverRoot,
+        env: {
+            ...process.env,
+            PATH: `${path.join(deployRoot, 'node_modules', '.bin')}${path.delimiter}${process.env.PATH || ''}`
+        }
+    });
+    const generatedRoot = path.join(deployRoot, 'node_modules', '.prisma', 'client');
+    ensure(fs.existsSync(path.join(generatedRoot, 'index.js')),
+        'Prisma generate did not produce the deployed runtime client.');
+    const replacements = new Map([
+        [path.join(deployRoot, 'node_modules', '@prisma', 'client'), 'payload/happy/node_modules/@prisma/client'],
+        [schemaPath, 'payload/happy/node_modules/happy-server/prisma/schema.prisma']
+    ]);
+    for (const file of enumerateRegularFiles(generatedRoot)) {
+        if (!/\.(?:js|mjs|json|prisma)$/i.test(file)) continue;
+        let text = fs.readFileSync(file, 'utf8');
+        const original = text;
+        for (const [machinePath, portablePath] of replacements) {
+            text = text.split(machinePath).join(portablePath);
+            const escapedMachinePath = JSON.stringify(machinePath).slice(1, -1);
+            text = text.split(escapedMachinePath).join(portablePath);
+        }
+        if (text !== original) fs.writeFileSync(file, text, 'utf8');
+    }
+    ensure(
+        enumerateRegularFiles(generatedRoot).some((file) => path.basename(file) === 'query_engine-windows.dll.node'),
+        'Generated Prisma client is missing the Windows query engine.'
+    );
+}
+
 function downloadNode(downloadRoot, confinementRoot) {
     assertSafeOwnedPath(downloadRoot, confinementRoot, { allowRoot: false });
     fs.mkdirSync(downloadRoot, { recursive: true });
@@ -644,7 +741,7 @@ function readPackageRoots(deployRoot) {
             // Broken nested fixture manifests are pruned and are not package roots.
         }
     }
-    return roots;
+    return roots.sort((left, right) => ordinalCompare(left.relative, right.relative));
 }
 
 function spdxId(value) {
@@ -730,7 +827,8 @@ function normalizeLicense(packageRoot, manifest, identity) {
         : null;
     const evidenceFiles = fs.readdirSync(packageRoot, { withFileTypes: true })
         .filter((entry) => entry.isFile() && /^(LICENSE|LICENCE|COPYING|NOTICE)(\..*)?$/i.test(entry.name))
-        .map((entry) => path.join(packageRoot, entry.name));
+        .map((entry) => path.join(packageRoot, entry.name))
+        .sort(ordinalCompare);
     const referenced = rawDeclared && /^SEE LICEN[CS]E IN (.+)$/i.exec(rawDeclared);
     if (referenced) {
         const reference = referenced[1].trim();
@@ -741,7 +839,8 @@ function normalizeLicense(packageRoot, manifest, identity) {
             evidenceFiles.push(referencedPath);
         }
     }
-    const uniqueEvidence = [...new Map(evidenceFiles.map((file) => [pathKey(file), file])).values()];
+    const uniqueEvidence = [...new Map(evidenceFiles.map((file) => [pathKey(file), file])).values()]
+        .sort(ordinalCompare);
     if (!rawDeclared) {
         ensure(uniqueEvidence.length > 0, `Package has no declared license or license evidence: ${identity}`);
         return {
@@ -864,9 +963,19 @@ function buildSbom(deployRoot, payloadRoot, source, artifactId, outputPath, lice
             length: fs.statSync(nodeLicense).size
         }]
     });
-    packages.sort((left, right) => `${left.name}@${left.versionInfo}`.localeCompare(`${right.name}@${right.versionInfo}`));
-    licenseInventory.sort((left, right) => `${left.name}@${left.version}`.localeCompare(`${right.name}@${right.version}`));
-    extractedLicenses.sort((left, right) => left.licenseId.localeCompare(right.licenseId));
+    packages.sort((left, right) => ordinalCompare(
+        `${left.name}@${left.versionInfo}`,
+        `${right.name}@${right.versionInfo}`
+    ));
+    relationships.sort((left, right) => ordinalCompare(
+        `${left.spdxElementId}\u0000${left.relationshipType}\u0000${left.relatedSpdxElement}`,
+        `${right.spdxElementId}\u0000${right.relationshipType}\u0000${right.relatedSpdxElement}`
+    ));
+    licenseInventory.sort((left, right) => ordinalCompare(
+        `${left.name}@${left.version}`,
+        `${right.name}@${right.version}`
+    ));
+    extractedLicenses.sort((left, right) => ordinalCompare(left.licenseId, right.licenseId));
     const created = new Date().toISOString();
     const sbom = {
         spdxVersion: 'SPDX-2.3',
@@ -1000,7 +1109,11 @@ function createArchive(payloadRoot, archivePath, inventory, entryTimestampUtc, c
     ensure(fs.existsSync(archivePath), 'ZIP creation did not produce an archive.');
 }
 
-function runExternalSmoke(extractionRoot, smokeRoot, confinementRoot) {
+function runExternalSmoke(extractionRoot, smokeRoot, confinementRoot, repoRoot) {
+    ensure(!isPathInside(extractionRoot, repoRoot, true),
+        'External smoke extraction must be outside the repository.');
+    assertSafeOwnedPath(extractionRoot, confinementRoot, { allowRoot: false });
+    assertNoAncestorNodeModules(confinementRoot);
     removeTree(smokeRoot, confinementRoot);
     fs.mkdirSync(smokeRoot, { recursive: true });
     const payload = path.join(extractionRoot, 'payload');
@@ -1013,27 +1126,79 @@ function runExternalSmoke(extractionRoot, smokeRoot, confinementRoot) {
     fs.mkdirSync(emptyPath);
     fs.mkdirSync(home);
     fs.mkdirSync(happyHome);
-    const result = spawnSync(node, [happy, 'copilot', '--help'], {
-        cwd: smokeRoot,
-        env: {
-            SystemRoot: process.env.SystemRoot,
-            ComSpec: process.env.ComSpec,
-            TEMP: smokeRoot,
-            TMP: smokeRoot,
-            USERPROFILE: home,
-            HOMEDRIVE: path.parse(home).root.replace(/\\$/, ''),
-            HOMEPATH: home.slice(path.parse(home).root.length - 1),
-            HOME: home,
-            PATH: emptyPath,
-            HAPPY_HOME_DIR: happyHome,
-            HAPPY_ENABLE_COPILOT_NATIVE: '1',
-            NODE_OPTIONS: '--no-addons'
-        },
+    const isolatedEnvironment = {
+        SystemRoot: process.env.SystemRoot,
+        ComSpec: process.env.ComSpec,
+        TEMP: smokeRoot,
+        TMP: smokeRoot,
+        USERPROFILE: home,
+        HOMEDRIVE: path.parse(home).root.replace(/\\$/, ''),
+        HOMEPATH: home.slice(path.parse(home).root.length - 1),
+        HOME: home,
+        PATH: emptyPath,
+        NODE_PATH: '',
+        HAPPY_HOME_DIR: happyHome,
+        HAPPY_ENABLE_COPILOT_NATIVE: '1',
+        NODE_OPTIONS: '--no-addons'
+    };
+    const spawnNode = (args, cwd = smokeRoot) => spawnSync(node, [
+        '--no-global-search-paths',
+        ...args
+    ], {
+        cwd,
+        env: isolatedEnvironment,
         encoding: 'utf8',
         shell: false,
         windowsHide: true,
         timeout: 60000
     });
+    const probeScript = [
+        "const Module = require('node:module');",
+        "const paths = require.resolve.paths('__happy_portable_missing_probe__') || [];",
+        'console.log(JSON.stringify({ paths, globalPaths: Module.globalPaths }));'
+    ].join('');
+    const probe = spawnNode(['-e', probeScript], path.dirname(happy));
+    if (probe.error) throw probe.error;
+    ensure(probe.status === 0, `External resolution probe failed: ${probe.stderr || ''}`);
+    const resolution = JSON.parse((probe.stdout || '').trim());
+    ensure(Array.isArray(resolution.paths) && Array.isArray(resolution.globalPaths),
+        'External resolution probe returned malformed output.');
+    ensure(resolution.globalPaths.length === 0,
+        `External smoke retained Node global search paths: ${resolution.globalPaths.join(', ')}`);
+    const allowedNodeModules = path.join(payload, 'happy', 'node_modules');
+    for (const candidate of resolution.paths) {
+        ensure(!isPathInside(candidate, repoRoot, true),
+            `External smoke resolution reaches the repository: ${candidate}`);
+        const stats = lstatIfPresent(candidate);
+        if (stats) {
+            ensure(pathKey(candidate) === pathKey(allowedNodeModules),
+                `External smoke resolution reaches non-payload node_modules: ${candidate}`);
+            assertSafeOwnedPath(candidate, confinementRoot, { allowRoot: false });
+        }
+    }
+    ensure(resolution.paths.some((candidate) => pathKey(candidate) === pathKey(allowedNodeModules)),
+        'External smoke resolution probe omitted the payload node_modules.');
+
+    const requiredDependency = path.join(allowedNodeModules, 'zod');
+    const hiddenDependency = path.join(payload, 'happy', '.negative-smoke-zod');
+    ensure(lstatIfPresent(requiredDependency)?.isDirectory(),
+        'Negative smoke fixture requires payload dependency zod.');
+    ensure(!lstatIfPresent(hiddenDependency), 'Negative smoke fixture destination already exists.');
+    let negative;
+    fs.renameSync(requiredDependency, hiddenDependency);
+    try {
+        negative = spawnNode([happy, 'copilot', '--help']);
+    } finally {
+        fs.renameSync(hiddenDependency, requiredDependency);
+    }
+    if (negative.error) throw negative.error;
+    ensure(negative.status !== 0,
+        'External negative smoke unexpectedly resolved missing zod from outside the payload.');
+    ensure(/(?:zod|ERR_MODULE_NOT_FOUND|Cannot find package)/i.test(
+        `${negative.stdout || ''}${negative.stderr || ''}`
+    ), 'External negative smoke failed without proving the required dependency was unavailable.');
+
+    const result = spawnNode([happy, 'copilot', '--help']);
     if (result.error) throw result.error;
     ensure(result.status === 0, `External smoke failed (${result.status}):\n${result.stdout || ''}${result.stderr || ''}`);
     ensure((result.stdout || '').includes('Usage: HAPPY_ENABLE_COPILOT_NATIVE=1 happy copilot'),
@@ -1045,7 +1210,14 @@ function runExternalSmoke(extractionRoot, smokeRoot, confinementRoot) {
     });
     ensure(unexpectedState.length === 0, `Help smoke wrote unexpected Happy state: ${unexpectedState.join(', ')}`);
     removeTree(happyHome, smokeRoot);
-    return `${result.stdout || ''}${result.stderr || ''}`.trim();
+    return {
+        output: `${result.stdout || ''}${result.stderr || ''}`.trim(),
+        resolutionPathCount: resolution.paths.length,
+        outsideRepository: true,
+        globalSearchPathsDisabled: true,
+        existingResolutionRootsPayloadOnly: true,
+        negativeDependencyFallbackBlocked: true
+    };
 }
 
 function inventoryPayload(payloadRoot) {
@@ -1055,7 +1227,7 @@ function inventoryPayload(payloadRoot) {
             length: fs.statSync(file).size,
             sha256: sha256File(file)
         }))
-        .sort((left, right) => left.relativePath.localeCompare(right.relativePath));
+        .sort((left, right) => ordinalCompare(left.relativePath, right.relativePath));
     const expandedLength = files.reduce((sum, file) => sum + file.length, 0);
     ensure(files.length > 0 && files.length <= MAX_FILES, 'Payload file count is outside the allowed range.');
     ensure(expandedLength <= MAX_EXPANDED_BYTES, 'Payload expanded size exceeds the allowed range.');
@@ -1085,9 +1257,7 @@ async function build(options) {
     const payloadRoot = path.join(workRoot, 'payload');
     const artifactRoot = path.join(outputRoot, artifactId);
     const downloadRoot = path.join(outputRoot, '.downloads');
-    const extractionRoot = path.join(outputRoot, '.external-smoke', artifactId);
-    const smokeRoot = path.join(outputRoot, '.smoke-state', artifactId);
-    for (const ownedPath of [workRoot, artifactRoot, downloadRoot, extractionRoot, smokeRoot]) {
+    for (const ownedPath of [workRoot, artifactRoot, downloadRoot]) {
         assertSafeOwnedPath(ownedPath, repoRoot, { allowRoot: false });
     }
     removeTree(workRoot, repoRoot);
@@ -1095,6 +1265,7 @@ async function build(options) {
     fs.mkdirSync(workRoot, { recursive: true });
     fs.mkdirSync(payloadRoot, { recursive: true });
     fs.mkdirSync(artifactRoot, { recursive: true });
+    let externalSmokeSession;
     let result;
     let completed = false;
     try {
@@ -1122,6 +1293,7 @@ async function build(options) {
         git(repoRoot, ['checkout', '--', 'packages/happy-wire/dist']);
 
         const deployedPackages = verifyDeployedVersions(deployRoot, pins.pairs);
+        generateDeployedPrismaClient(deployRoot);
         const pruning = pruneDeployment(deployRoot);
         const machineMarkers = [
             repoRoot,
@@ -1181,17 +1353,24 @@ async function build(options) {
             archive: archiveEvidence,
             files: inventory.files
         });
-        let smokeOutput;
+        let smoke;
         try {
+            externalSmokeSession = createExternalSmokeSession(repoRoot, artifactId);
             await verifyAndExtractArchive(
                 archivePath,
                 verificationManifestPath,
-                extractionRoot,
+                externalSmokeSession.extractionRoot,
+                externalSmokeSession.sessionRoot
+            );
+            smoke = runExternalSmoke(
+                externalSmokeSession.extractionRoot,
+                externalSmokeSession.smokeRoot,
+                externalSmokeSession.sessionRoot,
                 repoRoot
             );
-            smokeOutput = runExternalSmoke(extractionRoot, smokeRoot, repoRoot);
         } finally {
-            cleanupExternalPaths([extractionRoot, smokeRoot], repoRoot);
+            cleanupExternalSmokeSession(externalSmokeSession);
+            externalSmokeSession = null;
         }
 
         const completedAtUtc = new Date().toISOString();
@@ -1221,7 +1400,11 @@ async function build(options) {
                 expandedInventory: 'clean',
                 externalSmoke: 'clean',
                 externalSmokeCleanup: 'clean',
-                smokeOutput
+                externalSmokeLocation: 'outside-repository',
+                externalSmokeResolution: 'payload-only-no-global-paths',
+                negativeDependencyFallback: 'blocked',
+                smokeResolutionPathCount: smoke.resolutionPathCount,
+                smokeOutput: smoke.output
             }
         };
         const reportPath = path.join(artifactRoot, 'build-report.json');
@@ -1304,7 +1487,7 @@ async function build(options) {
         completed = true;
     } finally {
         git(repoRoot, ['checkout', '--', 'packages/happy-wire/dist']);
-        cleanupExternalPaths([extractionRoot, smokeRoot], repoRoot);
+        cleanupExternalSmokeSession(externalSmokeSession);
         removeTree(workRoot, repoRoot);
         if (!completed) removeTree(artifactRoot, repoRoot);
     }
@@ -1434,6 +1617,22 @@ function testPaths() {
         npmPurl('@anthropic-ai/claude-agent-sdk', '0.2.96')
             === 'pkg:npm/%40anthropic-ai/claude-agent-sdk@0.2.96',
         'Scoped npm PURL fixture was encoded incorrectly.'
+    );
+    const turkishFixture = ['I', '\u0130', 'i', '\u0131', 'alpha', 'Z'];
+    const ordinalFixture = [...turkishFixture].sort(ordinalCompare);
+    ensure(
+        JSON.stringify(ordinalFixture) === JSON.stringify(['I', 'Z', 'alpha', 'i', '\u0130', '\u0131']),
+        'Ordinal integrity ordering fixture changed.'
+    );
+    ensure(
+        sha256Bytes(ordinalFixture.join('\n'))
+            === 'B324FE4AA2D7D34190FEA00FBBC23E064548ECF1734904E6F01240661A83BEBF',
+        'Ordinal Turkish-locale hash-input fixture changed.'
+    );
+    ensure(
+        JSON.stringify([...turkishFixture].sort(new Intl.Collator('tr').compare))
+            !== JSON.stringify(ordinalFixture),
+        'Turkish-locale regression fixture no longer distinguishes locale ordering.'
     );
     ensure(isValidSpdxExpression('(MIT OR CC0-1.0)'), 'Valid SPDX expression fixture was rejected.');
     ensure(!isValidSpdxExpression('SEE LICENSE IN README.md'),

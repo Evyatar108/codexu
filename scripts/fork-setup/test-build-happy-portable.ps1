@@ -177,7 +177,10 @@ try {
     if (-not $report.localOnly -or $report.publishAttempted -or $report.oneDriveWritten -or
         $report.checks.machineMetadata -ne 'clean' -or
         $report.checks.reproducibleZipMetadata -ne 'clean' -or
-        $report.checks.externalSmokeCleanup -ne 'clean') {
+        $report.checks.externalSmokeCleanup -ne 'clean' -or
+        $report.checks.externalSmokeLocation -ne 'outside-repository' -or
+        $report.checks.externalSmokeResolution -ne 'payload-only-no-global-paths' -or
+        $report.checks.negativeDependencyFallback -ne 'blocked') {
         throw 'Build report does not prove the required local-only checks.'
     }
     if (Get-ChildItem -Recurse -Force -File $extractedRoot | Where-Object {
@@ -193,11 +196,14 @@ try {
     if ($badFiles) {
         throw "Forbidden extracted content found: $($badFiles[0].FullName)"
     }
-    if (Test-Path -LiteralPath (Join-Path $outputRoot ".external-smoke\$($manifest.artifactId)")) {
-        throw 'External-smoke extraction was retained after build.'
-    }
-    if (Test-Path -LiteralPath (Join-Path $outputRoot ".smoke-state\$($manifest.artifactId)")) {
-        throw 'External-smoke state was retained after build.'
+    $externalSmokeBase = Join-Path ([IO.Path]::GetPathRoot($repoRoot)) '.happy-portable-smoke'
+    if (Test-Path -LiteralPath $externalSmokeBase) {
+        $retainedSmoke = Get-ChildItem -Force -LiteralPath $externalSmokeBase |
+            Where-Object { $_.Name.StartsWith($manifest.artifactId + '-') } |
+            Select-Object -First 1
+        if ($retainedSmoke) {
+            throw "External-smoke session was retained after build: $($retainedSmoke.FullName)"
+        }
     }
 
     Write-Host 'Portable artifact validation passed.'
