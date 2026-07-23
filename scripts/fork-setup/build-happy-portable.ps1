@@ -46,13 +46,6 @@ if ($status) {
     throw 'The source commit must be clean before building the portable artifact.'
 }
 
-if (-not $SkipDependencyInstall) {
-    & pnpm -C $repoRoot install --frozen-lockfile
-    if ($LASTEXITCODE -ne 0) {
-        throw 'pnpm install --frozen-lockfile failed.'
-    }
-}
-
 New-Item -ItemType Directory -Force -Path $OutputRoot | Out-Null
 $deleteResult = $false
 if ([string]::IsNullOrWhiteSpace($ResultPath)) {
@@ -77,7 +70,22 @@ if (Test-Path -LiteralPath $ResultPath) {
 }
 
 try {
-    & node $helper build --repoRoot $repoRoot --outputRoot $OutputRoot --resultPath $ResultPath
+    $buildArguments = @(
+        $helper,
+        'build',
+        '--repoRoot',
+        $repoRoot,
+        '--outputRoot',
+        $OutputRoot,
+        '--resultPath',
+        $ResultPath
+    )
+    if ($SkipDependencyInstall) {
+        # The immutable snapshot always needs its own dependency closure. This
+        # switch prevents downloads by requiring the local pnpm store.
+        $buildArguments += @('--offlineInstall', 'true')
+    }
+    & node @buildArguments
     if ($LASTEXITCODE -ne 0) {
         throw 'Portable artifact build failed.'
     }

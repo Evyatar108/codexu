@@ -70,7 +70,7 @@ if ($FullBuild) {
         '.full-build-result-{0}-{1}.json' -f $PID, [Guid]::NewGuid().ToString('N')
     )
     & pwsh -NoProfile -ExecutionPolicy Bypass -File $builder -OutputRoot $outputRoot `
-        -ResultPath $resultPath -SkipDependencyInstall
+        -ResultPath $resultPath
     if ($LASTEXITCODE -ne 0) {
         throw 'Full portable artifact build failed.'
     }
@@ -126,6 +126,22 @@ try {
     if ($FullBuild -and $manifest.source.commit -ne $expectedHead) {
         throw 'Full build manifest source commit does not equal the expected HEAD.'
     }
+    $originUrl = (& git -C $repoRoot remote get-url origin).Trim()
+    if ($LASTEXITCODE -ne 0 -or
+        $originUrl -notmatch '^https://github\.com/([^/]+)/([^/]+?)(?:\.git)?$') {
+        throw 'Test checkout origin is not an approved canonical GitHub remote.'
+    }
+    $expectedRepository = "$($Matches[1])/$($Matches[2])"
+    $expectedRepositoryUrl = "https://github.com/$expectedRepository"
+    if ($manifest.source.remote -ne 'origin' -or
+        $manifest.source.repository -cne $expectedRepository -or
+        $manifest.source.repositoryUrl -cne $expectedRepositoryUrl -or
+        -not $sbom.documentNamespace.StartsWith(
+            $expectedRepositoryUrl + '/spdx/' + $expectedHead + '/',
+            [StringComparison]::Ordinal
+        )) {
+        throw 'Manifest/SPDX provenance is not bound to the selected origin and commit.'
+    }
     if ($manifest.artifactId -ne (Split-Path -Leaf $ArtifactRoot)) {
         throw 'Manifest artifact id does not match the exact artifact path.'
     }
@@ -175,6 +191,8 @@ try {
         throw "Scoped npm PURL is not canonical: $anthropicPurl"
     }
     if (-not $report.localOnly -or $report.publishAttempted -or $report.oneDriveWritten -or
+        $report.checks.immutableSourceSnapshot -ne 'clean' -or
+        $report.checks.sourceIdentityRevalidated -ne 'clean' -or
         $report.checks.machineMetadata -ne 'clean' -or
         $report.checks.reproducibleZipMetadata -ne 'clean' -or
         $report.checks.externalSmokeCleanup -ne 'clean' -or

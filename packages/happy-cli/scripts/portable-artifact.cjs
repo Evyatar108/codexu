@@ -344,6 +344,80 @@ function git(repoRoot, args) {
     return run('git', ['--no-pager', ...args], { cwd: repoRoot, capture: true }).stdout.trim();
 }
 
+function gitOptional(repoRoot, args) {
+    const result = spawnSync('git', ['--no-pager', ...args], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+        shell: false,
+        windowsHide: true
+    });
+    if (result.error) throw result.error;
+    return result.status === 0 ? (result.stdout || '').trim() : '';
+}
+
+function normalizeGitHubRemote(remoteUrl) {
+    ensure(typeof remoteUrl === 'string' && remoteUrl.trim() !== '',
+        'Git remote URL is empty.');
+    const value = remoteUrl.trim();
+    let repositoryPath;
+    if (/^https:\/\/github\.com\//i.test(value)) {
+        const parsed = new URL(value);
+        ensure(parsed.protocol === 'https:' && parsed.hostname.toLowerCase() === 'github.com'
+            && !parsed.username && !parsed.password && !parsed.search && !parsed.hash,
+        `Unsupported GitHub remote URL: ${value}`);
+        repositoryPath = parsed.pathname.replace(/^\/+|\/+$/g, '');
+    } else {
+        const scp = /^git@github\.com:([^?#]+)$/i.exec(value);
+        const ssh = /^ssh:\/\/git@github\.com\/([^?#]+)$/i.exec(value);
+        ensure(scp || ssh, `Only GitHub HTTPS or git SSH remotes are approved: ${value}`);
+        repositoryPath = (scp || ssh)[1].replace(/^\/+|\/+$/g, '');
+    }
+    repositoryPath = repositoryPath.replace(/\.git$/i, '');
+    const parts = repositoryPath.split('/');
+    ensure(parts.length === 2
+        && parts.every((part) => /^[A-Za-z0-9_.-]+$/.test(part) && part !== '.' && part !== '..'),
+    `GitHub remote must identify one owner/repository pair: ${value}`);
+    return {
+        repository: `${parts[0]}/${parts[1]}`,
+        repositoryUrl: `https://github.com/${parts[0]}/${parts[1]}`
+    };
+}
+
+function selectCanonicalRepository(remotes, preferences = []) {
+    const approvedNames = new Set(['origin', 'personal']);
+    const orderedNames = [...preferences, 'origin', 'personal']
+        .filter((name, index, values) => approvedNames.has(name) && values.indexOf(name) === index);
+    for (const name of orderedNames) {
+        const urls = remotes[name];
+        if (!urls || urls.length === 0) continue;
+        const normalized = urls.map(normalizeGitHubRemote);
+        const identities = new Map(normalized.map((item) => [
+            item.repository.toLowerCase(),
+            item
+        ]));
+        ensure(identities.size === 1,
+            `Approved remote "${name}" has ambiguous repository URLs.`);
+        return { remote: name, ...identities.values().next().value };
+    }
+    fail('No approved GitHub provenance remote is configured (expected origin or personal).');
+}
+
+function deriveCanonicalRepository(repoRoot, branch) {
+    const remotes = {};
+    for (const name of ['origin', 'personal']) {
+        const urls = gitOptional(repoRoot, ['remote', 'get-url', '--all', name])
+            .split(/\r?\n/)
+            .filter(Boolean);
+        if (urls.length) remotes[name] = urls;
+    }
+    const preferences = [
+        gitOptional(repoRoot, ['config', '--get', `branch.${branch}.pushRemote`]),
+        gitOptional(repoRoot, ['config', '--get', `branch.${branch}.remote`]),
+        gitOptional(repoRoot, ['config', '--get', 'remote.pushDefault'])
+    ].filter(Boolean);
+    return selectCanonicalRepository(remotes, preferences);
+}
+
 function assertCleanSource(repoRoot) {
     const resolvedGitRoot = path.resolve(git(repoRoot, ['rev-parse', '--show-toplevel']));
     ensure(resolvedGitRoot.toLowerCase() === repoRoot.toLowerCase(),
@@ -354,7 +428,73 @@ function assertCleanSource(repoRoot) {
     const branch = git(repoRoot, ['branch', '--show-current']);
     ensure(/^[0-9a-f]{40}$/i.test(commit), 'Unable to resolve a full source commit.');
     ensure(branch.length > 0, 'Detached HEAD builds are not allowed.');
-    return { commit, branch };
+    const provenance = deriveCanonicalRepository(repoRoot, branch);
+    return { commit, branch, ...provenance };
+}
+
+function assertSourceUnchanged(repoRoot, expected) {
+    const commit = git(repoRoot, ['rev-parse', 'HEAD']);
+    const branch = git(repoRoot, ['branch', '--show-current']);
+    const status = git(repoRoot, ['status', '--porcelain=v1', '--untracked-files=all']);
+    ensure(commit === expected.commit, `Source HEAD drifted during build: ${commit}`);
+    ensure(branch === expected.branch, `Source branch drifted during build: ${branch || '<detached>'}`);
+    ensure(status === '', 'Source worktree changed during build; refusing artifact completion.');
+    const provenance = deriveCanonicalRepository(repoRoot, branch);
+    ensure(provenance.remote === expected.remote
+        && provenance.repository.toLowerCase() === expected.repository.toLowerCase()
+        && provenance.repositoryUrl.toLowerCase() === expected.repositoryUrl.toLowerCase(),
+    'Source repository provenance changed during build.');
+}
+
+function materializeSourceSnapshot(repoRoot, source, workRoot) {
+    const archivePath = path.join(workRoot, 'source.tar');
+    const snapshotRoot = path.join(workRoot, 'source');
+    fs.mkdirSync(snapshotRoot, { recursive: true });
+    run('git', [
+        'archive',
+        '--format=tar',
+        `--output=${archivePath}`,
+        source.commit
+    ], { cwd: repoRoot });
+    run('tar.exe', ['-xf', archivePath, '-C', snapshotRoot], { cwd: workRoot });
+    fs.rmSync(archivePath, { force: true });
+    for (const entry of git(repoRoot, [
+        'ls-tree',
+        '-r',
+        '-z',
+        source.commit
+    ]).split('\0').filter(Boolean)) {
+        const match = /^([0-9]{6})\s+blob\s+[0-9a-f]+\t(.+)$/.exec(entry);
+        if (!match || match[1] !== '120000') continue;
+        const linkPath = path.join(snapshotRoot, ...match[2].split('/'));
+        const stats = fs.lstatSync(linkPath);
+        ensure(stats.isSymbolicLink(), `Snapshot link was not materialized as a link: ${match[2]}`);
+        fs.unlinkSync(linkPath);
+    }
+    for (const required of [
+        'pnpm-lock.yaml',
+        'pnpm-workspace.yaml',
+        'packages/happy-cli/package.json',
+        'packages/happy-server/package.json',
+        'packages/happy-wire/package.json'
+    ]) {
+        const snapshotFile = path.join(snapshotRoot, ...required.split('/'));
+        ensure(fs.existsSync(snapshotFile), `Immutable source snapshot is missing ${required}.`);
+        const expectedBlob = git(repoRoot, ['rev-parse', `${source.commit}:${required}`]);
+        const actualBlob = run('git', ['hash-object', snapshotFile], {
+            cwd: repoRoot,
+            capture: true
+        }).stdout.trim();
+        ensure(actualBlob === expectedBlob, `Immutable source snapshot mismatch: ${required}`);
+    }
+    fs.writeFileSync(path.join(snapshotRoot, 'pnpm-workspace.yaml'), [
+        'packages:',
+        '  - "packages/happy-cli"',
+        '  - "packages/happy-server"',
+        '  - "packages/happy-wire"',
+        ''
+    ].join('\n'), 'ascii');
+    return snapshotRoot;
 }
 
 function enumerateRegularFiles(root) {
@@ -382,7 +522,6 @@ function removeTree(target, confinementRoot) {
     if (fs.existsSync(target)) {
         const stats = fs.lstatSync(target);
         ensure(!stats.isSymbolicLink(), `Refusing to delete a reparse/junction root: ${target}`);
-        if (stats.isDirectory()) enumerateRegularFiles(target);
     }
     fs.rmSync(target, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 }
@@ -982,7 +1121,7 @@ function buildSbom(deployRoot, payloadRoot, source, artifactId, outputPath, lice
         dataLicense: 'CC0-1.0',
         SPDXID: 'SPDXRef-DOCUMENT',
         name: `Happy portable ${artifactId}`,
-        documentNamespace: `https://github.com/Evyatar108/happy/spdx/${source.commit}/${artifactId}`,
+        documentNamespace: `${source.repositoryUrl}/spdx/${source.commit}/${artifactId}`,
         creationInfo: {
             created,
             creators: ['Tool: happy-portable-artifact-builder']
@@ -1022,7 +1161,13 @@ function assertZipPath(entryName, seen) {
     return name;
 }
 
-function verifyAndExtractArchive(archivePath, manifestPath, extractionRoot, confinementRoot) {
+function verifyAndExtractArchive(
+    archivePath,
+    manifestPath,
+    extractionRoot,
+    confinementRoot,
+    zipHelperPath = path.join(__dirname, 'portable-zip.ps1')
+) {
     assertSafeOwnedPath(extractionRoot, confinementRoot, { allowRoot: false });
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
     ensure(fs.statSync(archivePath).size === manifest.archive.length, 'Archive length mismatch.');
@@ -1033,7 +1178,7 @@ function verifyAndExtractArchive(archivePath, manifestPath, extractionRoot, conf
         '-ExecutionPolicy',
         'Bypass',
         '-File',
-        path.join(__dirname, 'portable-zip.ps1'),
+        zipHelperPath,
         '-ArchivePath',
         archivePath,
         '-ManifestPath',
@@ -1078,7 +1223,14 @@ function normalizePayloadMetadata(payloadRoot, timestampUtc) {
     for (const directory of directories) fs.utimesSync(directory, timestamp, timestamp);
 }
 
-function createArchive(payloadRoot, archivePath, inventory, entryTimestampUtc, confinementRoot) {
+function createArchive(
+    payloadRoot,
+    archivePath,
+    inventory,
+    entryTimestampUtc,
+    confinementRoot,
+    zipHelperPath = path.join(__dirname, 'portable-zip.ps1')
+) {
     assertSafeOwnedPath(archivePath, confinementRoot, { allowRoot: false });
     fs.rmSync(archivePath, { force: true });
     const fileListPath = path.join(path.dirname(payloadRoot), 'archive-files.txt');
@@ -1090,7 +1242,7 @@ function createArchive(payloadRoot, archivePath, inventory, entryTimestampUtc, c
             '-ExecutionPolicy',
             'Bypass',
             '-File',
-            path.join(__dirname, 'portable-zip.ps1'),
+            zipHelperPath,
             '-Create',
             '-PayloadRoot',
             payloadRoot,
@@ -1247,9 +1399,6 @@ async function build(options) {
     const commitEpochSeconds = Number(git(repoRoot, ['show', '-s', '--format=%ct', source.commit]));
     ensure(Number.isSafeInteger(commitEpochSeconds), 'Unable to resolve the source commit timestamp.');
     source.timestampUtc = new Date(Math.floor(commitEpochSeconds / 2) * 2000).toISOString();
-    const packageManifest = JSON.parse(fs.readFileSync(path.join(repoRoot, 'packages', 'happy-cli', 'package.json'), 'utf8'));
-    const lockSha256 = sha256File(path.join(repoRoot, 'pnpm-lock.yaml'));
-    const pnpmStorePath = run('pnpm', ['store', 'path'], { cwd: repoRoot, capture: true }).stdout.trim();
     const startedAt = new Date().toISOString();
     const artifactId = `${startedAt.replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')}-${source.commit.slice(0, 12)}`;
     const workRoot = path.join(outputRoot, '.work');
@@ -1269,11 +1418,40 @@ async function build(options) {
     let result;
     let completed = false;
     try {
-        run('pnpm', ['--filter', '@slopus/happy-wire', 'build'], { cwd: repoRoot });
-        run('pnpm', ['--filter', 'happy-server', 'build'], { cwd: repoRoot });
-        run('pnpm', ['--filter', 'happy', 'build'], { cwd: repoRoot });
+        const snapshotRoot = materializeSourceSnapshot(repoRoot, source, workRoot);
+        const snapshotZipHelper = path.join(
+            snapshotRoot,
+            'packages',
+            'happy-cli',
+            'scripts',
+            'portable-zip.ps1'
+        );
+        const packageManifest = JSON.parse(fs.readFileSync(
+            path.join(snapshotRoot, 'packages', 'happy-cli', 'package.json'),
+            'utf8'
+        ));
+        const lockSha256 = sha256File(path.join(snapshotRoot, 'pnpm-lock.yaml'));
+        const pnpmStorePath = run('pnpm', ['store', 'path'], {
+            cwd: snapshotRoot,
+            capture: true
+        }).stdout.trim();
+        const installArgs = [
+            'install',
+            '--frozen-lockfile',
+            '--filter',
+            'happy...'
+        ];
+        installArgs.push(options.offlineInstall === 'true' ? '--offline' : '--prefer-offline');
+        run('pnpm', installArgs, {
+            cwd: snapshotRoot,
+            env: { ...process.env, CI: '1' }
+        });
 
-        const pins = createLockPins(repoRoot, workRoot);
+        run('pnpm', ['--filter', '@slopus/happy-wire', 'build'], { cwd: snapshotRoot });
+        run('pnpm', ['--filter', 'happy-server', 'build'], { cwd: snapshotRoot });
+        run('pnpm', ['--filter', 'happy', 'build'], { cwd: snapshotRoot });
+
+        const pins = createLockPins(snapshotRoot, workRoot);
         const deployEnv = {
             ...process.env,
             HAPPY_PORTABLE_DEPLOY_PINS: pins.pinsPath
@@ -1289,14 +1467,14 @@ async function build(options) {
             '--prod',
             '--legacy',
             deployRoot
-        ], { cwd: repoRoot, env: deployEnv });
-        git(repoRoot, ['checkout', '--', 'packages/happy-wire/dist']);
+        ], { cwd: snapshotRoot, env: deployEnv });
 
         const deployedPackages = verifyDeployedVersions(deployRoot, pins.pairs);
         generateDeployedPrismaClient(deployRoot);
         const pruning = pruneDeployment(deployRoot);
         const machineMarkers = [
             repoRoot,
+            snapshotRoot,
             pnpmStorePath,
             process.env.USERPROFILE,
             process.env.LOCALAPPDATA,
@@ -1309,7 +1487,7 @@ async function build(options) {
         const nodeArchive = downloadNode(downloadRoot, repoRoot);
         const nodeExtractRoot = path.join(workRoot, 'node');
         fs.mkdirSync(nodeExtractRoot, { recursive: true });
-        run('tar.exe', ['-xf', nodeArchive, '-C', nodeExtractRoot], { cwd: repoRoot });
+        run('tar.exe', ['-xf', nodeArchive, '-C', nodeExtractRoot], { cwd: snapshotRoot });
         const nodeDirectory = path.join(nodeExtractRoot, NODE_ARCHIVE.replace(/\.zip$/, ''));
         const nodeExecutable = path.join(nodeDirectory, 'node.exe');
         const nodeLicense = path.join(nodeDirectory, 'LICENSE');
@@ -1334,7 +1512,14 @@ async function build(options) {
         normalizePayloadMetadata(payloadRoot, source.timestampUtc);
         const inventory = inventoryPayload(payloadRoot);
         const archivePath = path.join(artifactRoot, ARCHIVE_NAME);
-        createArchive(payloadRoot, archivePath, inventory, source.timestampUtc, repoRoot);
+        createArchive(
+            payloadRoot,
+            archivePath,
+            inventory,
+            source.timestampUtc,
+            repoRoot,
+            snapshotZipHelper
+        );
         const archiveSha256 = sha256File(archivePath);
         const archiveLength = fs.statSync(archivePath).size;
         const archiveEvidence = {
@@ -1360,7 +1545,8 @@ async function build(options) {
                 archivePath,
                 verificationManifestPath,
                 externalSmokeSession.extractionRoot,
-                externalSmokeSession.sessionRoot
+                externalSmokeSession.sessionRoot,
+                snapshotZipHelper
             );
             smoke = runExternalSmoke(
                 externalSmokeSession.extractionRoot,
@@ -1373,6 +1559,7 @@ async function build(options) {
             externalSmokeSession = null;
         }
 
+        assertSourceUnchanged(repoRoot, source);
         const completedAtUtc = new Date().toISOString();
         const report = {
             schemaVersion: 1,
@@ -1386,13 +1573,18 @@ async function build(options) {
             completedAtUtc,
             archive: archiveEvidence,
             dependencies: {
-                pnpmVersion: run('pnpm', ['--version'], { cwd: repoRoot, capture: true }).stdout.trim(),
+                pnpmVersion: run('pnpm', ['--version'], {
+                    cwd: snapshotRoot,
+                    capture: true
+                }).stdout.trim(),
                 lockSha256,
                 deployedPackageIdentities: deployedPackages,
                 sbomPackages: packageCount
             },
             pruning,
             checks: {
+                immutableSourceSnapshot: 'clean',
+                sourceIdentityRevalidated: 'clean',
                 forbiddenContent: 'clean',
                 machineMetadata: 'clean',
                 reproducibleZipMetadata: 'clean',
@@ -1419,7 +1611,9 @@ async function build(options) {
             publishedAtUtc: completedAtUtc,
             happyCliVersion: packageManifest.version,
             source: {
-                repository: 'Evyatar108/happy',
+                repository: source.repository,
+                repositoryUrl: source.repositoryUrl,
+                remote: source.remote,
                 commit: source.commit,
                 branch: source.branch,
                 timestampUtc: source.timestampUtc,
@@ -1477,6 +1671,7 @@ async function build(options) {
             archiveSha256,
             completedAtUtc: new Date().toISOString()
         });
+        assertSourceUnchanged(repoRoot, source);
         result = {
             schemaVersion: 1,
             artifactId,
@@ -1486,7 +1681,6 @@ async function build(options) {
         };
         completed = true;
     } finally {
-        git(repoRoot, ['checkout', '--', 'packages/happy-wire/dist']);
         cleanupExternalSmokeSession(externalSmokeSession);
         removeTree(workRoot, repoRoot);
         if (!completed) removeTree(artifactRoot, repoRoot);
@@ -1618,6 +1812,46 @@ function testPaths() {
             === 'pkg:npm/%40anthropic-ai/claude-agent-sdk@0.2.96',
         'Scoped npm PURL fixture was encoded incorrectly.'
     );
+    ensure(
+        JSON.stringify(normalizeGitHubRemote('git@github.com:evmitran_microsoft/codexu.git'))
+            === JSON.stringify({
+                repository: 'evmitran_microsoft/codexu',
+                repositoryUrl: 'https://github.com/evmitran_microsoft/codexu'
+            }),
+        'GitHub SSH provenance normalization fixture changed.'
+    );
+    const originSelected = selectCanonicalRepository({
+        origin: ['https://github.com/evmitran_microsoft/codexu.git'],
+        personal: ['https://github.com/Evyatar108/codexu.git']
+    });
+    ensure(originSelected.remote === 'origin'
+        && originSelected.repository === 'evmitran_microsoft/codexu',
+    'Origin provenance preference fixture changed.');
+    const personalSelected = selectCanonicalRepository({
+        origin: ['https://github.com/evmitran_microsoft/codexu.git'],
+        personal: ['git@github.com:Evyatar108/codexu.git']
+    }, ['personal']);
+    ensure(personalSelected.remote === 'personal'
+        && personalSelected.repository === 'Evyatar108/codexu',
+    'Personal provenance preference fixture changed.');
+    for (const invalidRemotes of [
+        { origin: ['https://gitlab.com/example/codexu.git'] },
+        {
+            origin: [
+                'https://github.com/evmitran_microsoft/codexu.git',
+                'https://github.com/Evyatar108/codexu.git'
+            ]
+        },
+        {}
+    ]) {
+        let rejected = false;
+        try {
+            selectCanonicalRepository(invalidRemotes);
+        } catch {
+            rejected = true;
+        }
+        ensure(rejected, 'Unavailable, ambiguous, or non-GitHub provenance fixture was accepted.');
+    }
     const turkishFixture = ['I', '\u0130', 'i', '\u0131', 'alpha', 'Z'];
     const ordinalFixture = [...turkishFixture].sort(ordinalCompare);
     ensure(
@@ -1662,6 +1896,62 @@ function testSecurity(options) {
     ensure(expectedFailure && !fs.existsSync(cleanupExtraction) && !fs.existsSync(cleanupState),
         'External smoke cleanup did not run after a failure.');
 
+    const sourceRepo = path.join(testRoot, 'source-repo');
+    const sourceWork = path.join(testRoot, 'source-work');
+    fs.mkdirSync(path.join(sourceRepo, 'packages', 'happy-cli'), { recursive: true });
+    fs.mkdirSync(path.join(sourceRepo, 'packages', 'happy-server'), { recursive: true });
+    fs.mkdirSync(path.join(sourceRepo, 'packages', 'happy-wire', 'dist'), { recursive: true });
+    fs.writeFileSync(path.join(sourceRepo, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n', 'ascii');
+    fs.writeFileSync(path.join(sourceRepo, 'pnpm-workspace.yaml'), 'packages: []\n', 'ascii');
+    for (const packageName of ['happy-cli', 'happy-server', 'happy-wire']) {
+        fs.writeFileSync(
+            path.join(sourceRepo, 'packages', packageName, 'package.json'),
+            `${JSON.stringify({ name: packageName, version: '1.0.0' })}\n`,
+            'ascii'
+        );
+    }
+    const trackedFixture = path.join(sourceRepo, 'packages', 'happy-wire', 'dist', 'fixture.txt');
+    fs.writeFileSync(trackedFixture, 'committed\n', 'ascii');
+    run('git', ['init', '--initial-branch=main'], { cwd: sourceRepo });
+    run('git', ['config', 'user.email', 'portable-fixture@example.invalid'], { cwd: sourceRepo });
+    run('git', ['config', 'user.name', 'Portable Fixture'], { cwd: sourceRepo });
+    run('git', ['remote', 'add', 'origin', 'https://github.com/example/portable-fixture.git'], {
+        cwd: sourceRepo
+    });
+    run('git', ['add', '.'], { cwd: sourceRepo });
+    run('git', ['commit', '-m', 'fixture'], { cwd: sourceRepo });
+    const selectedSource = assertCleanSource(sourceRepo);
+    const snapshotRoot = materializeSourceSnapshot(sourceRepo, selectedSource, sourceWork);
+    ensure(
+        fs.readFileSync(
+            path.join(snapshotRoot, 'packages', 'happy-wire', 'dist', 'fixture.txt'),
+            'utf8'
+        ).trim() === 'committed',
+        'Immutable source snapshot did not preserve the selected commit.'
+    );
+    fs.writeFileSync(trackedFixture, 'concurrent modification\n', 'ascii');
+    let modificationRejected = false;
+    try {
+        assertSourceUnchanged(sourceRepo, selectedSource);
+    } catch {
+        modificationRejected = true;
+    }
+    ensure(modificationRejected
+        && fs.readFileSync(trackedFixture, 'utf8') === 'concurrent modification\n',
+    'Tracked source modification was reset, deleted, or not rejected.');
+    run('git', ['add', 'packages/happy-wire/dist/fixture.txt'], { cwd: sourceRepo });
+    run('git', ['commit', '-m', 'drift'], { cwd: sourceRepo });
+    let headDriftRejected = false;
+    try {
+        assertSourceUnchanged(sourceRepo, selectedSource);
+    } catch {
+        headDriftRejected = true;
+    }
+    ensure(headDriftRejected, 'Source HEAD drift was not rejected.');
+    const helperSource = fs.readFileSync(__filename, 'utf8');
+    ensure(!/git\s*\([^)]*\[\s*['"](?:checkout|reset|clean|restore)['"]/s.test(helperSource),
+        'Portable builder contains a destructive git worktree command.');
+
     const junctionTarget = path.join(testRoot, 'junction-target');
     const junctionPath = path.join(testRoot, 'junction');
     fs.mkdirSync(junctionTarget, { recursive: true });
@@ -1684,6 +1974,17 @@ function testSecurity(options) {
             reparseSidecarRejected = true;
         }
         ensure(reparseSidecarRejected, 'Manifest sidecar under a live junction was accepted.');
+
+        const cleanupTree = path.join(testRoot, 'cleanup-tree-with-link');
+        const cleanupLink = path.join(cleanupTree, 'workspace-link');
+        fs.mkdirSync(cleanupTree, { recursive: true });
+        const cleanupJunction = spawnSync(process.env.ComSpec || 'cmd.exe', [
+            '/d', '/s', '/c', 'mklink', '/J', cleanupLink, junctionTarget
+        ], { encoding: 'utf8', windowsHide: true, shell: false });
+        ensure(cleanupJunction.status === 0, 'Unable to create nested cleanup junction fixture.');
+        removeTree(cleanupTree, repoRoot);
+        ensure(fs.existsSync(path.join(junctionTarget, 'report.json')),
+            'Disposable tree cleanup traversed a nested workspace junction.');
 
         removeTree(junctionTarget, repoRoot);
         ensure(!fs.existsSync(junctionPath),
