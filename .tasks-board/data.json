@@ -2670,6 +2670,76 @@
           "prompt": "Implement the independent M0-codec task from plans/happy-copilot-native-local-controller-backend/plan.md. Decode fetched current rows as canonical plaintext JSON first, fall back to the existing legacy decryption path only when plaintext parsing fails, and surface typed malformed-row behavior. Preserve outgoing bytes and live decoding. Cover plaintext, legacy encrypted, malformed, pagination/reconnect, and cross-provider regressions. This task is independent and does not block the Copilot mirror. Commit locally after review convergence; no push or release."
         }
       ]
+    },
+    {
+      "id": "happy-evcopilot-onedrive-launcher-integration",
+      "title": "Plan seamless EvCopilot-to-Happy OneDrive launcher integration",
+      "stage": "backlog",
+      "lifecycle": "active",
+      "dependsOn": [
+        "happy-copilot-native-local-controller-backend"
+      ],
+      "writablePaths": [
+        "plans/happy-evcopilot-onedrive-launcher-integration",
+        "docs/copilot-cli-integration.md"
+      ],
+      "actions": [
+        {
+          "id": "plan",
+          "label": "Plan",
+          "prompt": "Plan the cross-component integration that preserves the existing `copilot` command while routing sessions through the native Happy Copilot backend. Cover: immutable versioned Happy payload publication to OneDrive; SHA-256 manifest and COMPLETE/channel pointer; verified atomic extraction to a per-machine local cache; EvCopilot launcher selection and invocation of cached `happy copilot`; explicit propagation of the selected EvCopilot runtime/version into Happy; daemon readiness and embedded per-daemon Happy server behavior; `-NoHappy` fail-open escape hatch; default-off/rollback semantics; concurrency, partial sync, update, retention, observability, and security; Windows PowerShell profile/module UX; repository boundaries and phased implementation tasks. Treat the successful ~979 MB legacy deploy and external `happy copilot --help` smoke as evidence, not production packaging. Inspect the EvCopilot PowerShell module and Happy M1a implementation. Produce a review-ready plan only; do not implement, publish, push, release, or modify the OneDrive distribution."
+        }
+      ]
+    },
+    {
+      "scope": "happy-cli",
+      "actions": [
+        {
+          "id": "implement",
+          "label": "Implement",
+          "prompt": "Implement P2 from plans/happy-evcopilot-onedrive-launcher-integration/plan.md: a clean offline Windows Happy artifact builder using the production deploy closure, pinned portable Node, licenses/SBOM, complete SHA-256 inventory, ZIP, forbidden-content scan, and external extracted `happy copilot --help` smoke. Account for pnpm v10 requiring legacy deploy unless package injection is intentionally introduced. Never copy the repo/global install or publish/write OneDrive. Work in an isolated worktree, run focused validation, review code/docs to clean, and commit locally without push."
+        }
+      ],
+      "writablePaths": [
+        "scripts/fork-setup/build-happy-portable.ps1",
+        "scripts/fork-setup/test-build-happy-portable.ps1",
+        "packages/happy-cli/package.json",
+        "packages/happy-cli/scripts"
+      ],
+      "dependsOn": [
+        "happy-copilot-native-local-controller-backend"
+      ],
+      "validationCommand": "powershell -ExecutionPolicy Bypass -File scripts\\fork-setup\\test-build-happy-portable.ps1",
+      "stage": "backlog",
+      "lifecycle": "active",
+      "title": "Build a clean portable Happy Windows payload",
+      "id": "happy-portable-onedrive-payload-builder"
+    },
+    {
+      "scope": "happy-cli",
+      "actions": [
+        {
+          "id": "implement",
+          "label": "Implement",
+          "prompt": "Implement P4 from plans/happy-evcopilot-onedrive-launcher-integration/plan.md: strict versioned local launch-context parsing; exact executable plus fixed-argument managed spawn with shell=false; runtime/package compatibility; non-secret session provenance; monotonic pre/post-ownership status; daemon payload artifact id/hash and version-equal/artifact-different handling. Preserve M1a default-off behavior and HAPPY_COPILOT_BINARY development compatibility, never log argv/tokens/paths, and do not implement terminal routing or packaging. Use an isolated worktree, run focused tests/typecheck, converge code and docs review to clean, and commit locally without push."
+        }
+      ],
+      "writablePaths": [
+        "packages/happy-cli/src/agent/copilot",
+        "packages/happy-cli/src/commands/copilotCommand.ts",
+        "packages/happy-cli/src/api/types.ts",
+        "packages/happy-cli/src/persistence.ts",
+        "packages/happy-cli/src/configuration.ts",
+        "packages/happy-cli/src/daemon"
+      ],
+      "dependsOn": [
+        "happy-copilot-native-local-controller-backend"
+      ],
+      "validationCommand": "pnpm --filter \"{packages/happy-cli}\" exec vitest run --project unit",
+      "stage": "backlog",
+      "lifecycle": "active",
+      "title": "Add typed EvCopilot launch context and daemon payload identity",
+      "id": "happy-copilot-launch-context-daemon-identity"
     }
   ]
 }

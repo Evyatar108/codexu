@@ -13281,6 +13281,33 @@
         "commit": "3b103e1fbdf557c3c8f6a690cb302ee46f1049f4"
       },
       "lastTouchedAt": "2026-07-21T22:48:00Z"
+    },
+    {
+      "scope": "happy-cli",
+      "actions": [
+        {
+          "id": "plan",
+          "label": "Plan",
+          "prompt": "Produce a source-verified design for copilot-terminal-route-v1. Preserve the ordinary Copilot terminal experience: original argv and exit codes, streaming output, prompt input, tool approvals and elicitation, Ctrl+C/cancellation, reconnect/resume, and one-session ownership while Happy mirrors the same session to its per-daemon embedded server. Compare a Happy-owned terminal/TUI client with a minimal fork seam that lets Happy observe/control the existing Copilot TUI; do not rubber-stamp either. Identify exact files/protocol seams in codexu and copilot-agent-runtime, security/failure semantics, tests, and a phased implementation recommendation. Plan only; no code, push, publication, or OneDrive changes."
+        }
+      ],
+      "writablePaths": [
+        "plans/happy-copilot-terminal-route-v1-design"
+      ],
+      "dependsOn": [
+        "happy-copilot-native-local-controller-backend"
+      ],
+      "validationCommand": "git diff --check",
+      "stage": "done",
+      "lifecycle": "completed",
+      "title": "Design interactive terminal routing for Happy Copilot",
+      "id": "happy-copilot-terminal-route-v1-design",
+      "completion": {
+        "completedAt": "2026-07-23T06:34:26.823Z",
+        "summary": "Completed a source-verified interactive terminal-routing design. It recommends a thin Copilot fork seam that preserves the genuine Copilot TUI while Happy attaches read-only through an authenticated embedded ui-server. Three review rounds corrected token plumbing, foreground ownership assumptions, P4 sequencing, and the missing interactive RegistryPublisher lifecycle.",
+        "commit": "6e132b07af822d89cbfcba0336a151e564024da7"
+      },
+      "lastTouchedAt": "2026-07-23T06:34:26.823Z"
     }
   ]
 }
