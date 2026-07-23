@@ -2690,30 +2690,6 @@
           "prompt": "Plan the cross-component integration that preserves the existing `copilot` command while routing sessions through the native Happy Copilot backend. Cover: immutable versioned Happy payload publication to OneDrive; SHA-256 manifest and COMPLETE/channel pointer; verified atomic extraction to a per-machine local cache; EvCopilot launcher selection and invocation of cached `happy copilot`; explicit propagation of the selected EvCopilot runtime/version into Happy; daemon readiness and embedded per-daemon Happy server behavior; `-NoHappy` fail-open escape hatch; default-off/rollback semantics; concurrency, partial sync, update, retention, observability, and security; Windows PowerShell profile/module UX; repository boundaries and phased implementation tasks. Treat the successful ~979 MB legacy deploy and external `happy copilot --help` smoke as evidence, not production packaging. Inspect the EvCopilot PowerShell module and Happy M1a implementation. Produce a review-ready plan only; do not implement, publish, push, release, or modify the OneDrive distribution."
         }
       ]
-    },
-    {
-      "scope": "happy-cli",
-      "actions": [
-        {
-          "id": "implement",
-          "label": "Implement",
-          "prompt": "Implement P2 from plans/happy-evcopilot-onedrive-launcher-integration/plan.md: a clean offline Windows Happy artifact builder using the production deploy closure, pinned portable Node, licenses/SBOM, complete SHA-256 inventory, ZIP, forbidden-content scan, and external extracted `happy copilot --help` smoke. Account for pnpm v10 requiring legacy deploy unless package injection is intentionally introduced. Never copy the repo/global install or publish/write OneDrive. Work in an isolated worktree, run focused validation, review code/docs to clean, and commit locally without push."
-        }
-      ],
-      "writablePaths": [
-        "scripts/fork-setup/build-happy-portable.ps1",
-        "scripts/fork-setup/test-build-happy-portable.ps1",
-        "packages/happy-cli/package.json",
-        "packages/happy-cli/scripts"
-      ],
-      "dependsOn": [
-        "happy-copilot-native-local-controller-backend"
-      ],
-      "validationCommand": "powershell -ExecutionPolicy Bypass -File scripts\\fork-setup\\test-build-happy-portable.ps1",
-      "stage": "backlog",
-      "lifecycle": "active",
-      "title": "Build a clean portable Happy Windows payload",
-      "id": "happy-portable-onedrive-payload-builder"
     }
   ]
 }

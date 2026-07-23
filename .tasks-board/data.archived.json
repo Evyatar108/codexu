@@ -13340,6 +13340,36 @@
         "commit": "dac57e6d"
       },
       "lastTouchedAt": "2026-07-23T07:11:32.381Z"
+    },
+    {
+      "scope": "happy-cli",
+      "actions": [
+        {
+          "id": "implement",
+          "label": "Implement",
+          "prompt": "Implement P2 from plans/happy-evcopilot-onedrive-launcher-integration/plan.md: a clean offline Windows Happy artifact builder using the production deploy closure, pinned portable Node, licenses/SBOM, complete SHA-256 inventory, ZIP, forbidden-content scan, and external extracted `happy copilot --help` smoke. Account for pnpm v10 requiring legacy deploy unless package injection is intentionally introduced. Never copy the repo/global install or publish/write OneDrive. Work in an isolated worktree, run focused validation, review code/docs to clean, and commit locally without push."
+        }
+      ],
+      "writablePaths": [
+        "scripts/fork-setup/build-happy-portable.ps1",
+        "scripts/fork-setup/test-build-happy-portable.ps1",
+        "packages/happy-cli/package.json",
+        "packages/happy-cli/scripts"
+      ],
+      "dependsOn": [
+        "happy-copilot-native-local-controller-backend"
+      ],
+      "validationCommand": "powershell -ExecutionPolicy Bypass -File scripts\\fork-setup\\test-build-happy-portable.ps1",
+      "stage": "done",
+      "lifecycle": "completed",
+      "title": "Build a clean portable Happy Windows payload",
+      "id": "happy-portable-onedrive-payload-builder",
+      "completion": {
+        "completedAt": "2026-07-23T12:33:30.833Z",
+        "summary": "Implemented and independently accepted a secure portable Happy Windows artifact builder. It builds from an immutable exact source snapshot, derives correct repository provenance, emits a deterministic 220 MB ZIP with complete file inventory, SPDX/license evidence and chained integrity metadata, rejects reparse/path traversal hazards, and proves payload-only execution from an isolated external smoke location.",
+        "commit": "70558f6c"
+      },
+      "lastTouchedAt": "2026-07-23T12:33:30.833Z"
     }
   ]
 }
