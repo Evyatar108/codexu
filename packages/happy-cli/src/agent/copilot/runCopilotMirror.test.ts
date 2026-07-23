@@ -9,6 +9,8 @@ import { logger } from '@/ui/logger';
 import { runCopilotMirror } from './runCopilotMirror';
 import {
   initializeLaunchStatus,
+  markLaunchFailedBeforeOwnership,
+  markLaunchOwned,
   type EvCopilotHappyLaunchContextV1,
 } from './launchContext';
 import { ManagedTargetTerminationUnconfirmedError } from './managedServer';
@@ -466,6 +468,58 @@ describe('runCopilotMirror lifecycle', () => {
       phase: 'completed',
       targetPid: 123,
       exitCode: 1,
+      failureCode: 'termination-unconfirmed',
+    });
+  });
+
+  it('retains a live target until emergency ownership is durably persisted', async () => {
+    const context = await launchContext();
+    const harness = activeHarness();
+    harness.native.connect.mockRejectedValueOnce(new Error('handshake rejected'));
+    harness.ownedTarget.terminate.mockRejectedValueOnce(
+      new ManagedTargetTerminationUnconfirmedError(123),
+    );
+    let releaseRetry!: () => void;
+    const retryReady = new Promise<void>((resolve) => {
+      releaseRetry = resolve;
+    });
+    const persistOwned = vi.fn()
+      .mockRejectedValueOnce(new Error('status write unavailable'))
+      .mockImplementation(markLaunchOwned);
+    let settled = false;
+
+    const run = runCopilotMirror(
+      { ...options, launchContext: context },
+      {
+        ...harness.dependencies,
+        markOwned: persistOwned,
+        ownershipRetrySleep: () => retryReady,
+      },
+    );
+    void run.then(
+      () => { settled = true; },
+      () => { settled = true; },
+    );
+
+    await vi.waitFor(() => expect(persistOwned).toHaveBeenCalledTimes(1));
+    expect(settled).toBe(false);
+    expect(JSON.parse(await readFile(context.statusPath, 'utf8'))).toMatchObject({
+      phase: 'initializing',
+    });
+    expect(harness.ownedTarget.terminate).toHaveBeenCalledOnce();
+
+    releaseRetry();
+    await expect(run).rejects.toBeInstanceOf(ManagedTargetTerminationUnconfirmedError);
+    expect(persistOwned).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(await readFile(context.statusPath, 'utf8'))).toMatchObject({
+      phase: 'completed',
+      targetPid: 123,
+      failureCode: 'termination-unconfirmed',
+    });
+    await markLaunchFailedBeforeOwnership(context, 'startup-failure');
+    expect(JSON.parse(await readFile(context.statusPath, 'utf8'))).toMatchObject({
+      phase: 'completed',
+      targetPid: 123,
       failureCode: 'termination-unconfirmed',
     });
   });

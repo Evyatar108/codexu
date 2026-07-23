@@ -72,6 +72,23 @@ const happyCacheReceiptSchema = z.object({
   verifiedAtUtc: z.string().datetime(),
 }).strict();
 
+const cachedReleaseSetSchema = z.object({
+  schemaVersion: z.literal(1),
+  releaseSetId: identifierSchema,
+  sequence: z.number().int().positive(),
+  channelPointerSha256: sha256Schema,
+  evCopilot: z.object({
+    artifactId: identifierSchema,
+    manifestSha256: sha256Schema,
+    copilotPackageVersion: boundedStringSchema,
+  }).strict(),
+  happy: z.object({
+    artifactId: identifierSchema,
+    manifestSha256: sha256Schema,
+  }).strict(),
+  cachedAtUtc: z.string().datetime(),
+}).strict();
+
 const evCopilotManifestSchema = z.object({
   schemaVersion: z.literal(2),
   artifactId: identifierSchema,
@@ -455,6 +472,31 @@ export async function readEvCopilotLaunchContext(
   if (!happyManifest.capabilities.includes('copilot-terminal-route-v1')) {
     throw new LaunchContextError('terminal-route-capability-missing');
   }
+  const releaseSetsRoot = join(evCopilotRoot, 'happy', 'release-sets');
+  const releaseSetPath = join(releaseSetsRoot, `${context.releaseSetId}.json`);
+  await assertRegularLocalFile(
+    releaseSetsRoot,
+    releaseSetPath,
+    'invalid-cached-release-set',
+  );
+  const cachedReleaseSet = parseSchema(
+    cachedReleaseSetSchema,
+    await readBoundedJsonFile(
+      releaseSetPath,
+      MAX_RECEIPT_BYTES,
+      'invalid-cached-release-set',
+      'invalid-cached-release-set',
+    ),
+    'invalid-cached-release-set',
+  );
+  if (cachedReleaseSet.releaseSetId !== context.releaseSetId
+    || cachedReleaseSet.evCopilot.artifactId !== context.evCopilot.artifactId
+    || cachedReleaseSet.evCopilot.manifestSha256 !== context.evCopilot.manifestSha256
+    || cachedReleaseSet.evCopilot.copilotPackageVersion !== context.evCopilot.packageVersion
+    || cachedReleaseSet.happy.artifactId !== context.happy.artifactId
+    || cachedReleaseSet.happy.manifestSha256 !== context.happy.manifestSha256) {
+    throw new LaunchContextError('cached-release-set-mismatch');
+  }
   const receiptPath = join(happyArtifactRoot, 'receipt.json');
   await assertRegularLocalFile(happyArtifactRoot, receiptPath, 'invalid-happy-payload-receipt');
   const receipt = parseSchema(
@@ -469,7 +511,10 @@ export async function readEvCopilotLaunchContext(
   );
   if (receipt.artifactId !== context.happy.artifactId
     || receipt.manifestSha256 !== context.happy.manifestSha256
-    || receipt.releaseSetId !== context.releaseSetId) {
+    || receipt.archiveSha256 !== happyManifest.archive.sha256
+    || receipt.sbomSha256 !== happyManifest.sbom.sha256
+    || receipt.releaseSetId !== context.releaseSetId
+    || receipt.channelPointerSha256 !== cachedReleaseSet.channelPointerSha256) {
     throw new LaunchContextError('happy-payload-receipt-mismatch');
   }
 

@@ -120,4 +120,67 @@ describe('daemon control server list route', () => {
     });
     expect(requestShutdown).not.toHaveBeenCalled();
   });
+
+  it('atomically attests an idle ordinary version-only daemon', async () => {
+    const versionOnly: DaemonReplacementIdentity = {
+      pid: 123,
+      startedWithCliVersion: '1.2.3',
+    };
+    const requestShutdown = vi.fn();
+    const server = await startDaemonControlServer({
+      getChildren: () => [],
+      stopSession: vi.fn(),
+      spawnSession: vi.fn(),
+      requestShutdown,
+      onHappySessionWebhook: vi.fn(),
+      replacement: {
+        coordinator: new DaemonReplacementCoordinator(),
+        identity: versionOnly,
+      },
+    });
+    servers.push(server);
+
+    const response = await fetch(`http://127.0.0.1:${server.port}/prepare-replacement`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(versionOnly),
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ reserved: true });
+    await vi.waitFor(() => expect(requestShutdown).toHaveBeenCalledOnce());
+  });
+
+  it('rejects a payload-bound claim against an ordinary version-only daemon', async () => {
+    const versionOnly: DaemonReplacementIdentity = {
+      pid: 123,
+      startedWithCliVersion: '1.2.3',
+    };
+    const requestShutdown = vi.fn();
+    const server = await startDaemonControlServer({
+      getChildren: () => [],
+      stopSession: vi.fn(),
+      spawnSession: vi.fn(),
+      requestShutdown,
+      onHappySessionWebhook: vi.fn(),
+      replacement: {
+        coordinator: new DaemonReplacementCoordinator(),
+        identity: versionOnly,
+      },
+    });
+    servers.push(server);
+
+    const response = await fetch(`http://127.0.0.1:${server.port}/prepare-replacement`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(identity),
+    });
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      reserved: false,
+      reason: 'identity-mismatch',
+    });
+    expect(requestShutdown).not.toHaveBeenCalled();
+  });
 });

@@ -39,6 +39,10 @@ type CopilotMirrorDependencies = {
   createApi?: (credentials: Credentials) => Promise<ApiClient>;
   spawnTarget?: typeof spawnManagedTarget;
   createNativeClient?: (host: string, port: number) => NativeLocalRpcClient;
+  markOwned?: typeof markLaunchOwned;
+  markCompleted?: typeof markLaunchCompleted;
+  markFailedBeforeOwnership?: typeof markLaunchFailedBeforeOwnership;
+  ownershipRetrySleep?: () => Promise<void>;
 };
 
 type MetadataUpdateAnswer =
@@ -209,6 +213,35 @@ export async function runCopilotMirror(
   const finalizationCompletePromise = new Promise<void>((resolve) => {
     resolveFinalizationComplete = resolve;
   });
+  const persistOwned = dependencies.markOwned ?? markLaunchOwned;
+  const persistCompleted = dependencies.markCompleted ?? markLaunchCompleted;
+  const persistFailedBeforeOwnership = dependencies.markFailedBeforeOwnership
+    ?? markLaunchFailedBeforeOwnership;
+  const ownershipRetrySleep = dependencies.ownershipRetrySleep
+    ?? (() => new Promise<void>((resolve) => setTimeout(resolve, 250)));
+
+  const persistOwnershipBeforeReturn = async (targetPid: number): Promise<void> => {
+    if (!options.launchContext || ownershipWritten) return;
+    let loggedFailure = false;
+    while (!ownershipWritten) {
+      try {
+        await persistOwned(options.launchContext, targetPid);
+        ownershipWritten = true;
+      } catch {
+        if (!loggedFailure) {
+          loggedFailure = true;
+          try {
+            logger.debug('[Copilot] Ownership status persistence failed; retaining target', {
+              category: 'ownership',
+            });
+          } catch {
+            // Diagnostics cannot make a live target eligible for fallback.
+          }
+        }
+        await ownershipRetrySleep();
+      }
+    }
+  };
 
   const finalizeOnce = (reason: string): Promise<void> => {
     quiescing = true;
@@ -290,8 +323,7 @@ export async function runCopilotMirror(
     await native.connect(target.registry.token, target.registry.sessionId, target.registry.copilotVersion);
     if (quiescing) throw new Error('Copilot mirror startup cancelled');
     if (options.launchContext) {
-      await markLaunchOwned(options.launchContext, target.child.pid!);
-      ownershipWritten = true;
+      await persistOwnershipBeforeReturn(target.child.pid!);
     }
 
     const { state, metadata: createdMetadata } = createSessionMetadata({
@@ -351,7 +383,7 @@ export async function runCopilotMirror(
     if (finalization) await finalization;
     if (terminationFailure) throw terminationFailure;
     if (options.launchContext && ownershipWritten && !terminationFailure) {
-      await markLaunchCompleted(options.launchContext, { exitCode: 0 });
+      await persistCompleted(options.launchContext, { exitCode: 0 });
     }
   } catch (error) {
     resolveStartup();
@@ -368,17 +400,16 @@ export async function runCopilotMirror(
     }
     if (options.launchContext) {
       if (terminationError && !ownershipWritten) {
-        await markLaunchOwned(options.launchContext, terminationError.targetPid).catch(() => undefined);
-        ownershipWritten = true;
+        await persistOwnershipBeforeReturn(terminationError.targetPid);
       }
       const recordFailure = terminationError
-        ? markLaunchCompleted(options.launchContext, {
+        ? persistCompleted(options.launchContext, {
           exitCode: 1,
           failureCode: 'termination-unconfirmed',
         })
         : ownershipWritten
-          ? markLaunchCompleted(options.launchContext, { exitCode: 1, failureCode: 'runtime-failure' })
-          : markLaunchFailedBeforeOwnership(options.launchContext, 'startup-failure');
+          ? persistCompleted(options.launchContext, { exitCode: 1, failureCode: 'runtime-failure' })
+          : persistFailedBeforeOwnership(options.launchContext, 'startup-failure');
       await recordFailure.catch(() => undefined);
     }
     if (!shutdownWasAlreadyInProgress

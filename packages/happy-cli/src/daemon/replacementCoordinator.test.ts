@@ -59,4 +59,25 @@ describe('DaemonReplacementCoordinator', () => {
       0,
     )).toEqual({ reserved: false, reason: 'identity-mismatch' });
   });
+
+  it('atomically attests an exact version-only daemon identity', () => {
+    const coordinator = new DaemonReplacementCoordinator();
+    const versionOnly: DaemonReplacementIdentity = {
+      pid: 123,
+      startedWithCliVersion: '1.2.3',
+    };
+
+    expect(coordinator.prepare(versionOnly, versionOnly, 0)).toEqual({ reserved: true });
+  });
+
+  it('does not conflate version-only and payload-bound identities', () => {
+    const versionOnly: DaemonReplacementIdentity = {
+      pid: 123,
+      startedWithCliVersion: '1.2.3',
+    };
+    expect(new DaemonReplacementCoordinator().prepare(versionOnly, identity, 0))
+      .toEqual({ reserved: false, reason: 'identity-mismatch' });
+    expect(new DaemonReplacementCoordinator().prepare(identity, versionOnly, 0))
+      .toEqual({ reserved: false, reason: 'identity-mismatch' });
+  });
 });

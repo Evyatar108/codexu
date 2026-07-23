@@ -133,11 +133,7 @@ export async function prepareDaemonReplacement(
   | { reserved: true }
   | { reserved: false; reason: DaemonReplacementRefusal | 'unsupported' | 'unavailable' }
 > {
-  if (!state.httpPort
-    || !state.startedWithPayloadArtifactId
-    || !state.startedWithPayloadManifestSha256) {
-    return { reserved: false, reason: 'unavailable' };
-  }
+  if (!state.httpPort) return { reserved: false, reason: 'unavailable' };
   const expected: DaemonReplacementIdentity = {
     pid: state.pid,
     startedWithCliVersion: state.startedWithCliVersion,

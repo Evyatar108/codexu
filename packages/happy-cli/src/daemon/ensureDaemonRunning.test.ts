@@ -107,6 +107,29 @@ describe('ensureDaemonRunning', () => {
     expect(mocks.mockSpawnHappyCLI).not.toHaveBeenCalled()
   })
 
+  it('replaces an idle ordinary version-only daemon through its exact reservation', async () => {
+    const ordinaryState = {
+      pid: 123,
+      httpPort: 4321,
+      startedWithCliVersion: 'old',
+    }
+    mocks.mockReadDaemonState.mockResolvedValue(ordinaryState)
+    mocks.mockIsDaemonRunningCurrentlyInstalledHappyVersion
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true)
+
+    await ensureDaemonRunning({ requireIdleForReplacement: true })
+
+    expect(mocks.mockPrepareDaemonReplacement).toHaveBeenCalledWith(ordinaryState)
+    expect(mocks.mockWaitForProcessDeath).toHaveBeenCalledWith(123, 10_000)
+    expect(mocks.mockSpawnHappyCLI).toHaveBeenCalledWith(['daemon', 'start-sync'], {
+      detached: true,
+      stdio: 'ignore',
+      env: expect.objectContaining({ HAPPY_DAEMON_ROUTED_HANDOFF: '1' }),
+    })
+  })
+
   afterEach(() => {
     vi.useRealTimers()
   })

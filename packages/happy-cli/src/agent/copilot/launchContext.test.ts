@@ -23,6 +23,8 @@ async function fixture(overrides: Record<string, unknown> = {}): Promise<{
   executingEntryPoint: string;
   happyManifestPath: string;
   happyManifestSha256: string;
+  receiptPath: string;
+  releaseSetPath: string;
   context: Record<string, unknown>;
 }> {
   const localAppData = join(process.cwd(), '.test-artifacts', `launch-context-${Date.now()}-${Math.random().toString(16).slice(2)}`);
@@ -126,16 +128,41 @@ async function fixture(overrides: Record<string, unknown> = {}): Promise<{
     .update(happyManifest)
     .digest('hex')
     .toUpperCase();
-  await writeFile(join(happyRoot, 'receipt.json'), JSON.stringify({
+  const receiptPath = join(happyRoot, 'receipt.json');
+  await writeFile(receiptPath, JSON.stringify({
     schemaVersion: 1,
     artifactId: 'happy-artifact',
     manifestSha256: happyManifestSha256,
-    archiveSha256: 'C'.repeat(64),
-    sbomSha256: 'D'.repeat(64),
+    archiveSha256: 'D'.repeat(64),
+    sbomSha256: 'F'.repeat(64),
     releaseSetId: 'release-1',
-    channelPointerSha256: 'E'.repeat(64),
+    channelPointerSha256: HASH_B,
     verifierVersion: '1.0.0',
     verifiedAtUtc: '2026-07-22T00:00:00.000Z',
+  }), 'utf8');
+  const releaseSetPath = join(
+    localAppData,
+    'EvCopilot',
+    'happy',
+    'release-sets',
+    'release-1.json',
+  );
+  await mkdir(join(localAppData, 'EvCopilot', 'happy', 'release-sets'), { recursive: true });
+  await writeFile(releaseSetPath, JSON.stringify({
+    schemaVersion: 1,
+    releaseSetId: 'release-1',
+    sequence: 1,
+    channelPointerSha256: HASH_B,
+    evCopilot: {
+      artifactId: 'ev-artifact',
+      manifestSha256: runtimeManifestSha256,
+      copilotPackageVersion: '1.0.71-3',
+    },
+    happy: {
+      artifactId: 'happy-artifact',
+      manifestSha256: happyManifestSha256,
+    },
+    cachedAtUtc: '2026-07-22T00:00:00.000Z',
   }), 'utf8');
   const context = {
     schemaVersion: 1,
@@ -170,6 +197,8 @@ async function fixture(overrides: Record<string, unknown> = {}): Promise<{
     executingEntryPoint,
     happyManifestPath,
     happyManifestSha256,
+    receiptPath,
+    releaseSetPath,
     context,
   };
 }
@@ -202,17 +231,12 @@ async function rewriteHappyManifest(
   const happy = value.context.happy as Record<string, unknown>;
   happy.manifestSha256 = value.happyManifestSha256;
   await writeFile(value.contextPath, JSON.stringify(value.context), 'utf8');
-  const receiptPath = join(
-    value.localAppData,
-    'EvCopilot',
-    'happy',
-    'versions',
-    'happy-artifact',
-    'receipt.json',
-  );
-  const receipt = JSON.parse(await readFile(receiptPath, 'utf8')) as Record<string, unknown>;
+  const receipt = JSON.parse(await readFile(value.receiptPath, 'utf8')) as Record<string, unknown>;
   receipt.manifestSha256 = value.happyManifestSha256;
-  await writeFile(receiptPath, JSON.stringify(receipt), 'utf8');
+  await writeFile(value.receiptPath, JSON.stringify(receipt), 'utf8');
+  const releaseSet = JSON.parse(await readFile(value.releaseSetPath, 'utf8')) as Record<string, any>;
+  releaseSet.happy.manifestSha256 = value.happyManifestSha256;
+  await writeFile(value.releaseSetPath, JSON.stringify(releaseSet), 'utf8');
 }
 
 async function rewriteRuntimeManifest(
@@ -237,6 +261,9 @@ async function rewriteRuntimeManifest(
   await rewriteHappyManifest(value, (happyManifest) => {
     happyManifest.compatibility.evCopilot[0].manifestSha256 = manifestSha256;
   });
+  const releaseSet = JSON.parse(await readFile(value.releaseSetPath, 'utf8')) as Record<string, any>;
+  releaseSet.evCopilot.manifestSha256 = manifestSha256;
+  await writeFile(value.releaseSetPath, JSON.stringify(releaseSet), 'utf8');
 }
 
 afterEach(async () => {
@@ -456,6 +483,36 @@ describe('EvCopilot launch context', () => {
       missingCapability.contextPath,
       validationOptions(missingCapability),
     )).rejects.toMatchObject({ code: 'terminal-route-capability-missing' });
+  });
+
+  it('binds receipt archive, SBOM, and pointer hashes to the selected release set', async () => {
+    for (const [field, value] of [
+      ['archiveSha256', '1'.repeat(64)],
+      ['sbomSha256', '2'.repeat(64)],
+      ['channelPointerSha256', '3'.repeat(64)],
+    ] as const) {
+      const fixtureValue = await fixture();
+      const receipt = JSON.parse(await readFile(fixtureValue.receiptPath, 'utf8'));
+      await writeFile(
+        fixtureValue.receiptPath,
+        JSON.stringify({ ...receipt, [field]: value }),
+        'utf8',
+      );
+      await expect(readEvCopilotLaunchContext(
+        fixtureValue.contextPath,
+        validationOptions(fixtureValue),
+      )).rejects.toMatchObject({ code: 'happy-payload-receipt-mismatch' });
+    }
+  });
+
+  it('rejects a selected cached release-set record with a mismatched tuple', async () => {
+    const value = await fixture();
+    const releaseSet = JSON.parse(await readFile(value.releaseSetPath, 'utf8'));
+    releaseSet.evCopilot.artifactId = 'different-ev-artifact';
+    await writeFile(value.releaseSetPath, JSON.stringify(releaseSet), 'utf8');
+
+    await expect(readEvCopilotLaunchContext(value.contextPath, validationOptions(value)))
+      .rejects.toMatchObject({ code: 'cached-release-set-mismatch' });
   });
 
   it('keeps ownership monotonic and records only stable failure codes', async () => {

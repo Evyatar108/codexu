@@ -1097,7 +1097,9 @@ manifest, then cross-binds the exact Ev artifact id/hash/package tuple, Happy
 artifact id/hash/CLI version, launcher schema, registry schema 2, protocol 3,
 and `copilot-terminal-route-v1` capability. The executing Happy payload must
 also match its validated id/hash environment pair and payload-relative cache
-receipt. The managed target is then spawned as the exact executable plus that
+receipt. Receipt archive and SBOM hashes must equal the Happy manifest, while
+its channel-pointer hash and both artifact tuples must equal the selected local
+`happy/release-sets/<id>.json` record. The managed target is then spawned as the exact executable plus that
 one fixed argument and the existing managed-server flags, always with
 `shell: false`. `HAPPY_COPILOT_BINARY` remains available for explicit
 development/tests but cannot be mixed with a verified launch context.
@@ -1109,12 +1111,16 @@ terminating it. The fail-closed exception is an unconfirmed pre-handshake
 termination: Happy records the known child PID as owned and completes with
 `termination-unconfirmed`, preventing the launcher from starting a second
 native target. TERM/KILL return values alone are not accepted as proof of
-death. Session
+death. If the owned status write fails while that target may still be alive,
+Happy retains the foreground process and retries; it does not return control or
+publish a pre-ownership failure until ownership is durable. Session
 metadata receives only path-free artifact/release/version provenance. Daemon
 state additionally records the Happy artifact id and manifest hash, and routed
 readiness requires those values as well as the CLI version to match. Ordinary
 global/npm Happy invocations without payload identity retain version-only
-compatibility. A routed identity mismatch is replaced only through the old
+compatibility and may attest an exact absent-payload identity during an idle
+routed replacement; absent and payload-bound identities never compare equal.
+A routed identity mismatch is replaced only through the old
 daemon's atomic drain reservation: it refuses while children or admissions
 exist, blocks later spawn/registration admissions, and shuts down gracefully
 before the new payload starts. There is no process-kill fallback in this
