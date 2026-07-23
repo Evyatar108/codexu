@@ -19,7 +19,12 @@ import { spawnHappyCLI } from '@/utils/spawnHappyCLI';
 import { writeDaemonState, DaemonLocallyPersistedState, readDaemonState, acquireDaemonLock, releaseDaemonLock, readPersistedSessions, persistSession } from '@/persistence';
 import type { PersistedSession } from '@/persistence';
 
-import { cleanupDaemonState, isDaemonRunningCurrentlyInstalledHappyVersion, stopDaemon } from './controlClient';
+import {
+  checkIfDaemonRunningAndCleanupStaleState,
+  cleanupDaemonState,
+  isDaemonRunningCurrentlyInstalledHappyVersion,
+  stopDaemon,
+} from './controlClient';
 import { startDaemonControlServer } from './controlServer';
 import { statSync } from 'fs';
 import { join } from 'path';
@@ -39,6 +44,7 @@ import { stopTrackedSession } from './stopTrackedSession';
 import { getLocalMachine } from './getLocalMachine';
 import { buildDaemonSpawnArgs, createSpawnFromSessionMetadataUpdater, daemonSpawnWindowName } from './runSpawnHelpers';
 import * as daemonClient from './daemonClient';
+import { DaemonReplacementCoordinator } from './replacementCoordinator';
 
 // Prepare initial metadata
 // Suffix host with `-dev` for the HAPPY_VARIANT=dev variant so the dev daemon
@@ -130,12 +136,26 @@ export async function startDaemon(): Promise<void> {
   // Check if running daemon version matches current CLI version
   const runningDaemonVersionMatches = await isDaemonRunningCurrentlyInstalledHappyVersion();
   if (!runningDaemonVersionMatches) {
-    // TODO: This hand-rolled self-restart path is awkward to reason about and awkward to test.
-    // We should probably migrate this daemon to native system service management
-    // (launchd/systemd, similar to OpenClaw's model), so startup/start-at-login and upgrades
-    // are owned by the OS instead of by the daemon trying to replace itself in-process.
-    logger.debug('[DAEMON RUN] Daemon version mismatch detected, restarting daemon with current CLI version');
-    await stopDaemon();
+    if (process.env.HAPPY_DAEMON_ROUTED_HANDOFF === '1') {
+      // The routed caller already reserved and drained its exact old daemon.
+      // Never kill a different daemon that won ownership after that handoff.
+      if (await checkIfDaemonRunningAndCleanupStaleState()) {
+        logger.debug('[DAEMON RUN] Routed handoff found a different daemon owner; refusing replacement');
+        process.exit(1);
+      }
+      const routedState = await readDaemonState();
+      if (routedState) {
+        logger.debug('[DAEMON RUN] Routed handoff state could not be proven stale; refusing replacement');
+        process.exit(1);
+      }
+    } else {
+      // TODO: This hand-rolled self-restart path is awkward to reason about and awkward to test.
+      // We should probably migrate this daemon to native system service management
+      // (launchd/systemd, similar to OpenClaw's model), so startup/start-at-login and upgrades
+      // are owned by the OS instead of by the daemon trying to replace itself in-process.
+      logger.debug('[DAEMON RUN] Daemon version mismatch detected, restarting daemon with current CLI version');
+      await stopDaemon();
+    }
   } else {
     logger.debug('[DAEMON RUN] Daemon version matches, keeping existing daemon');
     console.log('Daemon already running with matching version');
@@ -180,6 +200,7 @@ export async function startDaemon(): Promise<void> {
 
     // Setup state - key by PID
     const pidToTrackedSession = new Map<number, TrackedSession>();
+    const replacementCoordinator = new DaemonReplacementCoordinator();
 
     // Retain session data after process exits so resume can still find it.
     // Pre-populate from disk so sessions survive daemon restarts.
@@ -768,6 +789,24 @@ export async function startDaemon(): Promise<void> {
         }
         return createPairingInvite(origin, publicMode);
       },
+      replacement: {
+        coordinator: replacementCoordinator,
+        identity: {
+          pid: process.pid,
+          startedWithCliVersion: packageJson.version,
+          ...(configuration.currentPayloadIdentity ? {
+            startedWithPayloadArtifactId: configuration.currentPayloadIdentity.artifactId,
+            startedWithPayloadManifestSha256: configuration.currentPayloadIdentity.manifestSha256,
+          } : {}),
+        },
+        onReserved: () => {
+          // Re-check the coordinator-owned barrier immediately before stopping.
+          // A successful reservation prevents any new admission from entering.
+          if (replacementCoordinator.isDraining() && getCurrentChildren().length === 0) {
+            requestShutdown('happy-cli');
+          }
+        },
+      },
     });
 
     // Write initial daemon state (no lock needed for state file)
@@ -830,11 +869,14 @@ export async function startDaemon(): Promise<void> {
     // Create API client
     const api = await ApiClient.create(credentials);
     const updateParentMetadata = createSpawnFromSessionMetadataUpdater(api);
+    const admittedSpawnTrackedHappyProcess: typeof spawnTrackedHappyProcess = (options) => (
+      replacementCoordinator.withAdmission(() => spawnTrackedHappyProcess(options))
+    );
 
     const forkSessionHandler = (options: ForkSessionOptions): Promise<SpawnSessionResult> => forkSession(options, {
       findTrackedSessionById,
       fetchServerSessionMetadata,
-      spawnTrackedHappyProcess,
+      spawnTrackedHappyProcess: admittedSpawnTrackedHappyProcess,
       stat: fs.stat,
       realpath: fs.realpath,
       runGit: (cwd, args) => new Promise<string>((resolve, reject) => {
@@ -861,7 +903,7 @@ export async function startDaemon(): Promise<void> {
       },
     }, {
       getTrackedSession: findTrackedSessionById,
-      spawnSession,
+      spawnSession: (options) => replacementCoordinator.withAdmission(() => spawnSession(options)),
       updateParentMetadata,
       stat: fs.stat,
     });
@@ -872,11 +914,19 @@ export async function startDaemon(): Promise<void> {
 
     // Set RPC handlers
     apiMachine.setRPCHandlers({
-      spawnSession,
-      spawnInWorktree: spawnInWorktreeHandler,
-      spawnSessionFromSession: spawnSessionFromSessionHandler,
-      resumeSession,
-      forkSession: forkSessionHandler,
+      spawnSession: (options) => replacementCoordinator.withAdmission(() => spawnSession(options)),
+      spawnInWorktree: (options) => replacementCoordinator.withAdmission(
+        () => spawnInWorktreeHandler(options),
+      ),
+      spawnSessionFromSession: (options) => replacementCoordinator.withAdmission(
+        () => spawnSessionFromSessionHandler(options),
+      ),
+      resumeSession: (sessionId, options) => replacementCoordinator.withAdmission(
+        () => resumeSession(sessionId, options),
+      ),
+      forkSession: (options) => replacementCoordinator.withAdmission(
+        () => forkSessionHandler(options),
+      ),
       stopSession,
       requestShutdown: () => requestShutdown('happy-app')
     });

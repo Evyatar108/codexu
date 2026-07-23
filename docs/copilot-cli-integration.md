@@ -1091,23 +1091,34 @@ Copilot argv, prompt, token, credential, or provider secret.
 Before spawning, Happy requires the context to be a regular non-reparse file
 and the status location (and any existing status file) to be local under
 `%LOCALAPPDATA%\EvCopilot\run\<invocationId>`. It requires the Ev executable
-and single fixed entry point at the exact immutable artifact paths, pins Copilot
-package `1.0.71-3`/registry schema 2/protocol 3, and checks the executing Happy
-payload against both its validated id/hash environment pair and
-payload-relative cache receipt. The managed target is then spawned as the exact
-executable plus that one fixed argument and the existing managed-server flags,
-always with `shell: false`. `HAPPY_COPILOT_BINARY` remains available for
-explicit development/tests but cannot be mixed with a verified launch context.
+and single fixed entry point at the exact immutable artifact paths. Happy
+hash-pins and validates the Ev schema-2 manifest and the Happy schema-1
+manifest, then cross-binds the exact Ev artifact id/hash/package tuple, Happy
+artifact id/hash/CLI version, launcher schema, registry schema 2, protocol 3,
+and `copilot-terminal-route-v1` capability. The executing Happy payload must
+also match its validated id/hash environment pair and payload-relative cache
+receipt. The managed target is then spawned as the exact executable plus that
+one fixed argument and the existing managed-server flags, always with
+`shell: false`. `HAPPY_COPILOT_BINARY` remains available for explicit
+development/tests but cannot be mixed with a verified launch context.
 
 The local status transition is monotonic:
 `initializing -> owned -> completed`. `owned` is written only after a retained
 child passes registry and native handshake checks, so Happy is responsible for
-terminating it; later cleanup failure cannot re-enable native fallback. Session
+terminating it. The fail-closed exception is an unconfirmed pre-handshake
+termination: Happy records the known child PID as owned and completes with
+`termination-unconfirmed`, preventing the launcher from starting a second
+native target. TERM/KILL return values alone are not accepted as proof of
+death. Session
 metadata receives only path-free artifact/release/version provenance. Daemon
 state additionally records the Happy artifact id and manifest hash, and routed
 readiness requires those values as well as the CLI version to match. Ordinary
 global/npm Happy invocations without payload identity retain version-only
-compatibility. This remains one per-machine daemon embedding its own
+compatibility. A routed identity mismatch is replaced only through the old
+daemon's atomic drain reservation: it refuses while children or admissions
+exist, blocks later spawn/registration admissions, and shuts down gracefully
+before the new payload starts. There is no process-kill fallback in this
+routed handoff. This remains one per-machine daemon embedding its own
 happy-server; it introduces no central broker, terminal routing, publishing, or
 cache-selection behavior.
 

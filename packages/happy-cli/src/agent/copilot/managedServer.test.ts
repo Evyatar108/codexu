@@ -2,7 +2,11 @@ import { EventEmitter } from 'node:events';
 import type { ChildProcess } from 'node:child_process';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { spawnManagedTarget, validateRegistryEntry } from './managedServer';
+import {
+  ManagedTargetTerminationUnconfirmedError,
+  spawnManagedTarget,
+  validateRegistryEntry,
+} from './managedServer';
 import { COPILOT_NATIVE_VERSION } from './types';
 
 function registry(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -155,5 +159,99 @@ describe('managed Copilot target', () => {
       }`,
     })).rejects.toThrow('disables COPILOT_AGENTS_TAB');
     expect(spawnProcess).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when TERM and KILL are refused and the target remains alive', async () => {
+    const child = Object.assign(new EventEmitter(), {
+      pid: 123,
+      exitCode: null,
+      kill: vi.fn(() => false),
+    }) as unknown as ChildProcess;
+    const target = await spawnManagedTarget({ startupTimeoutMs: 100 }, {
+      spawnProcess: vi.fn(() => child) as never,
+      resolveExecutable: () => 'copilot.exe',
+      randomToken: () => 'token',
+      fileExists: (path) => path.endsWith('123.json'),
+      readFile: () => JSON.stringify(registry()),
+      sleep: async () => undefined,
+      isProcessAlive: () => true,
+    });
+
+    await expect(target.terminate()).rejects.toBeInstanceOf(
+      ManagedTargetTerminationUnconfirmedError,
+    );
+    expect(child.kill).toHaveBeenNthCalledWith(1, 'SIGTERM');
+    expect(child.kill).toHaveBeenNthCalledWith(2, 'SIGKILL');
+  });
+
+  it('does not trust successful kill return values while liveness remains true', async () => {
+    const child = Object.assign(new EventEmitter(), {
+      pid: 123,
+      exitCode: null,
+      kill: vi.fn(() => true),
+    }) as unknown as ChildProcess;
+    const target = await spawnManagedTarget({ startupTimeoutMs: 100 }, {
+      spawnProcess: vi.fn(() => child) as never,
+      resolveExecutable: () => 'copilot.exe',
+      randomToken: () => 'token',
+      fileExists: (path) => path.endsWith('123.json'),
+      readFile: () => JSON.stringify(registry()),
+      sleep: async () => undefined,
+      isProcessAlive: () => true,
+    });
+
+    await expect(target.terminate()).rejects.toMatchObject({ targetPid: 123 });
+  });
+
+  it('confirms death after escalation before returning', async () => {
+    let alive = true;
+    const child = Object.assign(new EventEmitter(), {
+      pid: 123,
+      exitCode: null,
+      kill: vi.fn((signal: NodeJS.Signals) => {
+        if (signal === 'SIGKILL') alive = false;
+        return true;
+      }),
+    }) as unknown as ChildProcess;
+    const target = await spawnManagedTarget({ startupTimeoutMs: 100 }, {
+      spawnProcess: vi.fn(() => child) as never,
+      resolveExecutable: () => 'copilot.exe',
+      randomToken: () => 'token',
+      fileExists: (path) => path.endsWith('123.json'),
+      readFile: () => JSON.stringify(registry()),
+      sleep: async () => undefined,
+      isProcessAlive: () => alive,
+    });
+
+    await expect(target.terminate()).resolves.toBeUndefined();
+    expect(child.kill).toHaveBeenNthCalledWith(2, 'SIGKILL');
+  });
+
+  it('surfaces unconfirmed startup cleanup instead of the registry timeout', async () => {
+    vi.useFakeTimers();
+    try {
+      const child = Object.assign(new EventEmitter(), {
+        pid: 123,
+        exitCode: null,
+        kill: vi.fn(() => false),
+      }) as unknown as ChildProcess;
+      let now = 0;
+      vi.spyOn(Date, 'now').mockImplementation(() => {
+        now += 101;
+        return now;
+      });
+
+      await expect(spawnManagedTarget({ startupTimeoutMs: 100 }, {
+        spawnProcess: vi.fn(() => child) as never,
+        resolveExecutable: () => 'copilot.exe',
+        randomToken: () => 'token',
+        fileExists: () => false,
+        sleep: async () => undefined,
+        isProcessAlive: () => true,
+      })).rejects.toBeInstanceOf(ManagedTargetTerminationUnconfirmedError);
+    } finally {
+      vi.restoreAllMocks();
+      vi.useRealTimers();
+    }
   });
 });

@@ -4,7 +4,9 @@ const mocks = vi.hoisted(() => ({
   mockLoggerDebug: vi.fn(),
   mockIsDaemonRunningCurrentlyInstalledHappyVersion: vi.fn(),
   mockCheckIfDaemonRunningAndCleanupStaleState: vi.fn(),
-  mockDaemonHasTrackedChildren: vi.fn(),
+  mockPrepareDaemonReplacement: vi.fn(),
+  mockWaitForProcessDeath: vi.fn(),
+  mockReadDaemonState: vi.fn(),
   mockSpawnHappyCLI: vi.fn(),
   mockGetLatestDaemonLog: vi.fn(),
 }))
@@ -12,7 +14,12 @@ const mocks = vi.hoisted(() => ({
 vi.mock('./controlClient', () => ({
   isDaemonRunningCurrentlyInstalledHappyVersion: mocks.mockIsDaemonRunningCurrentlyInstalledHappyVersion,
   checkIfDaemonRunningAndCleanupStaleState: mocks.mockCheckIfDaemonRunningAndCleanupStaleState,
-  daemonHasTrackedChildren: mocks.mockDaemonHasTrackedChildren,
+  prepareDaemonReplacement: mocks.mockPrepareDaemonReplacement,
+  waitForProcessDeath: mocks.mockWaitForProcessDeath,
+}))
+
+vi.mock('@/persistence', () => ({
+  readDaemonState: mocks.mockReadDaemonState,
 }))
 
 vi.mock('@/utils/spawnHappyCLI', () => ({
@@ -36,16 +43,67 @@ describe('ensureDaemonRunning', () => {
     })
     mocks.mockCheckIfDaemonRunningAndCleanupStaleState.mockResolvedValue(true)
     mocks.mockGetLatestDaemonLog.mockResolvedValue(null)
-    mocks.mockDaemonHasTrackedChildren.mockResolvedValue(false)
+    mocks.mockReadDaemonState.mockResolvedValue({
+      pid: 123,
+      httpPort: 4321,
+      startedWithCliVersion: 'old',
+      startedWithPayloadArtifactId: 'old-artifact',
+      startedWithPayloadManifestSha256: 'A'.repeat(64),
+    })
+    mocks.mockPrepareDaemonReplacement.mockResolvedValue({ reserved: true })
+    mocks.mockWaitForProcessDeath.mockResolvedValue(undefined)
   })
 
-  it('refuses artifact replacement while the old daemon owns sessions', async () => {
+  it('refuses artifact replacement when the old daemon declines the reservation', async () => {
     mocks.mockIsDaemonRunningCurrentlyInstalledHappyVersion.mockResolvedValue(false)
     mocks.mockCheckIfDaemonRunningAndCleanupStaleState.mockResolvedValue(true)
-    mocks.mockDaemonHasTrackedChildren.mockResolvedValue(true)
+    mocks.mockPrepareDaemonReplacement.mockResolvedValue({
+      reserved: false,
+      reason: 'active-children',
+    })
 
     await expect(ensureDaemonRunning({ requireIdleForReplacement: true }))
-      .rejects.toThrow('different payload')
+      .rejects.toThrow('busy')
+    expect(mocks.mockSpawnHappyCLI).not.toHaveBeenCalled()
+  })
+
+  it('does not spawn until the reserved old daemon relinquishes ownership', async () => {
+    mocks.mockIsDaemonRunningCurrentlyInstalledHappyVersion.mockResolvedValue(false)
+    let rejectDeath!: (error: Error) => void
+    mocks.mockWaitForProcessDeath.mockReturnValue(new Promise<void>((_resolve, reject) => {
+      rejectDeath = reject
+    }))
+
+    const startup = ensureDaemonRunning({ requireIdleForReplacement: true })
+    await vi.waitFor(() => expect(mocks.mockPrepareDaemonReplacement).toHaveBeenCalledOnce())
+    expect(mocks.mockSpawnHappyCLI).not.toHaveBeenCalled()
+    rejectDeath(new Error('still alive'))
+
+    await expect(startup).rejects.toThrow('did not relinquish ownership')
+    expect(mocks.mockSpawnHappyCLI).not.toHaveBeenCalled()
+  })
+
+  it('refuses when daemon ownership changes after reservation', async () => {
+    mocks.mockIsDaemonRunningCurrentlyInstalledHappyVersion.mockResolvedValue(false)
+    mocks.mockReadDaemonState
+      .mockResolvedValueOnce({
+        pid: 123,
+        httpPort: 4321,
+        startedWithCliVersion: 'old',
+        startedWithPayloadArtifactId: 'old-artifact',
+        startedWithPayloadManifestSha256: 'A'.repeat(64),
+      })
+      .mockResolvedValueOnce({
+        pid: 456,
+        httpPort: 5432,
+        startedWithCliVersion: 'unexpected',
+        startedWithPayloadArtifactId: 'unexpected-artifact',
+        startedWithPayloadManifestSha256: 'B'.repeat(64),
+      })
+
+    await expect(ensureDaemonRunning({ requireIdleForReplacement: true }))
+      .rejects.toThrow('ownership changed')
+    expect(mocks.mockWaitForProcessDeath).not.toHaveBeenCalled()
     expect(mocks.mockSpawnHappyCLI).not.toHaveBeenCalled()
   })
 
@@ -127,7 +185,7 @@ describe('ensureDaemonRunning', () => {
     vi.useFakeTimers()
     mocks.mockIsDaemonRunningCurrentlyInstalledHappyVersion.mockResolvedValue(false)
     mocks.mockCheckIfDaemonRunningAndCleanupStaleState.mockResolvedValue(true)
-    mocks.mockDaemonHasTrackedChildren.mockResolvedValue(false)
+    mocks.mockPrepareDaemonReplacement.mockResolvedValue({ reserved: true })
     mocks.mockGetLatestDaemonLog.mockResolvedValue({
       file: '2026-07-15-daemon.log',
       path: 'C:\\private\\happy-home\\logs\\2026-07-15-daemon.log',
@@ -138,5 +196,10 @@ describe('ensureDaemonRunning', () => {
     const rejection = expect(startup).rejects.not.toThrow('C:\\private')
     await vi.advanceTimersByTimeAsync(60_000)
     await rejection
+    expect(mocks.mockSpawnHappyCLI).toHaveBeenCalledWith(['daemon', 'start-sync'], {
+      detached: true,
+      stdio: 'ignore',
+      env: expect.objectContaining({ HAPPY_DAEMON_ROUTED_HANDOFF: '1' }),
+    })
   })
 })

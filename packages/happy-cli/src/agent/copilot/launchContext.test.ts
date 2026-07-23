@@ -21,6 +21,8 @@ async function fixture(overrides: Record<string, unknown> = {}): Promise<{
   contextPath: string;
   statusPath: string;
   executingEntryPoint: string;
+  happyManifestPath: string;
+  happyManifestSha256: string;
   context: Record<string, unknown>;
 }> {
   const localAppData = join(process.cwd(), '.test-artifacts', `launch-context-${Date.now()}-${Math.random().toString(16).slice(2)}`);
@@ -38,6 +40,16 @@ async function fixture(overrides: Record<string, unknown> = {}): Promise<{
   const runtimeManifest = JSON.stringify({
     schemaVersion: 2,
     artifactId: 'ev-artifact',
+    version: 'ev-artifact',
+    channel: 'local-preview',
+    platform: 'win32-x64',
+    edition: {
+      name: 'owner-preview',
+      version: '2026.07',
+    },
+    source: {
+      head: 'a'.repeat(40),
+    },
     copilot: {
       packageVersion: '1.0.71-3',
       nodeVersion: '22.17.0',
@@ -54,10 +66,70 @@ async function fixture(overrides: Record<string, unknown> = {}): Promise<{
   const executingEntryPoint = join(happyRoot, 'payload', 'happy', 'dist', 'index.mjs');
   await mkdir(join(happyRoot, 'payload', 'happy', 'dist'), { recursive: true });
   await writeFile(executingEntryPoint, 'happy', 'utf8');
+  const happyManifestPath = join(happyRoot, 'manifest.json');
+  const happyManifest = JSON.stringify({
+    schemaVersion: 1,
+    artifactId: 'happy-artifact',
+    version: 'happy-artifact',
+    channel: 'local-preview',
+    payloadLabel: 'unsigned-owner-only',
+    platform: 'win32-x64',
+    publishedAtUtc: '2026-07-22T00:00:00.000Z',
+    happyCliVersion: '1.2.3',
+    source: {
+      repository: 'Evyatar108/happy',
+      commit: 'b'.repeat(40),
+      branch: 'main',
+      dirty: false,
+    },
+    node: {
+      version: '22.17.0',
+      distributionSha256: 'C'.repeat(64),
+    },
+    archive: {
+      name: 'happy-win32-x64.zip',
+      sha256: 'D'.repeat(64),
+      length: 100,
+      fileCount: 1,
+      expandedLength: 200,
+    },
+    entrypoints: {
+      node: 'payload/node.exe',
+      happy: 'payload/happy/dist/index.mjs',
+    },
+    files: [{
+      relativePath: 'payload/happy/dist/index.mjs',
+      length: 5,
+      sha256: 'E'.repeat(64),
+    }],
+    compatibility: {
+      launcherSchemaVersions: [1],
+      evCopilot: [{
+        artifactId: 'ev-artifact',
+        manifestSha256: runtimeManifestSha256,
+        copilotPackageVersion: '1.0.71-3',
+      }],
+      controller: {
+        registrySchema: 2,
+        protocolVersion: 3,
+        copilotPackageVersions: ['1.0.71-3'],
+      },
+    },
+    capabilities: ['copilot-terminal-route-v1'],
+    sbom: {
+      path: 'sbom.spdx.json',
+      sha256: 'F'.repeat(64),
+    },
+  });
+  await writeFile(happyManifestPath, happyManifest, 'utf8');
+  const happyManifestSha256 = createHash('sha256')
+    .update(happyManifest)
+    .digest('hex')
+    .toUpperCase();
   await writeFile(join(happyRoot, 'receipt.json'), JSON.stringify({
     schemaVersion: 1,
     artifactId: 'happy-artifact',
-    manifestSha256: HASH_B,
+    manifestSha256: happyManifestSha256,
     archiveSha256: 'C'.repeat(64),
     sbomSha256: 'D'.repeat(64),
     releaseSetId: 'release-1',
@@ -85,13 +157,21 @@ async function fixture(overrides: Record<string, unknown> = {}): Promise<{
     },
     happy: {
       artifactId: 'happy-artifact',
-      manifestSha256: HASH_B,
+      manifestSha256: happyManifestSha256,
       cliVersion: '1.2.3',
     },
     ...overrides,
   };
   await writeFile(contextPath, JSON.stringify(context), 'utf8');
-  return { localAppData, contextPath, statusPath, executingEntryPoint, context };
+  return {
+    localAppData,
+    contextPath,
+    statusPath,
+    executingEntryPoint,
+    happyManifestPath,
+    happyManifestSha256,
+    context,
+  };
 }
 
 function validationOptions(
@@ -101,10 +181,62 @@ function validationOptions(
   return {
     localAppData: value.localAppData,
     currentCliVersion: '1.2.3',
-    payloadIdentity: { artifactId: 'happy-artifact', manifestSha256: HASH_B },
+    payloadIdentity: {
+      artifactId: 'happy-artifact',
+      manifestSha256: value.happyManifestSha256,
+    },
     executingEntryPoint: value.executingEntryPoint,
     ...overrides,
   };
+}
+
+async function rewriteHappyManifest(
+  value: Awaited<ReturnType<typeof fixture>>,
+  update: (manifest: Record<string, any>) => void,
+): Promise<void> {
+  const manifest = JSON.parse(await readFile(value.happyManifestPath, 'utf8')) as Record<string, any>;
+  update(manifest);
+  const source = JSON.stringify(manifest);
+  await writeFile(value.happyManifestPath, source, 'utf8');
+  value.happyManifestSha256 = createHash('sha256').update(source).digest('hex').toUpperCase();
+  const happy = value.context.happy as Record<string, unknown>;
+  happy.manifestSha256 = value.happyManifestSha256;
+  await writeFile(value.contextPath, JSON.stringify(value.context), 'utf8');
+  const receiptPath = join(
+    value.localAppData,
+    'EvCopilot',
+    'happy',
+    'versions',
+    'happy-artifact',
+    'receipt.json',
+  );
+  const receipt = JSON.parse(await readFile(receiptPath, 'utf8')) as Record<string, unknown>;
+  receipt.manifestSha256 = value.happyManifestSha256;
+  await writeFile(receiptPath, JSON.stringify(receipt), 'utf8');
+}
+
+async function rewriteRuntimeManifest(
+  value: Awaited<ReturnType<typeof fixture>>,
+  update: (manifest: Record<string, any>) => void,
+): Promise<void> {
+  const path = join(
+    value.localAppData,
+    'EvCopilot',
+    'versions',
+    'ev-artifact',
+    'manifest.json',
+  );
+  const manifest = JSON.parse(await readFile(path, 'utf8')) as Record<string, any>;
+  update(manifest);
+  const source = JSON.stringify(manifest);
+  await writeFile(path, source, 'utf8');
+  const manifestSha256 = createHash('sha256').update(source).digest('hex').toUpperCase();
+  const evCopilot = value.context.evCopilot as Record<string, unknown>;
+  evCopilot.manifestSha256 = manifestSha256;
+  await writeFile(value.contextPath, JSON.stringify(value.context), 'utf8');
+  await rewriteHappyManifest(value, (happyManifest) => {
+    happyManifest.compatibility.evCopilot[0].manifestSha256 = manifestSha256;
+  });
 }
 
 afterEach(async () => {
@@ -124,7 +256,11 @@ describe('EvCopilot launch context', () => {
     const provenance = launchContextProvenance(context);
     expect(provenance).toMatchObject({
       launcher: { channel: 'local-preview', releaseSetId: 'release-1' },
-      happyPayload: { artifactId: 'happy-artifact', manifestSha256: HASH_B, cliVersion: '1.2.3' },
+      happyPayload: {
+        artifactId: 'happy-artifact',
+        manifestSha256: value.happyManifestSha256,
+        cliVersion: '1.2.3',
+      },
       copilotRuntime: { artifactId: 'ev-artifact', packageVersion: '1.0.71-3' },
     });
     const serialized = JSON.stringify(provenance);
@@ -201,7 +337,10 @@ describe('EvCopilot launch context', () => {
     await expect(readEvCopilotLaunchContext(
       payloadMismatch.contextPath,
       validationOptions(payloadMismatch, {
-        payloadIdentity: { artifactId: 'other-happy', manifestSha256: HASH_B },
+        payloadIdentity: {
+          artifactId: 'other-happy',
+          manifestSha256: payloadMismatch.happyManifestSha256,
+        },
       }),
     )).rejects.toMatchObject({ code: 'happy-payload-identity-mismatch' });
 
@@ -234,6 +373,89 @@ describe('EvCopilot launch context', () => {
       receiptMismatch.contextPath,
       validationOptions(receiptMismatch),
     )).rejects.toMatchObject({ code: 'happy-payload-receipt-mismatch' });
+  });
+
+  it('rejects non-v2 or identity-mismatched EvCopilot manifests', async () => {
+    const wrongSchema = await fixture();
+    await rewriteRuntimeManifest(wrongSchema, (manifest) => {
+      manifest.schemaVersion = 1;
+    });
+    await expect(readEvCopilotLaunchContext(wrongSchema.contextPath, validationOptions(wrongSchema)))
+      .rejects.toMatchObject({ code: 'invalid-runtime-manifest' });
+
+    const wrongArtifact = await fixture();
+    await rewriteRuntimeManifest(wrongArtifact, (manifest) => {
+      manifest.artifactId = 'another-ev-artifact';
+      manifest.version = 'another-ev-artifact';
+    });
+    await expect(readEvCopilotLaunchContext(wrongArtifact.contextPath, validationOptions(wrongArtifact)))
+      .rejects.toMatchObject({ code: 'runtime-manifest-identity-mismatch' });
+  });
+
+  it('rejects same-package runtime artifacts not cross-bound by the Happy manifest', async () => {
+    const value = await fixture();
+    await rewriteHappyManifest(value, (manifest) => {
+      manifest.compatibility.evCopilot[0].artifactId = 'different-ev-artifact';
+    });
+
+    await expect(readEvCopilotLaunchContext(value.contextPath, validationOptions(value)))
+      .rejects.toMatchObject({ code: 'release-set-incompatible' });
+  });
+
+  it('rejects invalid Happy identity, controller compatibility, and route capability', async () => {
+    const wrongSchema = await fixture();
+    await rewriteHappyManifest(wrongSchema, (manifest) => {
+      manifest.schemaVersion = 2;
+    });
+    await expect(readEvCopilotLaunchContext(
+      wrongSchema.contextPath,
+      validationOptions(wrongSchema),
+    )).rejects.toMatchObject({ code: 'invalid-happy-payload-manifest' });
+
+    const wrongIdentity = await fixture();
+    await rewriteHappyManifest(wrongIdentity, (manifest) => {
+      manifest.version = 'different-happy-artifact';
+    });
+    await expect(readEvCopilotLaunchContext(
+      wrongIdentity.contextPath,
+      validationOptions(wrongIdentity),
+    )).rejects.toMatchObject({ code: 'happy-manifest-identity-mismatch' });
+
+    const wrongController = await fixture();
+    await rewriteHappyManifest(wrongController, (manifest) => {
+      manifest.compatibility.controller.protocolVersion = 4;
+    });
+    await expect(readEvCopilotLaunchContext(
+      wrongController.contextPath,
+      validationOptions(wrongController),
+    )).rejects.toMatchObject({ code: 'invalid-happy-payload-manifest' });
+
+    const wrongRegistry = await fixture();
+    await rewriteHappyManifest(wrongRegistry, (manifest) => {
+      manifest.compatibility.controller.registrySchema = 1;
+    });
+    await expect(readEvCopilotLaunchContext(
+      wrongRegistry.contextPath,
+      validationOptions(wrongRegistry),
+    )).rejects.toMatchObject({ code: 'invalid-happy-payload-manifest' });
+
+    const unsupportedPackage = await fixture();
+    await rewriteHappyManifest(unsupportedPackage, (manifest) => {
+      manifest.compatibility.controller.copilotPackageVersions = ['1.0.72-0'];
+    });
+    await expect(readEvCopilotLaunchContext(
+      unsupportedPackage.contextPath,
+      validationOptions(unsupportedPackage),
+    )).rejects.toMatchObject({ code: 'release-set-incompatible' });
+
+    const missingCapability = await fixture();
+    await rewriteHappyManifest(missingCapability, (manifest) => {
+      manifest.capabilities = [];
+    });
+    await expect(readEvCopilotLaunchContext(
+      missingCapability.contextPath,
+      validationOptions(missingCapability),
+    )).rejects.toMatchObject({ code: 'terminal-route-capability-missing' });
   });
 
   it('keeps ownership monotonic and records only stable failure codes', async () => {

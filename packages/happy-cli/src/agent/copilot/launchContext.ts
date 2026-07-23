@@ -18,7 +18,11 @@ import {
 } from '@/configuration';
 import type { CopilotIntegrationProvenanceV1 } from '@/api/types';
 
-import { COPILOT_NATIVE_VERSION } from './types';
+import {
+  COPILOT_NATIVE_VERSION,
+  COPILOT_PROTOCOL_VERSION,
+  COPILOT_REGISTRY_SCHEMA_VERSION,
+} from './types';
 
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const SHA256_PATTERN = /^[A-F0-9]{64}$/;
@@ -69,6 +73,18 @@ const happyCacheReceiptSchema = z.object({
 }).strict();
 
 const evCopilotManifestSchema = z.object({
+  schemaVersion: z.literal(2),
+  artifactId: identifierSchema,
+  version: identifierSchema,
+  channel: z.literal('local-preview'),
+  platform: z.literal('win32-x64'),
+  edition: z.object({
+    name: boundedStringSchema,
+    version: boundedStringSchema,
+  }).passthrough(),
+  source: z.object({
+    head: z.string().regex(SOURCE_COMMIT_PATTERN),
+  }).passthrough(),
   copilot: z.object({
     packageVersion: z.string().min(1),
     nodeVersion: boundedStringSchema,
@@ -77,7 +93,66 @@ const evCopilotManifestSchema = z.object({
   }).strict(),
 }).passthrough();
 
-const launchFailureCodeSchema = z.enum(['startup-failure', 'runtime-failure']);
+const happyArtifactManifestSchema = z.object({
+  schemaVersion: z.literal(1),
+  artifactId: identifierSchema,
+  version: identifierSchema,
+  channel: z.literal('local-preview'),
+  payloadLabel: z.enum(['unsigned-owner-only', 'ed25519-owner']),
+  platform: z.literal('win32-x64'),
+  publishedAtUtc: z.string().datetime(),
+  happyCliVersion: boundedStringSchema,
+  source: z.object({
+    repository: z.literal('Evyatar108/happy'),
+    commit: z.string().regex(SOURCE_COMMIT_PATTERN),
+    branch: boundedStringSchema,
+    dirty: z.literal(false),
+  }).strict(),
+  node: z.object({
+    version: boundedStringSchema,
+    distributionSha256: sha256Schema,
+  }).strict(),
+  archive: z.object({
+    name: z.literal('happy-win32-x64.zip'),
+    sha256: sha256Schema,
+    length: z.number().int().positive(),
+    fileCount: z.number().int().positive(),
+    expandedLength: z.number().int().positive(),
+  }).strict(),
+  entrypoints: z.object({
+    node: z.literal('payload/node.exe'),
+    happy: z.literal('payload/happy/dist/index.mjs'),
+  }).strict(),
+  files: z.array(z.object({
+    relativePath: z.string().regex(/^payload\/[^\\]+$/),
+    length: z.number().int().nonnegative(),
+    sha256: sha256Schema,
+  }).strict()).min(1),
+  compatibility: z.object({
+    launcherSchemaVersions: z.tuple([z.literal(1)]),
+    evCopilot: z.array(z.object({
+      artifactId: identifierSchema,
+      manifestSha256: sha256Schema,
+      copilotPackageVersion: boundedStringSchema,
+    }).strict()).min(1),
+    controller: z.object({
+      registrySchema: z.literal(COPILOT_REGISTRY_SCHEMA_VERSION),
+      protocolVersion: z.literal(COPILOT_PROTOCOL_VERSION),
+      copilotPackageVersions: z.array(boundedStringSchema).min(1),
+    }).strict(),
+  }).strict(),
+  capabilities: z.array(boundedStringSchema),
+  sbom: z.object({
+    path: z.literal('sbom.spdx.json'),
+    sha256: sha256Schema,
+  }).strict(),
+}).strict();
+
+const launchFailureCodeSchema = z.enum([
+  'startup-failure',
+  'runtime-failure',
+  'termination-unconfirmed',
+]);
 
 const launchStatusSchema = z.object({
   schemaVersion: z.literal(1),
@@ -299,6 +374,13 @@ export async function readEvCopilotLaunchContext(
   await assertRegularLocalFile(runtimeRoot, context.evCopilot.executablePath, 'invalid-runtime-executable');
   await assertRegularLocalFile(runtimeRoot, context.evCopilot.fixedArguments[0], 'invalid-runtime-entrypoint');
 
+  if (runtimeManifest.artifactId !== context.evCopilot.artifactId
+    || runtimeManifest.version !== context.evCopilot.artifactId
+    || runtimeManifest.edition.name !== context.evCopilot.edition.name
+    || runtimeManifest.edition.version !== context.evCopilot.edition.version
+    || runtimeManifest.source.head.toLowerCase() !== context.evCopilot.edition.sourceCommit.toLowerCase()) {
+    throw new LaunchContextError('runtime-manifest-identity-mismatch');
+  }
   if (context.evCopilot.packageVersion !== COPILOT_NATIVE_VERSION
     || runtimeManifest.copilot.packageVersion !== context.evCopilot.packageVersion) {
     throw new LaunchContextError('unsupported-copilot-package');
@@ -338,6 +420,41 @@ export async function readEvCopilotLaunchContext(
     executingEntryPoint,
     'invalid-happy-payload-entrypoint',
   );
+  const happyManifestPath = join(happyArtifactRoot, 'manifest.json');
+  await assertRegularLocalFile(
+    happyArtifactRoot,
+    happyManifestPath,
+    'invalid-happy-payload-manifest',
+  );
+  const happyManifest = parseSchema(
+    happyArtifactManifestSchema,
+    await readPinnedJsonFile(
+      happyManifestPath,
+      MAX_MANIFEST_BYTES,
+      context.happy.manifestSha256,
+      'invalid-happy-payload-manifest',
+    ),
+    'invalid-happy-payload-manifest',
+  );
+  if (happyManifest.artifactId !== context.happy.artifactId
+    || happyManifest.version !== context.happy.artifactId
+    || happyManifest.happyCliVersion !== context.happy.cliVersion) {
+    throw new LaunchContextError('happy-manifest-identity-mismatch');
+  }
+  const compatibleRuntime = happyManifest.compatibility.evCopilot.some((runtime) => (
+    runtime.artifactId === context.evCopilot.artifactId
+      && runtime.manifestSha256 === context.evCopilot.manifestSha256
+      && runtime.copilotPackageVersion === context.evCopilot.packageVersion
+  ));
+  if (!compatibleRuntime
+    || !happyManifest.compatibility.controller.copilotPackageVersions.includes(
+      context.evCopilot.packageVersion,
+    )) {
+    throw new LaunchContextError('release-set-incompatible');
+  }
+  if (!happyManifest.capabilities.includes('copilot-terminal-route-v1')) {
+    throw new LaunchContextError('terminal-route-capability-missing');
+  }
   const receiptPath = join(happyArtifactRoot, 'receipt.json');
   await assertRegularLocalFile(happyArtifactRoot, receiptPath, 'invalid-happy-payload-receipt');
   const receipt = parseSchema(

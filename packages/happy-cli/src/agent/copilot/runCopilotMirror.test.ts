@@ -11,6 +11,7 @@ import {
   initializeLaunchStatus,
   type EvCopilotHappyLaunchContextV1,
 } from './launchContext';
+import { ManagedTargetTerminationUnconfirmedError } from './managedServer';
 
 const scratchRoots: string[] = [];
 
@@ -446,5 +447,46 @@ describe('runCopilotMirror lifecycle', () => {
       failureCode: 'startup-failure',
     });
     expect(harness.ownedTarget.terminate).toHaveBeenCalledOnce();
+  });
+
+  it('prevents native fallback when pre-ownership target death cannot be proven', async () => {
+    const context = await launchContext();
+    const harness = activeHarness();
+    harness.native.connect.mockRejectedValueOnce(new Error('handshake rejected'));
+    harness.ownedTarget.terminate.mockRejectedValueOnce(
+      new ManagedTargetTerminationUnconfirmedError(123),
+    );
+
+    await expect(runCopilotMirror(
+      { ...options, launchContext: context },
+      harness.dependencies,
+    )).rejects.toBeInstanceOf(ManagedTargetTerminationUnconfirmedError);
+
+    expect(JSON.parse(await readFile(context.statusPath, 'utf8'))).toMatchObject({
+      phase: 'completed',
+      targetPid: 123,
+      exitCode: 1,
+      failureCode: 'termination-unconfirmed',
+    });
+  });
+
+  it('records post-ownership termination uncertainty instead of successful completion', async () => {
+    const context = await launchContext();
+    const harness = activeHarness();
+    harness.ownedTarget.terminate.mockRejectedValueOnce(
+      new ManagedTargetTerminationUnconfirmedError(123),
+    );
+
+    await expect(runCopilotMirror(
+      { ...options, launchContext: context },
+      harness.dependencies,
+    )).resolves.toBeUndefined();
+
+    expect(JSON.parse(await readFile(context.statusPath, 'utf8'))).toMatchObject({
+      phase: 'completed',
+      targetPid: 123,
+      exitCode: 1,
+      failureCode: 'termination-unconfirmed',
+    });
   });
 });

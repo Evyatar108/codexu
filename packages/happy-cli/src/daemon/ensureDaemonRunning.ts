@@ -1,10 +1,12 @@
 import { getLatestDaemonLog, logger } from '@/ui/logger'
 import {
   checkIfDaemonRunningAndCleanupStaleState,
-  daemonHasTrackedChildren,
   isDaemonRunningCurrentlyInstalledHappyVersion,
+  prepareDaemonReplacement,
+  waitForProcessDeath,
 } from './controlClient'
 import { spawnHappyCLI } from '@/utils/spawnHappyCLI'
+import { readDaemonState } from '@/persistence'
 
 export const DAEMON_READY_TIMEOUT_MS = 60_000
 export const DAEMON_READY_POLL_INTERVAL_MS = 100
@@ -18,17 +20,47 @@ export async function ensureDaemonRunning(
     return
   }
   if (options.requireIdleForReplacement
-    && await checkIfDaemonRunningAndCleanupStaleState()
-    && await daemonHasTrackedChildren()) {
-    throw new Error('Running Happy daemon uses a different payload and still owns active sessions')
+    && await checkIfDaemonRunningAndCleanupStaleState()) {
+    // A compatible daemon may have won startup after our first check.
+    if (await isDaemonRunningCurrentlyInstalledHappyVersion()) return
+    const oldState = await readDaemonState()
+    if (!oldState) {
+      throw new Error('Running Happy daemon replacement identity is unavailable')
+    }
+    const reservation = await prepareDaemonReplacement(oldState)
+    if (!reservation.reserved) {
+      throw new Error(
+        reservation.reason === 'active-children' || reservation.reason === 'admission-in-flight'
+          ? 'Running Happy daemon uses a different payload and is busy'
+          : 'Running Happy daemon replacement could not be reserved',
+      )
+    }
+    const reservedState = await readDaemonState()
+    if (reservedState && reservedState.pid !== oldState.pid) {
+      if (await isDaemonRunningCurrentlyInstalledHappyVersion()) return
+      throw new Error('Running Happy daemon ownership changed during replacement')
+    }
+    try {
+      await waitForProcessDeath(oldState.pid, 10_000)
+    } catch {
+      throw new Error('Running Happy daemon did not relinquish ownership after replacement reservation')
+    }
+    const postDrainState = await readDaemonState()
+    if (postDrainState && postDrainState.pid !== oldState.pid) {
+      if (await isDaemonRunningCurrentlyInstalledHappyVersion()) return
+      throw new Error('Running Happy daemon ownership changed during replacement')
+    }
   }
 
   logger.debug('Starting Happy background service...')
 
+  const daemonEnv = options.requireIdleForReplacement
+    ? { ...process.env, HAPPY_DAEMON_ROUTED_HANDOFF: '1' }
+    : process.env
   const daemonProcess = spawnHappyCLI(['daemon', 'start-sync'], {
     detached: true,
     stdio: 'ignore',
-    env: process.env,
+    env: daemonEnv,
   })
   daemonProcess.unref()
 

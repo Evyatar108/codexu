@@ -14,7 +14,11 @@ import { logger } from '@/ui/logger';
 
 import { CopilotEventRelay } from './eventRelay';
 import { stableCopilotId } from './eventProjection';
-import { spawnManagedTarget, type ManagedTarget } from './managedServer';
+import {
+  ManagedTargetTerminationUnconfirmedError,
+  spawnManagedTarget,
+  type ManagedTarget,
+} from './managedServer';
 import { NativeLocalRpcClient } from './nativeLocalRpcClient';
 import type { EvCopilotHappyLaunchContextV1 } from './launchContext';
 import {
@@ -181,6 +185,7 @@ export async function runCopilotMirror(
   let session: ApiSessionClient | null = null;
   let relay: CopilotEventRelay | null = null;
   let finalization: Promise<void> | null = null;
+  let terminationFailure: ManagedTargetTerminationUnconfirmedError | null = null;
   let stopDelivered = false;
   let activated = false;
   let nativeShutdownObserved = false;
@@ -244,7 +249,22 @@ export async function runCopilotMirror(
         await cleanupStage('session-close', () => session!.close(), 5_000);
       }
       await cleanupStage('native-client-close', () => native?.close());
-      await cleanupStage('managed-child-terminate', () => target?.terminate(), 5_000);
+      try {
+        await target?.terminate();
+      } catch (error) {
+        try {
+          logger.debug('[Copilot] Cleanup stage failed', {
+            category: 'cleanup',
+            stage: 'managed-child-terminate',
+          });
+        } catch {
+          // Diagnostics cannot obscure termination ownership.
+        }
+        if (error instanceof ManagedTargetTerminationUnconfirmedError) {
+          terminationFailure = error;
+          throw error;
+        }
+      }
     })().finally(resolveFinalizationComplete);
     return finalization;
   };
@@ -329,22 +349,41 @@ export async function runCopilotMirror(
     resolveStartup();
     await Promise.race([relay.run(), childExit, finalizationCompletePromise]);
     if (finalization) await finalization;
-    if (options.launchContext && ownershipWritten) {
+    if (terminationFailure) throw terminationFailure;
+    if (options.launchContext && ownershipWritten && !terminationFailure) {
       await markLaunchCompleted(options.launchContext, { exitCode: 0 });
     }
   } catch (error) {
     resolveStartup();
     const shutdownWasAlreadyInProgress = finalization !== null;
-    await finalizeOnce('runtime-failure');
+    let terminationError = error instanceof ManagedTargetTerminationUnconfirmedError
+      ? error
+      : null;
+    try {
+      await finalizeOnce('runtime-failure');
+    } catch (cleanupError) {
+      if (cleanupError instanceof ManagedTargetTerminationUnconfirmedError) {
+        terminationError = cleanupError;
+      }
+    }
     if (options.launchContext) {
-      const recordFailure = ownershipWritten
-        ? markLaunchCompleted(options.launchContext, { exitCode: 1, failureCode: 'runtime-failure' })
-        : markLaunchFailedBeforeOwnership(options.launchContext, 'startup-failure');
+      if (terminationError && !ownershipWritten) {
+        await markLaunchOwned(options.launchContext, terminationError.targetPid).catch(() => undefined);
+        ownershipWritten = true;
+      }
+      const recordFailure = terminationError
+        ? markLaunchCompleted(options.launchContext, {
+          exitCode: 1,
+          failureCode: 'termination-unconfirmed',
+        })
+        : ownershipWritten
+          ? markLaunchCompleted(options.launchContext, { exitCode: 1, failureCode: 'runtime-failure' })
+          : markLaunchFailedBeforeOwnership(options.launchContext, 'startup-failure');
       await recordFailure.catch(() => undefined);
     }
     if (!shutdownWasAlreadyInProgress
       && (!quiescing || (error instanceof Error && error.message !== 'Copilot mirror startup cancelled'))) {
-      throw error;
+      throw terminationError ?? error;
     }
   } finally {
     resolveStartup();

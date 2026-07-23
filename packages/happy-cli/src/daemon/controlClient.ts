@@ -11,6 +11,10 @@ import { Metadata } from '@/api/types';
 import { configuration } from '@/configuration';
 import type { SpawnSessionFromSessionRpcOptions } from '@/api/apiMachine';
 import { readFile } from 'node:fs/promises';
+import type {
+  DaemonReplacementIdentity,
+  DaemonReplacementRefusal,
+} from './replacementCoordinator';
 
 async function daemonPost(
   path: string,
@@ -121,6 +125,59 @@ export async function daemonHasTrackedChildren(): Promise<boolean> {
   if (result?.error) throw new Error('Unable to inspect running daemon sessions');
   if (Number.isInteger(result?.trackedCount)) return result.trackedCount > 0;
   return Array.isArray(result?.children) && result.children.length > 0;
+}
+
+export async function prepareDaemonReplacement(
+  state: DaemonLocallyPersistedState,
+): Promise<
+  | { reserved: true }
+  | { reserved: false; reason: DaemonReplacementRefusal | 'unsupported' | 'unavailable' }
+> {
+  if (!state.httpPort
+    || !state.startedWithPayloadArtifactId
+    || !state.startedWithPayloadManifestSha256) {
+    return { reserved: false, reason: 'unavailable' };
+  }
+  const expected: DaemonReplacementIdentity = {
+    pid: state.pid,
+    startedWithCliVersion: state.startedWithCliVersion,
+    startedWithPayloadArtifactId: state.startedWithPayloadArtifactId,
+    startedWithPayloadManifestSha256: state.startedWithPayloadManifestSha256,
+  };
+  try {
+    process.kill(state.pid, 0);
+    const timeout = process.env.HAPPY_DAEMON_HTTP_TIMEOUT
+      ? parseInt(process.env.HAPPY_DAEMON_HTTP_TIMEOUT)
+      : 10_000;
+    const response = await fetch(`http://127.0.0.1:${state.httpPort}/prepare-replacement`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(expected),
+      signal: AbortSignal.timeout(timeout),
+    });
+    const decoded = await response.json() as {
+      reserved?: boolean;
+      reason?: DaemonReplacementRefusal | 'unsupported';
+    };
+    if (response.ok && decoded.reserved === true) {
+      const currentState = await readDaemonState();
+      if (!currentState
+        || currentState.pid !== expected.pid
+        || currentState.startedWithCliVersion !== expected.startedWithCliVersion
+        || currentState.startedWithPayloadArtifactId !== expected.startedWithPayloadArtifactId
+        || currentState.startedWithPayloadManifestSha256
+          !== expected.startedWithPayloadManifestSha256) {
+        return { reserved: false, reason: 'unavailable' };
+      }
+      return { reserved: true };
+    }
+    if (decoded.reserved === false && decoded.reason) {
+      return { reserved: false, reason: decoded.reason };
+    }
+  } catch {
+    // Old daemons and stale state fail closed; routed replacement never kills.
+  }
+  return { reserved: false, reason: 'unavailable' };
 }
 
 export function isDaemonStateCompatible(
@@ -358,7 +415,7 @@ export async function stopDaemon() {
   }
 }
 
-async function waitForProcessDeath(pid: number, timeout: number): Promise<void> {
+export async function waitForProcessDeath(pid: number, timeout: number): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < timeout) {
     try {

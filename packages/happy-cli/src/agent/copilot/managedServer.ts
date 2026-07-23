@@ -27,6 +27,7 @@ export type ManagedServerDependencies = {
   sleep?: (ms: number) => Promise<void>;
   randomToken?: () => string;
   resolveExecutable?: () => string;
+  isProcessAlive?: (pid: number) => boolean;
 };
 
 export type CopilotManagedLaunch = {
@@ -39,6 +40,25 @@ export type CopilotManagedLaunch = {
     sourceCommit: string;
   };
 };
+
+export class ManagedTargetTerminationUnconfirmedError extends Error {
+  readonly targetPid: number;
+
+  constructor(targetPid: number) {
+    super(`Copilot managed-server termination could not be confirmed for PID ${targetPid}`);
+    this.name = 'ManagedTargetTerminationUnconfirmedError';
+    this.targetPid = targetPid;
+  }
+}
+
+function processIsAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function isLoopback(host: string): boolean {
   const normalized = host.toLowerCase();
@@ -152,6 +172,7 @@ export async function spawnManagedTarget(
   const readFile = dependencies.readFile ?? ((path: string) => readFileSync(path, 'utf8'));
   const fileExists = dependencies.fileExists ?? existsSync;
   const sleep = dependencies.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
+  const isProcessAlive = dependencies.isProcessAlive ?? processIsAlive;
   const token = (dependencies.randomToken ?? (() => randomBytes(32).toString('base64url')))();
   if (options.launch && (dependencies.resolveExecutable || process.env.HAPPY_COPILOT_BINARY)) {
     throw new Error('HAPPY_COPILOT_BINARY cannot be combined with a production launch context');
@@ -215,11 +236,21 @@ export async function spawnManagedTarget(
   });
   if (!child.pid) throw new Error('Copilot managed-server did not produce a PID');
 
+  const waitForConfirmedDeath = async (timeoutMs: number): Promise<boolean> => {
+    const attempts = Math.max(1, Math.ceil(timeoutMs / 50));
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      if (child.exitCode !== null || !isProcessAlive(child.pid!)) return true;
+      await sleep(50);
+    }
+    return child.exitCode !== null || !isProcessAlive(child.pid!);
+  };
   const terminate = async (): Promise<void> => {
-    if (child.exitCode !== null) return;
+    if (child.exitCode !== null || !isProcessAlive(child.pid!)) return;
     child.kill('SIGTERM');
-    await Promise.race([new Promise<void>((resolve) => child.once('exit', () => resolve())), sleep(2_000)]);
-    if (child.exitCode === null) child.kill('SIGKILL');
+    if (await waitForConfirmedDeath(2_000)) return;
+    child.kill('SIGKILL');
+    if (await waitForConfirmedDeath(2_000)) return;
+    throw new ManagedTargetTerminationUnconfirmedError(child.pid!);
   };
 
   const registryPath = join(copilotHome(), 'servers', `${child.pid}.json`);
@@ -241,7 +272,13 @@ export async function spawnManagedTarget(
     }
     throw new Error('Timed out waiting for Copilot managed-server registry');
   } catch (error) {
-    await terminate();
+    try {
+      await terminate();
+    } catch (terminationError) {
+      if (terminationError instanceof ManagedTargetTerminationUnconfirmedError) {
+        throw terminationError;
+      }
+    }
     throw error;
   }
 }

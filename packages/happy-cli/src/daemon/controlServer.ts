@@ -19,6 +19,11 @@ import { AgentCommsRoutingError, dispatchAgentCommsEnvelope, type AgentCommsDeli
 import type { AgentCommsEnvelope } from '@slopus/happy-wire';
 import { TunnelManager } from '@/tunnel/tunnelManager';
 import type { TofuKeypairs } from '@/tofu/keypairManager';
+import {
+  DaemonDrainingError,
+  type DaemonReplacementCoordinator,
+  type DaemonReplacementIdentity,
+} from './replacementCoordinator';
 
 const PARENT_SESSION_ID_MAX_LENGTH = 128;
 const PARENT_SESSION_ID_SHAPE = /^[A-Za-z0-9_-]+$/;
@@ -49,6 +54,7 @@ export function startDaemonControlServer({
   localMachineId = 'local-machine',
   agentCommsRemote,
   createPairingInvite,
+  replacement,
 }: {
   getChildren: () => TrackedSession[];
   stopSession: (sessionId: string) => boolean | Promise<boolean>;
@@ -67,6 +73,11 @@ export function startDaemonControlServer({
     publicMode: boolean,
     capability: string | undefined,
   ) => Promise<string>;
+  replacement?: {
+    coordinator: DaemonReplacementCoordinator;
+    identity: DaemonReplacementIdentity;
+    onReserved?: () => void;
+  };
 }): Promise<{ port: number; stop: () => Promise<void> }> {
   return new Promise((resolve) => {
     const app = fastify({
@@ -84,6 +95,9 @@ export function startDaemonControlServer({
           tunnelManager: agentCommsRemote.tunnelManager,
         })
         : undefined);
+    const withAdmission = <T>(action: () => T | Promise<T>): Promise<T> => replacement
+      ? replacement.coordinator.withAdmission(action)
+      : Promise.resolve().then(action);
 
     typed.post('/pair', {
       schema: {
@@ -139,28 +153,38 @@ export function startDaemonControlServer({
         response: {
           200: z.object({
             status: z.literal('ok')
-          })
+          }),
+          409: z.object({ error: z.literal('daemon_draining') }),
         }
       }
-    }, async (request) => {
-      const { sessionId, metadata, encryption } = request.body;
+    }, async (request, reply) => {
+      try {
+        return await withAdmission(() => {
+          const { sessionId, metadata, encryption } = request.body;
 
-      logger.debug(`[CONTROL SERVER] Session started: ${sessionId}`);
+          logger.debug(`[CONTROL SERVER] Session started: ${sessionId}`);
 
-      let encryptionData: SessionEncryptionData | undefined;
-      if (encryption) {
-        encryptionData = {
-          encryptionKey: decodeBase64(encryption.encryptionKey),
-          encryptionVariant: encryption.encryptionVariant,
-          seq: encryption.seq,
-          metadataVersion: encryption.metadataVersion,
-          agentStateVersion: encryption.agentStateVersion,
-        };
+          let encryptionData: SessionEncryptionData | undefined;
+          if (encryption) {
+            encryptionData = {
+              encryptionKey: decodeBase64(encryption.encryptionKey),
+              encryptionVariant: encryption.encryptionVariant,
+              seq: encryption.seq,
+              metadataVersion: encryption.metadataVersion,
+              agentStateVersion: encryption.agentStateVersion,
+            };
+          }
+
+          onHappySessionWebhook(sessionId, metadata, encryptionData);
+
+          return { status: 'ok' as const };
+        });
+      } catch (error) {
+        if (error instanceof DaemonDrainingError) {
+          return reply.code(409).send({ error: 'daemon_draining' });
+        }
+        throw error;
       }
-
-      onHappySessionWebhook(sessionId, metadata, encryptionData);
-
-      return { status: 'ok' as const };
     });
 
     // List all tracked sessions
@@ -190,6 +214,50 @@ export function startDaemonControlServer({
             pid: child.pid
           }))
       }
+    });
+
+    typed.post('/prepare-replacement', {
+      schema: {
+        body: z.object({
+          pid: z.number().int().positive(),
+          startedWithCliVersion: z.string().min(1),
+          startedWithPayloadArtifactId: z.string().min(1).optional(),
+          startedWithPayloadManifestSha256: z.string().min(1).optional(),
+        }).strict(),
+        response: {
+          200: z.object({ reserved: z.literal(true) }),
+          409: z.object({
+            reserved: z.literal(false),
+            reason: z.enum([
+              'identity-mismatch',
+              'active-children',
+              'admission-in-flight',
+              'already-draining',
+              'unsupported',
+            ]),
+          }),
+        },
+      },
+    }, async (request, reply) => {
+      if (!replacement) {
+        return reply.code(409).send({ reserved: false, reason: 'unsupported' });
+      }
+      const result = replacement.coordinator.prepare(
+        request.body,
+        replacement.identity,
+        getChildren().length,
+      );
+      if (!result.reserved) return reply.code(409).send(result);
+
+      // Keep the reservation active before yielding the event loop. The response
+      // is flushed first; all later admission attempts are already denied.
+      reply.hijack();
+      reply.raw.statusCode = 200;
+      reply.raw.setHeader('content-type', 'application/json; charset=utf-8');
+      reply.raw.end(JSON.stringify(result), () => {
+        (replacement.onReserved ?? requestShutdown)();
+      });
+      return reply;
     });
 
     // Stop specific session
@@ -237,7 +305,8 @@ export function startDaemonControlServer({
             success: z.boolean(),
             requiresUserApproval: z.boolean().optional(),
             actionRequired: z.string().optional(),
-            directory: z.string().optional()
+            directory: z.string().optional(),
+            error: z.string().optional(),
           }),
           500: z.object({
             success: z.boolean(),
@@ -249,7 +318,18 @@ export function startDaemonControlServer({
       const { directory, sessionId, agent, environmentVariables } = request.body;
 
       logger.debug(`[CONTROL SERVER] Spawn session request: dir=${directory}, sessionId=${sessionId || 'new'}, agent=${agent || 'default'}`);
-      const result = await spawnSession({ directory, sessionId, agent, environmentVariables });
+      let result: SpawnSessionResult;
+      try {
+        result = await withAdmission(
+          () => spawnSession({ directory, sessionId, agent, environmentVariables }),
+        );
+      } catch (error) {
+        if (error instanceof DaemonDrainingError) {
+          reply.code(409);
+          return { success: false, error: 'daemon_draining' };
+        }
+        throw error;
+      }
 
       switch (result.type) {
         case 'success':
@@ -307,6 +387,7 @@ export function startDaemonControlServer({
               errorMessage: z.string(),
             }),
           ]),
+          409: z.object({ type: z.literal('error'), errorMessage: z.literal('daemon_draining') }),
         }
       }
     }, async (request, reply) => {
@@ -315,7 +396,20 @@ export function startDaemonControlServer({
       }
 
       logger.debug(`[CONTROL SERVER] Spawn session from parent request: parentSessionId=${request.body.parentSessionId}, agent=${request.body.config.agent}`);
-      const result = await spawnSessionFromSession(request.body as SpawnSessionFromSessionRpcOptions);
+      let result: SpawnSessionResult;
+      try {
+        result = await withAdmission(
+          () => spawnSessionFromSession(request.body as SpawnSessionFromSessionRpcOptions),
+        );
+      } catch (error) {
+        if (error instanceof DaemonDrainingError) {
+          return reply.code(409).send({
+            type: 'error',
+            errorMessage: 'daemon_draining',
+          });
+        }
+        throw error;
+      }
       if (result.type === 'success') {
         return result;
       }
