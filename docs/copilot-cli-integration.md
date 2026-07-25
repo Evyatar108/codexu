@@ -1,6 +1,8 @@
 # Adding GitHub Copilot CLI as a Happy backend
 
-Status: Option 1 selected; source re-verified 2026-07-18 against
+Status: M1a headless mirroring implemented; interactive terminal routing
+designed and awaiting the bounded Copilot fork seam. Source re-verified
+2026-07-18 against
 `C:\efforts\copilot-agent-runtime@1f19c0c1ccd2502b1cce8372419a831cf533f37f`
 and codexu
 `ad7fb259e3391aaec2e2018fe9a9b2b9ad448449`. Corrections below supersede the
@@ -10,15 +12,23 @@ Scope: how to add GitHub Copilot CLI as a third agent backend in codexu
 experience carries over.
 
 Related docs: `cli-architecture.md`, `protocol.md`, `happy-wire.md`,
-`fork-notes.md`, `fork-roadmap.md`.
+`fork-notes.md`, `fork-roadmap.md`,
+[`copilot-happy-embedded-ui-server-handoff.md`](copilot-happy-embedded-ui-server-handoff.md),
+and
+[`../plans/happy-copilot-terminal-route-v1-design/design.md`](../plans/happy-copilot-terminal-route-v1-design/design.md).
 
-> **Decision note (2026-07-18):** implement Option 1: Happy owns a local
-> controller that starts or attaches to a headless
-> `copilot --server --port 0 --managed-server` target and consumes the native
-> local JSON-RPC. Sections 1-11 retain the comparison history, but their
-> ACP-first recommendation is no longer the implementation direction. The
-> normative plan is §13 plus
-> `plans/happy-copilot-native-local-controller-backend/plan.md`.
+> **Decision notes:** On 2026-07-18, Option 1 selected Happy's native local
+> controller over ACP. That produced M1a: Happy starts a headless
+> `copilot --server --port 0 --managed-server` target and consumes native local
+> JSON-RPC without changing Copilot. On 2026-07-23, the daily-driver requirement
+> was sharpened to preserve the ordinary interactive `copilot` TUI while
+> mirroring that exact session into Happy. M1a cannot satisfy that requirement
+> because its target is headless. The reviewed interactive route therefore adds
+> a small, default-off Copilot fork seam that enables, authenticates, and
+> publishes the existing embedded UI server. These are complementary modes, not
+> conflicting replacements. Sections 1-11 retain comparison history; §13 is the
+> M1a contract, §14 records completed verified-launch work, and §15 is the
+> interactive route.
 
 ---
 
@@ -753,12 +763,14 @@ API wholesale.
 6. **Preserve `selection`/`github_reference` attachments** if needed (`toWireAttachments`).
 7. **Extension parity in managed-server mode** isn't guaranteed — needs an extension controller/loader like `EmbeddedServer` if phone control of live extensions is required.
 
-## 13. Option 1 implementation plan (happy-cli native local controller)
+## 13. Option 1 M1a implementation plan (headless native local controller)
 
-Chosen path (§11 decision): happy-cli attaches to a headless Copilot
-managed-server target over Copilot's native local JSON-RPC and relays into Happy.
-The pinned runtime source is read-only reference context. The implementation
-must be codexu-only unless a later milestone proves a runtime dependency.
+M1a path (§11 decision): happy-cli attaches to a headless Copilot managed-server
+target over Copilot's native local JSON-RPC and relays into Happy. The pinned
+runtime source is read-only reference context for this mode. M0-delivery,
+M0-codec, and M1a require no Copilot runtime change. That statement applies to
+the headless mode only; it does not claim that Happy can mirror the ordinary
+interactive TUI without the §15 seam.
 
 ### Revision boundary
 
@@ -1060,9 +1072,10 @@ dual-repo implementation PRD.
 5. **Interactive completeness:** schema-bound replies to tracked pending
    permission, elicitation, user-input, OAuth, and sampling requests. Never
    expose raw permission APIs or global policy mutation.
-6. **Co-steer with a real TUI:** switch the target from managed-server (headless)
-   to a `--ui-server` TUI target so a local terminal and the phone drive one live
-   session (the "remoteSteerable, but local" goal).
+6. **Mirror a real TUI:** use the reviewed §15 embedded UI-server seam so the
+   genuine local Copilot terminal remains authoritative while Happy attaches
+   read-only to the same live session. Phone-originated steering and approvals
+   remain a separate later milestone.
 7. **Hardening and re-adoption:** external attach/re-adoption, persistent
    cursors, SEA/artifact attestation, DACL/reparse, closed environment, OOP
    policy, PID-reuse/crash recovery, fuzzing, token/log audits, version skew,
@@ -1082,8 +1095,9 @@ dual-repo implementation PRD.
 ## 14. Post-M1a verified-launch context
 
 The EvCopilot launcher integration extends the default-off M1a command with a
-schema-v1 local launch context. The full cross-repository contract is in
-`plans/happy-evcopilot-onedrive-launcher-integration/plan.md`, especially P4.
+schema-v1 local launch context. The implemented contract is summarized here;
+the interactive attachment that builds on it is specified in §15 and the
+linked engineering handoff.
 Happy accepts `--launch-context` only while
 `HAPPY_ENABLE_COPILOT_NATIVE=1` is explicitly set. The context contains no
 Copilot argv, prompt, token, credential, or provider secret.
@@ -1128,6 +1142,81 @@ routed handoff. This remains one per-machine daemon embedding its own
 happy-server; it introduces no central broker, terminal routing, publishing, or
 cache-selection behavior.
 
+## 15. Interactive terminal route and portable delivery
+
+### Two supported modes
+
+| Mode | Normal entry point | Copilot runtime change | Purpose |
+|---|---|---|---|
+| M1a managed/headless | `happy copilot` | None | Happy-owned read-only mirror of a separately launched managed target |
+| Interactive embedded attach | `copilot` through EvCopilot | Small default-off fork seam | Mirror the same genuine terminal session while Copilot remains TUI owner |
+
+M1a proved the transport, event projection, pagination, lifecycle, app
+read-only gating, and managed-server compatibility without changing Copilot.
+It remains useful for headless/background operation. It does **not** preserve
+the ordinary interactive terminal: its target has no TUI and is idle until a
+controller supplies input.
+
+The interactive requirement is different:
+
+```text
+operator types ordinary copilot <args>
+  -> genuine Copilot TUI handles input/rendering/approvals/Ctrl+C/exit
+  -> Happy attaches read-only to that same session
+  -> per-machine Happy daemon mirrors it through its embedded happy-server
+```
+
+Rebuilding Copilot's argument grammar, renderer, approval UI, cancellation,
+resume, and exit semantics inside Happy would replace the terminal experience.
+The reviewed direction instead reuses Copilot's existing embedded UI server.
+
+### Required Copilot fork seam
+
+The seam is bounded and default-off:
+
+1. Under an explicit gate such as `COPILOT_HAPPY_EMBED=1`, synthesize the
+   embedded-server configuration for ordinary interactive mode without changing
+   the original argv.
+2. Acquire one unpredictable per-launch connection token.
+3. Pass that same token independently to both the inner `SDKServer` listener
+   and the interactive `RegistryPublisher`. Supplying only one sink is invalid:
+   the listener would be anonymous or discovery would advertise a credential
+   the listener does not enforce.
+4. Wire the currently missing interactive `ui-server` publisher lifecycle:
+   start after listener bind, publish the foreground session and transitions,
+   heartbeat, unlink on shutdown, and rely on stale-entry cleanup after a hard
+   crash.
+5. Keep the Agents-tab watcher off. In v1, Happy must never set foreground,
+   send, abort, steer, or answer approval/elicitation requests.
+
+The source-level implementation contract, exact file ownership, registry
+schema, security requirements, and Copilot-focused acceptance tests are in
+[`copilot-happy-embedded-ui-server-handoff.md`](copilot-happy-embedded-ui-server-handoff.md).
+The full reviewed Option A/Option B decision record is
+[`../plans/happy-copilot-terminal-route-v1-design/design.md`](../plans/happy-copilot-terminal-route-v1-design/design.md).
+
+### Happy and delivery work already completed locally
+
+- Strict EvCopilot/Happy launch-context, manifest, receipt, package, protocol,
+  capability, and payload-identity validation.
+- Fixed-argument, `shell: false` managed launch with non-secret provenance.
+- Durable single-target ownership status and fail-closed unconfirmed
+  termination behavior.
+- Atomic old-daemon drain/replacement reservation with artifact identity.
+- A portable Windows Happy builder that emits a deterministic, verified
+  approximately 220 MB ZIP from an immutable source snapshot, with bundled
+  Node, file inventory, SPDX/license evidence, chained integrity metadata, and
+  an isolated payload-only smoke test.
+
+### Current rollout state
+
+The interactive route is **not active on any PC**. The Copilot fork seam,
+EvCopilot release-set/cache launcher, real-session attach acceptance, and
+OneDrive publication remain outstanding. No Happy artifact has been published
+to OneDrive, no profile has been updated to route ordinary `copilot`, and the
+feature remains default-off. Existing EvCopilot usage therefore behaves as
+before.
+
 ## Common pitfalls
 - The source pin for this plan is
   `C:\efforts\copilot-agent-runtime@1f19c0c1ccd2502b1cce8372419a831cf533f37f`.
@@ -1141,6 +1230,8 @@ cache-selection behavior.
   files are the generic extension seam. Copilot likewise needs a bespoke
   native-controller runner; ACP remains comparison/history context, not the
   implementation seam.
+- "No Copilot runtime change is required" is true for M0/M1a headless mode, not
+  for §15's seamless ordinary-TUI attachment.
 - ACP is **lossy by default**: only 9 of Copilot's **110** event variants get a
   non-null mapping (§6), and some of those 9 are then dropped Happy-side (the
   `update_todo` plan and `tool.execution_partial_result` have no Happy handler).
