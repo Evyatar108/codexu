@@ -2690,6 +2690,90 @@
           "prompt": "Plan the cross-component integration that preserves the existing `copilot` command while routing sessions through the native Happy Copilot backend. Cover: immutable versioned Happy payload publication to OneDrive; SHA-256 manifest and COMPLETE/channel pointer; verified atomic extraction to a per-machine local cache; EvCopilot launcher selection and invocation of cached `happy copilot`; explicit propagation of the selected EvCopilot runtime/version into Happy; daemon readiness and embedded per-daemon Happy server behavior; `-NoHappy` fail-open escape hatch; default-off/rollback semantics; concurrency, partial sync, update, retention, observability, and security; Windows PowerShell profile/module UX; repository boundaries and phased implementation tasks. Treat the successful ~979 MB legacy deploy and external `happy copilot --help` smoke as evidence, not production packaging. Inspect the EvCopilot PowerShell module and Happy M1a implementation. Produce a review-ready plan only; do not implement, publish, push, release, or modify the OneDrive distribution."
         }
       ]
+    },
+    {
+      "dependsOn": [],
+      "writablePaths": [
+        ".ralph/investigations/happy-upstream-divergence-account-model-audit"
+      ],
+      "scope": "happy-architecture",
+      "stage": "backlog",
+      "actions": [
+        {
+          "id": "investigate",
+          "label": "Investigate",
+          "prompt": "Perform a source- and git-history-based audit of this fork against current slopus/happy upstream. Determine the exact upstream base/release/HEAD relationships, whether each repo/submodule is rebased or merely forked, commits and file surfaces unique to the fork, commits missing from upstream, likely conflicts, and which divergences are authentication/session-plane architecture versus unrelated tablet/Copilot work. Compare upstream central hosted account/server behavior with the fork per-machine embedded-server model using current source, not stale docs. Produce a cited findings report, a divergence matrix, and safe next-step options. Read-only investigation only: no rebase, merge, code edits, push, release, or service changes."
+        }
+      ],
+      "lifecycle": "active",
+      "title": "Audit Happy upstream rebase status, divergence, and account architecture",
+      "validationCommand": "git diff --check",
+      "id": "happy-upstream-divergence-account-model-audit"
+    },
+    {
+      "dependsOn": [
+        "happy-upstream-divergence-account-model-audit"
+      ],
+      "writablePaths": [
+        "plans/happy-account-architecture-direction-decision"
+      ],
+      "scope": "happy-architecture",
+      "stage": "backlog",
+      "actions": [
+        {
+          "id": "brainstorm",
+          "label": "Brainstorm",
+          "prompt": "Using the completed upstream divergence/account-model audit, decide whether this fork should migrate back to upstream central account/server architecture, retain per-machine embedded servers, or adopt a hybrid owner-account/discovery plane with decentralized session servers. Evaluate seamless new-devbox sign-in, mobile multi-machine UX, offline/local operation, data ownership, outage/breach radius, recovery/revocation, Cloudflare/LAN transports, migration of existing pairings/history, upstream rebase/conflict cost, and impact on Copilot/Happy integration. Produce a reviewed recommendation and phased migration/rollback plan only; do not implement or change services."
+        }
+      ],
+      "lifecycle": "active",
+      "title": "Decide central account, per-machine, or hybrid Happy architecture",
+      "validationCommand": "git diff --check",
+      "id": "happy-account-architecture-direction-decision"
+    },
+    {
+      "dependsOn": [
+        "happy-portable-onedrive-payload-builder",
+        "happy-copilot-launch-context-daemon-identity"
+      ],
+      "writablePaths": [
+        "plans/happy-multidevbox-release-distribution"
+      ],
+      "scope": "happy-distribution",
+      "stage": "backlog",
+      "actions": [
+        {
+          "id": "plan",
+          "label": "Plan",
+          "prompt": "Plan the production distribution flow that makes `ev-copilot` automatically select, verify, cache, and run matching EvCopilot and Happy releases without manual per-devbox updates. Use the completed portable Happy builder and launch-context work. OneDrive is an optional preferred transport when present, not a requirement: define a non-OneDrive fallback such as GitHub/private release download or manually supplied archive. Cover immutable release sets, channel pointers, integrity/trust under the accepted owner-only model, local atomic cache, offline fallback, pending updates during live sessions, rollback/pinning, profile bootstrap, failure fallback to normal EvCopilot, and exact publisher/consumer ownership. Plan only; no publication, profile changes, or OneDrive writes."
+        }
+      ],
+      "lifecycle": "active",
+      "title": "Design automatic multi-devbox Happy release distribution",
+      "validationCommand": "git diff --check",
+      "id": "happy-multidevbox-release-distribution"
+    },
+    {
+      "dependsOn": [
+        "happy-account-architecture-direction-decision",
+        "happy-multidevbox-release-distribution"
+      ],
+      "writablePaths": [
+        "plans/happy-zero-touch-devbox-bootstrap"
+      ],
+      "scope": "happy-auth",
+      "stage": "backlog",
+      "actions": [
+        {
+          "id": "plan",
+          "label": "Plan",
+          "prompt": "Design the exact new-devbox UX where the operator types only `ev-copilot` and gets proxy, Happy, and ordinary Copilot immediately. OneDrive access may be treated as owner trust when available, but must not be required. Derive the enrollment/sign-in flow from the selected account architecture: central sign-in if chosen, or unique local machine identity plus automatic/QR recovery if decentralized/hybrid. Preserve mobile Happy sign-in/pairing, define safe shared versus machine-local state, avoid syncing live databases/locks/private machine keys, and cover no-OneDrive bootstrap, revocation, lost-device recovery, offline use, fallback, and migration of existing machines. Plan only; do not copy credentials or alter auth/profile/runtime state."
+        }
+      ],
+      "lifecycle": "active",
+      "title": "Design zero-touch Happy bootstrap for new devboxes",
+      "validationCommand": "git diff --check",
+      "id": "happy-zero-touch-devbox-bootstrap"
     }
   ]
 }
