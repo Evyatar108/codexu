@@ -109,7 +109,7 @@ export function useCopilotSteeringController(sessionId: string): CopilotSteering
     );
 
     // --- Authoritative control reconciliation -------------------------------
-    // A `no-lease` control event (keystroke/expiry/superseded/released/detached)
+    // A `no-lease` control event (keystroke/expiry/released/detached)
     // is authoritative and instantly drops answer affordances to observe-only.
     // An `active`/`requested` event never auto-re-acquires an idle/revoked
     // device. All transition logic lives in the pure `reconcileControlEvent`

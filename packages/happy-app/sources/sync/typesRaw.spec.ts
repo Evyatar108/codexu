@@ -1624,6 +1624,32 @@ describe('Zod Transform - WOLOG Content Normalization', () => {
             }
         });
 
+        it('maps an unknown Copilot revocation reason to detached during normalization', () => {
+            const normalized = normalizeRawMessage('db-copilot-control-unknown', null, 1, 32, {
+                role: 'session',
+                content: {
+                    type: 'session',
+                    data: {
+                        id: 'env-copilot-control-unknown',
+                        time: 1,
+                        role: 'agent',
+                        turn: 'turn-1',
+                        ev: {
+                            t: 'copilot-control',
+                            state: 'no-lease',
+                            reason: 'future-reason',
+                        },
+                    },
+                },
+            } as any);
+
+            expect(normalized?.content).toMatchObject({
+                type: 'copilot-control',
+                state: 'no-lease',
+                reason: 'detached',
+            });
+        });
+
         const base = {
             role: 'agent' as const,
             content: {

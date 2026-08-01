@@ -1085,7 +1085,6 @@ export const zhHans: TranslationStructure = {
         anotherClientRequesting: 'Another client is requesting steering',
         revokedKeystroke: 'The human took over at the terminal',
         revokedExpired: 'Your steering lease expired',
-        revokedSuperseded: 'Your steering lease was superseded',
         revokedReleased: 'Steering released',
         revokedDetached: 'Steering ended — reconnect to continue',
         revokedEnded: 'Steering ended',

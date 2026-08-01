@@ -222,8 +222,6 @@ export function revocationReasonKey(reason: SteeringRevocationReason | null): st
             return 'copilotSteering.revokedKeystroke';
         case 'expired':
             return 'copilotSteering.revokedExpired';
-        case 'superseded':
-            return 'copilotSteering.revokedSuperseded';
         case 'released':
             return 'copilotSteering.revokedReleased';
         case 'detached':

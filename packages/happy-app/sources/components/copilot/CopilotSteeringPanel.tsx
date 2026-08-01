@@ -83,8 +83,6 @@ function revokedText(reason: SteeringRevocationReason | null): string {
             return t('copilotSteering.revokedKeystroke');
         case 'expired':
             return t('copilotSteering.revokedExpired');
-        case 'superseded':
-            return t('copilotSteering.revokedSuperseded');
         case 'released':
             return t('copilotSteering.revokedReleased');
         case 'detached':

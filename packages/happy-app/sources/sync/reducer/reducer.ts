@@ -138,7 +138,7 @@ export type CopilotControlState = {
     id: string;
     seq: number;
     state: 'no-lease' | 'requested' | 'active';
-    reason?: 'keystroke' | 'expired' | 'superseded' | 'released' | 'detached';
+    reason?: 'keystroke' | 'expired' | 'released' | 'detached';
     requestId?: string;
     leaseId?: string;
     expiresAt?: number;

@@ -60,7 +60,7 @@ describe('deriveSteeringView', () => {
     });
 
     it('revoked but another client took over renders as conflict, not request', () => {
-        const view = deriveSteeringView({ status: 'revoked', reason: 'superseded' }, control({ state: 'active' }));
+        const view = deriveSteeringView({ status: 'revoked', reason: 'detached' }, control({ state: 'active' }));
         expect(view.mode).toBe('conflict');
         expect(view.canRequest).toBe(false);
     });
@@ -110,7 +110,6 @@ describe('revocationReasonKey', () => {
     it('maps each reason (and null) to a distinct i18n key', () => {
         expect(revocationReasonKey('keystroke')).toBe('copilotSteering.revokedKeystroke');
         expect(revocationReasonKey('expired')).toBe('copilotSteering.revokedExpired');
-        expect(revocationReasonKey('superseded')).toBe('copilotSteering.revokedSuperseded');
         expect(revocationReasonKey('released')).toBe('copilotSteering.revokedReleased');
         expect(revocationReasonKey('detached')).toBe('copilotSteering.revokedDetached');
         expect(revocationReasonKey(null)).toBe('copilotSteering.revokedEnded');

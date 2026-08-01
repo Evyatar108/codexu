@@ -23,6 +23,49 @@ export type UsageData = z.infer<typeof usageDataSchema>;
 
 export const DEFAULT_UNSEQUENCED_MESSAGE_SEQ = Number.MAX_SAFE_INTEGER;
 
+const copilotRevocationReasonSchema = z.enum(['keystroke', 'expired', 'released', 'detached']);
+
+function normalizeCopilotRevocationReason(
+    reason: unknown,
+): z.infer<typeof copilotRevocationReasonSchema> | undefined {
+    if (reason === undefined) {
+        return undefined;
+    }
+    const parsed = copilotRevocationReasonSchema.safeParse(reason);
+    if (parsed.success) {
+        return parsed.data;
+    }
+    return 'detached';
+}
+
+const failSafeCopilotRevocationReasonSchema = z.preprocess(
+    normalizeCopilotRevocationReason,
+    copilotRevocationReasonSchema.optional(),
+);
+
+// Keep app normalization fail-safe if a future sender adds a revocation reason
+// before this client updates: unknown reasons use the detached-class copy.
+const appSessionEnvelopeSchema = z.preprocess((value) => {
+    if (value === null || typeof value !== 'object') {
+        return value;
+    }
+    const envelope = value as { ev?: unknown };
+    if (envelope.ev === null || typeof envelope.ev !== 'object') {
+        return value;
+    }
+    const event = envelope.ev as { t?: unknown; reason?: unknown };
+    if (event.t !== 'copilot-control' || event.reason === undefined) {
+        return value;
+    }
+    return {
+        ...envelope,
+        ev: {
+            ...event,
+            reason: normalizeCopilotRevocationReason(event.reason),
+        },
+    };
+}, sessionEnvelopeSchema);
+
 const agentEventSchema = z.discriminatedUnion('type', [z.object({
     type: z.literal('switch'),
     mode: z.enum(['local', 'remote'])
@@ -49,7 +92,7 @@ const agentEventSchema = z.discriminatedUnion('type', [z.object({
     // fork adapter. These drive the phone-side steering UI, not chat content.
     type: z.literal('copilot-control'),
     state: z.enum(['no-lease', 'requested', 'active']),
-    reason: z.enum(['keystroke', 'expired', 'superseded', 'released', 'detached']).optional(),
+    reason: failSafeCopilotRevocationReasonSchema,
     requestId: z.string().optional(),
     leaseId: z.string().optional(),
     expiresAt: z.number().optional(),
@@ -253,7 +296,7 @@ const rawAgentRecordSchema = z.discriminatedUnion('type', [z.object({
     ])
 }), z.object({
     type: z.literal('session'),
-    data: sessionEnvelopeSchema
+    data: appSessionEnvelopeSchema
 }), z.object({
     // ACP (Agent Communication Protocol) - unified format for all agent providers
     type: z.literal('acp'),
@@ -392,7 +435,7 @@ const rawRecordSchema = z.preprocess(
             role: z.literal('session'),
             content: z.object({
                 type: z.literal('session'),
-                data: sessionEnvelopeSchema
+                data: appSessionEnvelopeSchema
             }),
             meta: MessageMetaSchema.optional()
         })
@@ -597,7 +640,7 @@ function normalizeSessionEnvelope(
             content: {
                 type: 'copilot-control',
                 state: envelope.ev.state,
-                ...(envelope.ev.reason !== undefined ? { reason: envelope.ev.reason } : {}),
+                ...(envelope.ev.reason !== undefined ? { reason: normalizeCopilotRevocationReason(envelope.ev.reason) } : {}),
                 ...(envelope.ev.requestId !== undefined ? { requestId: envelope.ev.requestId } : {}),
                 ...(envelope.ev.leaseId !== undefined ? { leaseId: envelope.ev.leaseId } : {}),
                 ...(envelope.ev.expiresAt !== undefined ? { expiresAt: envelope.ev.expiresAt } : {}),
