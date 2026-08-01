@@ -97,17 +97,36 @@ export type SteeringResult = z.infer<typeof steeringResultSchema>;
 export const steeringLeaseRevocationReasonSchema = z.enum([
   'keystroke',
   'expired',
-  'superseded',
   'released',
   'detached',
 ]);
 export type SteeringLeaseRevocationReason = z.infer<typeof steeringLeaseRevocationReasonSchema>;
 
-export const steeringLeaseRevokedSchema = z.object({
+export const steeringControlChangedReasonSchema = z.enum([
+  'granted',
+  'denied',
+  'keystroke',
+  'expired',
+  'released',
+  'detached',
+]);
+export type SteeringControlChangedReason = z.infer<typeof steeringControlChangedReasonSchema>;
+
+/**
+ * The native server uses one notification method for every lease transition.
+ * `reason` intentionally accepts unknown non-empty strings so a future
+ * revocation reason can be handled fail-safe instead of crashing or leaving a
+ * client-side lease active.
+ */
+export const steeringControlChangedParamsSchema = z.object({
+  reason: z.string().min(1),
+  requestId: z.string().min(1).optional(),
   leaseId: z.string().min(1).optional(),
-  reason: steeringLeaseRevocationReasonSchema,
-}).strict();
-export type SteeringLeaseRevoked = z.infer<typeof steeringLeaseRevokedSchema>;
+  expiresAt: z.number().finite().optional(),
+  heartbeatIntervalMs: z.number().int().positive().optional(),
+  leaseTtlMs: z.number().int().positive().optional(),
+}).passthrough();
+export type SteeringControlChangedParams = z.infer<typeof steeringControlChangedParamsSchema>;
 
 export const STEERING_RPC_METHODS = [
   'happy.attach',

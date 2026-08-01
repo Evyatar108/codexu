@@ -130,7 +130,7 @@ export type SessionCopilotPromptEvent = z.infer<typeof sessionCopilotPromptEvent
 export const sessionCopilotControlEventSchema = z.object({
   t: z.literal('copilot-control'),
   state: z.enum(['no-lease', 'requested', 'active']),
-  reason: z.enum(['keystroke', 'expired', 'superseded', 'released', 'detached']).optional(),
+  reason: z.enum(['keystroke', 'expired', 'released', 'detached']).optional(),
   requestId: z.string().optional(),
   leaseId: z.string().optional(),
   expiresAt: z.number().optional(),

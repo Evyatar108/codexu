@@ -126,7 +126,7 @@ const sessionCopilotPromptEventSchema = z__namespace.object({
 const sessionCopilotControlEventSchema = z__namespace.object({
   t: z__namespace.literal("copilot-control"),
   state: z__namespace.enum(["no-lease", "requested", "active"]),
-  reason: z__namespace.enum(["keystroke", "expired", "superseded", "released", "detached"]).optional(),
+  reason: z__namespace.enum(["keystroke", "expired", "released", "detached"]).optional(),
   requestId: z__namespace.string().optional(),
   leaseId: z__namespace.string().optional(),
   expiresAt: z__namespace.number().optional(),
@@ -1560,14 +1560,25 @@ const steeringResultSchema = z__namespace.object({
 const steeringLeaseRevocationReasonSchema = z__namespace.enum([
   "keystroke",
   "expired",
-  "superseded",
   "released",
   "detached"
 ]);
-const steeringLeaseRevokedSchema = z__namespace.object({
+const steeringControlChangedReasonSchema = z__namespace.enum([
+  "granted",
+  "denied",
+  "keystroke",
+  "expired",
+  "released",
+  "detached"
+]);
+const steeringControlChangedParamsSchema = z__namespace.object({
+  reason: z__namespace.string().min(1),
+  requestId: z__namespace.string().min(1).optional(),
   leaseId: z__namespace.string().min(1).optional(),
-  reason: steeringLeaseRevocationReasonSchema
-}).strict();
+  expiresAt: z__namespace.number().finite().optional(),
+  heartbeatIntervalMs: z__namespace.number().int().positive().optional(),
+  leaseTtlMs: z__namespace.number().int().positive().optional()
+}).passthrough();
 const STEERING_RPC_METHODS = [
   "happy.attach",
   "happy.requestLease",
@@ -1768,8 +1779,9 @@ exports.signPublicRequest = signPublicRequest;
 exports.skillBodyEntry = skillBodyEntry;
 exports.steeringCommandEnvelopeSchema = steeringCommandEnvelopeSchema;
 exports.steeringCommandTypeSchema = steeringCommandTypeSchema;
+exports.steeringControlChangedParamsSchema = steeringControlChangedParamsSchema;
+exports.steeringControlChangedReasonSchema = steeringControlChangedReasonSchema;
 exports.steeringLeaseRevocationReasonSchema = steeringLeaseRevocationReasonSchema;
-exports.steeringLeaseRevokedSchema = steeringLeaseRevokedSchema;
 exports.steeringOutcomeSchema = steeringOutcomeSchema;
 exports.steeringRelayCallerSchema = steeringRelayCallerSchema;
 exports.steeringResultSchema = steeringResultSchema;

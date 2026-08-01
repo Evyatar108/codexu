@@ -4,7 +4,7 @@
 
 import {
   steeringCommandEnvelopeSchema,
-  steeringLeaseRevokedSchema,
+  steeringControlChangedParamsSchema,
   steeringResultSchema,
   type SteeringCommandEnvelope,
   type SteeringLeaseRevocationReason,
@@ -291,17 +291,35 @@ export class CopilotSteeringClient {
   }
 
   private handleNotification(notification: SteeringNotification): void {
+    if (notification.method !== 'happy.controlChanged') return;
     const { sessionId: _sessionId, ...params } = notification.params;
-    if (notification.method === 'happy.leaseRevoked') {
-      const revoked = steeringLeaseRevokedSchema.parse(params);
-      this.invalidateLease(revoked.reason);
+    const changed = steeringControlChangedParamsSchema.parse(params);
+    if (changed.reason !== 'granted' && changed.reason !== 'denied') {
+      const reason = changed.reason === 'keystroke'
+        || changed.reason === 'expired'
+        || changed.reason === 'released'
+        || changed.reason === 'detached'
+        ? changed.reason
+        : 'detached';
+      // v1 deliberately invalidates unconditionally, including when leaseId is
+      // absent or mismatched. A stale false-positive is safer than believing
+      // the phone still owns control after an unrecognized server transition.
+      this.invalidateLease(reason);
       return;
     }
     if (this.state.status !== 'requested') return;
-    if (this.pendingLeaseRequestId === null || params.requestId !== this.pendingLeaseRequestId) return;
+    if (this.pendingLeaseRequestId === null || changed.requestId !== this.pendingLeaseRequestId) return;
+    if (changed.reason === 'denied') {
+      this.invalidateLease();
+      return;
+    }
     const result = steeringResultSchema.parse({
       outcome: 'applied',
-      ...params,
+      requestId: changed.requestId,
+      leaseId: changed.leaseId,
+      expiresAt: changed.expiresAt,
+      heartbeatIntervalMs: changed.heartbeatIntervalMs,
+      leaseTtlMs: changed.leaseTtlMs,
     });
     this.applyLeaseResult(result, this.generation);
   }

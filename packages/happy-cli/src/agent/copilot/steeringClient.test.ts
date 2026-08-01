@@ -81,9 +81,10 @@ describe('CopilotSteeringClient', () => {
     expect(client.getState()).toEqual({ status: 'requested', requestId: 'lease-request-1' });
 
     fake.notify({
-      method: 'happy.leaseGranted',
+      method: 'happy.controlChanged',
       params: {
         sessionId: 'native-session',
+        reason: 'granted',
         requestId: 'lease-request-1',
         leaseId: 'lease-1',
         expiresAt: Date.now() + 45_000,
@@ -106,7 +107,7 @@ describe('CopilotSteeringClient', () => {
     client.dispose();
   });
 
-  it('discards a delayed grant for a superseded lease request', async () => {
+  it('discards a delayed grant for an older lease request', async () => {
     const fake = harness([
       { outcome: 'applied' },
       { outcome: 'no_lease' },
@@ -120,8 +121,9 @@ describe('CopilotSteeringClient', () => {
     expect(client.getState()).toEqual({ status: 'requested', requestId: 'request-b' });
 
     fake.notify({
-      method: 'happy.leaseGranted',
+      method: 'happy.controlChanged',
       params: {
+        reason: 'granted',
         requestId: 'request-a',
         leaseId: 'lease-a',
         expiresAt: Date.now() + 45_000,
@@ -130,8 +132,9 @@ describe('CopilotSteeringClient', () => {
     expect(client.getState()).toEqual({ status: 'requested', requestId: 'request-b' });
 
     fake.notify({
-      method: 'happy.leaseGranted',
+      method: 'happy.controlChanged',
       params: {
+        reason: 'granted',
         requestId: 'request-b',
         leaseId: 'lease-b',
         expiresAt: Date.now() + 45_000,
@@ -156,8 +159,9 @@ describe('CopilotSteeringClient', () => {
     await broker.requestLease('phone-b');
 
     fake.notify({
-      method: 'happy.leaseGranted',
+      method: 'happy.controlChanged',
       params: {
+        reason: 'granted',
         requestId: 'request-a',
         leaseId: 'lease-a',
         expiresAt: Date.now() + 45_000,
@@ -167,8 +171,9 @@ describe('CopilotSteeringClient', () => {
     expect(broker.attach('phone-b')).toEqual({ outcome: 'pending', requestId: 'request-b' });
 
     fake.notify({
-      method: 'happy.leaseGranted',
+      method: 'happy.controlChanged',
       params: {
+        reason: 'granted',
         requestId: 'request-b',
         leaseId: 'lease-b',
         expiresAt: Date.now() + 45_000,
@@ -179,7 +184,7 @@ describe('CopilotSteeringClient', () => {
     client.dispose();
   });
 
-  it.each(['keystroke', 'expired', 'superseded', 'released', 'detached'] as const)(
+  it.each(['keystroke', 'expired', 'released', 'detached'] as const)(
     'treats %s revocation as authoritative without re-requesting',
     async (reason) => {
       const fake = harness([
@@ -196,13 +201,68 @@ describe('CopilotSteeringClient', () => {
       await client.start();
       const before = fake.calls.length;
 
-      fake.notify({ method: 'happy.leaseRevoked', params: { reason, leaseId: 'lease-1' } });
+      fake.notify({ method: 'happy.controlChanged', params: { reason, leaseId: 'lease-1' } });
 
       expect(client.getState()).toEqual({ status: 'no-lease', reason });
       expect(fake.calls).toHaveLength(before);
       client.dispose();
     },
   );
+
+  it('invalidates a requested lease on a revocation without requestId', async () => {
+    const fake = harness([
+      { outcome: 'applied' },
+      { outcome: 'no_lease' },
+      { outcome: 'pending', requestId: 'request-1' },
+    ]);
+    const client = new CopilotSteeringClient(fake.transport as never);
+    await client.start();
+    await client.requestLease();
+
+    fake.notify({
+      method: 'happy.controlChanged',
+      params: { reason: 'released', leaseId: 'lease-from-native' },
+    });
+
+    expect(client.getState()).toEqual({ status: 'no-lease', reason: 'released' });
+    client.dispose();
+  });
+
+  it('resolves a matching denial without activating a lease', async () => {
+    const fake = harness([
+      { outcome: 'applied' },
+      { outcome: 'no_lease' },
+      { outcome: 'pending', requestId: 'request-1' },
+    ]);
+    const client = new CopilotSteeringClient(fake.transport as never);
+    await client.start();
+    await client.requestLease();
+
+    fake.notify({
+      method: 'happy.controlChanged',
+      params: { reason: 'denied', requestId: 'request-1' },
+    });
+
+    expect(client.getState()).toEqual({ status: 'no-lease' });
+    client.dispose();
+  });
+
+  it('fails safe on an unknown control-change reason', async () => {
+    const fake = harness([
+      { outcome: 'applied' },
+      { outcome: 'applied', leaseId: 'lease-1', expiresAt: Date.now() + 45_000 },
+    ]);
+    const client = new CopilotSteeringClient(fake.transport as never);
+    await client.start();
+
+    fake.notify({
+      method: 'happy.controlChanged',
+      params: { reason: 'future-revocation', leaseId: 'lease-1' },
+    });
+
+    expect(client.getState()).toEqual({ status: 'no-lease', reason: 'detached' });
+    client.dispose();
+  });
 
   it('expires locally and never auto reacquires after disconnect or reconnect resync', async () => {
     vi.useFakeTimers();
@@ -339,7 +399,7 @@ describe('CopilotSteeringClient', () => {
     await client.start();
 
     const heartbeat = client.heartbeat();
-    fake.notify({ method: 'happy.leaseRevoked', params: { reason: 'keystroke', leaseId: 'lease-1' } });
+    fake.notify({ method: 'happy.controlChanged', params: { reason: 'keystroke', leaseId: 'lease-1' } });
     resolveHeartbeat({
       outcome: 'applied',
       leaseId: 'lease-1',
@@ -351,7 +411,7 @@ describe('CopilotSteeringClient', () => {
     client.dispose();
   });
 
-  it('cancels answer retries when the lease generation is revoked', async () => {
+  it('immediately invalidates an active lease and cancels answer retries on a keystroke revocation', async () => {
     let now = 0;
     let releaseSleep!: () => void;
     const fake = harness([
@@ -382,7 +442,11 @@ describe('CopilotSteeringClient', () => {
     });
     await vi.waitFor(() => expect(releaseSleep).toBeTypeOf('function'));
 
-    fake.notify({ method: 'happy.leaseRevoked', params: { reason: 'keystroke' } });
+    fake.notify({
+      method: 'happy.controlChanged',
+      params: { reason: 'keystroke', leaseId: 'lease-1' },
+    });
+    expect(client.getState()).toEqual({ status: 'no-lease', reason: 'keystroke' });
     releaseSleep();
 
     await expect(answer).resolves.toMatchObject({ actionId, outcome: 'no_lease' });
@@ -501,8 +565,13 @@ describe('CopilotSteeringClient', () => {
 
     await expect(broker.requestLease('phone-a')).resolves.toMatchObject({ outcome: 'pending' });
     fake.notify({
-      method: 'happy.leaseGranted',
-      params: { requestId: 'request-1', leaseId: 'lease-1', expiresAt: Date.now() + 45_000 },
+      method: 'happy.controlChanged',
+      params: {
+        reason: 'granted',
+        requestId: 'request-1',
+        leaseId: 'lease-1',
+        expiresAt: Date.now() + 45_000,
+      },
     });
     await expect(broker.heartbeat('phone-b')).resolves.toEqual({ outcome: 'no_lease' });
     await expect(broker.getControlState('phone-b')).resolves.toEqual({ outcome: 'no_lease' });

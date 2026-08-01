@@ -137,16 +137,22 @@ describe('NativeLocalRpcClient', () => {
 
     socket!.write(frame({
       jsonrpc: '2.0',
-      method: 'happy.leaseGranted',
-      params: { sessionId: 'other-session', leaseId: 'wrong', expiresAt: 1 },
+      method: 'happy.controlChanged',
+      params: {
+        sessionId: 'other-session',
+        reason: 'granted',
+        requestId: 'wrong-request',
+        leaseId: 'wrong',
+        expiresAt: 1,
+      },
     }));
     socket!.write(frame({
       jsonrpc: '2.0',
-      method: 'happy.leaseRevoked',
-      params: { sessionId: 'session-1', reason: 'keystroke' },
+      method: 'happy.controlChanged',
+      params: { sessionId: 'session-1', reason: 'keystroke', leaseId: 'lease-1' },
     }));
 
-    await vi.waitFor(() => expect(notifications).toEqual(['happy.leaseRevoked']));
+    await vi.waitFor(() => expect(notifications).toEqual(['happy.controlChanged']));
   });
 
   it('fails closed on version mismatch', async () => {

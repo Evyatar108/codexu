@@ -24,9 +24,10 @@ const MAX_HEADER_BYTES = 8 * 1024;
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
 const DEFAULT_TIMEOUT_MS = 15_000;
 
-export type SteeringNotification =
-  | { method: 'happy.leaseGranted'; params: Record<string, unknown> }
-  | { method: 'happy.leaseRevoked'; params: Record<string, unknown> };
+export type SteeringNotification = {
+  method: 'happy.controlChanged';
+  params: Record<string, unknown>;
+};
 
 export type SteeringNotificationHandler = (notification: SteeringNotification) => void;
 
@@ -347,10 +348,10 @@ export class NativeLocalRpcClient extends EventEmitter {
       if (event) this.notificationHandler?.(event);
       return;
     }
-    if (message.method === 'happy.leaseGranted' || message.method === 'happy.leaseRevoked') {
+    if (message.method === 'happy.controlChanged') {
       const params = record(message.params);
       if (typeof params.sessionId === 'string' && params.sessionId !== this.foregroundSessionId) return;
-      this.steeringNotificationHandler?.({ method: message.method, params });
+      this.steeringNotificationHandler?.({ method: 'happy.controlChanged', params });
     }
   }
 

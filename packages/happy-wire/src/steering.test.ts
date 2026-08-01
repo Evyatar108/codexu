@@ -4,7 +4,8 @@ import {
   STEERING_RPC_METHODS,
   STEERING_RELAY_CALLER_KEY,
   steeringCommandEnvelopeSchema,
-  steeringLeaseRevokedSchema,
+  steeringControlChangedParamsSchema,
+  steeringControlChangedReasonSchema,
   steeringRelayCallerSchema,
   steeringResultSchema,
 } from './index';
@@ -87,7 +88,7 @@ describe('steering wire schemas', () => {
     }).outcome).toBe('rate_limited');
   });
 
-  it('keeps the final RPC names and revocation reasons stable', () => {
+  it('keeps the final RPC names and control-change reasons stable', () => {
     expect(STEERING_RPC_METHODS).toEqual([
       'happy.attach',
       'happy.requestLease',
@@ -96,9 +97,25 @@ describe('steering wire schemas', () => {
       'happy.answerPrompt',
       'happy.getControlState',
     ]);
-    for (const reason of ['keystroke', 'expired', 'superseded', 'released', 'detached']) {
-      expect(steeringLeaseRevokedSchema.safeParse({ reason }).success).toBe(true);
+    for (const reason of ['granted', 'denied', 'keystroke', 'expired', 'released', 'detached']) {
+      expect(steeringControlChangedReasonSchema.safeParse(reason).success).toBe(true);
     }
+    expect(steeringControlChangedParamsSchema.parse({
+      reason: 'granted',
+      requestId: 'request-1',
+      leaseId: 'lease-1',
+      expiresAt: 1_800_000,
+      heartbeatIntervalMs: 15_000,
+      leaseTtlMs: 45_000,
+    })).toMatchObject({
+      reason: 'granted',
+      requestId: 'request-1',
+      leaseTtlMs: 45_000,
+    });
+    expect(steeringControlChangedParamsSchema.parse({
+      reason: 'future-revocation',
+      leaseId: 'lease-1',
+    }).reason).toBe('future-revocation');
     expect(STEERING_RELAY_CALLER_KEY).toBe('__happyRpcCaller');
     expect(steeringRelayCallerSchema.parse({ connectionId: 'socket-1' })).toEqual({
       connectionId: 'socket-1',
