@@ -102,24 +102,25 @@ terminal-only; upstream bugs (observePromptEvents provider conflation,
 unguarded session.setForeground) filed upstream FIRST, coordinate before
 fixing shared code.
 
-**At handoff time, agent `investigate-blite-inbound` (gpt-5.6-sol, max) was
-running** a read-only feasibility pass in
-`C:\efforts\copilot-agent-runtime\.worktrees\copilot-happy-interactive-embed-seam`
-(clean @ `8744bdd3c7`) to answer the gap report's two asks:
-- Gap 1: reuse-existing-RPC-with-lease-reauthorization vs new `happy.*` RPC
-  methods; whether `buildSeamHandlers` (already fork-owned) is the natural
-  registration point; exact file-scope + hotness.
-- Gap 2: terminal-side lease-grant affordance: minimal app.tsx branch vs
-  external command registration vs **synthetic pending request through the
-  existing prompt machinery** (zero new UI — verify feasibility; this was my
-  suggested option iii).
+**RESOLVED before session end:** the `investigate-blite-inbound` feasibility
+pass completed and the reply doc **`t6-pathb-lite-inbound-answer.md`** was
+written, committed, and pushed (`2098ea80`). Summary: Gap 1 → new `happy.*`
+bespoke RPC methods via a narrow `seamExtension` injection in
+`buildSeamHandlers` (dispatch layers + Rust engine verified pass-through —
+untouched); answers apply SYNCHRONOUSLY via `PromptManager.handle*Response`
+(CommandPoller verified to discard handler outcomes — reserved for future
+queued commands; the phone-side "~3s pickup" doc is stale for answers).
+Gap 2 → standalone `/happy` slash-command module + direct terminal key-event
+revocation (synthetic-prompt option REJECTED: not terminal-only). Revised
+file-scope: `sdkServer.ts` and `slashCommands.ts` move to narrow-additive.
+One flag for the fork side: baseline discrepancy (`8744bdd3c7` absent;
+worktree found at `1f19c0c1` with 10 staged files).
 
 **Next steps for this thread:**
-- Read `investigate-blite-inbound` results (durable even if evicted:
-  `read_agent investigate-blite-inbound`). Write the reply doc
-  (`t6-pathb-lite-inbound-answer.md` or similar) with the revised file-scope
-  answer for both gaps, commit to codexu main, push (operator authorized this
-  doc channel), so the fork agent can re-open `happy-mission-control-actor-v1`.
+- The ball is with the fork agent (re-open `happy-mission-control-actor-v1`
+  against the inbound-answer doc). Watch for their next doc drop in
+  `plans/happy-copilot-terminal-route-v1-design/` (operator will say "pull
+  and read ...").
 - Phone-side tasks seeded on the tasks board (commit `e2249db3`):
   `happy-t6-phone-steering-client-plumbing` (ready) →
   `happy-t6-phone-steering-app-ui` (backlog, dependent). Dispatch when
