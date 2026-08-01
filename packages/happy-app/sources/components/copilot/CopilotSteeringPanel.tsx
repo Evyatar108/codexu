@@ -127,19 +127,21 @@ function SteeringButton(props: {
     onPress: () => void;
     disabled?: boolean;
     variant?: 'default' | 'primary' | 'danger';
+    /** Secondary/de-emphasised styling (used for the non-primary permission action). */
+    muted?: boolean;
 }) {
-    const { label, icon, onPress, disabled, variant = 'default' } = props;
+    const { label, icon, onPress, disabled, variant = 'default', muted } = props;
     return (
         <Pressable
             onPress={disabled ? undefined : onPress}
             disabled={disabled}
             accessibilityRole="button"
             accessibilityLabel={label}
-            style={styles.button}
+            style={[styles.button, muted && styles.buttonMuted]}
         >
-            {icon ? <Ionicons name={icon} size={16} style={styles.buttonIcon} /> : null}
-            <Text style={[styles.buttonLabel, disabled && styles.buttonLabelDisabled]}>{label}</Text>
-            <View style={[styles.buttonAccent, variant === 'danger' && styles.buttonAccentDanger, variant === 'primary' && styles.buttonAccentPrimary]} />
+            {icon ? <Ionicons name={icon} size={16} style={muted ? styles.buttonIconMuted : styles.buttonIcon} /> : null}
+            <Text style={[styles.buttonLabel, muted && styles.buttonLabelMuted, disabled && styles.buttonLabelDisabled]}>{label}</Text>
+            <View style={[styles.buttonAccent, variant === 'danger' && styles.buttonAccentDanger, variant === 'primary' && styles.buttonAccentPrimary, muted && styles.buttonAccentMuted]} />
         </Pressable>
     );
 }
@@ -227,22 +229,34 @@ function PromptSendFooter({ send }: { send: PromptSendState | undefined }) {
 // --- Per-type answer affordances --------------------------------------------
 
 function PermissionAnswer({ prompt, controller, disabled }: { prompt: CopilotPromptEntry; controller: CopilotSteeringController; disabled: boolean }) {
+    // Deny-first policy (fork 2026-08-01): deny works for ANY permission kind
+    // (monotonically safe) and is the primary/prominent action. Approve is
+    // fork-gated to the fail-closed allow-list and is a no-op in practice today,
+    // so it is a secondary action and is HIDDEN entirely for destructive prompts.
+    const destructive = prompt.destructive;
     return (
-        <View style={styles.buttonRow}>
-            <SteeringButton
-                label={t('copilotSteering.approve')}
-                icon="checkmark-outline"
-                disabled={disabled}
-                variant="primary"
-                onPress={() => controller.answer(prompt, 'answer-permission', { decision: 'approve', scope: 'once' })}
-            />
-            <SteeringButton
-                label={t('copilotSteering.deny')}
-                icon="close-outline"
-                disabled={disabled}
-                variant="danger"
-                onPress={() => controller.answer(prompt, 'answer-permission', { decision: 'deny' })}
-            />
+        <View>
+            {destructive ? (
+                <Text style={styles.observeOnlyText}>{t('copilotSteering.approveTerminalOnly')}</Text>
+            ) : null}
+            <View style={styles.buttonRow}>
+                <SteeringButton
+                    label={t('copilotSteering.deny')}
+                    icon="close-outline"
+                    disabled={disabled}
+                    variant="danger"
+                    onPress={() => controller.answer(prompt, 'answer-permission', { decision: 'deny' })}
+                />
+                {destructive ? null : (
+                    <SteeringButton
+                        label={t('copilotSteering.approve')}
+                        icon="checkmark-outline"
+                        disabled={disabled}
+                        muted
+                        onPress={() => controller.answer(prompt, 'answer-permission', { decision: 'approve', scope: 'once' })}
+                    />
+                )}
+            </View>
         </View>
     );
 }
@@ -366,9 +380,13 @@ function SteeringPromptCard({ prompt, controller }: { prompt: CopilotPromptEntry
     const displayText = promptDisplayText(prompt);
     const canAnswer = controller.view.canAnswer;
 
+    // Deny-first policy: a destructive *permission* prompt is now answerable
+    // (deny-only) once holding — no longer fully observe-only. Only a
+    // destructive NON-permission prompt (not produced today) stays terminal-only.
+    const answerableType = !prompt.destructive || prompt.promptType === 'answer-permission';
+
     let body: React.ReactNode;
-    if (prompt.destructive) {
-        // Observe-only keyed strictly off the destructive flag.
+    if (!answerableType) {
         body = <Text style={styles.observeOnlyText}>{t('copilotSteering.observeOnlyDestructive')}</Text>;
     } else if (!canAnswer) {
         body = <Text style={styles.observeOnlyText}>{t('copilotSteering.observeOnlyNoLease')}</Text>;
@@ -491,10 +509,21 @@ const styles = StyleSheet.create((theme) => ({
     buttonIcon: {
         color: theme.colors.text,
     },
+    buttonIconMuted: {
+        color: theme.colors.textSecondary,
+    },
+    buttonMuted: {
+        borderColor: theme.colors.textSecondary,
+        backgroundColor: theme.colors.surface,
+    },
     buttonLabel: {
         color: theme.colors.text,
         fontSize: 13,
         fontWeight: '600',
+    },
+    buttonLabelMuted: {
+        color: theme.colors.textSecondary,
+        fontWeight: '400',
     },
     buttonLabelDisabled: {
         color: theme.colors.textSecondary,
@@ -506,6 +535,9 @@ const styles = StyleSheet.create((theme) => ({
         bottom: 0,
         width: 4,
         backgroundColor: theme.colors.text,
+    },
+    buttonAccentMuted: {
+        backgroundColor: theme.colors.textSecondary,
     },
     buttonAccentPrimary: {
         backgroundColor: theme.colors.success,

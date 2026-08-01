@@ -1105,6 +1105,7 @@ export const en: TranslationStructure = {
         noPendingPrompts: 'No pending prompts',
         observeOnlyDestructive: 'This action can only be answered from the terminal',
         observeOnlyNoLease: 'Take steering to answer this prompt',
+        approveTerminalOnly: 'Approve is only available at the terminal',
         permissionTitle: 'Permission request',
         approve: 'Approve',
         deny: 'Deny',

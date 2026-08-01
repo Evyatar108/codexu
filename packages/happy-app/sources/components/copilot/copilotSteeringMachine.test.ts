@@ -4,8 +4,10 @@ import type { CopilotControlState } from '@/sync/reducer/reducer';
 import {
     deriveSteeringView,
     describeAnswerOutcome,
+    isAnswerAllowedWhileHolding,
     outcomeIsSuccess,
     outcomeLostLease,
+    reconcileControlEvent,
     revocationReasonKey,
     type LocalLease,
 } from './copilotSteeringMachine';
@@ -112,5 +114,95 @@ describe('revocationReasonKey', () => {
         expect(revocationReasonKey('released')).toBe('copilotSteering.revokedReleased');
         expect(revocationReasonKey('detached')).toBe('copilotSteering.revokedDetached');
         expect(revocationReasonKey(null)).toBe('copilotSteering.revokedEnded');
+    });
+});
+
+describe('reconcileControlEvent', () => {
+    it('(b) drops holding to revoked immediately on a no-lease event', () => {
+        const holding: LocalLease = { status: 'holding', leaseId: 'l1', expiresAt: 1000, heartbeatIntervalMs: 15000 };
+        const next = reconcileControlEvent(holding, control({ state: 'no-lease', reason: 'keystroke' }));
+        expect(next).toEqual({ status: 'revoked', reason: 'keystroke' });
+    });
+
+    it('(b) drops requesting to revoked on a no-lease event', () => {
+        const next = reconcileControlEvent({ status: 'requesting', requestId: 'r1' }, control({ state: 'no-lease', reason: 'expired' }));
+        expect(next).toEqual({ status: 'revoked', reason: 'expired' });
+    });
+
+    it('a no-lease event leaves idle untouched', () => {
+        const idle: LocalLease = { status: 'idle' };
+        expect(reconcileControlEvent(idle, control({ state: 'no-lease', reason: 'released' }))).toBe(idle);
+    });
+
+    it('(c) an active event never promotes idle (no auto re-acquire)', () => {
+        const idle: LocalLease = { status: 'idle' };
+        expect(reconcileControlEvent(idle, control({ state: 'active', leaseId: 'l1', expiresAt: 1000 }))).toBe(idle);
+    });
+
+    it('(c) an active event never promotes revoked (no auto re-acquire)', () => {
+        const revoked: LocalLease = { status: 'revoked', reason: 'keystroke' };
+        expect(reconcileControlEvent(revoked, control({ state: 'active', leaseId: 'l1', expiresAt: 1000 }))).toBe(revoked);
+    });
+
+    it('(d) promotes requesting to holding when the active event requestId matches', () => {
+        const next = reconcileControlEvent(
+            { status: 'requesting', requestId: 'req-1' },
+            control({ state: 'active', requestId: 'req-1', leaseId: 'l1', expiresAt: 5000, heartbeatIntervalMs: 15000 }),
+        );
+        expect(next).toEqual({ status: 'holding', leaseId: 'l1', expiresAt: 5000, heartbeatIntervalMs: 15000 });
+    });
+
+    it('LOW: does NOT promote requesting when the active event requestId mismatches', () => {
+        const requesting: LocalLease = { status: 'requesting', requestId: 'req-1' };
+        const next = reconcileControlEvent(requesting, control({ state: 'active', requestId: 'req-2', leaseId: 'l2', expiresAt: 5000 }));
+        expect(next).toBe(requesting);
+    });
+
+    it('promotes requesting when the active event carries no requestId to correlate', () => {
+        const next = reconcileControlEvent(
+            { status: 'requesting', requestId: 'req-1' },
+            control({ state: 'active', leaseId: 'l1', expiresAt: 5000 }),
+        );
+        expect(next).toMatchObject({ status: 'holding', leaseId: 'l1', expiresAt: 5000 });
+    });
+
+    it('refreshes an existing holding lease from a later active event', () => {
+        const holding: LocalLease = { status: 'holding', leaseId: 'l1', expiresAt: 1000, heartbeatIntervalMs: 15000 };
+        const next = reconcileControlEvent(holding, control({ state: 'active', leaseId: 'l1', expiresAt: 9000 }));
+        expect(next).toEqual({ status: 'holding', leaseId: 'l1', expiresAt: 9000, heartbeatIntervalMs: 15000 });
+    });
+
+    it('a requested event by another client does not change local lease', () => {
+        const idle: LocalLease = { status: 'idle' };
+        expect(reconcileControlEvent(idle, control({ state: 'requested', requestId: 'other' }))).toBe(idle);
+    });
+});
+
+describe('isAnswerAllowedWhileHolding (deny-first policy)', () => {
+    it('(a) a destructive permission prompt can be DENIED but not APPROVED', () => {
+        const prompt = { promptType: 'answer-permission' as const, destructive: true };
+        expect(isAnswerAllowedWhileHolding(prompt, 'answer-permission', { decision: 'deny' })).toBe(true);
+        expect(isAnswerAllowedWhileHolding(prompt, 'answer-permission', { decision: 'approve' })).toBe(false);
+    });
+
+    it('a non-destructive permission prompt allows both approve and deny', () => {
+        const prompt = { promptType: 'answer-permission' as const, destructive: false };
+        expect(isAnswerAllowedWhileHolding(prompt, 'answer-permission', { decision: 'approve' })).toBe(true);
+        expect(isAnswerAllowedWhileHolding(prompt, 'answer-permission', { decision: 'deny' })).toBe(true);
+    });
+
+    it('rejects a type mismatch between the prompt and the answer', () => {
+        const prompt = { promptType: 'answer-permission' as const, destructive: false };
+        expect(isAnswerAllowedWhileHolding(prompt, 'answer-plan', {})).toBe(false);
+    });
+
+    it('a destructive non-permission prompt is never answerable here', () => {
+        const prompt = { promptType: 'answer-elicitation' as const, destructive: true };
+        expect(isAnswerAllowedWhileHolding(prompt, 'answer-elicitation', {})).toBe(false);
+    });
+
+    it('non-permission prompts (never destructive today) are answerable', () => {
+        expect(isAnswerAllowedWhileHolding({ promptType: 'answer-plan', destructive: false }, 'answer-plan', {})).toBe(true);
+        expect(isAnswerAllowedWhileHolding({ promptType: 'answer-ask-user', destructive: false }, 'answer-ask-user', {})).toBe(true);
     });
 });

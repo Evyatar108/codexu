@@ -16,8 +16,17 @@
  *   an explicit user action to request again.
  */
 
-import type { CopilotControlState } from '@/sync/reducer/reducer';
+import type { CopilotControlState, CopilotPromptEntry } from '@/sync/reducer/reducer';
 import type { SteeringOutcome } from '@slopus/happy-wire';
+
+/**
+ * Lease timing fallbacks used when a control event / grant omits the
+ * server-tuned values. The grant payload normally supplies both.
+ */
+export const DEFAULT_HEARTBEAT_INTERVAL_MS = 15_000;
+export const DEFAULT_LEASE_TTL_MS = 45_000;
+
+export type SteeringPromptType = CopilotPromptEntry['promptType'];
 
 export type SteeringRevocationReason = NonNullable<CopilotControlState['reason']>;
 
@@ -101,6 +110,92 @@ export function deriveSteeringView(local: LocalLease, control: CopilotControlSta
         expiresAt: null,
         revokedReason: null,
     };
+}
+
+/**
+ * Reconcile this device's local lease against an authoritative control event.
+ * Pure so the safety-critical transitions are unit-testable without a renderer.
+ *
+ * Invariants encoded here:
+ * - A `no-lease` event drops holding/requesting → revoked immediately (the
+ *   terminal always wins).
+ * - An `active`/`requested` event NEVER promotes an idle/revoked device to
+ *   holding — there is no auto re-acquire; re-acquiring is an explicit action.
+ * - `requesting → holding` only when the event's `requestId` matches the
+ *   outstanding request (or the event carries no requestId to correlate with).
+ *   The single-holder broker one tier down gates every actionable RPC by
+ *   connection ownership, so this is defence-in-depth, not the sole guard —
+ *   but it prevents a stale/foreign grant from promoting the wrong request.
+ */
+export function reconcileControlEvent(local: LocalLease, control: CopilotControlState): LocalLease {
+    if (control.state === 'no-lease') {
+        if (local.status === 'holding' || local.status === 'requesting') {
+            return { status: 'revoked', reason: control.reason ?? null };
+        }
+        if (local.status === 'revoked') {
+            return { status: 'revoked', reason: control.reason ?? local.reason };
+        }
+        return local; // idle stays idle
+    }
+
+    if (control.state === 'active') {
+        if (local.status === 'requesting') {
+            // LOW fix (2026-08-01): correlate the grant to THIS request. Only
+            // promote when the event has no requestId (nothing to correlate) or
+            // it matches the outstanding request id; a mismatch means the grant
+            // belongs to a different/older request and must not promote us.
+            if (control.requestId !== undefined && local.requestId !== null && control.requestId !== local.requestId) {
+                return local;
+            }
+            return {
+                status: 'holding',
+                leaseId: control.leaseId ?? 'lease',
+                expiresAt: control.expiresAt ?? Date.now() + (control.leaseTtlMs ?? DEFAULT_LEASE_TTL_MS),
+                heartbeatIntervalMs: control.heartbeatIntervalMs ?? DEFAULT_HEARTBEAT_INTERVAL_MS,
+            };
+        }
+        if (local.status === 'holding') {
+            return {
+                status: 'holding',
+                leaseId: control.leaseId ?? local.leaseId,
+                expiresAt: control.expiresAt ?? local.expiresAt,
+                heartbeatIntervalMs: control.heartbeatIntervalMs ?? local.heartbeatIntervalMs,
+            };
+        }
+        // idle | revoked: no auto re-acquire.
+        return local;
+    }
+
+    // control.state === 'requested' by another client → conflict is derived by
+    // deriveSteeringView; no local lease change.
+    return local;
+}
+
+/**
+ * Whether this device may submit `answer` for a prompt while holding the lease.
+ *
+ * Fork deny-first policy (2026-08-01): denial is monotonically safe for ANY
+ * permission kind (it can only prevent an action), so a destructive permission
+ * prompt CAN be denied from the phone. Approval remains fork-gated to the
+ * fail-closed allow-list, so the phone never sends approve for a destructive
+ * prompt. Non-permission prompts are never destructive today; a hypothetical
+ * destructive non-permission prompt is not answerable here.
+ *
+ * NOTE: the caller must still confirm `status === 'holding'` — this function
+ * only encodes the destructive/decision split.
+ */
+export function isAnswerAllowedWhileHolding(
+    prompt: Pick<CopilotPromptEntry, 'promptType' | 'destructive'>,
+    type: SteeringPromptType,
+    content: { decision?: 'approve' | 'deny' },
+): boolean {
+    if (prompt.promptType !== type) {
+        return false;
+    }
+    if (!prompt.destructive) {
+        return true;
+    }
+    return type === 'answer-permission' && content.decision === 'deny';
 }
 
 /**

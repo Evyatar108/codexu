@@ -40,15 +40,16 @@ import type {
 import {
     deriveSteeringView,
     describeAnswerOutcome,
+    isAnswerAllowedWhileHolding,
     outcomeIsSuccess,
     outcomeLostLease,
+    reconcileControlEvent,
+    DEFAULT_HEARTBEAT_INTERVAL_MS,
+    DEFAULT_LEASE_TTL_MS,
     type LocalLease,
     type OutcomeCopy,
     type SteeringView,
 } from './copilotSteeringMachine';
-
-const DEFAULT_HEARTBEAT_INTERVAL_MS = 15_000;
-const DEFAULT_LEASE_TTL_MS = 45_000;
 
 export type PromptSendState = {
     actionId: string;
@@ -110,45 +111,14 @@ export function useCopilotSteeringController(sessionId: string): CopilotSteering
     // --- Authoritative control reconciliation -------------------------------
     // A `no-lease` control event (keystroke/expiry/superseded/released/detached)
     // is authoritative and instantly drops answer affordances to observe-only.
+    // An `active`/`requested` event never auto-re-acquires an idle/revoked
+    // device. All transition logic lives in the pure `reconcileControlEvent`
+    // (unit-tested) so this effect is a thin adapter.
     React.useEffect(() => {
         if (!control) {
             return;
         }
-        if (control.state === 'no-lease') {
-            setLocal((prev) => {
-                if (prev.status === 'holding' || prev.status === 'requesting') {
-                    return { status: 'revoked', reason: control.reason ?? null };
-                }
-                if (prev.status === 'revoked') {
-                    return { status: 'revoked', reason: control.reason ?? prev.reason };
-                }
-                return prev;
-            });
-            return;
-        }
-        if (control.state === 'active') {
-            setLocal((prev) => {
-                if (prev.status === 'requesting') {
-                    return {
-                        status: 'holding',
-                        leaseId: control.leaseId ?? 'lease',
-                        expiresAt: control.expiresAt ?? Date.now() + (control.leaseTtlMs ?? DEFAULT_LEASE_TTL_MS),
-                        heartbeatIntervalMs: control.heartbeatIntervalMs ?? DEFAULT_HEARTBEAT_INTERVAL_MS,
-                    };
-                }
-                if (prev.status === 'holding') {
-                    return {
-                        status: 'holding',
-                        leaseId: control.leaseId ?? prev.leaseId,
-                        expiresAt: control.expiresAt ?? prev.expiresAt,
-                        heartbeatIntervalMs: control.heartbeatIntervalMs ?? prev.heartbeatIntervalMs,
-                    };
-                }
-                return prev;
-            });
-        }
-        // control.state === 'requested' by another client surfaces as a
-        // conflict purely through `deriveSteeringView`; no local change needed.
+        setLocal((prev) => reconcileControlEvent(prev, control));
     }, [control]);
 
     // --- Snapshot-on-mount resync (contract §5) -----------------------------
@@ -267,8 +237,10 @@ export function useCopilotSteeringController(sessionId: string): CopilotSteering
         type: T,
         content: AnswerContentByType[T],
     ) => {
-        // Guard: never send for a prompt that is not answerable here.
-        if (localRef.current.status !== 'holding' || prompt.destructive || prompt.promptType !== type) {
+        // Guard: must hold the lease AND the destructive/decision policy must
+        // permit this answer (deny-any / approve-blocked-for-destructive).
+        if (localRef.current.status !== 'holding'
+            || !isAnswerAllowedWhileHolding(prompt, type, content as { decision?: 'approve' | 'deny' })) {
             return;
         }
         const requestId = prompt.requestId;
