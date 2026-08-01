@@ -189,19 +189,21 @@ Quick orientation (verified from `docs/agency/AgencyHub/*.md` +
   remote-approvals-spec,remote-approvals-impl-plan,copilot-remote-approvals-plan}.md`,
   code under `client/agency/src/session_hooks/` (copilot_adapter.rs,
   server.rs, settings.rs, mod.rs).
-- Task seeded on the tasks board: **`t6-agency-hub-prior-art-research`** —
-  compare Agency's hook-based mechanism against our Path B-lite seam design;
-  decide leverage vs inspiration vs ignore, per capability (approvals,
-  steering/input, spawn, transcript streaming, device presence); note that
-  the hook path may cover ANY Copilot CLI session (no fork needed?) which
-  could change the cost/benefit of parts of B-lite; also assess whether
-  hooks-based approvals compose with our lease/attribution policy layer and
-  the phone-side contract already agreed with the fork agent.
-- IMPORTANT nuance for the researcher: our T6 constraint set (loopback-only
-  Happy, no cloud service, e-ink phone app, terminal-granted lease) differs
-  from Agency's (Entra + cloud hub). The research question is about the
-  **CLI-side attach mechanism** (hooks vs seam vs MC injection) and the
-  approval-holding pattern, not about adopting their cloud plane.
+- **OPERATOR DECISION (2026-08-01, locked): the hooks-based attach mechanism
+  is REJECTED — we will not replicate it.** Happy stays on the in-process
+  embedded-seam Path B-lite design. Agency is prior art for INSPIRATION
+  ONLY.
+- Task seeded on the tasks board: **`t6-agency-hub-prior-art-research`**
+  (reframed inspiration-only) — mine their approval-card UX (context shown,
+  Always-Allow rule suggestions), timeout-expiry semantics (~30 min →
+  Expired), first-wins UI messaging, device presence/heartbeat model,
+  remote-spawn + file-access opt-in scoping UX, their actual steering
+  input-injection channel, security patterns, and PWA/phone UX — each mapped
+  to where it would land in OUR design (phone ACK contract, fork-side actor,
+  Happy app UI). Per-pattern adopt/adapt/skip with file:line citations.
+- Constraint frame unchanged: loopback-only Happy, no cloud service,
+  terminal-granted lease, e-ink phone app — their Entra/cloud plane is out
+  of scope by construction.
 
 ## Thread 5 — misc completed this session (context only)
 
