@@ -1,5 +1,5 @@
 /**
- * Owns one opt-in, spawn-only Copilot read-only mirror session.
+ * Owns one opt-in Copilot read-only mirror session over a spawned or attached target.
  */
 
 import {
@@ -24,7 +24,7 @@ import {
   spawnManagedTarget,
   type ManagedTarget,
 } from './managedServer';
-import { NativeLocalRpcClient } from './nativeLocalRpcClient';
+import { NativeLocalRpcClient, NativeTransportError } from './nativeLocalRpcClient';
 import {
   CopilotPhoneSteeringBroker,
   CopilotSteeringClient,
@@ -37,17 +37,23 @@ import {
   markLaunchFailedBeforeOwnership,
   markLaunchOwned,
 } from './launchContext';
+import {
+  attachUiServerTarget,
+  type UiServerAttachTarget,
+} from './uiServerRegistry';
 
 type RunCopilotMirrorOptions = {
   credentials: Credentials;
   machineId: string;
   startedBy?: 'daemon' | 'terminal';
   launchContext?: EvCopilotHappyLaunchContextV1;
+  attachUiServer?: { pid?: number };
 };
 
 type CopilotMirrorDependencies = {
   createApi?: (credentials: Credentials) => Promise<ApiClient>;
   spawnTarget?: typeof spawnManagedTarget;
+  attachTarget?: typeof attachUiServerTarget;
   createNativeClient?: (host: string, port: number) => NativeLocalRpcClient;
   markOwned?: typeof markLaunchOwned;
   markCompleted?: typeof markLaunchCompleted;
@@ -193,8 +199,12 @@ export async function runCopilotMirror(
   options: RunCopilotMirrorOptions,
   dependencies: CopilotMirrorDependencies = {},
 ): Promise<void> {
+  if (options.attachUiServer && options.launchContext) {
+    throw new Error('Copilot ui-server attach mode cannot own a production launch context');
+  }
   const api = await (dependencies.createApi ?? ApiClient.create)(options.credentials);
   let target: ManagedTarget | null = null;
+  let attachedTarget: UiServerAttachTarget | null = null;
   let native: NativeLocalRpcClient | null = null;
   let session: ApiSessionClient | null = null;
   let relay: CopilotEventRelay | null = null;
@@ -262,7 +272,7 @@ export async function runCopilotMirror(
     finalization = (async () => {
       await startupPromise;
       relay?.quiesce();
-      if (native && reason !== 'native-shutdown') {
+      if (native && target && reason !== 'native-shutdown') {
         await cleanupStage('native-shutdown-request', () => native!.shutdown(), 3_000);
         if (relay && !nativeShutdownObserved) {
           await cleanupStage('native-shutdown-observation', () => nativeShutdownPromise, 3_000);
@@ -298,6 +308,7 @@ export async function runCopilotMirror(
         await cleanupStage('session-close', () => session!.close(), 5_000);
       }
       await cleanupStage('native-client-close', () => native?.close());
+      attachedTarget?.dispose();
       try {
         await target?.terminate();
       } catch (error) {
@@ -323,26 +334,31 @@ export async function runCopilotMirror(
   process.once('SIGTERM', onSignal);
 
   try {
-    target = await (dependencies.spawnTarget ?? spawnManagedTarget)({
-      launch: options.launchContext ? {
-        executable: options.launchContext.evCopilot.executablePath,
-        fixedArguments: options.launchContext.evCopilot.fixedArguments,
-        packageVersion: options.launchContext.evCopilot.packageVersion,
-        edition: options.launchContext.evCopilot.edition,
-      } : undefined,
-    });
+    if (options.attachUiServer) {
+      attachedTarget = await (dependencies.attachTarget ?? attachUiServerTarget)(options.attachUiServer.pid);
+    } else {
+      target = await (dependencies.spawnTarget ?? spawnManagedTarget)({
+        launch: options.launchContext ? {
+          executable: options.launchContext.evCopilot.executablePath,
+          fixedArguments: options.launchContext.evCopilot.fixedArguments,
+          packageVersion: options.launchContext.evCopilot.packageVersion,
+          edition: options.launchContext.evCopilot.edition,
+        } : undefined,
+      });
+    }
     if (quiescing) throw new Error('Copilot mirror startup cancelled');
+    const registry = attachedTarget?.registry ?? target!.registry;
     native = (dependencies.createNativeClient ?? ((host, port) => new NativeLocalRpcClient(host, port)))(
-      target.registry.host,
-      target.registry.port,
+      registry.host,
+      registry.port,
     );
-    await native.connect(target.registry.token, target.registry.sessionId, target.registry.copilotVersion);
+    await native.connect(registry.token, registry.sessionId, registry.copilotVersion);
     steering = new CopilotSteeringClient(native);
     await steering.start();
     phoneSteering = new CopilotPhoneSteeringBroker(steering);
     if (quiescing) throw new Error('Copilot mirror startup cancelled');
     if (options.launchContext) {
-      await persistOwnershipBeforeReturn(target.child.pid!);
+      await persistOwnershipBeforeReturn(target!.child.pid!);
     }
 
     const { state, metadata: createdMetadata } = createSessionMetadata({
@@ -466,16 +482,24 @@ export async function runCopilotMirror(
     }, async () => {
       phoneSteering!.invalidateOwner();
       await steering!.attachAndResync();
-    }, (event) => steering!.observeNativeEvent(event));
-    const childExit = new Promise<void>((resolve, reject) => {
-      target!.child.once('exit', () => {
-        if (finalization) resolve();
-        else reject(new Error('Copilot managed-server exited'));
-      });
-      target!.child.once('error', reject);
+    }, (event) => steering!.observeNativeEvent(event), attachedTarget ? 0 : undefined);
+    const targetExit = target
+      ? new Promise<void>((resolve, reject) => {
+        target!.child.once('exit', () => {
+          if (finalization) resolve();
+          else reject(new Error('Copilot managed-server exited'));
+        });
+        target!.child.once('error', reject);
+      })
+      : attachedTarget!.waitForUnavailable.then(() => finalizeOnce('native-disconnect'));
+    const relayRun = relay.run().catch((error) => {
+      if (attachedTarget && error instanceof NativeTransportError) {
+        return finalizeOnce('native-disconnect');
+      }
+      throw error;
     });
     resolveStartup();
-    await Promise.race([relay.run(), childExit, finalizationCompletePromise]);
+    await Promise.race([relayRun, targetExit, finalizationCompletePromise]);
     if (finalization) await finalization;
     if (terminationFailure) throw terminationFailure;
     if (options.launchContext && ownershipWritten && !terminationFailure) {

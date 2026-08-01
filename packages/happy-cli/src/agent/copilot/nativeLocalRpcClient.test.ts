@@ -155,6 +155,33 @@ describe('NativeLocalRpcClient', () => {
     await vi.waitFor(() => expect(notifications).toEqual(['happy.controlChanged']));
   });
 
+  it('adopts the foreground session when a v1 ui-server registry omits sessionId', async () => {
+    const requests: Array<Record<string, unknown>> = [];
+    server = net.createServer((socket) => {
+      parseFrames(socket, (message) => {
+        requests.push(message);
+        socket.write(frame({
+          jsonrpc: '2.0',
+          id: message.id,
+          result: message.method === 'connect'
+            ? { protocolVersion: 3, version: '1.0.75-ev.1' }
+            : { sessionId: 'discovered-foreground-session' },
+        }));
+      });
+    });
+    await new Promise<void>((resolve) => server!.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('Missing server address');
+    client = new NativeLocalRpcClient('127.0.0.1', address.port);
+
+    await client.connect('token', undefined, '1.0.75-ev.1');
+    await client.resume();
+
+    expect(requests.find((request) => request.method === 'session.resume')?.params).toMatchObject({
+      sessionId: 'discovered-foreground-session',
+    });
+  });
+
   it('fails closed on version mismatch', async () => {
     server = net.createServer((socket) => {
       parseFrames(socket, (message) => {

@@ -186,6 +186,46 @@ afterEach(async () => {
 });
 
 describe('runCopilotMirror lifecycle', () => {
+  it('attaches to an existing ui-server without spawning or owning its lifecycle', async () => {
+    const harness = activeHarness();
+    const spawnTarget = vi.fn();
+    const dispose = vi.fn();
+    const attachTarget = vi.fn(async () => ({
+      registry: {
+        schemaVersion: 1 as const,
+        pid: 456,
+        host: '127.0.0.1' as const,
+        port: 54321,
+        token: 'A'.repeat(43),
+        startedAt: '2026-08-01T12:00:00.000Z',
+        copilotVersion: '1.0.75-ev.1',
+        sessionName: 'T6 terminal',
+      },
+      waitForUnavailable: new Promise<void>(() => undefined),
+      dispose,
+    }));
+
+    await expect(runCopilotMirror(
+      { ...options, attachUiServer: { pid: 456 } },
+      {
+        ...harness.dependencies,
+        spawnTarget: spawnTarget as never,
+        attachTarget,
+      },
+    )).resolves.toBeUndefined();
+
+    expect(attachTarget).toHaveBeenCalledWith(456);
+    expect(spawnTarget).not.toHaveBeenCalled();
+    expect(harness.native.connect).toHaveBeenCalledWith(
+      'A'.repeat(43),
+      undefined,
+      '1.0.75-ev.1',
+    );
+    expect(harness.native.shutdown).not.toHaveBeenCalled();
+    expect(harness.ownedTarget.terminate).not.toHaveBeenCalled();
+    expect(dispose).toHaveBeenCalledOnce();
+  });
+
   it('quiesces startup and terminates a target acquired after a stop signal', async () => {
     const ownedTarget = target();
     let resolveTarget!: (value: ReturnType<typeof target>) => void;

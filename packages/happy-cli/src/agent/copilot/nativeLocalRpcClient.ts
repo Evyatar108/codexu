@@ -1,5 +1,5 @@
 /**
- * Version-gated Content-Length JSON-RPC client for an owned Copilot target.
+ * Version-gated Content-Length JSON-RPC client for a local Copilot target.
  */
 
 import net, { type Socket } from 'node:net';
@@ -109,10 +109,14 @@ export class NativeLocalRpcClient extends EventEmitter {
     super();
   }
 
-  async connect(connectionToken: string, expectedSessionId: string, expectedVersion = COPILOT_NATIVE_VERSION): Promise<void> {
+  async connect(
+    connectionToken: string,
+    expectedSessionId?: string,
+    expectedVersion = COPILOT_NATIVE_VERSION,
+  ): Promise<void> {
     if (this.socket !== null) throw new Error('Copilot client is already connected');
     this.connectionToken = connectionToken;
-    this.expectedSessionId = expectedSessionId;
+    this.expectedSessionId = expectedSessionId ?? null;
     this.expectedVersion = expectedVersion;
     await this.openAndHandshake(connectionToken, expectedSessionId, expectedVersion);
   }
@@ -123,7 +127,11 @@ export class NativeLocalRpcClient extends EventEmitter {
     await this.openAndHandshake(this.connectionToken, this.expectedSessionId, this.expectedVersion);
   }
 
-  private async openAndHandshake(connectionToken: string, expectedSessionId: string, expectedVersion: string): Promise<void> {
+  private async openAndHandshake(
+    connectionToken: string,
+    expectedSessionId: string | undefined,
+    expectedVersion: string,
+  ): Promise<void> {
     this.socket = await new Promise<Socket>((resolve, reject) => {
       const socket = net.createConnection({ host: this.host, port: this.port });
       const onError = (error: Error): void => {
@@ -169,7 +177,7 @@ export class NativeLocalRpcClient extends EventEmitter {
 
       const foreground = record(await this.request('session.getForeground', {}));
       const sessionId = nonEmptyString(foreground.sessionId, 'foreground session id');
-      if (sessionId !== expectedSessionId) {
+      if (expectedSessionId !== undefined && sessionId !== expectedSessionId) {
         throw new Error('Copilot foreground session does not match registry');
       }
       this.foregroundSessionId = sessionId;

@@ -35,6 +35,7 @@ export class CopilotEventRelay {
     private readonly onNativeShutdown?: () => Promise<void>,
     private readonly onNativeReconnected?: () => Promise<void>,
     private readonly onNativeEvent?: (event: NativeEvent) => void,
+    private readonly reconnectAttempts = RECONNECT_ATTEMPTS,
   ) {}
 
   async run(): Promise<void> {
@@ -60,7 +61,7 @@ export class CopilotEventRelay {
         if (this.stopped || this.quiescing) return;
         if (!(error instanceof NativeTransportError)) throw error;
         let reconnected = false;
-        for (let attempt = 1; attempt <= RECONNECT_ATTEMPTS && !this.stopped && !this.quiescing; attempt++) {
+        for (let attempt = 1; attempt <= this.reconnectAttempts && !this.stopped && !this.quiescing; attempt++) {
           await new Promise((resolve) => setTimeout(resolve, attempt * 100));
           try {
             await this.native.reconnect();
