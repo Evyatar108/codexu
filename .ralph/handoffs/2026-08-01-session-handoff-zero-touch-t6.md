@@ -160,6 +160,49 @@ side has since advanced (HEAD `8744bdd3c7` includes the read-only enforcement
 from `happy-promote-classify-call-to-production`) — check for overlap before
 committing.
 
+## Thread 6 — NEW: Agency Hub prior art for remote steering (research task, NOT started)
+
+The operator found a Microsoft-internal project that already does remote
+steering of Copilot CLI sessions and copied its source to
+**`C:\repos\agency`** (repo root: `agency.toml`, `Cargo.toml`, `README.md`,
+`.git` all present; branch `main`, tracks its `origin/main`). Product name:
+**Agency** / **Agency Hub** (preview/dogfood). Entry: `agency cp --hub`.
+
+Quick orientation (verified from `docs/agency/AgencyHub/*.md` +
+`docs/session-manager/*.md` in that repo):
+
+- **Mechanism is a THIRD approach**, different from both Mission Control
+  (`PromptManager`/`CommandPoller`) and our embedded-seam Path B-lite: a
+  per-device **Rust daemon** installs Copilot CLI **hooks**
+  (`~/.copilot/hooks/agency.json` + generated Node hook script); the CLI
+  POSTs `permissionRequest`/lifecycle hook events to a loopback axum server
+  (`127.0.0.1:7824/hook/{nonce}`, nonce-gated); the daemon **holds the
+  permission hook open (long-poll)** until a remote answer arrives or ~30 min
+  timeout; relays to a cloud service (REST + Azure Web PubSub, Entra JWT);
+  web/PWA/Teams/ADO hub renders approval cards, live transcript, steering
+  composer, remote spawn/stop, device presence + heartbeat.
+- Their docs CONFIRM our first-wins framing: the TUI prompt and the hook
+  handler fire simultaneously; whichever resolves first wins
+  (`docs/session-manager/remote-approvals-impl-plan.md`).
+- Key reading: `docs/agency/AgencyHub/{index,remote-control,commands}.md`,
+  `docs/session-manager/{README,architecture,message-flow,server-contract,
+  remote-approvals-spec,remote-approvals-impl-plan,copilot-remote-approvals-plan}.md`,
+  code under `client/agency/src/session_hooks/` (copilot_adapter.rs,
+  server.rs, settings.rs, mod.rs).
+- Task seeded on the tasks board: **`t6-agency-hub-prior-art-research`** —
+  compare Agency's hook-based mechanism against our Path B-lite seam design;
+  decide leverage vs inspiration vs ignore, per capability (approvals,
+  steering/input, spawn, transcript streaming, device presence); note that
+  the hook path may cover ANY Copilot CLI session (no fork needed?) which
+  could change the cost/benefit of parts of B-lite; also assess whether
+  hooks-based approvals compose with our lease/attribution policy layer and
+  the phone-side contract already agreed with the fork agent.
+- IMPORTANT nuance for the researcher: our T6 constraint set (loopback-only
+  Happy, no cloud service, e-ink phone app, terminal-granted lease) differs
+  from Agency's (Entra + cloud hub). The research question is about the
+  **CLI-side attach mechanism** (hooks vs seam vs MC injection) and the
+  approval-holding pattern, not about adopting their cloud plane.
+
 ## Thread 5 — misc completed this session (context only)
 
 - `npm-block-readiness 1.0.5` released + pushed (toolkit `0e6da915`).

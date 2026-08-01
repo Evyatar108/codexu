@@ -2816,6 +2816,25 @@
           "prompt": "Build the happy-app UI for T6 Path B-lite steering per plans/happy-copilot-terminal-route-v1-design/t6-pathb-lite-phone-side-requirements.md, on top of the client plumbing from happy-t6-phone-steering-client-plumbing. Scope: (1) stop treating every flavor:'copilot' session as blanket read-only (sources/sync/storage.ts:46-93, composer removal SessionView.tsx:175-180,479) - drive affordances off actual lease/capability state; (2) lease UX: request-steering action, holder-conflict message ('another client is currently steering'), lease status indicator with expiry, manual release, authoritative revoked handling (instantly drop answer affordances to observe-only; NO auto re-acquire - explicit user action only; re-request after reconnect); (3) prompt-answer composer for the four answer types (permission approve/deny, elicitation response, plan approval, ask-user answer) - approve-once/deny only, do NOT surface Happy's generic broader modes (accept-edits/bypass/session-wide) for Copilot; (4) destructive prompts render observe-only (no approve/deny buttons) keyed off the destructive flag on the prompt event, never hardcoded kind names; (5) optimistic send feedback: grey out the control immediately on send, confirm via event stream (up to ~3s pickup), distinguish typed rejections (out-of-scope / destructive / no-lease / transport) in user-visible errors; (6) attribution rendering: answered-here vs answered-on-terminal, consistently; (7) NO send-text, NO abort, NO session/foreground switching UI regardless of lease state - hidden/disabled in v1. Keep all rendering static-friendly for the e-ink tablet target (no animations/continuous repaints)."
         }
       ]
+    },
+    {
+      "id": "t6-agency-hub-prior-art-research",
+      "title": "T6: research Agency Hub prior art (hook-based Copilot remote steering) vs Path B-lite",
+      "stage": "ready",
+      "lifecycle": "active",
+      "scope": "happy-t6-steering",
+      "dependsOn": [],
+      "writablePaths": [
+        "plans/happy-copilot-terminal-route-v1-design"
+      ],
+      "validationCommand": "git diff --check",
+      "actions": [
+        {
+          "id": "investigate",
+          "label": "Investigate",
+          "prompt": "Read-only research of the Agency / Agency Hub source at C:\\repos\\agency (Microsoft-internal; entry `agency cp --hub`). It already ships remote steering of Copilot CLI sessions via a DIFFERENT mechanism from both Mission Control and our Path B-lite seam: a per-device Rust daemon installs Copilot CLI hooks (~/.copilot/hooks/agency.json + generated Node hook script); the CLI POSTs permissionRequest/lifecycle hook events to a nonce-gated loopback axum server (127.0.0.1:7824/hook/{nonce}); the daemon HOLDS the permission hook open (long-poll) until a remote answer or ~30min timeout; relays over REST + Azure Web PubSub (Entra JWT) to a cloud hub (web/PWA/Teams/ADO) with approval cards, steering composer, remote spawn/stop, device presence. Key reading: docs/agency/AgencyHub/{index,remote-control,commands}.md; docs/session-manager/{README,architecture,message-flow,server-contract,remote-approvals-spec,remote-approvals-impl-plan,copilot-remote-approvals-plan}.md; code client/agency/src/session_hooks/ (copilot_adapter.rs, server.rs, settings.rs, mod.rs). DELIVERABLE: a comparison doc in plans/happy-copilot-terminal-route-v1-design/ (t6-agency-hub-prior-art.md) assessing per capability (approvals, steering/input, spawn, transcript streaming, presence) whether Happy should LEVERAGE (reuse their hook mechanism - note hooks work against ANY stock Copilot CLI, no fork required, which may change the B-lite cost/benefit), take INSPIRATION (patterns like hook long-poll holding, nonce gating, timeout-expiry semantics, first-wins coexistence with the TUI - their docs confirm TUI prompt + hook handler fire simultaneously, first resolution wins), or IGNORE. Constraint frame: our T6 posture is loopback-only Happy, no cloud service, terminal-granted lease, e-ink phone app - the question is the CLI-side attach mechanism and approval-holding pattern, NOT adopting their Entra/cloud plane. Also assess: do hook-based approvals compose with our lease/attribution layer and the agreed phone-side contract (t6-pathb-lite-phone-side-ack.md)? What are the hook API's limits vs the seam (can hooks answer elicitation/ask-user/plan prompts or only permissionRequest; can they inject input/steer, or is steering in Agency done via a different path - find it)? Cite file:line throughout. Do not modify C:\\repos\\agency."
+        }
+      ]
     }
   ]
 }
