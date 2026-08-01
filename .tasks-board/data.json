@@ -2774,6 +2774,48 @@
       "title": "Design zero-touch Happy bootstrap for new devboxes",
       "validationCommand": "git diff --check",
       "id": "happy-zero-touch-devbox-bootstrap"
+    },
+    {
+      "id": "happy-t6-phone-steering-client-plumbing",
+      "title": "T6 phone steering: happy-cli/server lease client, actionId dedup relay, event projection",
+      "stage": "ready",
+      "lifecycle": "active",
+      "scope": "happy-t6-steering",
+      "dependsOn": [],
+      "writablePaths": [
+        "packages/happy-cli/src/agent/copilot",
+        "packages/happy-server/sources/app/api/socket",
+        "packages/happy-wire"
+      ],
+      "validationCommand": "pnpm --filter '{packages/happy-cli}' typecheck && pnpm --filter '{packages/happy-server}' typecheck",
+      "actions": [
+        {
+          "id": "impl",
+          "label": "Implement",
+          "prompt": "Implement the phone-side transport plumbing for T6 Path B-lite steering against the interop contract in plans/happy-copilot-terminal-route-v1-design/t6-pathb-lite-phone-side-requirements.md (and the mechanism doc t6-pathb-lite-handoff.md). Scope: (1) lease client protocol in happy-cli's Copilot client (request/renew-heartbeat/release; treat lease-revoked as authoritative; never auto re-acquire; re-request required after reconnect; in-memory only); (2) command envelope {actionId UUID, sessionId, type answer-permission|answer-elicitation|answer-plan|answer-ask-user, content, targetRequestId} with actionId generated per user action and REUSED on retry; (3) actionId plumbing through the happy-server RPC relay - rpcHandler.ts currently forwards only {method,params} with no dedup (sources/app/api/socket/rpcHandler.ts:160-220); (4) typed rejection outcomes distinguished (out-of-scope vs destructive vs no-lease vs transport failure); (5) extend the Copilot event projection beyond the current ten mirror-only final event kinds (packages/happy-cli/src/agent/copilot/types.ts:11-22) to carry live pending-prompt events including a destructive flag passthrough; (6) reconnect resync from currently-pending state only (permissions durable; ask-user/elicitation/exit-plan not replayed - accepted gap, do not build replay). Shared wire types go in packages/happy-wire. Do NOT build send-text/abort/foreground - answer-prompts scope only in v1. Design for up to ~3s command pickup latency (CommandPoller cadence): async ack via event stream, no synchronous round-trip. Blocking-open items from the contract section 7 (exact heartbeat values, destructive flag shape, final content types, rejection enum) should be coded behind narrow adapter types so they can be pinned when the fork side confirms."
+        }
+      ]
+    },
+    {
+      "id": "happy-t6-phone-steering-app-ui",
+      "title": "T6 phone steering: happy-app lease UX, prompt-answer composer, observe-only destructive rendering",
+      "stage": "backlog",
+      "lifecycle": "active",
+      "scope": "happy-t6-steering",
+      "dependsOn": [
+        "happy-t6-phone-steering-client-plumbing"
+      ],
+      "writablePaths": [
+        "packages/happy-app/sources"
+      ],
+      "validationCommand": "pnpm --filter '{packages/happy-app}' typecheck",
+      "actions": [
+        {
+          "id": "impl",
+          "label": "Implement",
+          "prompt": "Build the happy-app UI for T6 Path B-lite steering per plans/happy-copilot-terminal-route-v1-design/t6-pathb-lite-phone-side-requirements.md, on top of the client plumbing from happy-t6-phone-steering-client-plumbing. Scope: (1) stop treating every flavor:'copilot' session as blanket read-only (sources/sync/storage.ts:46-93, composer removal SessionView.tsx:175-180,479) - drive affordances off actual lease/capability state; (2) lease UX: request-steering action, holder-conflict message ('another client is currently steering'), lease status indicator with expiry, manual release, authoritative revoked handling (instantly drop answer affordances to observe-only; NO auto re-acquire - explicit user action only; re-request after reconnect); (3) prompt-answer composer for the four answer types (permission approve/deny, elicitation response, plan approval, ask-user answer) - approve-once/deny only, do NOT surface Happy's generic broader modes (accept-edits/bypass/session-wide) for Copilot; (4) destructive prompts render observe-only (no approve/deny buttons) keyed off the destructive flag on the prompt event, never hardcoded kind names; (5) optimistic send feedback: grey out the control immediately on send, confirm via event stream (up to ~3s pickup), distinguish typed rejections (out-of-scope / destructive / no-lease / transport) in user-visible errors; (6) attribution rendering: answered-here vs answered-on-terminal, consistently; (7) NO send-text, NO abort, NO session/foreground switching UI regardless of lease state - hidden/disabled in v1. Keep all rendering static-friendly for the e-ink tablet target (no animations/continuous repaints)."
+        }
+      ]
     }
   ]
 }
