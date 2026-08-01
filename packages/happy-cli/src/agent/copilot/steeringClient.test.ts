@@ -390,10 +390,14 @@ describe('CopilotSteeringClient', () => {
     client.dispose();
   });
 
-  it('rejects destructive, unknown-kind, mismatched, and unknown permission targets locally', async () => {
+  it('allows destructive denial while keeping approval fail-closed and requiring a pending target', async () => {
+    const denyActionId = '123e4567-e89b-42d3-a456-426614174001';
+    const approveReadActionId = '123e4567-e89b-42d3-a456-426614174002';
     const fake = harness([
       { outcome: 'applied' },
       { outcome: 'applied', leaseId: 'lease-1', expiresAt: Date.now() + 45_000 },
+      { actionId: denyActionId, outcome: 'applied' },
+      { actionId: approveReadActionId, outcome: 'applied' },
     ]);
     const client = new CopilotSteeringClient(fake.transport as never);
     await client.start();
@@ -409,18 +413,44 @@ describe('CopilotSteeringClient', () => {
       timestamp: '2026-08-01T00:00:00Z',
       data: { requestId: 'unknown-1', promptRequest: { kind: 'future-kind' } },
     });
+    client.observeNativeEvent({
+      id: 'read',
+      type: 'permission.requested',
+      timestamp: '2026-08-01T00:00:00Z',
+      data: { requestId: 'read-1', promptRequest: { kind: 'read' } },
+    });
 
-    const answer = (targetRequestId: string) => client.answerPrompt({
-      actionId,
+    const answer = (
+      targetRequestId: string,
+      decision: 'approve' | 'deny',
+      commandActionId = actionId,
+    ) => client.answerPrompt({
+      actionId: commandActionId,
       sessionId: 'happy-session',
       targetRequestId,
       type: 'answer-permission',
-      content: { decision: 'approve', scope: 'once' },
+      content: { decision, scope: 'once' },
     });
-    await expect(answer('write-1')).resolves.toMatchObject({ outcome: 'destructive_kind' });
-    await expect(answer('unknown-1')).resolves.toMatchObject({ outcome: 'destructive_kind' });
-    await expect(answer('missing')).resolves.toMatchObject({ outcome: 'not_pending' });
-    expect(fake.calls.filter((call) => call.method === 'happy.answerPrompt')).toHaveLength(0);
+    await expect(answer('write-1', 'approve')).resolves.toMatchObject({ outcome: 'destructive_kind' });
+    await expect(answer('unknown-1', 'approve')).resolves.toMatchObject({ outcome: 'destructive_kind' });
+    await expect(answer('missing', 'deny')).resolves.toMatchObject({ outcome: 'not_pending' });
+    await expect(answer('write-1', 'deny', denyActionId))
+      .resolves.toMatchObject({ actionId: denyActionId, outcome: 'applied' });
+    await expect(answer('read-1', 'approve', approveReadActionId))
+      .resolves.toMatchObject({ actionId: approveReadActionId, outcome: 'applied' });
+
+    const answerCalls = fake.calls.filter((call) => call.method === 'happy.answerPrompt');
+    expect(answerCalls).toHaveLength(2);
+    expect(answerCalls.map((call) => call.params)).toEqual([
+      expect.objectContaining({
+        targetRequestId: 'write-1',
+        content: { decision: 'deny', scope: 'once' },
+      }),
+      expect.objectContaining({
+        targetRequestId: 'read-1',
+        content: { decision: 'approve', scope: 'once' },
+      }),
+    ]);
     client.dispose();
   });
 

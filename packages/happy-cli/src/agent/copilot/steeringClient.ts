@@ -229,7 +229,11 @@ export class CopilotSteeringClient {
       this.emitAction({ actionId: command.actionId, status: 'confirmed', result });
       return result;
     }
-    if (command.type === 'answer-permission' && prompt.destructive) {
+    if (
+      command.type === 'answer-permission'
+      && command.content.decision === 'approve'
+      && prompt.destructive
+    ) {
       const result = { actionId: command.actionId, outcome: 'destructive_kind' as const };
       this.emitAction({ actionId: command.actionId, status: 'confirmed', result });
       return result;

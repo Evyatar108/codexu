@@ -251,6 +251,8 @@ export function projectNativeEvent(
       if (eventData.resolvedByHook === true || typeof eventData.requestId !== 'string') break;
       const promptRequest = isPlainObject(eventData.promptRequest) ? eventData.promptRequest : undefined;
       const permissionRequest = isPlainObject(eventData.permissionRequest) ? eventData.permissionRequest : undefined;
+      // This flag describes approval risk for rendering and fail-closed approval.
+      // A destructive permission remains deniable because denial cannot cause the action.
       const destructive = (promptRequest?.kind ?? permissionRequest?.kind) !== 'read';
       state.pendingPromptKinds.set(eventData.requestId, {
         promptType: 'answer-permission',
