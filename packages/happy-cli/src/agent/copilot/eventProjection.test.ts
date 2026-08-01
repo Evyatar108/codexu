@@ -100,4 +100,68 @@ describe('Copilot event projection', () => {
     expect(projectNativeEvent(event('assistant.message_delta', '2'), state, options).deliveries).toEqual([]);
     expect(projectNativeEvent({ ...event('session.start', '3'), timestamp: 'not-a-date' }, state, options).deliveries).toEqual([]);
   });
+
+  it('projects live prompt state and fails closed on non-read permission kinds', () => {
+    const state = createProjectionState(options.happySessionId);
+    const safe = projectNativeEvent({
+      ...event('permission.requested', 'permission-1', {
+        requestId: 'request-1',
+        promptRequest: { kind: 'read', path: 'README.md' },
+      }),
+      ephemeral: true,
+    }, state, options);
+    expect(safe.deliveries[0].envelope.ev).toMatchObject({
+      t: 'copilot-prompt',
+      requestId: 'request-1',
+      promptType: 'answer-permission',
+      state: 'pending',
+      destructive: false,
+    });
+
+    const unknown = projectNativeEvent({
+      ...event('permission.requested', 'permission-2', {
+        requestId: 'request-2',
+        promptRequest: { kind: 'future-kind' },
+      }),
+      ephemeral: true,
+    }, state, options);
+    expect(unknown.deliveries[0].envelope.ev).toMatchObject({ destructive: true });
+
+    const fallback = projectNativeEvent(event('permission.requested', 'permission-fallback', {
+      requestId: 'request-fallback',
+      permissionRequest: { kind: 'read', path: 'README.md' },
+    }), state, options);
+    expect(fallback.deliveries[0].envelope.ev).toMatchObject({ destructive: false });
+
+    const completed = projectNativeEvent(event('permission.completed', 'permission-3', {
+      requestId: 'request-1',
+      result: { kind: 'approved' },
+    }), state, options);
+    expect(completed.deliveries[0].envelope.ev).toMatchObject({
+      requestId: 'request-1',
+      state: 'resolved',
+      destructive: false,
+    });
+  });
+
+  it('projects ask-user, elicitation, and plan prompts without marking them destructive', () => {
+    const state = createProjectionState(options.happySessionId);
+    const projected = [
+      event('user_input.requested', 'input', { requestId: 'input-1', question: 'Choose', choices: ['A'] }),
+      event('elicitation.requested', 'elicitation', { requestId: 'elicitation-1', message: 'Provide data' }),
+      event('exit_plan_mode.requested', 'plan', {
+        requestId: 'plan-1',
+        summary: 'Plan',
+        planContent: '# Plan',
+        actions: ['approve'],
+        recommendedAction: 'approve',
+      }),
+    ].flatMap((item) => projectNativeEvent({ ...item, ephemeral: true }, state, options).deliveries);
+
+    expect(projected.map((item) => item.envelope.ev)).toEqual([
+      expect.objectContaining({ promptType: 'answer-ask-user', destructive: false }),
+      expect.objectContaining({ promptType: 'answer-elicitation', destructive: false }),
+      expect.objectContaining({ promptType: 'answer-plan', destructive: false }),
+    ]);
+  });
 });

@@ -113,6 +113,11 @@ function activeHarness(overrides: {
   ];
   const native = {
     connect: vi.fn(async () => undefined),
+    invokeSteering: vi.fn(async (method: string) => (
+      method === 'happy.getControlState' ? { outcome: 'no_lease' } : { outcome: 'applied' }
+    )),
+    onSteeringNotification: vi.fn(() => () => undefined),
+    onTransportDisconnected: vi.fn(() => () => undefined),
     onSessionEvent: vi.fn(() => () => undefined),
     resume: vi.fn(async () => undefined),
     readEventLog: vi.fn(async () => pages.shift()),
@@ -226,6 +231,11 @@ describe('runCopilotMirror lifecycle', () => {
     };
     const native = {
       connect: vi.fn(async () => undefined),
+      invokeSteering: vi.fn(async (method: string) => (
+        method === 'happy.getControlState' ? { outcome: 'no_lease' } : { outcome: 'applied' }
+      )),
+      onSteeringNotification: vi.fn(() => () => undefined),
+      onTransportDisconnected: vi.fn(() => () => undefined),
       shutdown: vi.fn(async () => undefined),
       close: vi.fn(),
     };
@@ -310,6 +320,11 @@ describe('runCopilotMirror lifecycle', () => {
     ];
     const native = {
       connect: vi.fn(async () => undefined),
+      invokeSteering: vi.fn(async (method: string) => (
+        method === 'happy.getControlState' ? { outcome: 'no_lease' } : { outcome: 'applied' }
+      )),
+      onSteeringNotification: vi.fn(() => () => undefined),
+      onTransportDisconnected: vi.fn(() => () => undefined),
       onSessionEvent: vi.fn(() => () => undefined),
       resume: vi.fn(async () => undefined),
       readEventLog: vi.fn(async () => pages.shift()),
@@ -324,7 +339,7 @@ describe('runCopilotMirror lifecycle', () => {
       createNativeClient: vi.fn(() => native as never),
     })).resolves.toBeUndefined();
 
-    expect(deliveries).toEqual(['text', 'stop']);
+    expect(deliveries).toEqual(['copilot-control', 'text', 'stop']);
     expect(metadata).toMatchObject({ lifecycleState: 'archived', archiveReason: 'native-shutdown' });
     expect(registered.has('killSession')).toBe(true);
     expect(session.onUserMessage).toHaveBeenCalledOnce();
@@ -343,7 +358,7 @@ describe('runCopilotMirror lifecycle', () => {
           : Promise.reject(new Error('Happy ACK rejected')),
       });
       const run = runCopilotMirror(options, harness.dependencies);
-      await vi.waitFor(() => expect(harness.session.sendSessionProtocolMessageWithDelivery).toHaveBeenCalledOnce());
+      await vi.waitFor(() => expect(harness.session.sendSessionProtocolMessageWithDelivery).toHaveBeenCalledTimes(2));
       harness.registered.get('killSession')?.();
 
       await vi.advanceTimersByTimeAsync(12_000);

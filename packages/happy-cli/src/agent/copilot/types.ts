@@ -19,9 +19,33 @@ export const COPILOT_PROJECTED_EVENT_TYPES = [
   'abort',
   'session.error',
   'session.shutdown',
+  // Permission request/completion events are durable and reconstruct the
+  // pending set during event-log replay. The other prompt families are
+  // ephemeral and appear here for live notification filtering only.
+  'permission.requested',
+  'permission.completed',
+  'user_input.requested',
+  'user_input.completed',
+  'elicitation.requested',
+  'elicitation.completed',
+  'exit_plan_mode.requested',
+  'exit_plan_mode.completed',
 ] as const;
 
 export type CopilotProjectedEventType = typeof COPILOT_PROJECTED_EVENT_TYPES[number];
+
+export const COPILOT_LIVE_PROMPT_EVENT_TYPES = [
+  'permission.requested',
+  'permission.completed',
+  'user_input.requested',
+  'user_input.completed',
+  'elicitation.requested',
+  'elicitation.completed',
+  'exit_plan_mode.requested',
+  'exit_plan_mode.completed',
+] as const;
+
+export type CopilotLivePromptEventType = typeof COPILOT_LIVE_PROMPT_EVENT_TYPES[number];
 
 export type NativeEvent = {
   id: string;
@@ -74,6 +98,10 @@ export type ProjectionState = {
   terminalSeen: boolean;
   toolTurns: Map<string, string>;
   projectedToolCalls: Set<string>;
+  pendingPromptKinds: Map<string, {
+    promptType: 'answer-permission' | 'answer-elicitation' | 'answer-plan' | 'answer-ask-user';
+    destructive: boolean;
+  }>;
 };
 
 export type NativeNotificationHandler = (event: NativeEvent) => void;

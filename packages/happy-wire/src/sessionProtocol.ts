@@ -112,6 +112,33 @@ export const sessionMessageConsumptionEventSchema = z.object({
 });
 export type SessionMessageConsumptionEvent = z.infer<typeof sessionMessageConsumptionEventSchema>;
 
+export const sessionCopilotPromptEventSchema = z.object({
+  t: z.literal('copilot-prompt'),
+  requestId: z.string(),
+  promptType: z.enum([
+    'answer-permission',
+    'answer-elicitation',
+    'answer-plan',
+    'answer-ask-user',
+  ]),
+  state: z.enum(['pending', 'resolved']),
+  destructive: z.boolean(),
+  payload: z.record(z.string(), z.unknown()).optional(),
+});
+export type SessionCopilotPromptEvent = z.infer<typeof sessionCopilotPromptEventSchema>;
+
+export const sessionCopilotControlEventSchema = z.object({
+  t: z.literal('copilot-control'),
+  state: z.enum(['no-lease', 'requested', 'active']),
+  reason: z.enum(['keystroke', 'expired', 'superseded', 'released', 'detached']).optional(),
+  requestId: z.string().optional(),
+  leaseId: z.string().optional(),
+  expiresAt: z.number().optional(),
+  heartbeatIntervalMs: z.number().int().positive().optional(),
+  leaseTtlMs: z.number().int().positive().optional(),
+});
+export type SessionCopilotControlEvent = z.infer<typeof sessionCopilotControlEventSchema>;
+
 export const sessionEventSchema = z.discriminatedUnion('t', [
   sessionTextEventSchema,
   sessionServiceMessageEventSchema,
@@ -125,6 +152,8 @@ export const sessionEventSchema = z.discriminatedUnion('t', [
   sessionContextBoundaryEventSchema,
   sessionAgentConfigurationChangedEventSchema,
   sessionMessageConsumptionEventSchema,
+  sessionCopilotPromptEventSchema,
+  sessionCopilotControlEventSchema,
 ]);
 
 export type SessionEvent = z.infer<typeof sessionEventSchema>;

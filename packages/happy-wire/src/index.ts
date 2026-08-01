@@ -13,4 +13,5 @@ export * from './localPairingInvite';
 export * from './localDeviceAuth';
 export * from './pairingEnrollment';
 export * from './sessionOutputSnapshot';
+export * from './steering';
 export * from './tunnel/types';

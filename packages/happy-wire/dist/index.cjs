@@ -110,6 +110,29 @@ const sessionMessageConsumptionEventSchema = z__namespace.object({
   consumedAt: z__namespace.number(),
   agentFlavor: z__namespace.enum(["claude", "codex"])
 });
+const sessionCopilotPromptEventSchema = z__namespace.object({
+  t: z__namespace.literal("copilot-prompt"),
+  requestId: z__namespace.string(),
+  promptType: z__namespace.enum([
+    "answer-permission",
+    "answer-elicitation",
+    "answer-plan",
+    "answer-ask-user"
+  ]),
+  state: z__namespace.enum(["pending", "resolved"]),
+  destructive: z__namespace.boolean(),
+  payload: z__namespace.record(z__namespace.string(), z__namespace.unknown()).optional()
+});
+const sessionCopilotControlEventSchema = z__namespace.object({
+  t: z__namespace.literal("copilot-control"),
+  state: z__namespace.enum(["no-lease", "requested", "active"]),
+  reason: z__namespace.enum(["keystroke", "expired", "superseded", "released", "detached"]).optional(),
+  requestId: z__namespace.string().optional(),
+  leaseId: z__namespace.string().optional(),
+  expiresAt: z__namespace.number().optional(),
+  heartbeatIntervalMs: z__namespace.number().int().positive().optional(),
+  leaseTtlMs: z__namespace.number().int().positive().optional()
+});
 const sessionEventSchema = z__namespace.discriminatedUnion("t", [
   sessionTextEventSchema,
   sessionServiceMessageEventSchema,
@@ -122,7 +145,9 @@ const sessionEventSchema = z__namespace.discriminatedUnion("t", [
   sessionStopEventSchema,
   sessionContextBoundaryEventSchema,
   sessionAgentConfigurationChangedEventSchema,
-  sessionMessageConsumptionEventSchema
+  sessionMessageConsumptionEventSchema,
+  sessionCopilotPromptEventSchema,
+  sessionCopilotControlEventSchema
 ]);
 const sessionEnvelopeSchema = z__namespace.object({
   id: z__namespace.string(),
@@ -1456,6 +1481,102 @@ function getSessionOutputSnapshotTransientMessageId(sessionId, itemId) {
   return `happy-session-output-snapshot:${getSessionOutputSnapshotKey(sessionId, itemId)}`;
 }
 
+const uuidV4Schema = z__namespace.string().uuid().refine(
+  (value) => value.slice(14, 15).toLowerCase() === "4",
+  "actionId must be a UUID v4"
+);
+const steeringCommandTypeSchema = z__namespace.enum([
+  "answer-permission",
+  "answer-elicitation",
+  "answer-plan",
+  "answer-ask-user"
+]);
+const answerAskUserContentSchema = z__namespace.object({
+  answer: z__namespace.string(),
+  wasFreeform: z__namespace.boolean().optional(),
+  dismissed: z__namespace.boolean().optional()
+}).strict();
+const answerElicitationContentSchema = z__namespace.object({
+  action: z__namespace.enum(["accept", "decline", "cancel"]),
+  content: z__namespace.record(z__namespace.string(), z__namespace.unknown()).optional()
+}).strict();
+const answerPlanContentSchema = z__namespace.object({
+  approved: z__namespace.boolean(),
+  selectedAction: z__namespace.string().optional(),
+  feedback: z__namespace.string().optional()
+}).strict();
+const answerPermissionContentSchema = z__namespace.object({
+  decision: z__namespace.enum(["approve", "deny"]),
+  scope: z__namespace.literal("once").optional()
+}).strict();
+const commandBase = {
+  actionId: uuidV4Schema,
+  sessionId: z__namespace.string().min(1),
+  targetRequestId: z__namespace.string().min(1)
+};
+const steeringCommandEnvelopeSchema = z__namespace.discriminatedUnion("type", [
+  z__namespace.object({
+    ...commandBase,
+    type: z__namespace.literal("answer-ask-user"),
+    content: answerAskUserContentSchema
+  }).strict(),
+  z__namespace.object({
+    ...commandBase,
+    type: z__namespace.literal("answer-elicitation"),
+    content: answerElicitationContentSchema
+  }).strict(),
+  z__namespace.object({
+    ...commandBase,
+    type: z__namespace.literal("answer-plan"),
+    content: answerPlanContentSchema
+  }).strict(),
+  z__namespace.object({
+    ...commandBase,
+    type: z__namespace.literal("answer-permission"),
+    content: answerPermissionContentSchema
+  }).strict()
+]);
+const steeringOutcomeSchema = z__namespace.enum([
+  "pending",
+  "applied",
+  "duplicate",
+  "already_resolved",
+  "out_of_scope",
+  "destructive_kind",
+  "no_lease",
+  "not_pending",
+  "rate_limited"
+]);
+const steeringResultSchema = z__namespace.object({
+  actionId: uuidV4Schema.optional(),
+  outcome: steeringOutcomeSchema,
+  leaseId: z__namespace.string().min(1).optional(),
+  expiresAt: z__namespace.number().finite().optional(),
+  heartbeatIntervalMs: z__namespace.number().int().positive().optional(),
+  leaseTtlMs: z__namespace.number().int().positive().optional(),
+  retryAfterMs: z__namespace.number().int().nonnegative().optional(),
+  requestId: z__namespace.string().min(1).optional()
+}).strict();
+const steeringLeaseRevocationReasonSchema = z__namespace.enum([
+  "keystroke",
+  "expired",
+  "superseded",
+  "released",
+  "detached"
+]);
+const steeringLeaseRevokedSchema = z__namespace.object({
+  leaseId: z__namespace.string().min(1).optional(),
+  reason: steeringLeaseRevocationReasonSchema
+}).strict();
+const STEERING_RPC_METHODS = [
+  "happy.attach",
+  "happy.requestLease",
+  "happy.heartbeat",
+  "happy.releaseLease",
+  "happy.answerPrompt",
+  "happy.getControlState"
+];
+
 const MachineTunnelSchema = z__namespace.object({
   machineId: z__namespace.string(),
   tunnelId: z__namespace.string(),
@@ -1542,6 +1663,7 @@ exports.PublicSignedRequestEnvelopeSchema = PublicSignedRequestEnvelopeSchema;
 exports.SESSION_OUTPUT_SNAPSHOT_ID_MAX_CHARS = SESSION_OUTPUT_SNAPSHOT_ID_MAX_CHARS;
 exports.SESSION_OUTPUT_SNAPSHOT_TEXT_MAX_BYTES = SESSION_OUTPUT_SNAPSHOT_TEXT_MAX_BYTES;
 exports.SESSION_OUTPUT_SNAPSHOT_TYPE = SESSION_OUTPUT_SNAPSHOT_TYPE;
+exports.STEERING_RPC_METHODS = STEERING_RPC_METHODS;
 exports.SenderKeysSchema = SenderKeysSchema;
 exports.SessionGetAgentTreeRequestSchema = SessionGetAgentTreeRequestSchema;
 exports.SessionGetAgentTreeResponseSchema = SessionGetAgentTreeResponseSchema;
@@ -1571,6 +1693,10 @@ exports.VoiceConversationDeniedSchema = VoiceConversationDeniedSchema;
 exports.VoiceConversationGrantedSchema = VoiceConversationGrantedSchema;
 exports.VoiceConversationResponseSchema = VoiceConversationResponseSchema;
 exports.VoiceUsageResponseSchema = VoiceUsageResponseSchema;
+exports.answerAskUserContentSchema = answerAskUserContentSchema;
+exports.answerElicitationContentSchema = answerElicitationContentSchema;
+exports.answerPermissionContentSchema = answerPermissionContentSchema;
+exports.answerPlanContentSchema = answerPlanContentSchema;
 exports.canonicalLocalRequestStringToSign = canonicalLocalRequestStringToSign;
 exports.canonicalPairCompleteResponse = canonicalPairCompleteResponse;
 exports.canonicalRequestStringToSign = canonicalRequestStringToSign;
@@ -1615,6 +1741,8 @@ exports.sessionAgentConfigurationChangedEventSchema = sessionAgentConfigurationC
 exports.sessionContextBoundaryEventSchema = sessionContextBoundaryEventSchema;
 exports.sessionContextBoundaryKindSchema = sessionContextBoundaryKindSchema;
 exports.sessionContextBoundaryTriggeredBySchema = sessionContextBoundaryTriggeredBySchema;
+exports.sessionCopilotControlEventSchema = sessionCopilotControlEventSchema;
+exports.sessionCopilotPromptEventSchema = sessionCopilotPromptEventSchema;
 exports.sessionEnvelopeSchema = sessionEnvelopeSchema;
 exports.sessionEventSchema = sessionEventSchema;
 exports.sessionFileEventSchema = sessionFileEventSchema;
@@ -1633,6 +1761,12 @@ exports.signLocalRequest = signLocalRequest;
 exports.signPairCompleteResponse = signPairCompleteResponse;
 exports.signPublicRequest = signPublicRequest;
 exports.skillBodyEntry = skillBodyEntry;
+exports.steeringCommandEnvelopeSchema = steeringCommandEnvelopeSchema;
+exports.steeringCommandTypeSchema = steeringCommandTypeSchema;
+exports.steeringLeaseRevocationReasonSchema = steeringLeaseRevocationReasonSchema;
+exports.steeringLeaseRevokedSchema = steeringLeaseRevokedSchema;
+exports.steeringOutcomeSchema = steeringOutcomeSchema;
+exports.steeringResultSchema = steeringResultSchema;
 exports.systemReminderEntry = systemReminderEntry;
 exports.verifyLocalRequest = verifyLocalRequest;
 exports.verifyPairCompleteResponse = verifyPairCompleteResponse;

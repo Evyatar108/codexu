@@ -6,7 +6,7 @@ import type { ApiSessionClient } from '@/api/apiSession';
 
 import { createProjectionState, projectNativeEvent } from './eventProjection';
 import { NativeTransportError, type NativeLocalRpcClient } from './nativeLocalRpcClient';
-import type { NativeEvent } from './types';
+import { COPILOT_LIVE_PROMPT_EVENT_TYPES, type NativeEvent } from './types';
 
 const MAX_BOOTSTRAP_PAGES = 10_000;
 const RECONNECT_ATTEMPTS = 3;
@@ -22,6 +22,8 @@ export class CopilotEventRelay {
   private stopped = false;
   private quiescing = false;
   private activeDelivery: Promise<void> | null = null;
+  private liveDeliveries = new Set<Promise<void>>();
+  private liveDeliveryFailure: Error | null = null;
   private seenEventIds = new Set<string>();
   private projectionState = createProjectionState('');
 
@@ -30,6 +32,7 @@ export class CopilotEventRelay {
     private readonly happy: Pick<ApiSessionClient, 'sessionId' | 'sendSessionProtocolMessageWithDelivery'>,
     private readonly workspace: string,
     private readonly onNativeShutdown?: () => Promise<void>,
+    private readonly onNativeReconnected?: () => Promise<void>,
   ) {}
 
   async run(): Promise<void> {
@@ -38,12 +41,22 @@ export class CopilotEventRelay {
         const cursor = await this.bootstrapFromStart();
         if (this.stopped) return;
         let liveCursor = cursor;
-        while (!this.stopped && !this.quiescing) {
-          const page = await this.native.readEventLog({ cursor: liveCursor, waitMs: 30_000 });
-          if (this.stopped) return;
-          if (page.cursorStatus === 'expired') break;
-          await this.deliverEventsWithState(page.events, this.projectionState);
-          liveCursor = page.cursor;
+        const detachLive = this.native.onSessionEvent((event) => {
+          if (!(COPILOT_LIVE_PROMPT_EVENT_TYPES as readonly string[]).includes(event.type)) return;
+          this.trackLiveDelivery(event);
+        });
+        try {
+          while (!this.stopped && !this.quiescing) {
+            if (this.liveDeliveryFailure) throw this.liveDeliveryFailure;
+            const page = await this.native.readEventLog({ cursor: liveCursor, waitMs: 30_000 });
+            if (this.stopped) return;
+            if (this.liveDeliveryFailure) throw this.liveDeliveryFailure;
+            if (page.cursorStatus === 'expired') break;
+            await this.deliverEventsWithState(page.events, this.projectionState);
+            liveCursor = page.cursor;
+          }
+        } finally {
+          detachLive();
         }
       } catch (error) {
         if (this.stopped || this.quiescing) return;
@@ -53,6 +66,7 @@ export class CopilotEventRelay {
           await new Promise((resolve) => setTimeout(resolve, attempt * 100));
           try {
             await this.native.reconnect();
+            await this.onNativeReconnected?.();
             reconnected = true;
             break;
           } catch {
@@ -74,6 +88,7 @@ export class CopilotEventRelay {
 
   async drainCurrentDelivery(): Promise<void> {
     await this.activeDelivery;
+    await Promise.all(this.liveDeliveries);
   }
 
   async bootstrapFromStart(): Promise<string> {
@@ -169,6 +184,18 @@ export class CopilotEventRelay {
     } finally {
       if (this.activeDelivery === operation) this.activeDelivery = null;
     }
+  }
+
+  private trackLiveDelivery(event: NativeEvent): void {
+    const delivery = this.deliverEvents([event], this.projectionState);
+    this.liveDeliveries.add(delivery);
+    void delivery
+      .catch((error) => {
+        this.liveDeliveryFailure = error instanceof Error ? error : new Error('Copilot prompt delivery failed');
+      })
+      .finally(() => {
+        this.liveDeliveries.delete(delivery);
+      });
   }
 
   private async deliverEvents(

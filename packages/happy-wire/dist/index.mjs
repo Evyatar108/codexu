@@ -88,6 +88,29 @@ const sessionMessageConsumptionEventSchema = z.object({
   consumedAt: z.number(),
   agentFlavor: z.enum(["claude", "codex"])
 });
+const sessionCopilotPromptEventSchema = z.object({
+  t: z.literal("copilot-prompt"),
+  requestId: z.string(),
+  promptType: z.enum([
+    "answer-permission",
+    "answer-elicitation",
+    "answer-plan",
+    "answer-ask-user"
+  ]),
+  state: z.enum(["pending", "resolved"]),
+  destructive: z.boolean(),
+  payload: z.record(z.string(), z.unknown()).optional()
+});
+const sessionCopilotControlEventSchema = z.object({
+  t: z.literal("copilot-control"),
+  state: z.enum(["no-lease", "requested", "active"]),
+  reason: z.enum(["keystroke", "expired", "superseded", "released", "detached"]).optional(),
+  requestId: z.string().optional(),
+  leaseId: z.string().optional(),
+  expiresAt: z.number().optional(),
+  heartbeatIntervalMs: z.number().int().positive().optional(),
+  leaseTtlMs: z.number().int().positive().optional()
+});
 const sessionEventSchema = z.discriminatedUnion("t", [
   sessionTextEventSchema,
   sessionServiceMessageEventSchema,
@@ -100,7 +123,9 @@ const sessionEventSchema = z.discriminatedUnion("t", [
   sessionStopEventSchema,
   sessionContextBoundaryEventSchema,
   sessionAgentConfigurationChangedEventSchema,
-  sessionMessageConsumptionEventSchema
+  sessionMessageConsumptionEventSchema,
+  sessionCopilotPromptEventSchema,
+  sessionCopilotControlEventSchema
 ]);
 const sessionEnvelopeSchema = z.object({
   id: z.string(),
@@ -1434,6 +1459,102 @@ function getSessionOutputSnapshotTransientMessageId(sessionId, itemId) {
   return `happy-session-output-snapshot:${getSessionOutputSnapshotKey(sessionId, itemId)}`;
 }
 
+const uuidV4Schema = z.string().uuid().refine(
+  (value) => value.slice(14, 15).toLowerCase() === "4",
+  "actionId must be a UUID v4"
+);
+const steeringCommandTypeSchema = z.enum([
+  "answer-permission",
+  "answer-elicitation",
+  "answer-plan",
+  "answer-ask-user"
+]);
+const answerAskUserContentSchema = z.object({
+  answer: z.string(),
+  wasFreeform: z.boolean().optional(),
+  dismissed: z.boolean().optional()
+}).strict();
+const answerElicitationContentSchema = z.object({
+  action: z.enum(["accept", "decline", "cancel"]),
+  content: z.record(z.string(), z.unknown()).optional()
+}).strict();
+const answerPlanContentSchema = z.object({
+  approved: z.boolean(),
+  selectedAction: z.string().optional(),
+  feedback: z.string().optional()
+}).strict();
+const answerPermissionContentSchema = z.object({
+  decision: z.enum(["approve", "deny"]),
+  scope: z.literal("once").optional()
+}).strict();
+const commandBase = {
+  actionId: uuidV4Schema,
+  sessionId: z.string().min(1),
+  targetRequestId: z.string().min(1)
+};
+const steeringCommandEnvelopeSchema = z.discriminatedUnion("type", [
+  z.object({
+    ...commandBase,
+    type: z.literal("answer-ask-user"),
+    content: answerAskUserContentSchema
+  }).strict(),
+  z.object({
+    ...commandBase,
+    type: z.literal("answer-elicitation"),
+    content: answerElicitationContentSchema
+  }).strict(),
+  z.object({
+    ...commandBase,
+    type: z.literal("answer-plan"),
+    content: answerPlanContentSchema
+  }).strict(),
+  z.object({
+    ...commandBase,
+    type: z.literal("answer-permission"),
+    content: answerPermissionContentSchema
+  }).strict()
+]);
+const steeringOutcomeSchema = z.enum([
+  "pending",
+  "applied",
+  "duplicate",
+  "already_resolved",
+  "out_of_scope",
+  "destructive_kind",
+  "no_lease",
+  "not_pending",
+  "rate_limited"
+]);
+const steeringResultSchema = z.object({
+  actionId: uuidV4Schema.optional(),
+  outcome: steeringOutcomeSchema,
+  leaseId: z.string().min(1).optional(),
+  expiresAt: z.number().finite().optional(),
+  heartbeatIntervalMs: z.number().int().positive().optional(),
+  leaseTtlMs: z.number().int().positive().optional(),
+  retryAfterMs: z.number().int().nonnegative().optional(),
+  requestId: z.string().min(1).optional()
+}).strict();
+const steeringLeaseRevocationReasonSchema = z.enum([
+  "keystroke",
+  "expired",
+  "superseded",
+  "released",
+  "detached"
+]);
+const steeringLeaseRevokedSchema = z.object({
+  leaseId: z.string().min(1).optional(),
+  reason: steeringLeaseRevocationReasonSchema
+}).strict();
+const STEERING_RPC_METHODS = [
+  "happy.attach",
+  "happy.requestLease",
+  "happy.heartbeat",
+  "happy.releaseLease",
+  "happy.answerPrompt",
+  "happy.getControlState"
+];
+
 const MachineTunnelSchema = z.object({
   machineId: z.string(),
   tunnelId: z.string(),
@@ -1443,4 +1564,4 @@ const MachineTunnelSchema = z.object({
   owner: z.string()
 });
 
-export { AgentCommsChannelSchema, AgentCommsEnvelopeSchema, AgentCommsFromSchema, AgentCommsIngestBodySchema, AgentCommsKindSchema, AgentCommsScopeSchema, AgentCommsToSchema, AgentMessageSchema, AgentTreeDeltaSchema, AgentTreeEdgeSchema, AgentTreeNodeAddedDeltaSchema, AgentTreeNodeRemovedDeltaSchema, AgentTreeNodeSchema, AgentTreeNodeStatusChangedDeltaSchema, AgentTreePendingSpawnStartedDeltaSchema, AgentTreeSnapshotSchema, AgentTreeUpdateInboundPayloadSchema, AgentTreeUpdateOutboundPayloadSchema, ApiMessageSchema, ApiUpdateMachineStateSchema, ApiUpdateNewMessageSchema, ApiUpdateSessionStateSchema, CanonicalLocalProfileFileSchema, CanonicalLocalProfileSchema, CloudflareAccessServiceTokenSchema, CoreUpdateBodySchema, CoreUpdateContainerSchema, DoneLedgerRecordSchema, ErrorLedgerRecordSchema, IdleReachedLedgerRecordSchema, LOCAL_DEVICE_PROOF_CLOCK_SKEW_MS, LOCAL_DEVICE_PROOF_DOMAIN, LOCAL_DEVICE_PROOF_ENVELOPE_VERSION, LOCAL_DEVICE_PROOF_FRESHNESS_MS, LOCAL_DEVICE_PROOF_HEADER, LOCAL_DEVICE_PROOF_NONCE_BYTES, LOCAL_PAIRING_AUTH_MODE, LOCAL_PAIRING_FORWARD_SKEW_MS, LOCAL_PAIRING_INVITE_KIND, LOCAL_PAIRING_INVITE_VERSION, LOCAL_PAIRING_NONCE_BYTES, LOCAL_PAIRING_NONCE_HEADER, LOCAL_PAIRING_SECRET_BYTES, LOCAL_PAIRING_SECRET_HEADER, LOCAL_PAIRING_WINDOW_MS, LastOutputSummaryLedgerRecordSchema, LedgerErrorCodeSchema, LedgerRecordSchema, LegacyMessageContentSchema, LocalPairingInviteSchema, LocalSignedRequestEnvelopeSchema, MAX_HOPS, MachineTunnelSchema, MessageContentSchema, MessageMetaSchema, MessageSentLedgerRecordSchema, PAIR_COMPLETE_REQUEST_VERSION, PAIR_COMPLETE_RESPONSE_DOMAIN, PAIR_COMPLETE_RESPONSE_VERSION, PUBLIC_DEVICE_AUTH_TEST_VECTOR, PUBLIC_DEVICE_PROOF_CLOCK_SKEW_MS, PUBLIC_DEVICE_PROOF_DOMAIN, PUBLIC_DEVICE_PROOF_ENVELOPE_VERSION, PUBLIC_DEVICE_PROOF_FRESHNESS_MS, PUBLIC_DEVICE_PROOF_HEADER, PUBLIC_PAIRING_INVITE_DEFAULT_TTL_MS, PUBLIC_PAIRING_INVITE_TEST_VECTOR, PUBLIC_PAIRING_INVITE_VERSION, PairCompleteRequestSchema, PairCompleteResponseSchema, PairCompleteResponseUnsignedSchema, PendingPermissionLedgerRecordSchema, PublicPairingInviteSchema, PublicSignedRequestEnvelopeSchema, SESSION_OUTPUT_SNAPSHOT_ID_MAX_CHARS, SESSION_OUTPUT_SNAPSHOT_TEXT_MAX_BYTES, SESSION_OUTPUT_SNAPSHOT_TYPE, SenderKeysSchema, SessionGetAgentTreeRequestSchema, SessionGetAgentTreeResponseSchema, SessionMessageContentSchema, SessionMessageRangeRequestSchema, SessionMessageRangeResponseSchema, SessionMessageSchema, SessionOutputSnapshotEphemeralUpdateSchema, SessionOutputSnapshotPayloadSchema, SessionProtocolMessageSchema, SpawnLedgerRecordSchema, TofuHandshakeMessageSchema, TofuPubkeysEventSchema, TofuPublicKeysSchema, TofuSessionKeyExchangeSchema, UpdateBodySchema, UpdateMachineBodySchema, UpdateNewMessageBodySchema, UpdateSchema, UpdateSessionBodySchema, UserMessageSchema, ValidationAttachedLedgerRecordSchema, VersionedEncryptedValueSchema, VersionedMachineEncryptedValueSchema, VersionedNullableEncryptedValueSchema, VoiceConversationDeniedSchema, VoiceConversationGrantedSchema, VoiceConversationResponseSchema, VoiceUsageResponseSchema, canonicalLocalRequestStringToSign, canonicalPairCompleteResponse, canonicalRequestStringToSign, canonicalizeLocalRequestTarget, canonicalizePublicRequestTarget, createEnvelope, createLocalPairingInvite, createPublicPairingInvite, decodeBase64, decodeBase64Url, decodeLocalDeviceProofHeader, decodeLocalPairingInvite, decodePublicDeviceProofHeader, decodePublicPairingInvite, encodeBase64, encodeBase64Url, encodeLocalDeviceProofHeader, encodeLocalPairingInvite, encodePublicDeviceProofHeader, encodePublicPairingInvite, findSenderDropEntry, forkBoilerplateEntry, generateLocalPairingNonce, generateLocalPairingSecret, generatePairSecret, generatePublicRequestNonce, getSessionOutputSnapshotKey, getSessionOutputSnapshotTransientMessageId, hashLocalRequestBody, hashRequestBody, isLocalPairingInviteValid, isLocalProofFresh, isPublicPairingInviteValid, isPublicProofFresh, isStrictLoopbackServerUrl, localCommandCaveatEntry, makeWrappedTagEntry, nonRenderableEntries, normalizeMethod, routeHopValidation, sessionAgentConfigurationChangedEventSchema, sessionContextBoundaryEventSchema, sessionContextBoundaryKindSchema, sessionContextBoundaryTriggeredBySchema, sessionEnvelopeSchema, sessionEventSchema, sessionFileEventSchema, sessionMessageConsumptionEventSchema, sessionRoleSchema, sessionServiceMessageEventSchema, sessionStartEventSchema, sessionStopEventSchema, sessionTextEventSchema, sessionToolCallEndEventSchema, sessionToolCallStartEventSchema, sessionTurnEndEventSchema, sessionTurnEndStatusSchema, sessionTurnStartEventSchema, signLocalRequest, signPairCompleteResponse, signPublicRequest, skillBodyEntry, systemReminderEntry, verifyLocalRequest, verifyPairCompleteResponse, verifyPublicRequest };
+export { AgentCommsChannelSchema, AgentCommsEnvelopeSchema, AgentCommsFromSchema, AgentCommsIngestBodySchema, AgentCommsKindSchema, AgentCommsScopeSchema, AgentCommsToSchema, AgentMessageSchema, AgentTreeDeltaSchema, AgentTreeEdgeSchema, AgentTreeNodeAddedDeltaSchema, AgentTreeNodeRemovedDeltaSchema, AgentTreeNodeSchema, AgentTreeNodeStatusChangedDeltaSchema, AgentTreePendingSpawnStartedDeltaSchema, AgentTreeSnapshotSchema, AgentTreeUpdateInboundPayloadSchema, AgentTreeUpdateOutboundPayloadSchema, ApiMessageSchema, ApiUpdateMachineStateSchema, ApiUpdateNewMessageSchema, ApiUpdateSessionStateSchema, CanonicalLocalProfileFileSchema, CanonicalLocalProfileSchema, CloudflareAccessServiceTokenSchema, CoreUpdateBodySchema, CoreUpdateContainerSchema, DoneLedgerRecordSchema, ErrorLedgerRecordSchema, IdleReachedLedgerRecordSchema, LOCAL_DEVICE_PROOF_CLOCK_SKEW_MS, LOCAL_DEVICE_PROOF_DOMAIN, LOCAL_DEVICE_PROOF_ENVELOPE_VERSION, LOCAL_DEVICE_PROOF_FRESHNESS_MS, LOCAL_DEVICE_PROOF_HEADER, LOCAL_DEVICE_PROOF_NONCE_BYTES, LOCAL_PAIRING_AUTH_MODE, LOCAL_PAIRING_FORWARD_SKEW_MS, LOCAL_PAIRING_INVITE_KIND, LOCAL_PAIRING_INVITE_VERSION, LOCAL_PAIRING_NONCE_BYTES, LOCAL_PAIRING_NONCE_HEADER, LOCAL_PAIRING_SECRET_BYTES, LOCAL_PAIRING_SECRET_HEADER, LOCAL_PAIRING_WINDOW_MS, LastOutputSummaryLedgerRecordSchema, LedgerErrorCodeSchema, LedgerRecordSchema, LegacyMessageContentSchema, LocalPairingInviteSchema, LocalSignedRequestEnvelopeSchema, MAX_HOPS, MachineTunnelSchema, MessageContentSchema, MessageMetaSchema, MessageSentLedgerRecordSchema, PAIR_COMPLETE_REQUEST_VERSION, PAIR_COMPLETE_RESPONSE_DOMAIN, PAIR_COMPLETE_RESPONSE_VERSION, PUBLIC_DEVICE_AUTH_TEST_VECTOR, PUBLIC_DEVICE_PROOF_CLOCK_SKEW_MS, PUBLIC_DEVICE_PROOF_DOMAIN, PUBLIC_DEVICE_PROOF_ENVELOPE_VERSION, PUBLIC_DEVICE_PROOF_FRESHNESS_MS, PUBLIC_DEVICE_PROOF_HEADER, PUBLIC_PAIRING_INVITE_DEFAULT_TTL_MS, PUBLIC_PAIRING_INVITE_TEST_VECTOR, PUBLIC_PAIRING_INVITE_VERSION, PairCompleteRequestSchema, PairCompleteResponseSchema, PairCompleteResponseUnsignedSchema, PendingPermissionLedgerRecordSchema, PublicPairingInviteSchema, PublicSignedRequestEnvelopeSchema, SESSION_OUTPUT_SNAPSHOT_ID_MAX_CHARS, SESSION_OUTPUT_SNAPSHOT_TEXT_MAX_BYTES, SESSION_OUTPUT_SNAPSHOT_TYPE, STEERING_RPC_METHODS, SenderKeysSchema, SessionGetAgentTreeRequestSchema, SessionGetAgentTreeResponseSchema, SessionMessageContentSchema, SessionMessageRangeRequestSchema, SessionMessageRangeResponseSchema, SessionMessageSchema, SessionOutputSnapshotEphemeralUpdateSchema, SessionOutputSnapshotPayloadSchema, SessionProtocolMessageSchema, SpawnLedgerRecordSchema, TofuHandshakeMessageSchema, TofuPubkeysEventSchema, TofuPublicKeysSchema, TofuSessionKeyExchangeSchema, UpdateBodySchema, UpdateMachineBodySchema, UpdateNewMessageBodySchema, UpdateSchema, UpdateSessionBodySchema, UserMessageSchema, ValidationAttachedLedgerRecordSchema, VersionedEncryptedValueSchema, VersionedMachineEncryptedValueSchema, VersionedNullableEncryptedValueSchema, VoiceConversationDeniedSchema, VoiceConversationGrantedSchema, VoiceConversationResponseSchema, VoiceUsageResponseSchema, answerAskUserContentSchema, answerElicitationContentSchema, answerPermissionContentSchema, answerPlanContentSchema, canonicalLocalRequestStringToSign, canonicalPairCompleteResponse, canonicalRequestStringToSign, canonicalizeLocalRequestTarget, canonicalizePublicRequestTarget, createEnvelope, createLocalPairingInvite, createPublicPairingInvite, decodeBase64, decodeBase64Url, decodeLocalDeviceProofHeader, decodeLocalPairingInvite, decodePublicDeviceProofHeader, decodePublicPairingInvite, encodeBase64, encodeBase64Url, encodeLocalDeviceProofHeader, encodeLocalPairingInvite, encodePublicDeviceProofHeader, encodePublicPairingInvite, findSenderDropEntry, forkBoilerplateEntry, generateLocalPairingNonce, generateLocalPairingSecret, generatePairSecret, generatePublicRequestNonce, getSessionOutputSnapshotKey, getSessionOutputSnapshotTransientMessageId, hashLocalRequestBody, hashRequestBody, isLocalPairingInviteValid, isLocalProofFresh, isPublicPairingInviteValid, isPublicProofFresh, isStrictLoopbackServerUrl, localCommandCaveatEntry, makeWrappedTagEntry, nonRenderableEntries, normalizeMethod, routeHopValidation, sessionAgentConfigurationChangedEventSchema, sessionContextBoundaryEventSchema, sessionContextBoundaryKindSchema, sessionContextBoundaryTriggeredBySchema, sessionCopilotControlEventSchema, sessionCopilotPromptEventSchema, sessionEnvelopeSchema, sessionEventSchema, sessionFileEventSchema, sessionMessageConsumptionEventSchema, sessionRoleSchema, sessionServiceMessageEventSchema, sessionStartEventSchema, sessionStopEventSchema, sessionTextEventSchema, sessionToolCallEndEventSchema, sessionToolCallStartEventSchema, sessionTurnEndEventSchema, sessionTurnEndStatusSchema, sessionTurnStartEventSchema, signLocalRequest, signPairCompleteResponse, signPublicRequest, skillBodyEntry, steeringCommandEnvelopeSchema, steeringCommandTypeSchema, steeringLeaseRevocationReasonSchema, steeringLeaseRevokedSchema, steeringOutcomeSchema, steeringResultSchema, systemReminderEntry, verifyLocalRequest, verifyPairCompleteResponse, verifyPublicRequest };

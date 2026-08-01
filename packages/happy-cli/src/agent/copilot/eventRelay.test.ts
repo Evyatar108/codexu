@@ -218,4 +218,49 @@ describe('CopilotEventRelay bootstrap', () => {
     expect(fake.reads.filter((read) => read.cursor === undefined)).toHaveLength(2);
     expect(happy.sendSessionProtocolMessageWithDelivery).toHaveBeenCalledOnce();
   });
+
+  it('delivers ephemeral prompt notifications after the replay frontier is established', async () => {
+    const fake = new FakeNative([
+      { events: [], cursor: 'c1', cursorStatus: 'ok', hasMore: false },
+      { events: [], cursor: 'c2', cursorStatus: 'ok', hasMore: false },
+      { events: [], cursor: 'c3', cursorStatus: 'ok', hasMore: false },
+    ]);
+    let resolveLiveRead!: (page: EventLogPage) => void;
+    const originalRead = fake.readEventLog.bind(fake);
+    fake.readEventLog = async (options) => {
+      if (fake.reads.length < 3) return originalRead(options);
+      fake.reads.push(options);
+      return new Promise<EventLogPage>((resolve) => {
+        resolveLiveRead = resolve;
+      });
+    };
+    let relay!: CopilotEventRelay;
+    const happy = {
+      sessionId: 'happy-1',
+      sendSessionProtocolMessageWithDelivery: vi.fn(async (envelope, options) => {
+        if (envelope.ev.t === 'copilot-prompt') relay.stop();
+        return { id: options.localId, seq: 1 };
+      }),
+    };
+    relay = new CopilotEventRelay(fake as never, happy as never, process.cwd());
+    const run = relay.run();
+    await vi.waitFor(() => expect(fake.reads).toHaveLength(4));
+
+    fake.handler?.({
+      ...nativeEvent('prompt-1', 'permission.requested', {
+        requestId: 'request-1',
+        promptRequest: { kind: 'read', path: 'README.md' },
+      }),
+      ephemeral: true,
+    });
+    await vi.waitFor(() => expect(happy.sendSessionProtocolMessageWithDelivery).toHaveBeenCalledOnce());
+    resolveLiveRead({ events: [], cursor: 'c4', cursorStatus: 'ok', hasMore: false });
+
+    await expect(run).resolves.toBeUndefined();
+    expect(happy.sendSessionProtocolMessageWithDelivery.mock.calls[0][0].ev).toMatchObject({
+      t: 'copilot-prompt',
+      requestId: 'request-1',
+      destructive: false,
+    });
+  });
 });

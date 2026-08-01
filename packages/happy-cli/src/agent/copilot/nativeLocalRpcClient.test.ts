@@ -1,5 +1,5 @@
 import net, { type Server, type Socket } from 'node:net';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { NativeLocalRpcClient } from './nativeLocalRpcClient';
 import { COPILOT_NATIVE_VERSION } from './types';
@@ -49,6 +49,7 @@ describe('NativeLocalRpcClient', () => {
         if (message.method === 'session.eventLog.read') {
           result = { events: [], cursor: 'cursor-1', cursorStatus: 'ok', hasMore: false };
         }
+        if (message.method === 'happy.getControlState') result = { outcome: 'no_lease' };
         socket.write(frame({ jsonrpc: '2.0', id: message.id, result }));
         expect(params).not.toHaveProperty('rawMethod');
       });
@@ -70,13 +71,18 @@ describe('NativeLocalRpcClient', () => {
     }));
     await client.resume();
     await client.readEventLog({ waitMs: 0 });
+    await client.invokeSteering('happy.getControlState');
 
     await expect(received).resolves.toBe('event-1');
     expect((requests[0].params as Record<string, unknown>).token).toBe('secret-token');
     expect(requests.filter((request) => request.method === 'session.resume')[0].params).toMatchObject({
       sessionId: 'session-1',
       disableResume: true,
+      requestPermission: false,
     });
+    expect(requests.filter((request) => request.method === 'session.resume')[0].params).not.toHaveProperty(
+      'observePromptEvents',
+    );
     expect(requests.filter((request) => request.method === 'session.eventLog.read')[0].params).toMatchObject({
       sessionId: 'session-1',
       agentScope: 'primary',
@@ -91,9 +97,56 @@ describe('NativeLocalRpcClient', () => {
         'abort',
         'session.error',
         'session.shutdown',
+        'permission.requested',
+        'permission.completed',
+        'user_input.requested',
+        'user_input.completed',
+        'elicitation.requested',
+        'elicitation.completed',
+        'exit_plan_mode.requested',
+        'exit_plan_mode.completed',
       ],
     });
     expect(requests.filter((request) => request.method === 'session.eventLog.read')[0].params).not.toHaveProperty('eventTypes');
+    expect(requests.filter((request) => request.method === 'happy.getControlState')[0].params).toEqual({
+      sessionId: 'session-1',
+    });
+  });
+
+  it('forwards steering notifications only for the verified foreground session', async () => {
+    let socket: Socket | undefined;
+    server = net.createServer((connected) => {
+      socket = connected;
+      parseFrames(connected, (message) => {
+        connected.write(frame({
+          jsonrpc: '2.0',
+          id: message.id,
+          result: message.method === 'connect'
+            ? { protocolVersion: 3, version: COPILOT_NATIVE_VERSION }
+            : { sessionId: 'session-1' },
+        }));
+      });
+    });
+    await new Promise<void>((resolve) => server!.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('Missing server address');
+    client = new NativeLocalRpcClient('127.0.0.1', address.port);
+    await client.connect('token', 'session-1');
+    const notifications: string[] = [];
+    client.onSteeringNotification((notification) => notifications.push(notification.method));
+
+    socket!.write(frame({
+      jsonrpc: '2.0',
+      method: 'happy.leaseGranted',
+      params: { sessionId: 'other-session', leaseId: 'wrong', expiresAt: 1 },
+    }));
+    socket!.write(frame({
+      jsonrpc: '2.0',
+      method: 'happy.leaseRevoked',
+      params: { sessionId: 'session-1', reason: 'keystroke' },
+    }));
+
+    await vi.waitFor(() => expect(notifications).toEqual(['happy.leaseRevoked']));
   });
 
   it('fails closed on version mismatch', async () => {

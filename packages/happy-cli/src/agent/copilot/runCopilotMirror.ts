@@ -2,7 +2,10 @@
  * Owns one opt-in, spawn-only Copilot read-only mirror session.
  */
 
-import { createEnvelope } from '@slopus/happy-wire';
+import {
+  createEnvelope,
+  steeringCommandEnvelopeSchema,
+} from '@slopus/happy-wire';
 import { randomUUID } from 'node:crypto';
 
 import { ApiClient } from '@/api/api';
@@ -20,6 +23,7 @@ import {
   type ManagedTarget,
 } from './managedServer';
 import { NativeLocalRpcClient } from './nativeLocalRpcClient';
+import { CopilotSteeringClient, type CopilotLeaseState } from './steeringClient';
 import type { EvCopilotHappyLaunchContextV1 } from './launchContext';
 import {
   launchContextProvenance,
@@ -188,6 +192,8 @@ export async function runCopilotMirror(
   let native: NativeLocalRpcClient | null = null;
   let session: ApiSessionClient | null = null;
   let relay: CopilotEventRelay | null = null;
+  let steering: CopilotSteeringClient | null = null;
+  let detachSteeringState: (() => void) | null = null;
   let finalization: Promise<void> | null = null;
   let terminationFailure: ManagedTargetTerminationUnconfirmedError | null = null;
   let stopDelivered = false;
@@ -259,6 +265,9 @@ export async function runCopilotMirror(
         await cleanupStage('active-delivery-drain', () => relay!.drainCurrentDelivery(), 5_000);
       }
       relay?.stop();
+      detachSteeringState?.();
+      detachSteeringState = null;
+      steering?.dispose();
       if (session && activated && !stopDelivered) {
         stopDelivered = true;
         const time = Date.now();
@@ -321,6 +330,8 @@ export async function runCopilotMirror(
       target.registry.port,
     );
     await native.connect(target.registry.token, target.registry.sessionId, target.registry.copilotVersion);
+    steering = new CopilotSteeringClient(native);
+    await steering.start();
     if (quiescing) throw new Error('Copilot mirror startup cancelled');
     if (options.launchContext) {
       await persistOwnershipBeforeReturn(target.child.pid!);
@@ -361,15 +372,58 @@ export async function runCopilotMirror(
       void finalizeOnce('phone-archive');
       return { success: true, message: 'Archiving Copilot mirror session' };
     });
+    session.rpcHandlerManager.registerHandler('happy.attach', () => steering!.attachAndResync());
+    session.rpcHandlerManager.registerHandler('happy.requestLease', () => steering!.requestLease());
+    session.rpcHandlerManager.registerHandler('happy.heartbeat', () => steering!.heartbeat());
+    session.rpcHandlerManager.registerHandler('happy.releaseLease', () => steering!.releaseLease());
+    session.rpcHandlerManager.registerHandler('happy.getControlState', () => steering!.getControlState());
+    session.rpcHandlerManager.registerHandler('happy.answerPrompt', (params: unknown) => {
+      const command = steeringCommandEnvelopeSchema.parse(params);
+      if (command.sessionId !== session!.sessionId) {
+        throw new Error('Steering command sessionId does not match the Happy session');
+      }
+      return steering!.answerPrompt(command);
+    });
     await awaitSessionConnected(session);
     await activateMetadataBounded(session);
     activated = true;
+    const publishSteeringState = (state: CopilotLeaseState): void => {
+      const id = randomUUID();
+      const ev = state.status === 'active'
+        ? {
+          t: 'copilot-control' as const,
+          state: 'active' as const,
+          leaseId: state.leaseId,
+          expiresAt: state.expiresAt,
+          heartbeatIntervalMs: state.heartbeatIntervalMs,
+          leaseTtlMs: state.leaseTtlMs,
+        }
+        : state.status === 'requested'
+          ? {
+            t: 'copilot-control' as const,
+            state: 'requested' as const,
+            ...(state.requestId ? { requestId: state.requestId } : {}),
+          }
+          : {
+            t: 'copilot-control' as const,
+            state: 'no-lease' as const,
+            ...(state.reason ? { reason: state.reason } : {}),
+          };
+      void session!.sendSessionProtocolMessageWithDelivery(
+        createEnvelope('agent', ev, { id }),
+        { localId: id },
+      ).catch(() => undefined);
+    };
+    detachSteeringState = steering.onStateChange(publishSteeringState);
+    publishSteeringState(steering.getState());
     if (quiescing) throw new Error('Copilot mirror startup cancelled');
 
     relay = new CopilotEventRelay(native, session, process.cwd(), async () => {
       nativeShutdownObserved = true;
       resolveNativeShutdown();
       if (!finalization) await finalizeOnce('native-shutdown');
+    }, async () => {
+      await steering!.attachAndResync();
     });
     const childExit = new Promise<void>((resolve, reject) => {
       target!.child.once('exit', () => {

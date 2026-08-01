@@ -88,6 +88,22 @@ describe('session protocol schemas', () => {
       { t: 'context-boundary', kind: 'clear', at: 1234, triggeredBy: 'user' },
       { t: 'agent-configuration-changed', model: 'claude-sonnet-4-6' },
       { t: 'message-consumption', messageId: 'user-message-1', consumedAt: 1234, agentFlavor: 'claude' },
+      {
+        t: 'copilot-prompt',
+        requestId: 'request-1',
+        promptType: 'answer-permission',
+        state: 'pending',
+        destructive: false,
+        payload: { promptRequest: { kind: 'read', path: 'README.md' } },
+      },
+      {
+        t: 'copilot-control',
+        state: 'active',
+        leaseId: 'lease-1',
+        expiresAt: 45_000,
+        heartbeatIntervalMs: 15_000,
+        leaseTtlMs: 45_000,
+      },
     ];
 
     for (const event of events) {
@@ -104,6 +120,12 @@ describe('session protocol schemas', () => {
     expect(sessionEventSchema.safeParse({ t: 'start', title: 1 }).success).toBe(false);
     expect(sessionEventSchema.safeParse({ t: 'service' }).success).toBe(false);
     expect(sessionEventSchema.safeParse({ t: 'message-consumption', messageId: 'm1', consumedAt: 1, agentFlavor: 'gemini' }).success).toBe(false);
+    expect(sessionEventSchema.safeParse({
+      t: 'copilot-prompt',
+      requestId: 'request-1',
+      promptType: 'answer-permission',
+      state: 'pending',
+    }).success).toBe(false);
     expect(sessionEventSchema.safeParse({ t: 'not-real' }).success).toBe(false);
   });
 

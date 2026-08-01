@@ -4,8 +4,14 @@
 
 import net, { type Socket } from 'node:net';
 import { EventEmitter } from 'node:events';
+import {
+  steeringResultSchema,
+  type SteeringResult,
+  type SteeringRpcMethod,
+} from '@slopus/happy-wire';
 
 import {
+  COPILOT_LIVE_PROMPT_EVENT_TYPES,
   COPILOT_NATIVE_VERSION,
   COPILOT_PROJECTED_EVENT_TYPES,
   COPILOT_PROTOCOL_VERSION,
@@ -17,6 +23,12 @@ import {
 const MAX_HEADER_BYTES = 8 * 1024;
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
 const DEFAULT_TIMEOUT_MS = 15_000;
+
+export type SteeringNotification =
+  | { method: 'happy.leaseGranted'; params: Record<string, unknown> }
+  | { method: 'happy.leaseRevoked'; params: Record<string, unknown> };
+
+export type SteeringNotificationHandler = (notification: SteeringNotification) => void;
 
 export class NativeTransportError extends Error {
   constructor(message: string) {
@@ -66,6 +78,8 @@ function parseEvent(value: unknown): NativeEvent {
 function allowedEvent(value: unknown): NativeEvent | null {
   const event = parseEvent(value);
   if (!(COPILOT_PROJECTED_EVENT_TYPES as readonly string[]).includes(event.type)) return null;
+  if (event.ephemeral === true
+    && !(COPILOT_LIVE_PROMPT_EVENT_TYPES as readonly string[]).includes(event.type)) return null;
   const eventData = typeof event.data === 'object' && event.data !== null && !Array.isArray(event.data)
     ? event.data
     : {};
@@ -84,6 +98,7 @@ export class NativeLocalRpcClient extends EventEmitter {
   private expectedVersion = COPILOT_NATIVE_VERSION;
   private readonly pending = new Map<number, PendingRequest>();
   private notificationHandler: NativeNotificationHandler | null = null;
+  private steeringNotificationHandler: SteeringNotificationHandler | null = null;
 
   constructor(
     private readonly host: string,
@@ -125,10 +140,16 @@ export class NativeLocalRpcClient extends EventEmitter {
       if (this.socket === socket) this.onData(chunk);
     });
     socket.on('error', () => {
-      if (this.socket === socket) this.failPending(new NativeTransportError('Copilot connection failed'));
+      if (this.socket === socket) {
+        this.failPending(new NativeTransportError('Copilot connection failed'));
+        this.emit('transport-disconnected');
+      }
     });
     socket.on('close', () => {
-      if (this.socket === socket) this.failPending(new NativeTransportError('Copilot connection closed'));
+      if (this.socket === socket) {
+        this.failPending(new NativeTransportError('Copilot connection closed'));
+        this.emit('transport-disconnected');
+      }
     });
 
     try {
@@ -164,8 +185,23 @@ export class NativeLocalRpcClient extends EventEmitter {
     };
   }
 
+  onSteeringNotification(handler: SteeringNotificationHandler): () => void {
+    this.steeringNotificationHandler = handler;
+    return () => {
+      if (this.steeringNotificationHandler === handler) this.steeringNotificationHandler = null;
+    };
+  }
+
+  onTransportDisconnected(handler: () => void): () => void {
+    this.on('transport-disconnected', handler);
+    return () => this.off('transport-disconnected', handler);
+  }
+
   async resume(): Promise<void> {
-    await this.sessionRequest('session.resume', { disableResume: true });
+    await this.sessionRequest('session.resume', {
+      disableResume: true,
+      requestPermission: false,
+    });
   }
 
   async readEventLog(options: { cursor?: string; waitMs?: number }): Promise<EventLogPage> {
@@ -192,6 +228,13 @@ export class NativeLocalRpcClient extends EventEmitter {
     await this.request('runtime.shutdown', {});
   }
 
+  async invokeSteering(
+    method: SteeringRpcMethod,
+    params: Record<string, unknown> = {},
+  ): Promise<SteeringResult> {
+    return steeringResultSchema.parse(await this.sessionRequest(method, params));
+  }
+
   close(): void {
     this.connectionToken = null;
     this.expectedSessionId = null;
@@ -209,7 +252,7 @@ export class NativeLocalRpcClient extends EventEmitter {
   }
 
   private sessionRequest(
-    method: 'session.resume' | 'session.eventLog.read',
+    method: 'session.resume' | 'session.eventLog.read' | SteeringRpcMethod,
     params: Record<string, unknown>,
     timeoutMs?: number,
   ): Promise<unknown> {
@@ -219,7 +262,8 @@ export class NativeLocalRpcClient extends EventEmitter {
   }
 
   private request(
-    method: 'connect' | 'session.getForeground' | 'session.resume' | 'session.eventLog.read' | 'runtime.shutdown',
+    method: 'connect' | 'session.getForeground' | 'session.resume' | 'session.eventLog.read'
+      | 'runtime.shutdown' | SteeringRpcMethod,
     params: Record<string, unknown>,
     timeoutMs = this.requestTimeoutMs,
   ): Promise<unknown> {
@@ -300,6 +344,12 @@ export class NativeLocalRpcClient extends EventEmitter {
       if (sessionId !== this.foregroundSessionId) return;
       const event = allowedEvent(params.event);
       if (event) this.notificationHandler?.(event);
+      return;
+    }
+    if (message.method === 'happy.leaseGranted' || message.method === 'happy.leaseRevoked') {
+      const params = record(message.params);
+      if (typeof params.sessionId === 'string' && params.sessionId !== this.foregroundSessionId) return;
+      this.steeringNotificationHandler?.({ method: message.method, params });
     }
   }
 

@@ -33,6 +33,7 @@ export function createProjectionState(happySessionId: string): ProjectionState {
     terminalSeen: false,
     toolTurns: new Map(),
     projectedToolCalls: new Set(),
+    pendingPromptKinds: new Map(),
   };
 }
 
@@ -108,7 +109,8 @@ export function projectNativeEvent(
   options: { happySessionId: string; workspace: string },
 ): ProjectionResult {
   const diagnostics: ProjectionDiagnostic[] = [];
-  if (event.ephemeral === true || typeof event.id !== 'string' || event.id.length === 0) {
+  const isPromptEvent = event.type.endsWith('.requested') || event.type.endsWith('.completed');
+  if ((event.ephemeral === true && !isPromptEvent) || typeof event.id !== 'string' || event.id.length === 0) {
     return { deliveries: [], diagnostics: ['invalid-event'] };
   }
   const time = Date.parse(event.timestamp);
@@ -244,6 +246,75 @@ export function projectNativeEvent(
         turn: state.lifecycleTurnId,
       }));
       break;
+    case 'permission.requested': {
+      const eventData = data(event);
+      if (eventData.resolvedByHook === true || typeof eventData.requestId !== 'string') break;
+      const promptRequest = isPlainObject(eventData.promptRequest) ? eventData.promptRequest : undefined;
+      const permissionRequest = isPlainObject(eventData.permissionRequest) ? eventData.permissionRequest : undefined;
+      const destructive = (promptRequest?.kind ?? permissionRequest?.kind) !== 'read';
+      state.pendingPromptKinds.set(eventData.requestId, {
+        promptType: 'answer-permission',
+        destructive,
+      });
+      push(createEnvelope('agent', {
+        t: 'copilot-prompt',
+        requestId: eventData.requestId,
+        promptType: 'answer-permission',
+        state: 'pending',
+        destructive,
+        payload: eventData,
+      }, { time }));
+      break;
+    }
+    case 'user_input.requested':
+    case 'elicitation.requested':
+    case 'exit_plan_mode.requested': {
+      const eventData = data(event);
+      if (typeof eventData.requestId !== 'string') break;
+      const promptType = event.type === 'user_input.requested'
+        ? 'answer-ask-user' as const
+        : event.type === 'elicitation.requested'
+          ? 'answer-elicitation' as const
+          : 'answer-plan' as const;
+      state.pendingPromptKinds.set(eventData.requestId, { promptType, destructive: false });
+      push(createEnvelope('agent', {
+        t: 'copilot-prompt',
+        requestId: eventData.requestId,
+        promptType,
+        state: 'pending',
+        destructive: false,
+        payload: eventData,
+      }, { time }));
+      break;
+    }
+    case 'permission.completed':
+    case 'user_input.completed':
+    case 'elicitation.completed':
+    case 'exit_plan_mode.completed': {
+      const eventData = data(event);
+      if (typeof eventData.requestId !== 'string') break;
+      const remembered = state.pendingPromptKinds.get(eventData.requestId);
+      const promptType = remembered?.promptType ?? (
+        event.type === 'permission.completed'
+          ? 'answer-permission'
+          : event.type === 'user_input.completed'
+            ? 'answer-ask-user'
+            : event.type === 'elicitation.completed'
+              ? 'answer-elicitation'
+              : 'answer-plan'
+      );
+      const destructive = remembered?.destructive ?? event.type === 'permission.completed';
+      state.pendingPromptKinds.delete(eventData.requestId);
+      push(createEnvelope('agent', {
+        t: 'copilot-prompt',
+        requestId: eventData.requestId,
+        promptType,
+        state: 'resolved',
+        destructive,
+        payload: eventData,
+      }, { time }));
+      break;
+    }
     default:
       diagnostics.push('unknown-event');
   }
