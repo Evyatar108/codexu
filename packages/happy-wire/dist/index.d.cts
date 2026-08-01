@@ -66,11 +66,11 @@ declare const SessionMessageContentSchema: z.ZodObject<{
     c: z.ZodString;
     t: z.ZodLiteral<"encrypted">;
 }, "strip", z.ZodTypeAny, {
-    c: string;
     t: "encrypted";
+    c: string;
 }, {
-    c: string;
     t: "encrypted";
+    c: string;
 }>;
 type SessionMessageContent = z.infer<typeof SessionMessageContentSchema>;
 declare const SessionMessageSchema: z.ZodObject<{
@@ -81,18 +81,18 @@ declare const SessionMessageSchema: z.ZodObject<{
         c: z.ZodString;
         t: z.ZodLiteral<"encrypted">;
     }, "strip", z.ZodTypeAny, {
-        c: string;
         t: "encrypted";
+        c: string;
     }, {
-        c: string;
         t: "encrypted";
+        c: string;
     }>;
     createdAt: z.ZodNumber;
     updatedAt: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     content: {
-        c: string;
         t: "encrypted";
+        c: string;
     };
     id: string;
     seq: number;
@@ -101,8 +101,8 @@ declare const SessionMessageSchema: z.ZodObject<{
     localId?: string | null | undefined;
 }, {
     content: {
-        c: string;
         t: "encrypted";
+        c: string;
     };
     id: string;
     seq: number;
@@ -158,18 +158,18 @@ declare const SessionMessageRangeResponseSchema: z.ZodDiscriminatedUnion<"ok", [
             c: z.ZodString;
             t: z.ZodLiteral<"encrypted">;
         }, "strip", z.ZodTypeAny, {
-            c: string;
             t: "encrypted";
+            c: string;
         }, {
-            c: string;
             t: "encrypted";
+            c: string;
         }>;
         createdAt: z.ZodNumber;
         updatedAt: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         id: string;
         seq: number;
@@ -178,8 +178,8 @@ declare const SessionMessageRangeResponseSchema: z.ZodDiscriminatedUnion<"ok", [
         localId?: string | null | undefined;
     }, {
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         id: string;
         seq: number;
@@ -196,8 +196,8 @@ declare const SessionMessageRangeResponseSchema: z.ZodDiscriminatedUnion<"ok", [
     ok: true;
     messages: {
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         id: string;
         seq: number;
@@ -214,8 +214,8 @@ declare const SessionMessageRangeResponseSchema: z.ZodDiscriminatedUnion<"ok", [
     ok: true;
     messages: {
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         id: string;
         seq: number;
@@ -2203,18 +2203,18 @@ declare const UpdateNewMessageBodySchema: z.ZodObject<{
             c: z.ZodString;
             t: z.ZodLiteral<"encrypted">;
         }, "strip", z.ZodTypeAny, {
-            c: string;
             t: "encrypted";
+            c: string;
         }, {
-            c: string;
             t: "encrypted";
+            c: string;
         }>;
         createdAt: z.ZodNumber;
         updatedAt: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         id: string;
         seq: number;
@@ -2223,8 +2223,8 @@ declare const UpdateNewMessageBodySchema: z.ZodObject<{
         localId?: string | null | undefined;
     }, {
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         id: string;
         seq: number;
@@ -2235,8 +2235,8 @@ declare const UpdateNewMessageBodySchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     message: {
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         id: string;
         seq: number;
@@ -2249,8 +2249,8 @@ declare const UpdateNewMessageBodySchema: z.ZodObject<{
 }, {
     message: {
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         id: string;
         seq: number;
@@ -2384,18 +2384,18 @@ declare const CoreUpdateBodySchema: z.ZodDiscriminatedUnion<"t", [z.ZodObject<{
             c: z.ZodString;
             t: z.ZodLiteral<"encrypted">;
         }, "strip", z.ZodTypeAny, {
-            c: string;
             t: "encrypted";
+            c: string;
         }, {
-            c: string;
             t: "encrypted";
+            c: string;
         }>;
         createdAt: z.ZodNumber;
         updatedAt: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         id: string;
         seq: number;
@@ -2404,8 +2404,8 @@ declare const CoreUpdateBodySchema: z.ZodDiscriminatedUnion<"t", [z.ZodObject<{
         localId?: string | null | undefined;
     }, {
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         id: string;
         seq: number;
@@ -2416,8 +2416,8 @@ declare const CoreUpdateBodySchema: z.ZodDiscriminatedUnion<"t", [z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     message: {
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         id: string;
         seq: number;
@@ -2430,8 +2430,8 @@ declare const CoreUpdateBodySchema: z.ZodDiscriminatedUnion<"t", [z.ZodObject<{
 }, {
     message: {
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         id: string;
         seq: number;
@@ -2553,18 +2553,18 @@ declare const CoreUpdateContainerSchema: z.ZodObject<{
                 c: z.ZodString;
                 t: z.ZodLiteral<"encrypted">;
             }, "strip", z.ZodTypeAny, {
-                c: string;
                 t: "encrypted";
+                c: string;
             }, {
-                c: string;
                 t: "encrypted";
+                c: string;
             }>;
             createdAt: z.ZodNumber;
             updatedAt: z.ZodNumber;
         }, "strip", z.ZodTypeAny, {
             content: {
-                c: string;
                 t: "encrypted";
+                c: string;
             };
             id: string;
             seq: number;
@@ -2573,8 +2573,8 @@ declare const CoreUpdateContainerSchema: z.ZodObject<{
             localId?: string | null | undefined;
         }, {
             content: {
-                c: string;
                 t: "encrypted";
+                c: string;
             };
             id: string;
             seq: number;
@@ -2585,8 +2585,8 @@ declare const CoreUpdateContainerSchema: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         message: {
             content: {
-                c: string;
                 t: "encrypted";
+                c: string;
             };
             id: string;
             seq: number;
@@ -2599,8 +2599,8 @@ declare const CoreUpdateContainerSchema: z.ZodObject<{
     }, {
         message: {
             content: {
-                c: string;
                 t: "encrypted";
+                c: string;
             };
             id: string;
             seq: number;
@@ -2715,8 +2715,8 @@ declare const CoreUpdateContainerSchema: z.ZodObject<{
     body: {
         message: {
             content: {
-                c: string;
                 t: "encrypted";
+                c: string;
             };
             id: string;
             seq: number;
@@ -2758,8 +2758,8 @@ declare const CoreUpdateContainerSchema: z.ZodObject<{
     body: {
         message: {
             content: {
-                c: string;
                 t: "encrypted";
+                c: string;
             };
             id: string;
             seq: number;
@@ -2804,18 +2804,18 @@ declare const ApiMessageSchema: z.ZodObject<{
         c: z.ZodString;
         t: z.ZodLiteral<"encrypted">;
     }, "strip", z.ZodTypeAny, {
-        c: string;
         t: "encrypted";
+        c: string;
     }, {
-        c: string;
         t: "encrypted";
+        c: string;
     }>;
     createdAt: z.ZodNumber;
     updatedAt: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     content: {
-        c: string;
         t: "encrypted";
+        c: string;
     };
     id: string;
     seq: number;
@@ -2824,8 +2824,8 @@ declare const ApiMessageSchema: z.ZodObject<{
     localId?: string | null | undefined;
 }, {
     content: {
-        c: string;
         t: "encrypted";
+        c: string;
     };
     id: string;
     seq: number;
@@ -2845,18 +2845,18 @@ declare const ApiUpdateNewMessageSchema: z.ZodObject<{
             c: z.ZodString;
             t: z.ZodLiteral<"encrypted">;
         }, "strip", z.ZodTypeAny, {
-            c: string;
             t: "encrypted";
+            c: string;
         }, {
-            c: string;
             t: "encrypted";
+            c: string;
         }>;
         createdAt: z.ZodNumber;
         updatedAt: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         id: string;
         seq: number;
@@ -2865,8 +2865,8 @@ declare const ApiUpdateNewMessageSchema: z.ZodObject<{
         localId?: string | null | undefined;
     }, {
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         id: string;
         seq: number;
@@ -2877,8 +2877,8 @@ declare const ApiUpdateNewMessageSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     message: {
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         id: string;
         seq: number;
@@ -2891,8 +2891,8 @@ declare const ApiUpdateNewMessageSchema: z.ZodObject<{
 }, {
     message: {
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         id: string;
         seq: number;
@@ -3015,18 +3015,18 @@ declare const UpdateBodySchema: z.ZodObject<{
             c: z.ZodString;
             t: z.ZodLiteral<"encrypted">;
         }, "strip", z.ZodTypeAny, {
-            c: string;
             t: "encrypted";
+            c: string;
         }, {
-            c: string;
             t: "encrypted";
+            c: string;
         }>;
         createdAt: z.ZodNumber;
         updatedAt: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         id: string;
         seq: number;
@@ -3035,8 +3035,8 @@ declare const UpdateBodySchema: z.ZodObject<{
         localId?: string | null | undefined;
     }, {
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         id: string;
         seq: number;
@@ -3047,8 +3047,8 @@ declare const UpdateBodySchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     message: {
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         id: string;
         seq: number;
@@ -3061,8 +3061,8 @@ declare const UpdateBodySchema: z.ZodObject<{
 }, {
     message: {
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         id: string;
         seq: number;
@@ -3088,18 +3088,18 @@ declare const UpdateSchema: z.ZodObject<{
                 c: z.ZodString;
                 t: z.ZodLiteral<"encrypted">;
             }, "strip", z.ZodTypeAny, {
-                c: string;
                 t: "encrypted";
+                c: string;
             }, {
-                c: string;
                 t: "encrypted";
+                c: string;
             }>;
             createdAt: z.ZodNumber;
             updatedAt: z.ZodNumber;
         }, "strip", z.ZodTypeAny, {
             content: {
-                c: string;
                 t: "encrypted";
+                c: string;
             };
             id: string;
             seq: number;
@@ -3108,8 +3108,8 @@ declare const UpdateSchema: z.ZodObject<{
             localId?: string | null | undefined;
         }, {
             content: {
-                c: string;
                 t: "encrypted";
+                c: string;
             };
             id: string;
             seq: number;
@@ -3120,8 +3120,8 @@ declare const UpdateSchema: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         message: {
             content: {
-                c: string;
                 t: "encrypted";
+                c: string;
             };
             id: string;
             seq: number;
@@ -3134,8 +3134,8 @@ declare const UpdateSchema: z.ZodObject<{
     }, {
         message: {
             content: {
-                c: string;
                 t: "encrypted";
+                c: string;
             };
             id: string;
             seq: number;
@@ -3250,8 +3250,8 @@ declare const UpdateSchema: z.ZodObject<{
     body: {
         message: {
             content: {
-                c: string;
                 t: "encrypted";
+                c: string;
             };
             id: string;
             seq: number;
@@ -3293,8 +3293,8 @@ declare const UpdateSchema: z.ZodObject<{
     body: {
         message: {
             content: {
-                c: string;
                 t: "encrypted";
+                c: string;
             };
             id: string;
             seq: number;
@@ -6589,8 +6589,8 @@ declare const AgentCommsEnvelopeSchema: z.ZodObject<{
     hopPath: z.ZodArray<z.ZodString, "many">;
     body: z.ZodUnknown;
 }, "strip", z.ZodTypeAny, {
-    id: string;
     kind: "request" | "reply" | "notify" | "spawn-request" | "spawn-result";
+    id: string;
     v: 1;
     ts: number;
     from: {
@@ -6608,8 +6608,8 @@ declare const AgentCommsEnvelopeSchema: z.ZodObject<{
     body?: unknown;
     correlationId?: string | undefined;
 }, {
-    id: string;
     kind: "request" | "reply" | "notify" | "spawn-request" | "spawn-result";
+    id: string;
     v: 1;
     ts: number;
     from: {
@@ -6689,8 +6689,8 @@ declare const AgentCommsIngestBodySchema: z.ZodObject<{
         hopPath: z.ZodArray<z.ZodString, "many">;
         body: z.ZodUnknown;
     }, "strip", z.ZodTypeAny, {
-        id: string;
         kind: "request" | "reply" | "notify" | "spawn-request" | "spawn-result";
+        id: string;
         v: 1;
         ts: number;
         from: {
@@ -6708,8 +6708,8 @@ declare const AgentCommsIngestBodySchema: z.ZodObject<{
         body?: unknown;
         correlationId?: string | undefined;
     }, {
-        id: string;
         kind: "request" | "reply" | "notify" | "spawn-request" | "spawn-result";
+        id: string;
         v: 1;
         ts: number;
         from: {
@@ -6743,8 +6743,8 @@ declare const AgentCommsIngestBodySchema: z.ZodObject<{
     }>;
 }, "strip", z.ZodTypeAny, {
     envelope: {
-        id: string;
         kind: "request" | "reply" | "notify" | "spawn-request" | "spawn-result";
+        id: string;
         v: 1;
         ts: number;
         from: {
@@ -6770,8 +6770,8 @@ declare const AgentCommsIngestBodySchema: z.ZodObject<{
     };
 }, {
     envelope: {
-        id: string;
         kind: "request" | "reply" | "notify" | "spawn-request" | "spawn-result";
+        id: string;
         v: 1;
         ts: number;
         from: {
@@ -8000,7 +8000,7 @@ declare const steeringResultSchema: z.ZodObject<{
     retryAfterMs: z.ZodOptional<z.ZodNumber>;
     requestId: z.ZodOptional<z.ZodString>;
 }, "strict", z.ZodTypeAny, {
-    outcome: "rate_limited" | "pending" | "applied" | "duplicate" | "already_resolved" | "out_of_scope" | "destructive_kind" | "no_lease" | "not_pending";
+    outcome: "pending" | "rate_limited" | "applied" | "duplicate" | "already_resolved" | "out_of_scope" | "destructive_kind" | "no_lease" | "not_pending";
     requestId?: string | undefined;
     leaseId?: string | undefined;
     expiresAt?: number | undefined;
@@ -8009,7 +8009,7 @@ declare const steeringResultSchema: z.ZodObject<{
     actionId?: string | undefined;
     retryAfterMs?: number | undefined;
 }, {
-    outcome: "rate_limited" | "pending" | "applied" | "duplicate" | "already_resolved" | "out_of_scope" | "destructive_kind" | "no_lease" | "not_pending";
+    outcome: "pending" | "rate_limited" | "applied" | "duplicate" | "already_resolved" | "out_of_scope" | "destructive_kind" | "no_lease" | "not_pending";
     requestId?: string | undefined;
     leaseId?: string | undefined;
     expiresAt?: number | undefined;
@@ -8034,6 +8034,15 @@ declare const steeringLeaseRevokedSchema: z.ZodObject<{
 type SteeringLeaseRevoked = z.infer<typeof steeringLeaseRevokedSchema>;
 declare const STEERING_RPC_METHODS: readonly ["happy.attach", "happy.requestLease", "happy.heartbeat", "happy.releaseLease", "happy.answerPrompt", "happy.getControlState"];
 type SteeringRpcMethod = typeof STEERING_RPC_METHODS[number];
+declare const STEERING_RELAY_CALLER_KEY: "__happyRpcCaller";
+declare const steeringRelayCallerSchema: z.ZodObject<{
+    connectionId: z.ZodString;
+}, "strict", z.ZodTypeAny, {
+    connectionId: string;
+}, {
+    connectionId: string;
+}>;
+type SteeringRelayCaller = z.infer<typeof steeringRelayCallerSchema>;
 
 declare const MachineTunnelSchema: z.ZodObject<{
     machineId: z.ZodString;
@@ -8059,5 +8068,5 @@ declare const MachineTunnelSchema: z.ZodObject<{
 }>;
 type MachineTunnel = z.infer<typeof MachineTunnelSchema>;
 
-export { AgentCommsChannelSchema, AgentCommsEnvelopeSchema, AgentCommsFromSchema, AgentCommsIngestBodySchema, AgentCommsKindSchema, AgentCommsScopeSchema, AgentCommsToSchema, AgentMessageSchema, AgentTreeDeltaSchema, AgentTreeEdgeSchema, AgentTreeNodeAddedDeltaSchema, AgentTreeNodeRemovedDeltaSchema, AgentTreeNodeSchema, AgentTreeNodeStatusChangedDeltaSchema, AgentTreePendingSpawnStartedDeltaSchema, AgentTreeSnapshotSchema, AgentTreeUpdateInboundPayloadSchema, AgentTreeUpdateOutboundPayloadSchema, ApiMessageSchema, ApiUpdateMachineStateSchema, ApiUpdateNewMessageSchema, ApiUpdateSessionStateSchema, CanonicalLocalProfileFileSchema, CanonicalLocalProfileSchema, CloudflareAccessServiceTokenSchema, CoreUpdateBodySchema, CoreUpdateContainerSchema, DoneLedgerRecordSchema, ErrorLedgerRecordSchema, IdleReachedLedgerRecordSchema, LOCAL_DEVICE_PROOF_CLOCK_SKEW_MS, LOCAL_DEVICE_PROOF_DOMAIN, LOCAL_DEVICE_PROOF_ENVELOPE_VERSION, LOCAL_DEVICE_PROOF_FRESHNESS_MS, LOCAL_DEVICE_PROOF_HEADER, LOCAL_DEVICE_PROOF_NONCE_BYTES, LOCAL_PAIRING_AUTH_MODE, LOCAL_PAIRING_FORWARD_SKEW_MS, LOCAL_PAIRING_INVITE_KIND, LOCAL_PAIRING_INVITE_VERSION, LOCAL_PAIRING_NONCE_BYTES, LOCAL_PAIRING_NONCE_HEADER, LOCAL_PAIRING_SECRET_BYTES, LOCAL_PAIRING_SECRET_HEADER, LOCAL_PAIRING_WINDOW_MS, LastOutputSummaryLedgerRecordSchema, LedgerErrorCodeSchema, LedgerRecordSchema, LegacyMessageContentSchema, LocalPairingInviteSchema, LocalSignedRequestEnvelopeSchema, MAX_HOPS, MachineTunnelSchema, MessageContentSchema, MessageMetaSchema, MessageSentLedgerRecordSchema, PAIR_COMPLETE_REQUEST_VERSION, PAIR_COMPLETE_RESPONSE_DOMAIN, PAIR_COMPLETE_RESPONSE_VERSION, PUBLIC_DEVICE_AUTH_TEST_VECTOR, PUBLIC_DEVICE_PROOF_CLOCK_SKEW_MS, PUBLIC_DEVICE_PROOF_DOMAIN, PUBLIC_DEVICE_PROOF_ENVELOPE_VERSION, PUBLIC_DEVICE_PROOF_FRESHNESS_MS, PUBLIC_DEVICE_PROOF_HEADER, PUBLIC_PAIRING_INVITE_DEFAULT_TTL_MS, PUBLIC_PAIRING_INVITE_TEST_VECTOR, PUBLIC_PAIRING_INVITE_VERSION, PairCompleteRequestSchema, PairCompleteResponseSchema, PairCompleteResponseUnsignedSchema, PendingPermissionLedgerRecordSchema, PublicPairingInviteSchema, PublicSignedRequestEnvelopeSchema, SESSION_OUTPUT_SNAPSHOT_ID_MAX_CHARS, SESSION_OUTPUT_SNAPSHOT_TEXT_MAX_BYTES, SESSION_OUTPUT_SNAPSHOT_TYPE, STEERING_RPC_METHODS, SenderKeysSchema, SessionGetAgentTreeRequestSchema, SessionGetAgentTreeResponseSchema, SessionMessageContentSchema, SessionMessageRangeRequestSchema, SessionMessageRangeResponseSchema, SessionMessageSchema, SessionOutputSnapshotEphemeralUpdateSchema, SessionOutputSnapshotPayloadSchema, SessionProtocolMessageSchema, SpawnLedgerRecordSchema, TofuHandshakeMessageSchema, TofuPubkeysEventSchema, TofuPublicKeysSchema, TofuSessionKeyExchangeSchema, UpdateBodySchema, UpdateMachineBodySchema, UpdateNewMessageBodySchema, UpdateSchema, UpdateSessionBodySchema, UserMessageSchema, ValidationAttachedLedgerRecordSchema, VersionedEncryptedValueSchema, VersionedMachineEncryptedValueSchema, VersionedNullableEncryptedValueSchema, VoiceConversationDeniedSchema, VoiceConversationGrantedSchema, VoiceConversationResponseSchema, VoiceUsageResponseSchema, answerAskUserContentSchema, answerElicitationContentSchema, answerPermissionContentSchema, answerPlanContentSchema, canonicalLocalRequestStringToSign, canonicalPairCompleteResponse, canonicalRequestStringToSign, canonicalizeLocalRequestTarget, canonicalizePublicRequestTarget, createEnvelope, createLocalPairingInvite, createPublicPairingInvite, decodeBase64, decodeBase64Url, decodeLocalDeviceProofHeader, decodeLocalPairingInvite, decodePublicDeviceProofHeader, decodePublicPairingInvite, encodeBase64, encodeBase64Url, encodeLocalDeviceProofHeader, encodeLocalPairingInvite, encodePublicDeviceProofHeader, encodePublicPairingInvite, findSenderDropEntry, forkBoilerplateEntry, generateLocalPairingNonce, generateLocalPairingSecret, generatePairSecret, generatePublicRequestNonce, getSessionOutputSnapshotKey, getSessionOutputSnapshotTransientMessageId, hashLocalRequestBody, hashRequestBody, isLocalPairingInviteValid, isLocalProofFresh, isPublicPairingInviteValid, isPublicProofFresh, isStrictLoopbackServerUrl, localCommandCaveatEntry, makeWrappedTagEntry, nonRenderableEntries, normalizeMethod, routeHopValidation, sessionAgentConfigurationChangedEventSchema, sessionContextBoundaryEventSchema, sessionContextBoundaryKindSchema, sessionContextBoundaryTriggeredBySchema, sessionCopilotControlEventSchema, sessionCopilotPromptEventSchema, sessionEnvelopeSchema, sessionEventSchema, sessionFileEventSchema, sessionMessageConsumptionEventSchema, sessionRoleSchema, sessionServiceMessageEventSchema, sessionStartEventSchema, sessionStopEventSchema, sessionTextEventSchema, sessionToolCallEndEventSchema, sessionToolCallStartEventSchema, sessionTurnEndEventSchema, sessionTurnEndStatusSchema, sessionTurnStartEventSchema, signLocalRequest, signPairCompleteResponse, signPublicRequest, skillBodyEntry, steeringCommandEnvelopeSchema, steeringCommandTypeSchema, steeringLeaseRevocationReasonSchema, steeringLeaseRevokedSchema, steeringOutcomeSchema, steeringResultSchema, systemReminderEntry, verifyLocalRequest, verifyPairCompleteResponse, verifyPublicRequest };
-export type { AgentCommsChannel, AgentCommsEnvelope, AgentCommsFrom, AgentCommsIngestBody, AgentCommsIngestHandler, AgentCommsKind, AgentCommsScope, AgentCommsTo, AgentMessage, AgentTreeDelta, AgentTreeEdge, AgentTreeNode, AgentTreeNodeAddedDelta, AgentTreeNodeRemovedDelta, AgentTreeNodeStatusChangedDelta, AgentTreePendingSpawnStartedDelta, AgentTreeSnapshot, AgentTreeUpdateInboundPayload, AgentTreeUpdateOutboundPayload, AnswerAskUserContent, AnswerElicitationContent, AnswerPermissionContent, AnswerPlanContent, ApiMessage, ApiUpdateMachineState, ApiUpdateNewMessage, ApiUpdateSessionState, CanonicalLocalProfile, CanonicalLocalProfileFile, CanonicalRequestFields, CloudflareAccessServiceToken, CoreUpdateBody, CoreUpdateContainer, CreateEnvelopeOptions, CreateLocalPairingInviteInput, CreatePublicPairingInviteInput, LedgerErrorCode, LedgerRecord, LegacyMessageContent, LocalCanonicalRequestFields, LocalPairingInvite, LocalRequestVerification, LocalSignedRequestEnvelope, MachineTunnel, MessageContent, MessageMeta, NonRenderableEntry, PairCompleteRequest, PairCompleteResponse, PairCompleteResponseUnsigned, PublicDeviceAuthTestVector, PublicPairingInvite, PublicPairingInviteTestVector, PublicRequestVerification, PublicSignedRequestEnvelope, RawClaudeMessageMatchInput, ReceiverRegexFactory, SenderKeys, SessionAgentConfigurationChangedEvent, SessionContextBoundaryEvent, SessionContextBoundaryKind, SessionContextBoundaryTriggeredBy, SessionCopilotControlEvent, SessionCopilotPromptEvent, SessionEnvelope, SessionEvent, SessionGetAgentTreeRequest, SessionGetAgentTreeResponse, SessionMessage, SessionMessageConsumptionEvent, SessionMessageContent, SessionMessageRangeRequest, SessionMessageRangeResponse, SessionOutputSnapshotEphemeralUpdate, SessionOutputSnapshotPayload, SessionProtocolMessage, SessionRole, SessionTurnEndStatus, SignLocalRequestInput, SignPublicRequestInput, SteeringCommandEnvelope, SteeringCommandType, SteeringLeaseRevocationReason, SteeringLeaseRevoked, SteeringOutcome, SteeringResult, SteeringRpcMethod, TofuHandshakeMessage, TofuPubkeysEvent, TofuPublicKeys, TofuSessionKeyExchange, Update, UpdateBody, UpdateMachineBody, UpdateNewMessageBody, UpdateSessionBody, UserMessage, VerifyLocalRequestContext, VerifyPublicRequestContext, VersionedEncryptedValue, VersionedMachineEncryptedValue, VersionedNullableEncryptedValue, VoiceConversationResponse, VoiceUsageResponse };
+export { AgentCommsChannelSchema, AgentCommsEnvelopeSchema, AgentCommsFromSchema, AgentCommsIngestBodySchema, AgentCommsKindSchema, AgentCommsScopeSchema, AgentCommsToSchema, AgentMessageSchema, AgentTreeDeltaSchema, AgentTreeEdgeSchema, AgentTreeNodeAddedDeltaSchema, AgentTreeNodeRemovedDeltaSchema, AgentTreeNodeSchema, AgentTreeNodeStatusChangedDeltaSchema, AgentTreePendingSpawnStartedDeltaSchema, AgentTreeSnapshotSchema, AgentTreeUpdateInboundPayloadSchema, AgentTreeUpdateOutboundPayloadSchema, ApiMessageSchema, ApiUpdateMachineStateSchema, ApiUpdateNewMessageSchema, ApiUpdateSessionStateSchema, CanonicalLocalProfileFileSchema, CanonicalLocalProfileSchema, CloudflareAccessServiceTokenSchema, CoreUpdateBodySchema, CoreUpdateContainerSchema, DoneLedgerRecordSchema, ErrorLedgerRecordSchema, IdleReachedLedgerRecordSchema, LOCAL_DEVICE_PROOF_CLOCK_SKEW_MS, LOCAL_DEVICE_PROOF_DOMAIN, LOCAL_DEVICE_PROOF_ENVELOPE_VERSION, LOCAL_DEVICE_PROOF_FRESHNESS_MS, LOCAL_DEVICE_PROOF_HEADER, LOCAL_DEVICE_PROOF_NONCE_BYTES, LOCAL_PAIRING_AUTH_MODE, LOCAL_PAIRING_FORWARD_SKEW_MS, LOCAL_PAIRING_INVITE_KIND, LOCAL_PAIRING_INVITE_VERSION, LOCAL_PAIRING_NONCE_BYTES, LOCAL_PAIRING_NONCE_HEADER, LOCAL_PAIRING_SECRET_BYTES, LOCAL_PAIRING_SECRET_HEADER, LOCAL_PAIRING_WINDOW_MS, LastOutputSummaryLedgerRecordSchema, LedgerErrorCodeSchema, LedgerRecordSchema, LegacyMessageContentSchema, LocalPairingInviteSchema, LocalSignedRequestEnvelopeSchema, MAX_HOPS, MachineTunnelSchema, MessageContentSchema, MessageMetaSchema, MessageSentLedgerRecordSchema, PAIR_COMPLETE_REQUEST_VERSION, PAIR_COMPLETE_RESPONSE_DOMAIN, PAIR_COMPLETE_RESPONSE_VERSION, PUBLIC_DEVICE_AUTH_TEST_VECTOR, PUBLIC_DEVICE_PROOF_CLOCK_SKEW_MS, PUBLIC_DEVICE_PROOF_DOMAIN, PUBLIC_DEVICE_PROOF_ENVELOPE_VERSION, PUBLIC_DEVICE_PROOF_FRESHNESS_MS, PUBLIC_DEVICE_PROOF_HEADER, PUBLIC_PAIRING_INVITE_DEFAULT_TTL_MS, PUBLIC_PAIRING_INVITE_TEST_VECTOR, PUBLIC_PAIRING_INVITE_VERSION, PairCompleteRequestSchema, PairCompleteResponseSchema, PairCompleteResponseUnsignedSchema, PendingPermissionLedgerRecordSchema, PublicPairingInviteSchema, PublicSignedRequestEnvelopeSchema, SESSION_OUTPUT_SNAPSHOT_ID_MAX_CHARS, SESSION_OUTPUT_SNAPSHOT_TEXT_MAX_BYTES, SESSION_OUTPUT_SNAPSHOT_TYPE, STEERING_RELAY_CALLER_KEY, STEERING_RPC_METHODS, SenderKeysSchema, SessionGetAgentTreeRequestSchema, SessionGetAgentTreeResponseSchema, SessionMessageContentSchema, SessionMessageRangeRequestSchema, SessionMessageRangeResponseSchema, SessionMessageSchema, SessionOutputSnapshotEphemeralUpdateSchema, SessionOutputSnapshotPayloadSchema, SessionProtocolMessageSchema, SpawnLedgerRecordSchema, TofuHandshakeMessageSchema, TofuPubkeysEventSchema, TofuPublicKeysSchema, TofuSessionKeyExchangeSchema, UpdateBodySchema, UpdateMachineBodySchema, UpdateNewMessageBodySchema, UpdateSchema, UpdateSessionBodySchema, UserMessageSchema, ValidationAttachedLedgerRecordSchema, VersionedEncryptedValueSchema, VersionedMachineEncryptedValueSchema, VersionedNullableEncryptedValueSchema, VoiceConversationDeniedSchema, VoiceConversationGrantedSchema, VoiceConversationResponseSchema, VoiceUsageResponseSchema, answerAskUserContentSchema, answerElicitationContentSchema, answerPermissionContentSchema, answerPlanContentSchema, canonicalLocalRequestStringToSign, canonicalPairCompleteResponse, canonicalRequestStringToSign, canonicalizeLocalRequestTarget, canonicalizePublicRequestTarget, createEnvelope, createLocalPairingInvite, createPublicPairingInvite, decodeBase64, decodeBase64Url, decodeLocalDeviceProofHeader, decodeLocalPairingInvite, decodePublicDeviceProofHeader, decodePublicPairingInvite, encodeBase64, encodeBase64Url, encodeLocalDeviceProofHeader, encodeLocalPairingInvite, encodePublicDeviceProofHeader, encodePublicPairingInvite, findSenderDropEntry, forkBoilerplateEntry, generateLocalPairingNonce, generateLocalPairingSecret, generatePairSecret, generatePublicRequestNonce, getSessionOutputSnapshotKey, getSessionOutputSnapshotTransientMessageId, hashLocalRequestBody, hashRequestBody, isLocalPairingInviteValid, isLocalProofFresh, isPublicPairingInviteValid, isPublicProofFresh, isStrictLoopbackServerUrl, localCommandCaveatEntry, makeWrappedTagEntry, nonRenderableEntries, normalizeMethod, routeHopValidation, sessionAgentConfigurationChangedEventSchema, sessionContextBoundaryEventSchema, sessionContextBoundaryKindSchema, sessionContextBoundaryTriggeredBySchema, sessionCopilotControlEventSchema, sessionCopilotPromptEventSchema, sessionEnvelopeSchema, sessionEventSchema, sessionFileEventSchema, sessionMessageConsumptionEventSchema, sessionRoleSchema, sessionServiceMessageEventSchema, sessionStartEventSchema, sessionStopEventSchema, sessionTextEventSchema, sessionToolCallEndEventSchema, sessionToolCallStartEventSchema, sessionTurnEndEventSchema, sessionTurnEndStatusSchema, sessionTurnStartEventSchema, signLocalRequest, signPairCompleteResponse, signPublicRequest, skillBodyEntry, steeringCommandEnvelopeSchema, steeringCommandTypeSchema, steeringLeaseRevocationReasonSchema, steeringLeaseRevokedSchema, steeringOutcomeSchema, steeringRelayCallerSchema, steeringResultSchema, systemReminderEntry, verifyLocalRequest, verifyPairCompleteResponse, verifyPublicRequest };
+export type { AgentCommsChannel, AgentCommsEnvelope, AgentCommsFrom, AgentCommsIngestBody, AgentCommsIngestHandler, AgentCommsKind, AgentCommsScope, AgentCommsTo, AgentMessage, AgentTreeDelta, AgentTreeEdge, AgentTreeNode, AgentTreeNodeAddedDelta, AgentTreeNodeRemovedDelta, AgentTreeNodeStatusChangedDelta, AgentTreePendingSpawnStartedDelta, AgentTreeSnapshot, AgentTreeUpdateInboundPayload, AgentTreeUpdateOutboundPayload, AnswerAskUserContent, AnswerElicitationContent, AnswerPermissionContent, AnswerPlanContent, ApiMessage, ApiUpdateMachineState, ApiUpdateNewMessage, ApiUpdateSessionState, CanonicalLocalProfile, CanonicalLocalProfileFile, CanonicalRequestFields, CloudflareAccessServiceToken, CoreUpdateBody, CoreUpdateContainer, CreateEnvelopeOptions, CreateLocalPairingInviteInput, CreatePublicPairingInviteInput, LedgerErrorCode, LedgerRecord, LegacyMessageContent, LocalCanonicalRequestFields, LocalPairingInvite, LocalRequestVerification, LocalSignedRequestEnvelope, MachineTunnel, MessageContent, MessageMeta, NonRenderableEntry, PairCompleteRequest, PairCompleteResponse, PairCompleteResponseUnsigned, PublicDeviceAuthTestVector, PublicPairingInvite, PublicPairingInviteTestVector, PublicRequestVerification, PublicSignedRequestEnvelope, RawClaudeMessageMatchInput, ReceiverRegexFactory, SenderKeys, SessionAgentConfigurationChangedEvent, SessionContextBoundaryEvent, SessionContextBoundaryKind, SessionContextBoundaryTriggeredBy, SessionCopilotControlEvent, SessionCopilotPromptEvent, SessionEnvelope, SessionEvent, SessionGetAgentTreeRequest, SessionGetAgentTreeResponse, SessionMessage, SessionMessageConsumptionEvent, SessionMessageContent, SessionMessageRangeRequest, SessionMessageRangeResponse, SessionOutputSnapshotEphemeralUpdate, SessionOutputSnapshotPayload, SessionProtocolMessage, SessionRole, SessionTurnEndStatus, SignLocalRequestInput, SignPublicRequestInput, SteeringCommandEnvelope, SteeringCommandType, SteeringLeaseRevocationReason, SteeringLeaseRevoked, SteeringOutcome, SteeringRelayCaller, SteeringResult, SteeringRpcMethod, TofuHandshakeMessage, TofuPubkeysEvent, TofuPublicKeys, TofuSessionKeyExchange, Update, UpdateBody, UpdateMachineBody, UpdateNewMessageBody, UpdateSessionBody, UserMessage, VerifyLocalRequestContext, VerifyPublicRequestContext, VersionedEncryptedValue, VersionedMachineEncryptedValue, VersionedNullableEncryptedValue, VoiceConversationResponse, VoiceUsageResponse };

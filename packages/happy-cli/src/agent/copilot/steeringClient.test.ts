@@ -8,6 +8,7 @@ import type {
 import {
   COPILOT_HEARTBEAT_INTERVAL_MS,
   COPILOT_LEASE_TTL_MS,
+  CopilotPhoneSteeringBroker,
   CopilotSteeringClient,
 } from './steeringClient';
 import {
@@ -21,10 +22,14 @@ const actionId = '123e4567-e89b-42d3-a456-426614174000';
 function harness(results: Array<SteeringResult | Error> = []) {
   let notificationHandler: SteeringNotificationHandler | null = null;
   let disconnectHandler: (() => void) | null = null;
-  const calls: Array<{ method: SteeringRpcMethod; params: Record<string, unknown> }> = [];
+  const calls: Array<{ method: SteeringRpcMethod; params: Record<string, unknown>; timeoutMs?: number }> = [];
   const transport = {
-    invokeSteering: vi.fn(async (method: SteeringRpcMethod, params: Record<string, unknown> = {}) => {
-      calls.push({ method, params });
+    invokeSteering: vi.fn(async (
+      method: SteeringRpcMethod,
+      params: Record<string, unknown> = {},
+      timeoutMs?: number,
+    ) => {
+      calls.push({ method, params, ...(timeoutMs === undefined ? {} : { timeoutMs }) });
       const result = results.shift();
       if (!result) throw new Error(`Missing result for ${method}`);
       if (result instanceof Error) throw result;
@@ -177,6 +182,15 @@ describe('CopilotSteeringClient', () => {
     const updates: string[] = [];
     client.onActionUpdate((update) => updates.push(`${update.actionId}:${update.status}`));
     await client.start();
+    client.observeNativeEvent({
+      id: 'prompt-event',
+      type: 'permission.requested',
+      timestamp: '2026-08-01T00:00:00Z',
+      data: {
+        requestId: 'prompt-1',
+        promptRequest: { kind: 'read', path: 'README.md' },
+      },
+    });
 
     await expect(client.answerPrompt({
       actionId,
@@ -209,6 +223,12 @@ describe('CopilotSteeringClient', () => {
       sleep: async (ms) => { now += ms; },
     });
     await client.start();
+    client.observeNativeEvent({
+      id: 'prompt-event',
+      type: 'user_input.requested',
+      timestamp: '2026-08-01T00:00:00Z',
+      data: { requestId: 'prompt-1', question: 'Choose' },
+    });
 
     await expect(client.answerPrompt({
       actionId,
@@ -221,6 +241,177 @@ describe('CopilotSteeringClient', () => {
     const answerCalls = fake.calls.filter((call) => call.method === 'happy.answerPrompt');
     expect(answerCalls).toHaveLength(2);
     expect(answerCalls[0].params).toEqual(answerCalls[1].params);
+    client.dispose();
+  });
+
+  it('discards a stale heartbeat response after an authoritative revoke', async () => {
+    let resolveHeartbeat!: (result: SteeringResult) => void;
+    const fake = harness([
+      { outcome: 'applied' },
+      { outcome: 'applied', leaseId: 'lease-1', expiresAt: Date.now() + 45_000 },
+    ]);
+    fake.transport.invokeSteering.mockImplementation(async (method, params = {}, timeoutMs) => {
+      fake.calls.push({ method, params, ...(timeoutMs === undefined ? {} : { timeoutMs }) });
+      if (method === 'happy.attach') return { outcome: 'applied' };
+      if (method === 'happy.getControlState') {
+        return { outcome: 'applied', leaseId: 'lease-1', expiresAt: Date.now() + 45_000 };
+      }
+      if (method === 'happy.heartbeat') {
+        return new Promise<SteeringResult>((resolve) => { resolveHeartbeat = resolve; });
+      }
+      throw new Error(`Unexpected ${method}`);
+    });
+    const client = new CopilotSteeringClient(fake.transport as never);
+    await client.start();
+
+    const heartbeat = client.heartbeat();
+    fake.notify({ method: 'happy.leaseRevoked', params: { reason: 'keystroke', leaseId: 'lease-1' } });
+    resolveHeartbeat({
+      outcome: 'applied',
+      leaseId: 'lease-1',
+      expiresAt: Date.now() + 45_000,
+    });
+
+    await expect(heartbeat).resolves.toEqual({ outcome: 'no_lease' });
+    expect(client.getState()).toEqual({ status: 'no-lease', reason: 'keystroke' });
+    client.dispose();
+  });
+
+  it('cancels answer retries when the lease generation is revoked', async () => {
+    let now = 0;
+    let releaseSleep!: () => void;
+    const fake = harness([
+      { outcome: 'applied' },
+      { outcome: 'applied', leaseId: 'lease-1', expiresAt: 45_000 },
+      new NativeTransportError('ambiguous timeout'),
+    ]);
+    const client = new CopilotSteeringClient(fake.transport as never, {
+      now: () => now,
+      sleep: async (ms) => new Promise<void>((resolve) => {
+        now += ms;
+        releaseSleep = resolve;
+      }),
+    });
+    await client.start();
+    client.observeNativeEvent({
+      id: 'prompt-event',
+      type: 'user_input.requested',
+      timestamp: '2026-08-01T00:00:00Z',
+      data: { requestId: 'prompt-1', question: 'Choose' },
+    });
+    const answer = client.answerPrompt({
+      actionId,
+      sessionId: 'happy-session',
+      targetRequestId: 'prompt-1',
+      type: 'answer-ask-user',
+      content: { answer: 'A' },
+    });
+    await vi.waitFor(() => expect(releaseSleep).toBeTypeOf('function'));
+
+    fake.notify({ method: 'happy.leaseRevoked', params: { reason: 'keystroke' } });
+    releaseSleep();
+
+    await expect(answer).resolves.toMatchObject({ actionId, outcome: 'no_lease' });
+    expect(fake.calls.filter((call) => call.method === 'happy.answerPrompt')).toHaveLength(1);
+    client.dispose();
+  });
+
+  it('rejects destructive, unknown-kind, mismatched, and unknown permission targets locally', async () => {
+    const fake = harness([
+      { outcome: 'applied' },
+      { outcome: 'applied', leaseId: 'lease-1', expiresAt: Date.now() + 45_000 },
+    ]);
+    const client = new CopilotSteeringClient(fake.transport as never);
+    await client.start();
+    client.observeNativeEvent({
+      id: 'write',
+      type: 'permission.requested',
+      timestamp: '2026-08-01T00:00:00Z',
+      data: { requestId: 'write-1', promptRequest: { kind: 'write' } },
+    });
+    client.observeNativeEvent({
+      id: 'unknown',
+      type: 'permission.requested',
+      timestamp: '2026-08-01T00:00:00Z',
+      data: { requestId: 'unknown-1', promptRequest: { kind: 'future-kind' } },
+    });
+
+    const answer = (targetRequestId: string) => client.answerPrompt({
+      actionId,
+      sessionId: 'happy-session',
+      targetRequestId,
+      type: 'answer-permission',
+      content: { decision: 'approve', scope: 'once' },
+    });
+    await expect(answer('write-1')).resolves.toMatchObject({ outcome: 'destructive_kind' });
+    await expect(answer('unknown-1')).resolves.toMatchObject({ outcome: 'destructive_kind' });
+    await expect(answer('missing')).resolves.toMatchObject({ outcome: 'not_pending' });
+    expect(fake.calls.filter((call) => call.method === 'happy.answerPrompt')).toHaveLength(0);
+    client.dispose();
+  });
+
+  it('does not start a retry at the 45s deadline and bounds request timeout to remaining time', async () => {
+    let now = 0;
+    const fake = harness([
+      { outcome: 'applied' },
+      { outcome: 'applied', leaseId: 'lease-1', expiresAt: 45_000 },
+      { actionId, outcome: 'rate_limited', retryAfterMs: 44_999 },
+    ]);
+    const client = new CopilotSteeringClient(fake.transport as never, {
+      now: () => now,
+      sleep: async (ms) => { now += ms + 1; },
+    });
+    await client.start();
+    client.observeNativeEvent({
+      id: 'prompt',
+      type: 'user_input.requested',
+      timestamp: '2026-08-01T00:00:00Z',
+      data: { requestId: 'prompt-1', question: 'Choose' },
+    });
+
+    await expect(client.answerPrompt({
+      actionId,
+      sessionId: 'happy-session',
+      targetRequestId: 'prompt-1',
+      type: 'answer-ask-user',
+      content: { answer: 'A' },
+    })).resolves.toMatchObject({ outcome: 'rate_limited' });
+
+    const answerCalls = fake.calls.filter((call) => call.method === 'happy.answerPrompt');
+    expect(answerCalls).toHaveLength(1);
+    expect(answerCalls[0].timeoutMs).toBe(15_000);
+    client.dispose();
+  });
+
+  it('binds a lease to one relay connection and requires explicit re-request after reconnect', async () => {
+    const fake = harness([
+      { outcome: 'applied' },
+      { outcome: 'no_lease' },
+      { outcome: 'pending', requestId: 'request-1' },
+      { outcome: 'applied' },
+      { outcome: 'pending', requestId: 'request-2' },
+    ]);
+    const client = new CopilotSteeringClient(fake.transport as never);
+    await client.start();
+    const broker = new CopilotPhoneSteeringBroker(client);
+
+    await expect(broker.requestLease('phone-a')).resolves.toMatchObject({ outcome: 'pending' });
+    fake.notify({
+      method: 'happy.leaseGranted',
+      params: { leaseId: 'lease-1', expiresAt: Date.now() + 45_000 },
+    });
+    await expect(broker.heartbeat('phone-b')).resolves.toEqual({ outcome: 'no_lease' });
+    await expect(broker.getControlState('phone-b')).resolves.toEqual({ outcome: 'no_lease' });
+    expect(broker.attach('phone-b')).toEqual({ outcome: 'no_lease' });
+
+    await broker.invalidateConnection('phone-a');
+    expect(broker.attach('phone-a-reconnected')).toEqual({ outcome: 'no_lease' });
+    await expect(broker.requestLease('phone-a-reconnected')).resolves.toMatchObject({
+      outcome: 'pending',
+      requestId: 'request-2',
+    });
+    expect(fake.calls.filter((call) => call.method === 'happy.releaseLease')).toHaveLength(1);
+    expect(fake.calls.filter((call) => call.method === 'happy.requestLease')).toHaveLength(2);
     client.dispose();
   });
 });

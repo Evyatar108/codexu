@@ -13,6 +13,7 @@ export { spawnManagedTarget, validateRegistryEntry } from './managedServer';
 export { NativeLocalRpcClient } from './nativeLocalRpcClient';
 export {
   CopilotSteeringClient,
+  CopilotPhoneSteeringBroker,
   COPILOT_ACTION_RETRY_WINDOW_MS,
   COPILOT_ANSWER_RATE_LIMIT,
   COPILOT_ANSWER_RATE_LIMIT_WINDOW_MS,

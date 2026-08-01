@@ -263,4 +263,44 @@ describe('CopilotEventRelay bootstrap', () => {
       destructive: false,
     });
   });
+
+  it('keeps buffering live-only prompts while historical deliveries are in flight', async () => {
+    const fake = new FakeNative([
+      {
+        events: [nativeEvent('history', 'user.message', { content: 'persisted' })],
+        cursor: 'c1',
+        cursorStatus: 'ok',
+        hasMore: false,
+      },
+      { events: [], cursor: 'c2', cursorStatus: 'ok', hasMore: false },
+      { events: [], cursor: 'c3', cursorStatus: 'ok', hasMore: false },
+    ]);
+    const delivered: string[] = [];
+    const happy = {
+      sessionId: 'happy-1',
+      sendSessionProtocolMessageWithDelivery: vi.fn(async (envelope, options) => {
+        delivered.push(envelope.ev.t);
+        if (envelope.ev.t === 'text') {
+          fake.handler?.({
+            ...nativeEvent('gap-prompt', 'user_input.requested', {
+              requestId: 'request-gap',
+              question: 'Choose now',
+            }),
+            ephemeral: true,
+          });
+        }
+        return { id: options.localId, seq: delivered.length };
+      }),
+    };
+    const relay = new CopilotEventRelay(fake as never, happy as never, process.cwd());
+
+    await expect(relay.bootstrapFromStart()).resolves.toBe('c3');
+    expect(delivered).toEqual(['text', 'copilot-prompt']);
+    expect(happy.sendSessionProtocolMessageWithDelivery.mock.calls[1][0].ev).toMatchObject({
+      t: 'copilot-prompt',
+      requestId: 'request-gap',
+      promptType: 'answer-ask-user',
+    });
+    relay.stop();
+  });
 });

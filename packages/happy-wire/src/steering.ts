@@ -118,3 +118,10 @@ export const STEERING_RPC_METHODS = [
   'happy.getControlState',
 ] as const;
 export type SteeringRpcMethod = typeof STEERING_RPC_METHODS[number];
+
+export const STEERING_RELAY_CALLER_KEY = '__happyRpcCaller' as const;
+
+export const steeringRelayCallerSchema = z.object({
+  connectionId: z.string().min(1),
+}).strict();
+export type SteeringRelayCaller = z.infer<typeof steeringRelayCallerSchema>;

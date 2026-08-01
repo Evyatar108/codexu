@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
   STEERING_RPC_METHODS,
+  STEERING_RELAY_CALLER_KEY,
   steeringCommandEnvelopeSchema,
   steeringLeaseRevokedSchema,
+  steeringRelayCallerSchema,
   steeringResultSchema,
 } from './index';
 
@@ -97,5 +99,9 @@ describe('steering wire schemas', () => {
     for (const reason of ['keystroke', 'expired', 'superseded', 'released', 'detached']) {
       expect(steeringLeaseRevokedSchema.safeParse({ reason }).success).toBe(true);
     }
+    expect(STEERING_RELAY_CALLER_KEY).toBe('__happyRpcCaller');
+    expect(steeringRelayCallerSchema.parse({ connectionId: 'socket-1' })).toEqual({
+      connectionId: 'socket-1',
+    });
   });
 });

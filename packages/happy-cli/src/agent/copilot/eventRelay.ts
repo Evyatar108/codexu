@@ -24,6 +24,7 @@ export class CopilotEventRelay {
   private activeDelivery: Promise<void> | null = null;
   private liveDeliveries = new Set<Promise<void>>();
   private liveDeliveryFailure: Error | null = null;
+  private detachNotifications: (() => void) | null = null;
   private seenEventIds = new Set<string>();
   private projectionState = createProjectionState('');
 
@@ -33,6 +34,7 @@ export class CopilotEventRelay {
     private readonly workspace: string,
     private readonly onNativeShutdown?: () => Promise<void>,
     private readonly onNativeReconnected?: () => Promise<void>,
+    private readonly onNativeEvent?: (event: NativeEvent) => void,
   ) {}
 
   async run(): Promise<void> {
@@ -41,10 +43,6 @@ export class CopilotEventRelay {
         const cursor = await this.bootstrapFromStart();
         if (this.stopped) return;
         let liveCursor = cursor;
-        const detachLive = this.native.onSessionEvent((event) => {
-          if (!(COPILOT_LIVE_PROMPT_EVENT_TYPES as readonly string[]).includes(event.type)) return;
-          this.trackLiveDelivery(event);
-        });
         try {
           while (!this.stopped && !this.quiescing) {
             if (this.liveDeliveryFailure) throw this.liveDeliveryFailure;
@@ -56,7 +54,7 @@ export class CopilotEventRelay {
             liveCursor = page.cursor;
           }
         } finally {
-          detachLive();
+          this.detachNotificationStream();
         }
       } catch (error) {
         if (this.stopped || this.quiescing) return;
@@ -80,6 +78,7 @@ export class CopilotEventRelay {
 
   stop(): void {
     this.stopped = true;
+    this.detachNotificationStream();
   }
 
   quiesce(): void {
@@ -101,8 +100,14 @@ export class CopilotEventRelay {
     let prebufferOverflow = false;
     let bootstrapBytes = 0;
     const startedAt = Date.now();
-    const detach = this.native.onSessionEvent((event) => {
-      if (!prebufferOpen) return;
+    this.detachNotificationStream();
+    this.detachNotifications = this.native.onSessionEvent((event) => {
+      if (!prebufferOpen) {
+        if ((COPILOT_LIVE_PROMPT_EVENT_TYPES as readonly string[]).includes(event.type)) {
+          this.trackLiveDelivery(event);
+        }
+        return;
+      }
       const eventBytes = Buffer.byteLength(JSON.stringify(event), 'utf8');
       if (prebuffer.length >= MAX_PREBUFFER_EVENTS || bootstrapBytes + eventBytes > MAX_BOOTSTRAP_BYTES) {
         prebufferOverflow = true;
@@ -156,19 +161,23 @@ export class CopilotEventRelay {
       }
       if (!cursor) throw new Error('Copilot event log did not return a frontier cursor');
 
-      prebufferOpen = false;
-      detach();
       const historyIds = new Set(persisted.map((event) => event.id));
-      const prebufferOnly = prebuffer
-        .sort((a, b) => a.arrival - b.arrival)
-        .map(({ event }) => event)
-        .filter((event, index, events) =>
-          !historyIds.has(event.id) && events.findIndex((candidate) => candidate.id === event.id) === index);
-      await this.deliverEventsWithState([...persisted, ...prebufferOnly], projectionState);
+      await this.deliverEventsWithState(persisted, projectionState);
+      while (prebuffer.length > 0) {
+        if (prebufferOverflow) throw new Error('Copilot notification prebuffer limit exceeded');
+        const buffered = prebuffer.splice(0)
+          .sort((a, b) => a.arrival - b.arrival)
+          .map(({ event }) => event)
+          .filter((event, index, events) =>
+            !historyIds.has(event.id) && events.findIndex((candidate) => candidate.id === event.id) === index);
+        for (const event of buffered) historyIds.add(event.id);
+        await this.deliverEventsWithState(buffered, projectionState);
+      }
+      prebufferOpen = false;
       return cursor;
     } catch (error) {
       prebufferOpen = false;
-      detach();
+      this.detachNotificationStream();
       throw error;
     }
   }
@@ -208,6 +217,7 @@ export class CopilotEventRelay {
       if (this.stopped) return;
       if (this.seenEventIds.has(event.id)) continue;
       this.seenEventIds.add(event.id);
+      this.onNativeEvent?.(event);
       if (event.type === 'session.shutdown' && this.onNativeShutdown) {
         nativeShutdown = true;
         break;
@@ -230,5 +240,10 @@ export class CopilotEventRelay {
       if (this.stopped) return;
     }
     if (nativeShutdown) await this.onNativeShutdown?.();
+  }
+
+  private detachNotificationStream(): void {
+    this.detachNotifications?.();
+    this.detachNotifications = null;
   }
 }

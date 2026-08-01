@@ -231,8 +231,9 @@ export class NativeLocalRpcClient extends EventEmitter {
   async invokeSteering(
     method: SteeringRpcMethod,
     params: Record<string, unknown> = {},
+    timeoutMs?: number,
   ): Promise<SteeringResult> {
-    return steeringResultSchema.parse(await this.sessionRequest(method, params));
+    return steeringResultSchema.parse(await this.sessionRequest(method, params, timeoutMs));
   }
 
   close(): void {

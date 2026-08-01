@@ -1576,6 +1576,10 @@ const STEERING_RPC_METHODS = [
   "happy.answerPrompt",
   "happy.getControlState"
 ];
+const STEERING_RELAY_CALLER_KEY = "__happyRpcCaller";
+const steeringRelayCallerSchema = z__namespace.object({
+  connectionId: z__namespace.string().min(1)
+}).strict();
 
 const MachineTunnelSchema = z__namespace.object({
   machineId: z__namespace.string(),
@@ -1663,6 +1667,7 @@ exports.PublicSignedRequestEnvelopeSchema = PublicSignedRequestEnvelopeSchema;
 exports.SESSION_OUTPUT_SNAPSHOT_ID_MAX_CHARS = SESSION_OUTPUT_SNAPSHOT_ID_MAX_CHARS;
 exports.SESSION_OUTPUT_SNAPSHOT_TEXT_MAX_BYTES = SESSION_OUTPUT_SNAPSHOT_TEXT_MAX_BYTES;
 exports.SESSION_OUTPUT_SNAPSHOT_TYPE = SESSION_OUTPUT_SNAPSHOT_TYPE;
+exports.STEERING_RELAY_CALLER_KEY = STEERING_RELAY_CALLER_KEY;
 exports.STEERING_RPC_METHODS = STEERING_RPC_METHODS;
 exports.SenderKeysSchema = SenderKeysSchema;
 exports.SessionGetAgentTreeRequestSchema = SessionGetAgentTreeRequestSchema;
@@ -1766,6 +1771,7 @@ exports.steeringCommandTypeSchema = steeringCommandTypeSchema;
 exports.steeringLeaseRevocationReasonSchema = steeringLeaseRevocationReasonSchema;
 exports.steeringLeaseRevokedSchema = steeringLeaseRevokedSchema;
 exports.steeringOutcomeSchema = steeringOutcomeSchema;
+exports.steeringRelayCallerSchema = steeringRelayCallerSchema;
 exports.steeringResultSchema = steeringResultSchema;
 exports.systemReminderEntry = systemReminderEntry;
 exports.verifyLocalRequest = verifyLocalRequest;

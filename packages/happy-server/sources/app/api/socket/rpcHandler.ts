@@ -3,6 +3,7 @@ import { Server, Socket } from "socket.io";
 import type { RemoteSocket } from "socket.io";
 import type { DefaultEventsMap } from "socket.io/dist/typed-events";
 import { Counter, Histogram, register } from 'prom-client';
+import { STEERING_RELAY_CALLER_KEY } from '@slopus/happy-wire';
 
 // RPC routing uses Socket.IO rooms. A daemon registering method M joins room
 // `rpc:M`. Callers look the daemon up cross-replica via
@@ -77,6 +78,21 @@ function baseMethodName(prefixedMethod: string): string {
     return lastColon >= 0 ? prefixedMethod.substring(lastColon + 1) : prefixedMethod;
 }
 
+function relayParams(method: string, params: unknown, connectionId: string): unknown {
+    if (!baseMethodName(method).startsWith('happy.')) {
+        return params;
+    }
+    if (typeof params !== 'object' || params === null || Array.isArray(params)) {
+        return {
+            [STEERING_RELAY_CALLER_KEY]: { connectionId },
+        };
+    }
+    return {
+        ...params,
+        [STEERING_RELAY_CALLER_KEY]: { connectionId },
+    };
+}
+
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 type RoomSockets = RemoteSocket<DefaultEventsMap, any>[];
@@ -126,6 +142,7 @@ async function waitForRoomMember(io: Server, room: string, maxMs: number, metric
 }
 
 export function rpcHandler(socket: Socket, io: Server) {
+    const steeringScopes = new Set<string>();
 
     socket.on('rpc-register', (data: any) => {
         try {
@@ -174,6 +191,10 @@ export function rpcHandler(socket: Socket, io: Server) {
                 callback?.({ ok: false, error: 'Invalid parameters: method is required' });
                 return;
             }
+            if (baseMethodName(method).startsWith('happy.')) {
+                const separator = method.lastIndexOf(':');
+                if (separator > 0) steeringScopes.add(method.substring(0, separator));
+            }
 
             // 1. Find the daemon socket(s) cross-replica via the adapter.
             // If the room is empty OR fetchSockets fails (peer replica
@@ -217,7 +238,10 @@ export function rpcHandler(socket: Socket, io: Server) {
             // Requires 2 consecutive empty polls before declaring disconnect
             // to avoid false positives from transient Redis/adapter timeouts.
             const ackPromise = target.timeout(RPC_CALL_TIMEOUT_MS)
-                .emitWithAck('rpc-request', { method, params });
+                .emitWithAck('rpc-request', {
+                    method,
+                    params: relayParams(method, params, socket.id),
+                });
 
             let presenceAlive = true;
             const presencePoll = (async () => {
@@ -255,6 +279,20 @@ export function rpcHandler(socket: Socket, io: Server) {
         }
     });
 
-    // No disconnect handler — Socket.IO removes the socket from all rooms
-    // automatically, and the cluster adapter syncs the removal to other replicas.
+    socket.on('disconnect', async () => {
+        await Promise.allSettled(Array.from(steeringScopes, async (scope) => {
+            const method = `${scope}:happy.relayCallerDisconnected`;
+            const targets = await fetchRoomSockets(io, rpcRoom(method), RPC_LOOKUP_FETCH_TIMEOUTS_MS[0]);
+            await Promise.allSettled(targets
+                .filter(target => target.id !== socket.id)
+                .map(target => target.timeout(RPC_LOOKUP_FETCH_TIMEOUTS_MS[0]).emitWithAck('rpc-request', {
+                    method,
+                    params: {
+                        [STEERING_RELAY_CALLER_KEY]: { connectionId: socket.id },
+                    },
+                })));
+        }));
+        // Socket.IO removes the caller from its rooms automatically; the
+        // explicit notification only invalidates its steering-lease binding.
+    });
 }

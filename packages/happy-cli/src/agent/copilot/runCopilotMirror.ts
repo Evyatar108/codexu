@@ -4,7 +4,9 @@
 
 import {
   createEnvelope,
+  STEERING_RELAY_CALLER_KEY,
   steeringCommandEnvelopeSchema,
+  steeringRelayCallerSchema,
 } from '@slopus/happy-wire';
 import { randomUUID } from 'node:crypto';
 
@@ -23,7 +25,11 @@ import {
   type ManagedTarget,
 } from './managedServer';
 import { NativeLocalRpcClient } from './nativeLocalRpcClient';
-import { CopilotSteeringClient, type CopilotLeaseState } from './steeringClient';
+import {
+  CopilotPhoneSteeringBroker,
+  CopilotSteeringClient,
+  type CopilotLeaseState,
+} from './steeringClient';
 import type { EvCopilotHappyLaunchContextV1 } from './launchContext';
 import {
   launchContextProvenance,
@@ -193,6 +199,7 @@ export async function runCopilotMirror(
   let session: ApiSessionClient | null = null;
   let relay: CopilotEventRelay | null = null;
   let steering: CopilotSteeringClient | null = null;
+  let phoneSteering: CopilotPhoneSteeringBroker | null = null;
   let detachSteeringState: (() => void) | null = null;
   let finalization: Promise<void> | null = null;
   let terminationFailure: ManagedTargetTerminationUnconfirmedError | null = null;
@@ -332,6 +339,7 @@ export async function runCopilotMirror(
     await native.connect(target.registry.token, target.registry.sessionId, target.registry.copilotVersion);
     steering = new CopilotSteeringClient(native);
     await steering.start();
+    phoneSteering = new CopilotPhoneSteeringBroker(steering);
     if (quiescing) throw new Error('Copilot mirror startup cancelled');
     if (options.launchContext) {
       await persistOwnershipBeforeReturn(target.child.pid!);
@@ -372,17 +380,50 @@ export async function runCopilotMirror(
       void finalizeOnce('phone-archive');
       return { success: true, message: 'Archiving Copilot mirror session' };
     });
-    session.rpcHandlerManager.registerHandler('happy.attach', () => steering!.attachAndResync());
-    session.rpcHandlerManager.registerHandler('happy.requestLease', () => steering!.requestLease());
-    session.rpcHandlerManager.registerHandler('happy.heartbeat', () => steering!.heartbeat());
-    session.rpcHandlerManager.registerHandler('happy.releaseLease', () => steering!.releaseLease());
-    session.rpcHandlerManager.registerHandler('happy.getControlState', () => steering!.getControlState());
+    const steeringRequest = (params: unknown): {
+      connectionId: string;
+      body: Record<string, unknown>;
+    } => {
+      if (typeof params !== 'object' || params === null || Array.isArray(params)) {
+        throw new Error('Steering RPC parameters must be an object');
+      }
+      const source = params as Record<string, unknown>;
+      const caller = steeringRelayCallerSchema.parse(source[STEERING_RELAY_CALLER_KEY]);
+      const body = { ...source };
+      delete body[STEERING_RELAY_CALLER_KEY];
+      return { connectionId: caller.connectionId, body };
+    };
+    session.rpcHandlerManager.registerHandler('happy.attach', (params: unknown) => {
+      const { connectionId } = steeringRequest(params);
+      return phoneSteering!.attach(connectionId);
+    });
+    session.rpcHandlerManager.registerHandler('happy.requestLease', (params: unknown) => {
+      const { connectionId } = steeringRequest(params);
+      return phoneSteering!.requestLease(connectionId);
+    });
+    session.rpcHandlerManager.registerHandler('happy.heartbeat', (params: unknown) => {
+      const { connectionId } = steeringRequest(params);
+      return phoneSteering!.heartbeat(connectionId);
+    });
+    session.rpcHandlerManager.registerHandler('happy.releaseLease', (params: unknown) => {
+      const { connectionId } = steeringRequest(params);
+      return phoneSteering!.releaseLease(connectionId);
+    });
+    session.rpcHandlerManager.registerHandler('happy.getControlState', (params: unknown) => {
+      const { connectionId } = steeringRequest(params);
+      return phoneSteering!.getControlState(connectionId);
+    });
+    session.rpcHandlerManager.registerHandler('happy.relayCallerDisconnected', (params: unknown) => {
+      const { connectionId } = steeringRequest(params);
+      return phoneSteering!.invalidateConnection(connectionId).then(() => ({ outcome: 'applied' as const }));
+    });
     session.rpcHandlerManager.registerHandler('happy.answerPrompt', (params: unknown) => {
-      const command = steeringCommandEnvelopeSchema.parse(params);
+      const { connectionId, body } = steeringRequest(params);
+      const command = steeringCommandEnvelopeSchema.parse(body);
       if (command.sessionId !== session!.sessionId) {
         throw new Error('Steering command sessionId does not match the Happy session');
       }
-      return steering!.answerPrompt(command);
+      return phoneSteering!.answerPrompt(connectionId, command);
     });
     await awaitSessionConnected(session);
     await activateMetadataBounded(session);
@@ -423,8 +464,9 @@ export async function runCopilotMirror(
       resolveNativeShutdown();
       if (!finalization) await finalizeOnce('native-shutdown');
     }, async () => {
+      phoneSteering!.invalidateOwner();
       await steering!.attachAndResync();
-    });
+    }, (event) => steering!.observeNativeEvent(event));
     const childExit = new Promise<void>((resolve, reject) => {
       target!.child.once('exit', () => {
         if (finalization) resolve();
