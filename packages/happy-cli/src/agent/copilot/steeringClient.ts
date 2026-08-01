@@ -67,6 +67,7 @@ export class CopilotSteeringClient {
   private readonly now: () => number;
   private readonly sleep: (ms: number) => Promise<void>;
   private generation = 0;
+  private pendingLeaseRequestId: string | null = null;
 
   constructor(
     private readonly transport: SteeringTransport,
@@ -128,9 +129,11 @@ export class CopilotSteeringClient {
 
   async requestLease(): Promise<SteeringResult> {
     const generation = ++this.generation;
+    this.pendingLeaseRequestId = null;
     const result = await this.transport.invokeSteering('happy.requestLease');
     if (generation !== this.generation) return { outcome: 'no_lease' };
     if (result.outcome === 'pending') {
+      this.pendingLeaseRequestId = result.requestId ?? null;
       this.setState({ status: 'requested', ...(result.requestId ? { requestId: result.requestId } : {}) });
     } else {
       this.applyLeaseResult(result, generation);
@@ -291,6 +294,7 @@ export class CopilotSteeringClient {
       return;
     }
     if (this.state.status !== 'requested') return;
+    if (this.pendingLeaseRequestId === null || params.requestId !== this.pendingLeaseRequestId) return;
     const result = steeringResultSchema.parse({
       outcome: 'applied',
       ...params,
@@ -305,6 +309,7 @@ export class CopilotSteeringClient {
       return true;
     }
     if (result.outcome !== 'applied' || !result.leaseId || result.expiresAt === undefined) return true;
+    this.pendingLeaseRequestId = null;
     this.setState({
       status: 'active',
       leaseId: result.leaseId,
@@ -333,6 +338,7 @@ export class CopilotSteeringClient {
 
   private invalidateLease(reason?: SteeringLeaseRevocationReason): number {
     this.generation++;
+    this.pendingLeaseRequestId = null;
     this.clearExpiryTimer();
     this.setState({ status: 'no-lease', ...(reason ? { reason } : {}) });
     return this.generation;
@@ -358,10 +364,16 @@ export type CopilotSteeringRpcMethod = SteeringRpcMethod;
 
 export class CopilotPhoneSteeringBroker {
   private ownerConnectionId: string | null = null;
+  private requestingConnectionId: string | null = null;
 
   constructor(private readonly client: CopilotSteeringClient) {
     client.onStateChange((state) => {
-      if (state.status === 'no-lease') this.ownerConnectionId = null;
+      if (state.status === 'no-lease') {
+        this.ownerConnectionId = null;
+        this.requestingConnectionId = null;
+      } else if (state.status === 'active') {
+        this.requestingConnectionId = null;
+      }
     });
   }
 
@@ -374,14 +386,17 @@ export class CopilotPhoneSteeringBroker {
   async requestLease(connectionId: string): Promise<SteeringResult> {
     if (this.ownerConnectionId && !this.isOwner(connectionId)) return { outcome: 'no_lease' };
     this.ownerConnectionId = connectionId;
+    this.requestingConnectionId = connectionId;
     try {
       const result = await this.client.requestLease();
       if (result.outcome !== 'pending' && this.client.getState().status === 'no-lease') {
         this.ownerConnectionId = null;
+        this.requestingConnectionId = null;
       }
       return result;
     } catch (error) {
       this.ownerConnectionId = null;
+      this.requestingConnectionId = null;
       throw error;
     }
   }
@@ -412,11 +427,13 @@ export class CopilotPhoneSteeringBroker {
 
   invalidateOwner(): void {
     this.ownerConnectionId = null;
+    this.requestingConnectionId = null;
   }
 
   async invalidateConnection(connectionId: string): Promise<void> {
-    if (!this.isOwner(connectionId)) return;
+    if (!this.isOwner(connectionId) && this.requestingConnectionId !== connectionId) return;
     this.ownerConnectionId = null;
+    this.requestingConnectionId = null;
     await this.client.abandonLease();
   }
 
