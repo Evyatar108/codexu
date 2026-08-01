@@ -20,7 +20,7 @@ import { getActiveSessionPathSurfaces } from './SessionViewPathSurfaces';
 import { Modal } from '@/modal';
 import { gitStatusSync } from '@/sync/gitStatusSync';
 import { cancelPendingSwitch, requestSwitch, sessionAbort, sessionEmitAgentConfiguration } from '@/sync/ops';
-import { storage, useIsDataReady, useLatestBoundary, useLocalSetting, useSessionMessages, useSessionOutputSnapshots, useSessionUsage, useSetting, isReadOnlySession, isPlaceholderSession } from '@/sync/storage';
+import { storage, useIsDataReady, useLatestBoundary, useLocalSetting, useSessionMessages, useSessionOutputSnapshots, useSessionUsage, useSetting, isReadOnlySession, isPlaceholderSession, isCopilotSession } from '@/sync/storage';
 import { useSession } from '@/sync/storage';
 import { Session } from '@/sync/storageTypes';
 import { sync } from '@/sync/sync';
@@ -37,6 +37,7 @@ import { useBoundaryAdvisory } from '@/fork/session/useBoundaryAdvisory';
 import { useSessionContextDrawer } from '@/fork/session/useSessionContextDrawer';
 import { useSessionSidebar } from '@/fork/session/useSessionSidebar';
 import { SessionHeaderSurfaces } from '@/fork/session/SessionHeaderSurfaces';
+import { CopilotSteeringPanel } from '@/components/copilot/CopilotSteeringPanel';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as React from 'react';
@@ -176,7 +177,12 @@ function SessionViewLoaded({ sessionId, session, projectPathHeader }: { sessionI
     // composer, context drawer, boundary/pending banners, or CLI-update affordance —
     // history is observation-only. Gating lives here (not just in child props) so no
     // send/switch/drawer surface is mounted at all.
+    // T6 Path B-lite: Copilot sessions additionally mount the steering panel in
+    // place of the (absent) composer — lease UX + prompt-answer composer, driven
+    // off actual lease/prompt state, not blanket read-only. Placeholder sessions
+    // still render nothing until real metadata arrives.
     const suppressMutations = isReadOnlySession(session);
+    const isCopilot = isCopilotSession(session);
 
     const { messages, isLoaded } = useSessionMessages(sessionId);
     const snapshots = useSessionOutputSnapshots(sessionId);
@@ -476,7 +482,11 @@ function SessionViewLoaded({ sessionId, session, projectPathHeader }: { sessionI
         </CenteredInputWidth>
     );
 
-    const input = suppressMutations ? null : drawer.isInactiveArchivedSession ? (
+    const input = isCopilot ? (
+        <CenteredInputWidth horizontalPadding={sessionInputHorizontalPadding}>
+            <CopilotSteeringPanel sessionId={sessionId} />
+        </CenteredInputWidth>
+    ) : suppressMutations ? null : drawer.isInactiveArchivedSession ? (
         <>
             {archivedHint}
             {boundaryAdvisory}

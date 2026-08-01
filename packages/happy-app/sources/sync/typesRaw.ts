@@ -44,8 +44,30 @@ const agentEventSchema = z.discriminatedUnion('type', [z.object({
     messageId: z.string(),
     consumedAt: z.number(),
     agentFlavor: z.enum(['claude', 'codex']),
+}), z.object({
+    // T6 Copilot steering: authoritative lease/control state pushed from the
+    // fork adapter. These drive the phone-side steering UI, not chat content.
+    type: z.literal('copilot-control'),
+    state: z.enum(['no-lease', 'requested', 'active']),
+    reason: z.enum(['keystroke', 'expired', 'superseded', 'released', 'detached']).optional(),
+    requestId: z.string().optional(),
+    leaseId: z.string().optional(),
+    expiresAt: z.number().optional(),
+    heartbeatIntervalMs: z.number().optional(),
+    leaseTtlMs: z.number().optional(),
+}), z.object({
+    // T6 Copilot steering: a pending/resolved permission/elicitation/plan/ask-user
+    // prompt. `destructive` is computed fork-side; the UI must key observe-only
+    // rendering off this flag, never off hardcoded kind names.
+    type: z.literal('copilot-prompt'),
+    requestId: z.string(),
+    promptType: z.enum(['answer-permission', 'answer-elicitation', 'answer-plan', 'answer-ask-user']),
+    state: z.enum(['pending', 'resolved']),
+    destructive: z.boolean(),
+    payload: z.record(z.string(), z.unknown()).optional(),
 })]);
 export type AgentEvent = z.infer<typeof agentEventSchema>;
+export type CopilotSteeringPromptType = 'answer-permission' | 'answer-elicitation' | 'answer-plan' | 'answer-ask-user';
 
 const rawTextContentSchema = z.object({
     type: z.literal('text'),
@@ -513,7 +535,7 @@ function normalizeSessionEnvelope(
 ): NormalizedMessageBase | null {
     // Session protocol requires turn id on all agent-originated envelopes.
     // Drop malformed agent events without turn to avoid attaching stray messages.
-    if (envelope.role === 'agent' && !envelope.turn && envelope.ev.t !== 'context-boundary' && envelope.ev.t !== 'message-consumption') {
+    if (envelope.role === 'agent' && !envelope.turn && envelope.ev.t !== 'context-boundary' && envelope.ev.t !== 'message-consumption' && envelope.ev.t !== 'copilot-control' && envelope.ev.t !== 'copilot-prompt') {
         return null;
     }
 
@@ -560,6 +582,46 @@ function normalizeSessionEnvelope(
                 messageId: envelope.ev.messageId,
                 consumedAt: envelope.ev.consumedAt,
                 agentFlavor: envelope.ev.agentFlavor,
+            },
+            meta
+        } satisfies NormalizedMessageBase;
+    }
+
+    if (envelope.ev.t === 'copilot-control') {
+        return {
+            id: messageId,
+            localId,
+            createdAt: messageCreatedAt,
+            role: 'event',
+            isSidechain: false,
+            content: {
+                type: 'copilot-control',
+                state: envelope.ev.state,
+                ...(envelope.ev.reason !== undefined ? { reason: envelope.ev.reason } : {}),
+                ...(envelope.ev.requestId !== undefined ? { requestId: envelope.ev.requestId } : {}),
+                ...(envelope.ev.leaseId !== undefined ? { leaseId: envelope.ev.leaseId } : {}),
+                ...(envelope.ev.expiresAt !== undefined ? { expiresAt: envelope.ev.expiresAt } : {}),
+                ...(envelope.ev.heartbeatIntervalMs !== undefined ? { heartbeatIntervalMs: envelope.ev.heartbeatIntervalMs } : {}),
+                ...(envelope.ev.leaseTtlMs !== undefined ? { leaseTtlMs: envelope.ev.leaseTtlMs } : {}),
+            },
+            meta
+        } satisfies NormalizedMessageBase;
+    }
+
+    if (envelope.ev.t === 'copilot-prompt') {
+        return {
+            id: messageId,
+            localId,
+            createdAt: messageCreatedAt,
+            role: 'event',
+            isSidechain: false,
+            content: {
+                type: 'copilot-prompt',
+                requestId: envelope.ev.requestId,
+                promptType: envelope.ev.promptType,
+                state: envelope.ev.state,
+                destructive: envelope.ev.destructive,
+                ...(envelope.ev.payload !== undefined ? { payload: envelope.ev.payload } : {}),
             },
             meta
         } satisfies NormalizedMessageBase;

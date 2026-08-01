@@ -11,7 +11,7 @@ function useDeepEqual<T>(selector: (state: StorageState) => T): (state: StorageS
 }
 import { Session, Machine, GitStatus } from "./storageTypes";
 import type { GitStatusFiles } from "./gitStatusFiles";
-import { createReducer, reducer, ReducerState, seedLatestBoundary, type LatestBoundary } from "./reducer/reducer";
+import { createReducer, reducer, ReducerState, seedLatestBoundary, type LatestBoundary, type CopilotControlState, type CopilotPromptEntry } from "./reducer/reducer";
 import { Message } from "./typesMessage";
 import { NormalizedMessage } from "./typesRaw";
 import {
@@ -1717,6 +1717,29 @@ export function useSessionOutputSnapshots(sessionId: string): SessionOutputSnaps
 
 export function useLatestBoundary(sessionId: string): LatestBoundary | null {
     return storage(useShallow((state) => state.sessionMessages[sessionId]?.reducerState?.latestBoundary ?? null));
+}
+
+/**
+ * T6 Copilot steering — read the server-authoritative lease/control state and
+ * the pending/resolved prompt map projected by the reducer. Both values are
+ * stable references (the reducer only replaces `copilotControl` / the
+ * `copilotPrompts` Map when a steering event actually changes them), so this
+ * selector does NOT re-render on unrelated chat traffic — important for the
+ * e-ink target. Consumers derive arrays from `promptsMap` with `useMemo`.
+ */
+const EMPTY_COPILOT_PROMPTS: ReadonlyMap<string, CopilotPromptEntry> = new Map();
+
+export function useCopilotSteering(sessionId: string): {
+    control: CopilotControlState | null;
+    promptsMap: ReadonlyMap<string, CopilotPromptEntry>;
+} {
+    return storage(useShallow((state) => {
+        const reducerState = state.sessionMessages[sessionId]?.reducerState;
+        return {
+            control: reducerState?.copilotControl ?? null,
+            promptsMap: reducerState?.copilotPrompts ?? EMPTY_COPILOT_PROMPTS,
+        };
+    }));
 }
 
 export function useMessage(sessionId: string, messageId: string): Message | null {

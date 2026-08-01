@@ -103,6 +103,9 @@ vi.mock('@/components/ChatHeaderView', () => ({ ChatHeaderView: 'ChatHeaderView'
 vi.mock('@/components/ChatList', () => ({ ChatList: 'ChatList' }));
 vi.mock('@/components/Deferred', () => ({ Deferred: ({ children }: { children: React.ReactNode }) => React.createElement(React.Fragment, null, children) }));
 vi.mock('@/components/EmptyMessages', () => ({ EmptyMessages: 'EmptyMessages' }));
+vi.mock('@/components/copilot/CopilotSteeringPanel', () => ({
+    CopilotSteeringPanel: () => React.createElement('CopilotSteeringPanel'),
+}));
 vi.mock('@/components/SessionActionsPopover', () => ({ SessionActionsPopover: 'SessionActionsPopover' }));
 vi.mock('@/components/SessionContextDrawer', () => ({
     ResumeCommandCopyBlock: 'ResumeCommandCopyBlock',
@@ -150,6 +153,7 @@ vi.mock('@/sync/storage', () => ({
     isReadOnlySession: (s: { metadata?: { flavor?: string } | null } | null | undefined) =>
         s?.metadata?.flavor === 'copilot' || (!!s && s.metadata === null),
     isPlaceholderSession: (s: { metadata?: unknown } | null | undefined) => !!s && (s as { metadata?: unknown }).metadata === null,
+    isCopilotSession: (s: { metadata?: { flavor?: string } | null } | null | undefined) => s?.metadata?.flavor === 'copilot',
 }));
 vi.mock('@/sync/sync', () => ({
     generateLocalMessageId: vi.fn(),
@@ -197,7 +201,7 @@ describe('SessionView M1a read-only gating', () => {
         expect(agentInputProps?.onSend).toBeTypeOf('function');
     });
 
-    it('renders no composer (input === null) for a Copilot mirror session', async () => {
+    it('renders no AgentInput composer but mounts the steering panel for a Copilot mirror session', async () => {
         holder.session = createSession('copilot');
         let renderer!: ReturnType<typeof TestRenderer.create>;
         await act(async () => {
@@ -205,6 +209,7 @@ describe('SessionView M1a read-only gating', () => {
         });
         expect(agentInputNodes(renderer)).toHaveLength(0);
         expect(agentInputProps).toBeNull();
+        expect(renderer.root.findAllByType('CopilotSteeringPanel')).toHaveLength(1);
     });
 
     it('renders no composer (input === null) for an unknown placeholder session', async () => {

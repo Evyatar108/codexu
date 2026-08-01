@@ -1573,6 +1573,21 @@ describe('Zod Transform - WOLOG Content Normalization', () => {
                 messageId: 'user-message-1',
                 consumedAt: 1736300000100,
                 agentFlavor: 'claude'
+            },
+            'copilot-control': {
+                t: 'copilot-control',
+                state: 'active',
+                leaseId: 'lease-1',
+                expiresAt: 1736300005000,
+                heartbeatIntervalMs: 15000,
+                leaseTtlMs: 45000
+            },
+            'copilot-prompt': {
+                t: 'copilot-prompt',
+                requestId: 'req-1',
+                promptType: 'answer-permission',
+                state: 'pending',
+                destructive: false
             }
         } satisfies Record<SessionEvent['t'], SessionEvent>;
 

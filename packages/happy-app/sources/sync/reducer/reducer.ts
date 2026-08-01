@@ -127,6 +127,40 @@ export type LatestBoundary = {
     forkedFromSid?: string;
 };
 
+/**
+ * T6 Copilot steering — authoritative lease/control state, latest-by-seq.
+ * Derived from `copilot-control` session events emitted by the fork adapter.
+ * This is the GLOBAL, server-authoritative view (any observer sees the same
+ * value); it does not by itself tell a device whether IT holds the lease —
+ * that device-local distinction lives in the steering controller hook.
+ */
+export type CopilotControlState = {
+    id: string;
+    seq: number;
+    state: 'no-lease' | 'requested' | 'active';
+    reason?: 'keystroke' | 'expired' | 'superseded' | 'released' | 'detached';
+    requestId?: string;
+    leaseId?: string;
+    expiresAt?: number;
+    heartbeatIntervalMs?: number;
+    leaseTtlMs?: number;
+};
+
+/**
+ * T6 Copilot steering — a single pending/resolved prompt keyed by requestId.
+ * `destructive` is computed fork-side; the UI keys observe-only rendering off
+ * this flag only, never off hardcoded permission-kind names.
+ */
+export type CopilotPromptEntry = {
+    requestId: string;
+    promptType: 'answer-permission' | 'answer-elicitation' | 'answer-plan' | 'answer-ask-user';
+    state: 'pending' | 'resolved';
+    destructive: boolean;
+    seq: number;
+    at: number;
+    payload?: Record<string, unknown>;
+};
+
 type ReducerMessage = {
     id: string;
     realID: string | null;
@@ -191,6 +225,10 @@ export type ReducerState = {
         timestamp: number;
     };
     latestBoundary?: LatestBoundary;
+    // T6 Copilot steering projections (see types above). Not rendered as chat
+    // rows; they drive the phone-side steering panel.
+    copilotControl?: CopilotControlState;
+    copilotPrompts?: Map<string, CopilotPromptEntry>;
 };
 
 export function createReducer(): ReducerState {
@@ -448,6 +486,59 @@ export function seedLatestBoundary(state: ReducerState, latestBoundary: LatestBo
     return false;
 }
 
+/**
+ * Apply a `copilot-control` event, keeping the latest-by-seq control state.
+ * Replaces `state.copilotControl` with a fresh object so store selectors
+ * detect the identity change and re-render (the reducer mutates in place).
+ */
+export function applyCopilotControl(state: ReducerState, msg: NormalizedMessage): void {
+    if (msg.role !== 'event' || msg.content.type !== 'copilot-control') {
+        return;
+    }
+    if (state.copilotControl && msg.seq < state.copilotControl.seq) {
+        return;
+    }
+    const content = msg.content;
+    state.copilotControl = {
+        id: msg.id,
+        seq: msg.seq,
+        state: content.state,
+        ...(content.reason !== undefined ? { reason: content.reason } : {}),
+        ...(content.requestId !== undefined ? { requestId: content.requestId } : {}),
+        ...(content.leaseId !== undefined ? { leaseId: content.leaseId } : {}),
+        ...(content.expiresAt !== undefined ? { expiresAt: content.expiresAt } : {}),
+        ...(content.heartbeatIntervalMs !== undefined ? { heartbeatIntervalMs: content.heartbeatIntervalMs } : {}),
+        ...(content.leaseTtlMs !== undefined ? { leaseTtlMs: content.leaseTtlMs } : {}),
+    };
+}
+
+/**
+ * Apply a `copilot-prompt` event into the per-session prompt map, keyed by
+ * requestId. Later-seq events win (pending -> resolved). Always replaces the
+ * Map with a fresh copy so store selectors detect the change.
+ */
+export function applyCopilotPrompt(state: ReducerState, msg: NormalizedMessage): void {
+    if (msg.role !== 'event' || msg.content.type !== 'copilot-prompt') {
+        return;
+    }
+    const content = msg.content;
+    const existing = state.copilotPrompts?.get(content.requestId);
+    if (existing && msg.seq < existing.seq) {
+        return;
+    }
+    const next = new Map(state.copilotPrompts ?? []);
+    next.set(content.requestId, {
+        requestId: content.requestId,
+        promptType: content.promptType,
+        state: content.state,
+        destructive: content.destructive,
+        seq: msg.seq,
+        at: msg.createdAt,
+        ...(content.payload !== undefined ? { payload: content.payload } : {}),
+    });
+    state.copilotPrompts = next;
+}
+
 function resetForBoundary(state: ReducerState, kind: SessionContextBoundaryKind, timestamp: number) {
     if (kind === 'clear') {
         state.latestTodos = {
@@ -570,6 +661,20 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
             if (changedMessageId) {
                 changed.add(changedMessageId);
             }
+            state.messageIds.set(msg.id, msg.id);
+            continue;
+        }
+
+        // T6 Copilot steering control/prompt events: consume silently into the
+        // steering projections (they drive the phone-side panel, not chat rows).
+        if (msg.role === 'event' && msg.content.type === 'copilot-control') {
+            applyCopilotControl(state, msg);
+            state.messageIds.set(msg.id, msg.id);
+            continue;
+        }
+
+        if (msg.role === 'event' && msg.content.type === 'copilot-prompt') {
+            applyCopilotPrompt(state, msg);
             state.messageIds.set(msg.id, msg.id);
             continue;
         }

@@ -7,6 +7,10 @@ import { apiSocket } from './apiSocket';
 import { compositeSessionId } from './machineSessionId';
 import { storage } from './storage';
 import type { MachineMetadata, Metadata } from './storageTypes';
+import type {
+    SteeringResult,
+    SteeringCommandEnvelope,
+} from '@slopus/happy-wire';
 
 // Strict type definitions for all operations
 
@@ -729,11 +733,55 @@ export async function sessionKill(sessionId: string): Promise<SessionKillRespons
 }
 
 /**
+ * T6 Copilot steering RPC wrappers.
+ *
+ * These call the fork adapter's `happy.*` session RPC methods through the
+ * existing happy-server relay. The relay injects the caller connection identity
+ * automatically for any `happy.*` method, so the app sends only the plain
+ * params below. Every method returns a synchronous {@link SteeringResult}; the
+ * `answerPrompt` result echoes the originating `actionId` for optimistic-UI
+ * correlation. Raw JSON-RPC errors are reserved for malformed params / internal
+ * failure, so a thrown error here is a genuine transport/protocol failure.
+ *
+ * `sessionId` here is the app-side composite session id; `forSession(...)`
+ * localizes it and the wire `sessionId` we send in the answer envelope is the
+ * bare local id (`scope.ref.localSessionId`), which the fork validates against
+ * its own session id.
+ */
+export async function copilotSteeringAttach(sessionId: string): Promise<SteeringResult> {
+    return apiSocket.forSession(sessionId).rpc<SteeringResult, Record<string, never>>('happy.attach', {});
+}
+
+export async function copilotGetControlState(sessionId: string): Promise<SteeringResult> {
+    return apiSocket.forSession(sessionId).rpc<SteeringResult, Record<string, never>>('happy.getControlState', {});
+}
+
+export async function copilotRequestLease(sessionId: string): Promise<SteeringResult> {
+    return apiSocket.forSession(sessionId).rpc<SteeringResult, Record<string, never>>('happy.requestLease', {});
+}
+
+export async function copilotHeartbeat(sessionId: string, leaseId: string): Promise<SteeringResult> {
+    return apiSocket.forSession(sessionId).rpc<SteeringResult, { leaseId: string }>('happy.heartbeat', { leaseId });
+}
+
+export async function copilotReleaseLease(sessionId: string, leaseId: string): Promise<SteeringResult> {
+    return apiSocket.forSession(sessionId).rpc<SteeringResult, { leaseId: string }>('happy.releaseLease', { leaseId });
+}
+
+/**
+ * Answer a pending Copilot prompt. `command.sessionId` MUST be the bare local
+ * session id (the fork validates it); callers build it from
+ * `apiSocket.forSession(sessionId).ref.localSessionId`.
+ */
+export async function copilotAnswerPrompt(sessionId: string, command: SteeringCommandEnvelope): Promise<SteeringResult> {
+    return apiSocket.forSession(sessionId).rpc<SteeringResult, SteeringCommandEnvelope>('happy.answerPrompt', command);
+}
+
+/**
  * Archive a session by deactivating it on the server.
  * Use this when the CLI process is already dead and sessionKill can't reach it.
  */
-export async function sessionArchive(sessionId: string): Promise<{ success: boolean; message?: string }> {
-    try {
+export async function sessionArchive(sessionId: string): Promise<{ success: boolean; message?: string }> {    try {
         const scope = apiSocket.forSession(sessionId);
         const response = await scope.request(`/v1/sessions/${scope.ref.localSessionId}/archive`, {
             method: 'POST'
