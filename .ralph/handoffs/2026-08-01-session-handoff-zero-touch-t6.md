@@ -37,7 +37,7 @@ TypeScript/JS verification harness embedded in one `js` fence + 27 `ts` fences)
 
 **Commit chain this session:**
 `50154c42` → `085c08d5` (recovery) → `3b215c00` (9-item fix) → `fe6ed3e4`
-(recovery, 5-item fix) → **fix4 in flight** (see below).
+(recovery, 5-item fix) → **`882e37a9` (fix4, COMMITTED — current tip)**.
 
 **Verification protocol the auditors use (works, keep it):** extract the sole
 `js` fence byte-exact, run with NO shims against pinned TypeScript 5.9.3 at
@@ -47,9 +47,16 @@ BEFORE the matrix (proven load-bearing); 27 ts-fence SHA-256 digests pinned;
 148 `@ts-expect-error` all consumed; per-family subprocess envelopes
 (default 256MiB/20s, compiler-layout 384MiB/20s, auth-augmentation 512MiB/60s).
 
-**At handoff time, agent `plan-zero-touch-fix4` (gpt-5.6-sol, max) was running**
-in that worktree fixing the adjudicated findings from the dual audit of
-`fe6ed3e4`:
+**RESOLVED before session end: fix4 COMMITTED as `882e37a9f32d687366005386dad1a15e0fc681f4`.**
+Worktree clean, branch local-only, nothing pushed. Post-fix4 state:
+registry **237 cases = 15 positives + 222 mutations** (auth-augmentation 30,
+other families unchanged); bounded closure 2,811 / unbounded 3,514 sources
+(authoring-time, unpinned by design); worst RSS per envelope: default 59.57%
+of 256 MiB, compiler-layout 49.56% of 384 MiB, auth **79.29% of 768 MiB**
+(NOTE: auth envelope was raised 640→768 MiB for the unbounded pass — verify
+coherence across constant/prose/closure rows if auditing); full 5.9.3 matrix
+passed with no shims; all 27 ts-fence digests unchanged. The adjudicated
+findings it fixed (from the dual audit of `fe6ed3e4`):
 
 1. HIGH (Opus, measured): `auth-augmentation/real-program-closure` audits a
    bounded `types: []` Program (2,815 sources) while the app really compiles
@@ -72,13 +79,12 @@ in that worktree fixing the adjudicated findings from the dual audit of
    measured-at-authoring-time, assert nothing exact.
 
 **Next steps for this thread:**
-- If fix4 committed: **operator chose to SKIP another audit round for now.**
-  Do NOT auto-spawn the next dual audit; ask the operator whether to (a) run
-  the next Sol+Opus round on the new commit, or (b) accept and move to
-  integration.
-- If fix4 was interrupted mid-edit: apply the recovery pattern above with the
-  5-item list (full details in this session's spawn prompt — recoverable from
-  the audit findings summarized here).
+- **Operator chose to SKIP auto-spawning another audit round.** Ask the
+  operator whether to (a) run the next Sol+Opus dual audit on `882e37a9`
+  (scrutinize: the 640→768 MiB auth-envelope raise, the new unbounded-pass
+  positive, the checker-based declaration sets, the raw-extends resolution
+  assertion), or (b) accept `882e37a9` as closure and move to integration
+  (Thread 3 order).
 - History note: every audit round so far has found real, measured defects
   (trajectory: 2H+3M → 2H+4M → 1H+2M-equivalents → 1H+3M), concentrated in
   the newest code. The auth-closure area is the only remaining hot spot.
