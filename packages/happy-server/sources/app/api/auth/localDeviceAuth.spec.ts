@@ -70,6 +70,9 @@ describe("local paired-device auth", () => {
         });
         expect(accepted).toEqual({ ok: true, enrolled: true });
         expect(persisted).toEqual([[{ keyId: "tablet-1", publicKey }]]);
+        expect(runtime.isOriginAllowed(invite.browserOrigin)).toBe(true);
+        expect(runtime.isOriginAllowed("http://localhost:8081")).toBe(true);
+        expect(runtime.isOriginAllowed("http://evil.example:8081")).toBe(false);
     });
 
     it("binds query and body and rejects stale, replayed, and unknown keys", async () => {

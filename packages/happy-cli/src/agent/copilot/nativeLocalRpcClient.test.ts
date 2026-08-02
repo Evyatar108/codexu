@@ -75,6 +75,7 @@ describe('NativeLocalRpcClient', () => {
 
     await expect(received).resolves.toBe('event-1');
     expect((requests[0].params as Record<string, unknown>).token).toBe('secret-token');
+    expect((requests[0].params as Record<string, unknown>).protocolVersion).toBe('3');
     expect(requests.filter((request) => request.method === 'session.resume')[0].params).toMatchObject({
       sessionId: 'session-1',
       disableResume: true,

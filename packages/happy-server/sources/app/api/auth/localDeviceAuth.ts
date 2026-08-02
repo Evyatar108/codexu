@@ -79,6 +79,22 @@ function constantTimeEqual(left: string, right: string): boolean {
     return leftBytes.length === rightBytes.length && timingSafeEqual(leftBytes, rightBytes);
 }
 
+function isExplicitLoopbackOrigin(value: string): boolean {
+    try {
+        const parsed = new URL(value);
+        return parsed.origin === value
+            && parsed.protocol === "http:"
+            && (parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost" || parsed.hostname === "[::1]")
+            && parsed.pathname === "/"
+            && parsed.search === ""
+            && parsed.hash === ""
+            && parsed.username === ""
+            && parsed.password === "";
+    } catch {
+        return false;
+    }
+}
+
 export function createLocalAuthRuntime(config: LocalDeviceAuthConfig): LocalAuthRuntime {
     const devices = new Map(config.devices.map(device => [device.keyId, device]));
     const seenNonces = new Map<string, number>();
@@ -167,7 +183,10 @@ export function createLocalAuthRuntime(config: LocalDeviceAuthConfig): LocalAuth
 
     function isOriginAllowed(browserOrigin: string): boolean {
         pruneInvites();
-        return Array.from(invites.values()).some(state =>
+        return (
+            devices.size > 0
+            && isExplicitLoopbackOrigin(browserOrigin)
+        ) || Array.from(invites.values()).some(state =>
             !state.reserved
             && state.invite.browserOrigin === browserOrigin
             && now() >= Date.parse(state.invite.issuedAt)
@@ -190,6 +209,7 @@ export function createLocalAuthRuntime(config: LocalDeviceAuthConfig): LocalAuth
         ) {
             return { ok: false, reason: "pairing_denied" };
         }
+
         state.reserved = true;
         const cancel = () => {
             const current = invites.get(state.invite.pairingNonce);

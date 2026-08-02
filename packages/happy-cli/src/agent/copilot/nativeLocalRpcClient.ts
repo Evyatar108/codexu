@@ -164,7 +164,9 @@ export class NativeLocalRpcClient extends EventEmitter {
     try {
       const connected = record(await this.request('connect', {
         token: connectionToken,
-        protocolVersion: COPILOT_PROTOCOL_VERSION,
+        // The SDK connect policy validates this field as a string, while the
+        // successful response reports the negotiated protocol as a number.
+        protocolVersion: String(COPILOT_PROTOCOL_VERSION),
         client: { name: 'happy-cli', version: 'm1a' },
         capabilities: {},
       }));

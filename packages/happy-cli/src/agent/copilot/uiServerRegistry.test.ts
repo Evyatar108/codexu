@@ -188,4 +188,36 @@ describe('discoverUiServerRegistryEntry', () => {
       vi.useRealTimers();
     }
   });
+
+  it('tolerates a transient registry stat failure while the process is alive', async () => {
+    vi.useFakeTimers();
+    try {
+      let rejectMtime = false;
+      let alive = true;
+      const target = await attachUiServerTarget(123, {
+        registryDirectory: 'C:\\copilot\\servers',
+        readTextFile: async () => JSON.stringify(registry()),
+        readMtimeMs: async () => {
+          if (rejectMtime) throw new Error('atomic replace gap');
+          return NOW;
+        },
+        isProcessAlive: () => alive,
+        now: () => NOW,
+        monitorIntervalMs: 10,
+      });
+      rejectMtime = true;
+      await vi.advanceTimersByTimeAsync(10);
+      let unavailable = false;
+      void target.waitForUnavailable.then(() => { unavailable = true; });
+      await Promise.resolve();
+      expect(unavailable).toBe(false);
+
+      alive = false;
+      await vi.advanceTimersByTimeAsync(10);
+      await expect(target.waitForUnavailable).resolves.toBeUndefined();
+      target.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

@@ -78,6 +78,13 @@ describe('CopilotSteeringClient', () => {
 
     await client.start();
     await expect(client.requestLease()).resolves.toMatchObject({ outcome: 'pending' });
+    expect(fake.calls[2]).toMatchObject({
+      method: 'happy.requestLease',
+      params: {
+        scope: ['answer-prompts'],
+      },
+    });
+    expect(fake.calls[2]?.params.actionId).toEqual(expect.any(String));
     expect(client.getState()).toEqual({ status: 'requested', requestId: 'lease-request-1' });
 
     fake.notify({

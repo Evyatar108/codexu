@@ -315,7 +315,10 @@ export async function attachUiServerTarget(
         resolveUnavailable();
       }
     }, () => {
-      if (!disposed) resolveUnavailable();
+      // Registry publishers may replace the file atomically, producing a
+      // transient stat gap. The attached process PID remains the authoritative
+      // liveness signal during that window.
+      if (!disposed && !isProcessAlive(selected.entry.pid)) resolveUnavailable();
     });
   }, dependencies.monitorIntervalMs ?? UI_SERVER_MONITOR_INTERVAL_MS);
   timer.unref?.();

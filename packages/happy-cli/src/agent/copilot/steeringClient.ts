@@ -2,6 +2,8 @@
  * Phone-facing steering lease state machine over the Copilot happy.* RPC seam.
  */
 
+import { randomUUID } from 'node:crypto';
+
 import {
   steeringCommandEnvelopeSchema,
   steeringControlChangedParamsSchema,
@@ -129,8 +131,12 @@ export class CopilotSteeringClient {
 
   async requestLease(): Promise<SteeringResult> {
     const generation = ++this.generation;
+    const actionId = randomUUID();
     this.pendingLeaseRequestId = null;
-    const result = await this.transport.invokeSteering('happy.requestLease');
+    const result = await this.transport.invokeSteering('happy.requestLease', {
+      actionId,
+      scope: ['answer-prompts'],
+    });
     if (generation !== this.generation) return { outcome: 'no_lease' };
     if (result.outcome === 'pending') {
       this.pendingLeaseRequestId = result.requestId ?? null;
