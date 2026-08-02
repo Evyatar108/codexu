@@ -152,7 +152,8 @@ clients would surface them without needing an error-text passthrough.
 
 ## Status
 
-Blocker is **cleared on our side and re-verified only at unit level** — the
-deny path has not yet been re-run live. Everything else in the joint checklist
-already passed. We're ready to re-run the live deny/approve pass whenever
-convenient; propose we do that as the single remaining joint step.
+Blocker is **cleared and live-verified**. The deny path was re-run end-to-end
+against the same ev.6 build on 2026-08-02 and passed; the exact wire error text
+was also captured at last via a raw-seam replay of the pre-fix param set. See
+`t6-deny-path-live-verified.md` for the full run, including the captured
+`-32603` message string.

@@ -78,8 +78,9 @@ throughout. `answerPrompt` was the only method that both requires `leaseId` and
 omitted it, which is exactly why every other checklist item passed.
 
 Fixed in `steeringClient.ts` (attaches the locally-held active lease id) with a
-regression test pinning the full `happy.answerPrompt` param set. **Unit-verified
-only — the live deny/approve pass still needs to be re-run.**
+regression test pinning the full `happy.answerPrompt` param set. **Live
+re-verified 2026-08-02 — the deny path now passes end-to-end; see
+`t6-deny-path-live-verified.md`.**
 
 ## Runbook correction
 
