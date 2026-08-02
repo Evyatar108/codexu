@@ -514,14 +514,58 @@ describe('CopilotSteeringClient', () => {
     expect(answerCalls).toHaveLength(2);
     expect(answerCalls.map((call) => call.params)).toEqual([
       expect.objectContaining({
+        leaseId: 'lease-1',
         targetRequestId: 'write-1',
         content: { decision: 'deny', scope: 'once' },
       }),
       expect.objectContaining({
+        leaseId: 'lease-1',
         targetRequestId: 'read-1',
         content: { decision: 'approve', scope: 'once' },
       }),
     ]);
+    client.dispose();
+  });
+
+  // Regression: the live joint E2E returned JSON-RPC -32603 on every
+  // `happy.answerPrompt` because the fork's `handleAnswerPrompt` requires a
+  // non-empty string `leaseId` (`happy.* requires a non-empty string leaseId`),
+  // which the wire envelope deliberately does not carry. Pin the full param
+  // contract so a future envelope change cannot silently drop it again.
+  it('sends every param the fork requires on happy.answerPrompt and never leaks the Happy session id', async () => {
+    const fake = harness([
+      { outcome: 'applied' },
+      { outcome: 'applied', leaseId: 'lease-7', expiresAt: Date.now() + 45_000 },
+      { actionId, outcome: 'applied' },
+    ]);
+    const client = new CopilotSteeringClient(fake.transport as never);
+    await client.start();
+    client.observeNativeEvent({
+      id: 'write',
+      type: 'permission.requested',
+      timestamp: '2026-08-01T00:00:00Z',
+      data: { requestId: 'write-9', promptRequest: { kind: 'write' } },
+    });
+
+    await expect(client.answerPrompt({
+      actionId,
+      sessionId: 'happy-session',
+      targetRequestId: 'write-9',
+      type: 'answer-permission',
+      content: { decision: 'deny', scope: 'once' },
+    })).resolves.toMatchObject({ outcome: 'applied' });
+
+    const call = fake.calls.find((entry) => entry.method === 'happy.answerPrompt');
+    expect(call?.params).toEqual({
+      actionId,
+      leaseId: 'lease-7',
+      targetRequestId: 'write-9',
+      type: 'answer-permission',
+      content: { decision: 'deny', scope: 'once' },
+    });
+    // `sessionId` is injected by the native transport (the Copilot foreground
+    // session id); the Happy session id must never be forwarded.
+    expect(call?.params).not.toHaveProperty('sessionId');
     client.dispose();
   });
 

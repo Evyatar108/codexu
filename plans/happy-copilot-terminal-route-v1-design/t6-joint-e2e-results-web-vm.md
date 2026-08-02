@@ -48,27 +48,38 @@ EvCopilot interactive TUI (COPILOT_HAPPY_EMBED=1)
    treated as terminal death. The attach monitor now trusts the still-live PID
    during that transient gap.
 
-## Remaining fork-side blocker
+## Remaining blocker — RESOLVED, and it was ours
+
+**Superseded by `t6-deny-path-root-cause.md`. Corrected 2026-08-02.**
 
 Clicking **Deny** on the destructive prompt reached the correct mirror handler,
-but the fork returned JSON-RPC `-32603` from `happy.answerPrompt` rather than a
-typed domain outcome. The terminal permission remained pending at the time of
-the call. The request shape was the agreed envelope:
+but the call failed with JSON-RPC `-32603`. This section originally recorded
+the failure as fork-side and stated the request shape was the agreed envelope.
+**That was wrong on both counts, and the error was mine.** The envelope below is
+the *contract's* shape, not what happy-cli actually put on the wire:
 
 ```jsonc
 {
   "actionId": "<uuid>",
   "sessionId": "<native session id injected by happy-cli>",
-  "leaseId": "<active lease id>",
+  "leaseId": "<active lease id>",          // ← NEVER ACTUALLY SENT
   "type": "answer-permission",
   "targetRequestId": "<permission.requested data.requestId>",
   "content": { "decision": "deny" }
 }
 ```
 
-The published actor accepts the envelope through validation and fails inside
-its permission response path. This is the only remaining blocker to the
-joint-doc `ready` state.
+`steeringCommandEnvelopeSchema` is `.strict()` and carries no `leaseId`, and
+`answerPrompt()` spread that envelope straight through — so `leaseId` was
+absent. The fork's `handleAnswerPrompt` requires it and threw
+`happy.* requires a non-empty string leaseId`, which surfaced as `-32603`.
+Nothing in the fork's permission path ever executed; the fork was correct
+throughout. `answerPrompt` was the only method that both requires `leaseId` and
+omitted it, which is exactly why every other checklist item passed.
+
+Fixed in `steeringClient.ts` (attaches the locally-held active lease id) with a
+regression test pinning the full `happy.answerPrompt` param set. **Unit-verified
+only — the live deny/approve pass still needs to be re-run.**
 
 ## Runbook correction
 

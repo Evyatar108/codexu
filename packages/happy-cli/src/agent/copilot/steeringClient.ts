@@ -249,7 +249,15 @@ export class CopilotSteeringClient {
     const startedAt = this.now();
     const deadline = startedAt + COPILOT_ACTION_RETRY_WINDOW_MS;
     const generation = this.generation;
+    // The fork requires `leaseId` on `happy.answerPrompt` (unlike `happy.attach`
+    // and `happy.requestLease`, where it is absent, and `happy.heartbeat` /
+    // `happy.releaseLease`, which pass it explicitly). It is deliberately not
+    // part of the wire envelope: the phone never learns the fork-issued lease
+    // id, so the CLI attaches it here from the locally-held active lease. The
+    // envelope's `sessionId` is the Happy session id and must be dropped — the
+    // native transport injects the Copilot foreground session id instead.
     const { sessionId: _happySessionId, ...params } = command;
+    const leaseId = this.state.leaseId;
     let result: SteeringResult | undefined;
     let lastTransportError: NativeTransportError | undefined;
     while (true) {
@@ -265,7 +273,7 @@ export class CopilotSteeringClient {
       try {
         result = await this.transport.invokeSteering(
           'happy.answerPrompt',
-          params,
+          { ...params, leaseId },
           Math.min(COPILOT_STEERING_RPC_TIMEOUT_MS, remaining),
         );
       } catch (error) {
