@@ -62,20 +62,29 @@ exact field names — ask and we'll pull them).
 
 ## 4. The `/happy` flow (terminal side)
 
-1. Trigger a real permission prompt in the terminal (e.g. ask the agent to
-   run a shell command requiring approval, or a file write outside the
-   trusted workspace).
-2. Your phone should observe the pending prompt via the generic session
-   event stream (no `observePromptEvents` needed — see
-   `t6-critical-fixes-and-policy-update.md` §2).
-3. On the phone: request the lease (`happy.requestLease`).
-4. **On the terminal**: run `/happy status` to see the pending request ID,
+**Ordering correction (2026-08-02, from the live web-VM E2E run
+`t6-joint-e2e-results-web-vm.md`): request/grant the lease BEFORE the
+permission prompt fires, not after.** Once a native permission modal is
+open, terminal keystrokes are consumed by that modal, so `/happy grant`
+typed at that point never reaches the slash-command router — the original
+steps 1-5 below are unreachable in that order on a real terminal. Steps
+renumbered accordingly:
+
+1. On the phone: request the lease (`happy.requestLease`) while no prompt
+   is pending yet (e.g. while the model is still producing pre-tool text).
+2. **On the terminal**: run `/happy status` to see the pending request ID,
    then `/happy grant <request-id>` (fixed while writing this runbook —
    `/happy status` previously only reported a *count* of pending requests
    with no way to discover the actual ID needed for `grant`; now it lists
    them, commit `0c6ce2ac20`).
-5. Phone should transition to holding the lease (`happy.controlChanged`,
+3. Phone should transition to holding the lease (`happy.controlChanged`,
    `reason: "granted"`, echoing the `requestId`).
+4. Trigger a real permission prompt in the terminal (e.g. ask the agent to
+   run a shell command requiring approval, or a file write outside the
+   trusted workspace) while the lease is active.
+5. Your phone should observe the pending prompt via the generic session
+   event stream (no `observePromptEvents` needed — see
+   `t6-critical-fixes-and-policy-update.md` §2).
 6. Phone answers the prompt (`happy.answerPrompt`) — should resolve
    **synchronously** (not the ~3s CommandPoller-era estimate).
 7. Confirm the terminal's own permission dialog dismisses via the existing
@@ -88,7 +97,11 @@ exact field names — ask and we'll pull them).
    to answer `decision: "approve"` from the phone is rejected
    `destructive_kind` (should be unreachable from your UI per your policy
    adoption, but worth confirming the server-side gate independently
-   rejects it too, belt-and-braces).
+   rejects it too, belt-and-braces). **Known open issue (2026-08-02):** a
+   valid destructive `deny` currently returns JSON-RPC `-32603` instead of
+   a typed outcome — see `t6-deny-path-investigation.md` for the fork-side
+   root-cause investigation in progress.
+
 
 ## 5. Expected log locations (fork side)
 
