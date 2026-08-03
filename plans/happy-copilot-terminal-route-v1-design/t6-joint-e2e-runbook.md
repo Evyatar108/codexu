@@ -62,13 +62,37 @@ exact field names — ask and we'll pull them).
 
 ## 4. The `/happy` flow (terminal side)
 
-**Ordering correction (2026-08-02, from the live web-VM E2E run
-`t6-joint-e2e-results-web-vm.md`): request/grant the lease BEFORE the
-permission prompt fires, not after.** Once a native permission modal is
-open, terminal keystrokes are consumed by that modal, so `/happy grant`
-typed at that point never reaches the slash-command router — the original
-steps 1-5 below are unreachable in that order on a real terminal. Steps
-renumbered accordingly:
+**Ordering constraints (corrected 2026-08-02, from two live web-VM E2E
+runs — `t6-joint-e2e-results-web-vm.md` and `t6-deny-path-live-verified.md`
+§3): the grant must be the LAST terminal interaction before the permission
+prompt fires.** Two failure modes bound this window from both sides:
+
+- Grant *after* the modal opens → impossible; an open native permission
+  modal consumes terminal keystrokes, so `/happy grant` typed at that point
+  never reaches the slash-command router.
+- Grant *before* submitting the task → the lease is revoked the instant you
+  type the task, since free-text keystrokes are (correctly) treated as "the
+  human took over" (`happy.controlChanged`, `reason: "keystroke"`) —
+  **but this does NOT apply to slash-command input**: typing `/happy grant
+  <id>` itself never triggers keystroke revocation, only ordinary free text
+  does.
+
+The only sequence that reliably works: **submit the task first → request
+steering from the phone → `/happy grant <request-id>` at the terminal →
+do not type anything else.** A prompt that emits some pre-tool-call text
+gives a comfortable margin for the grant to land before the first
+permission prompt appears. Steps below assume this ordering.
+
+**Also note: most tool calls will not produce a pending permission at all.**
+The current working directory, any `trustedFolders` entry, and the system
+temp directory (see `--disallow-temp-dir`) are all auto-allowed by default,
+so ordinary shell commands and in-workspace file writes silently
+auto-approve — you'll see `Permission request · Answered at the terminal or
+another device` rather than a pending prompt. **To reliably force a
+blocking permission for this runbook, target a file path outside the cwd,
+outside every trusted folder, AND outside temp** (e.g.
+`C:\some-untrusted-dir\test.txt`) — this reliably raises a real `Allow
+directory access` / write-permission modal.
 
 1. On the phone: request the lease (`happy.requestLease`) while no prompt
    is pending yet (e.g. while the model is still producing pre-tool text).
@@ -76,12 +100,13 @@ renumbered accordingly:
    then `/happy grant <request-id>` (fixed while writing this runbook —
    `/happy status` previously only reported a *count* of pending requests
    with no way to discover the actual ID needed for `grant`; now it lists
-   them, commit `0c6ce2ac20`).
+   them, commit `0c6ce2ac20`). This must be your last terminal interaction
+   — see the ordering note above.
 3. Phone should transition to holding the lease (`happy.controlChanged`,
    `reason: "granted"`, echoing the `requestId`).
 4. Trigger a real permission prompt in the terminal (e.g. ask the agent to
-   run a shell command requiring approval, or a file write outside the
-   trusted workspace) while the lease is active.
+   write to a path outside cwd/trustedFolders/temp, per the note above)
+   while the lease is active.
 5. Your phone should observe the pending prompt via the generic session
    event stream (no `observePromptEvents` needed — see
    `t6-critical-fixes-and-policy-update.md` §2).
@@ -97,10 +122,13 @@ renumbered accordingly:
    to answer `decision: "approve"` from the phone is rejected
    `destructive_kind` (should be unreachable from your UI per your policy
    adoption, but worth confirming the server-side gate independently
-   rejects it too, belt-and-braces). **Known open issue (2026-08-02):** a
-   valid destructive `deny` currently returns JSON-RPC `-32603` instead of
-   a typed outcome — see `t6-deny-path-investigation.md` for the fork-side
-   root-cause investigation in progress.
+   rejects it too, belt-and-braces). **Resolved 2026-08-02:** the deny path
+   was verified live end-to-end on the unchanged `ev.6` build — no
+   `-32603`, terminal modal rejected correctly, target file never created.
+   Root cause was Happy-side (missing `leaseId` on `answerPrompt`), not a
+   fork bug; see `t6-deny-path-root-cause-confirmed.md`. No known open
+   defects on either side as of this run.
+
 
 
 ## 5. Expected log locations (fork side)
