@@ -6742,7 +6742,6 @@ declare const AgentCommsIngestBodySchema: z.ZodObject<{
         ed25519Fingerprint?: string | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    signature: string;
     envelope: {
         id: string;
         kind: "request" | "reply" | "notify" | "spawn-request" | "spawn-result";
@@ -6763,13 +6762,13 @@ declare const AgentCommsIngestBodySchema: z.ZodObject<{
         body?: unknown;
         correlationId?: string | undefined;
     };
+    signature: string;
     senderKeys: {
         ed25519PublicKey: string;
         ecdhPublicKey: string;
         ed25519Fingerprint?: string | undefined;
     };
 }, {
-    signature: string;
     envelope: {
         id: string;
         kind: "request" | "reply" | "notify" | "spawn-request" | "spawn-result";
@@ -6790,6 +6789,7 @@ declare const AgentCommsIngestBodySchema: z.ZodObject<{
         body?: unknown;
         correlationId?: string | undefined;
     };
+    signature: string;
     senderKeys: {
         ed25519PublicKey: string;
         ecdhPublicKey: string;
@@ -6841,23 +6841,23 @@ declare const PublicSignedRequestEnvelopeSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     path: string;
     v: 1;
+    signature: string;
+    issuedAt: number;
     keyId: string;
     publicKey: string;
     nonce: string;
-    issuedAt: number;
     method: string;
     bodyHash: string;
-    signature: string;
 }, {
     path: string;
     v: 1;
+    signature: string;
+    issuedAt: number;
     keyId: string;
     publicKey: string;
     nonce: string;
-    issuedAt: number;
     method: string;
     bodyHash: string;
-    signature: string;
 }>;
 type PublicSignedRequestEnvelope = z.infer<typeof PublicSignedRequestEnvelopeSchema>;
 declare function normalizeMethod(method: string): string;
@@ -6981,24 +6981,24 @@ declare const PublicPairingInviteSchema: z.ZodObject<{
     expiresAt: string;
     version: 1;
     machineId: string;
-    issuedAt: string;
     serverUrl: string;
     pairSecret: string;
     cloudflareAccess: {
         clientId: string;
         clientSecret: string;
     };
+    issuedAt: string;
 }, {
     expiresAt: string;
     version: 1;
     machineId: string;
-    issuedAt: string;
     serverUrl: string;
     pairSecret: string;
     cloudflareAccess: {
         clientId: string;
         clientSecret: string;
     };
+    issuedAt: string;
 }>;
 type PublicPairingInvite = z.infer<typeof PublicPairingInviteSchema>;
 interface CreatePublicPairingInviteInput {
@@ -7066,9 +7066,9 @@ declare const LocalPairingInviteSchema: z.ZodEffects<z.ZodObject<{
     expiresAt: string;
     version: 1;
     machineId: string;
-    issuedAt: string;
     serverUrl: string;
     pairSecret: string;
+    issuedAt: string;
     authMode: "paired-device";
     browserOrigin: string;
     pairingNonce: string;
@@ -7077,9 +7077,9 @@ declare const LocalPairingInviteSchema: z.ZodEffects<z.ZodObject<{
     expiresAt: string;
     version: 1;
     machineId: string;
-    issuedAt: string;
     serverUrl: string;
     pairSecret: string;
+    issuedAt: string;
     authMode: "paired-device";
     browserOrigin: string;
     pairingNonce: string;
@@ -7088,9 +7088,9 @@ declare const LocalPairingInviteSchema: z.ZodEffects<z.ZodObject<{
     expiresAt: string;
     version: 1;
     machineId: string;
-    issuedAt: string;
     serverUrl: string;
     pairSecret: string;
+    issuedAt: string;
     authMode: "paired-device";
     browserOrigin: string;
     pairingNonce: string;
@@ -7099,9 +7099,9 @@ declare const LocalPairingInviteSchema: z.ZodEffects<z.ZodObject<{
     expiresAt: string;
     version: 1;
     machineId: string;
-    issuedAt: string;
     serverUrl: string;
     pairSecret: string;
+    issuedAt: string;
     authMode: "paired-device";
     browserOrigin: string;
     pairingNonce: string;
@@ -7144,43 +7144,43 @@ declare const LocalSignedRequestEnvelopeSchema: z.ZodEffects<z.ZodObject<{
     signature: z.ZodString;
 }, "strict", z.ZodTypeAny, {
     v: 1;
+    signature: string;
+    issuedAt: number;
     keyId: string;
     publicKey: string;
     nonce: string;
-    issuedAt: number;
     method: string;
     bodyHash: string;
-    signature: string;
     target: string;
 }, {
     v: 1;
+    signature: string;
+    issuedAt: number;
     keyId: string;
     publicKey: string;
     nonce: string;
-    issuedAt: number;
     method: string;
     bodyHash: string;
-    signature: string;
     target: string;
 }>, {
     v: 1;
+    signature: string;
+    issuedAt: number;
     keyId: string;
     publicKey: string;
     nonce: string;
-    issuedAt: number;
     method: string;
     bodyHash: string;
-    signature: string;
     target: string;
 }, {
     v: 1;
+    signature: string;
+    issuedAt: number;
     keyId: string;
     publicKey: string;
     nonce: string;
-    issuedAt: number;
     method: string;
     bodyHash: string;
-    signature: string;
     target: string;
 }>;
 type LocalSignedRequestEnvelope = z.infer<typeof LocalSignedRequestEnvelopeSchema>;
@@ -7999,6 +7999,9 @@ declare const steeringResultSchema: z.ZodObject<{
     leaseTtlMs: z.ZodOptional<z.ZodNumber>;
     retryAfterMs: z.ZodOptional<z.ZodNumber>;
     requestId: z.ZodOptional<z.ZodString>;
+    happyProtocolVersion: z.ZodOptional<z.ZodString>;
+    capabilities: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+    methods: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
 }, "strict", z.ZodTypeAny, {
     outcome: "rate_limited" | "pending" | "applied" | "duplicate" | "already_resolved" | "out_of_scope" | "destructive_kind" | "no_lease" | "not_pending";
     requestId?: string | undefined;
@@ -8008,6 +8011,9 @@ declare const steeringResultSchema: z.ZodObject<{
     leaseTtlMs?: number | undefined;
     actionId?: string | undefined;
     retryAfterMs?: number | undefined;
+    happyProtocolVersion?: string | undefined;
+    capabilities?: Record<string, unknown> | undefined;
+    methods?: string[] | undefined;
 }, {
     outcome: "rate_limited" | "pending" | "applied" | "duplicate" | "already_resolved" | "out_of_scope" | "destructive_kind" | "no_lease" | "not_pending";
     requestId?: string | undefined;
@@ -8017,6 +8023,9 @@ declare const steeringResultSchema: z.ZodObject<{
     leaseTtlMs?: number | undefined;
     actionId?: string | undefined;
     retryAfterMs?: number | undefined;
+    happyProtocolVersion?: string | undefined;
+    capabilities?: Record<string, unknown> | undefined;
+    methods?: string[] | undefined;
 }>;
 type SteeringResult = z.infer<typeof steeringResultSchema>;
 declare const steeringLeaseRevocationReasonSchema: z.ZodEnum<["keystroke", "expired", "released", "detached"]>;

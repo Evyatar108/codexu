@@ -7,6 +7,19 @@ import type { SessionEnvelope } from '@slopus/happy-wire';
 export const COPILOT_NATIVE_VERSION = '1.0.71-3';
 export const COPILOT_PROTOCOL_VERSION = 3;
 export const COPILOT_REGISTRY_SCHEMA_VERSION = 2;
+/**
+ * Transport-level version string sent on `connect` per the T6 v3 contract.
+ * Verified runtime builds (<= 1.0.80-ev.3) type-check this field as a string
+ * but never validate its value, so '1' is accepted by both the legacy and the
+ * v3 handshake. The negotiated response is still validated separately.
+ */
+export const COPILOT_CONNECT_PROTOCOL_VERSION = '1';
+/**
+ * Happy-protocol version expected in the `happy.attach` result when the
+ * runtime advertises attach-level negotiation (T6 v3). Legacy runtimes omit
+ * the field entirely and negotiate protocol 3 at `connect` instead.
+ */
+export const COPILOT_HAPPY_PROTOCOL_VERSION = '3';
 
 export const COPILOT_PROJECTED_EVENT_TYPES = [
   'session.start',

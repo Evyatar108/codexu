@@ -1533,7 +1533,14 @@ const steeringResultSchema = z.object({
   heartbeatIntervalMs: z.number().int().positive().optional(),
   leaseTtlMs: z.number().int().positive().optional(),
   retryAfterMs: z.number().int().nonnegative().optional(),
-  requestId: z.string().min(1).optional()
+  requestId: z.string().min(1).optional(),
+  // T6 v3 attach-level negotiation fields. Older runtimes omit all three;
+  // when a runtime advertises them, the CLI validates them fail-closed
+  // (happyProtocolVersion must be '3' and methods must cover the full
+  // STEERING_RPC_METHODS surface) before steering is considered attached.
+  happyProtocolVersion: z.string().min(1).optional(),
+  capabilities: z.record(z.string(), z.unknown()).optional(),
+  methods: z.array(z.string().min(1)).optional()
 }).strict();
 const steeringLeaseRevocationReasonSchema = z.enum([
   "keystroke",

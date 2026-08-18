@@ -7,6 +7,13 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 export const DEFAULT_UI_SERVER_STALE_MS = 5 * 60 * 1_000;
+/**
+ * T6 v3 raw registry entries carry `privateProfile: 'happy-t6'` and are
+ * intentionally hidden from the stock registry listing. Entries carrying a
+ * DIFFERENT private profile belong to another integration and are never
+ * attach candidates; entries without the field are legacy T6 targets.
+ */
+export const UI_SERVER_PRIVATE_PROFILE = 'happy-t6';
 const UI_SERVER_MONITOR_INTERVAL_MS = 5_000;
 const CONNECTION_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const STATUS_VALUES = new Set(['working', 'waiting', 'done', 'attention']);
@@ -16,6 +23,7 @@ const TERMINAL_EVENT_VALUES = new Set(['turn_end', 'abort']);
 export type UiServerRegistryEntry = {
   schemaVersion: 1;
   kind?: 'ui-server';
+  privateProfile?: typeof UI_SERVER_PRIVATE_PROFILE;
   pid: number;
   host: '127.0.0.1' | 'localhost' | '::1';
   port: number;
@@ -128,6 +136,9 @@ export function parseUiServerRegistryFile(
   if (entry.kind !== undefined && entry.kind !== 'ui-server') {
     throw new Error('Copilot ui-server registry entry has invalid kind');
   }
+  if (entry.privateProfile !== undefined && entry.privateProfile !== UI_SERVER_PRIVATE_PROFILE) {
+    throw new Error('Copilot ui-server registry entry belongs to a foreign private profile');
+  }
   if (!Number.isSafeInteger(entry.pid) || (entry.pid as number) < 1) {
     throw new Error('Copilot ui-server registry entry has invalid pid');
   }
@@ -181,6 +192,9 @@ export function parseUiServerRegistryFile(
   return {
     schemaVersion: 1,
     ...(entry.kind === 'ui-server' ? { kind: 'ui-server' as const } : {}),
+    ...(entry.privateProfile === UI_SERVER_PRIVATE_PROFILE
+      ? { privateProfile: UI_SERVER_PRIVATE_PROFILE }
+      : {}),
     pid,
     host: entry.host,
     port: entry.port as number,

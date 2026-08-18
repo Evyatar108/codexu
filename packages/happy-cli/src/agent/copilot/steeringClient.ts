@@ -5,6 +5,7 @@
 import { randomUUID } from 'node:crypto';
 
 import {
+  STEERING_RPC_METHODS,
   steeringCommandEnvelopeSchema,
   steeringControlChangedParamsSchema,
   steeringResultSchema,
@@ -13,6 +14,8 @@ import {
   type SteeringResult,
   type SteeringRpcMethod,
 } from '@slopus/happy-wire';
+
+import { COPILOT_HAPPY_PROTOCOL_VERSION } from './types';
 
 import {
   NativeTransportError,
@@ -122,7 +125,23 @@ export class CopilotSteeringClient {
 
   async attachAndResync(): Promise<SteeringResult> {
     const generation = this.invalidateLease('detached');
-    await this.transport.invokeSteering('happy.attach');
+    const attached = await this.transport.invokeSteering('happy.attach');
+    // T6 v3 negotiates the Happy protocol at attach time. Legacy runtimes
+    // omit all three fields (their attach result is only actionId/outcome),
+    // so validation is conditional but fail-closed: an advertised version or
+    // method list that does not cover the T6 surface aborts the attach.
+    if (attached.happyProtocolVersion !== undefined
+      && attached.happyProtocolVersion !== COPILOT_HAPPY_PROTOCOL_VERSION) {
+      throw new Error('Unsupported Copilot happy protocol version');
+    }
+    if (attached.methods !== undefined) {
+      const advertised = new Set(attached.methods);
+      for (const method of STEERING_RPC_METHODS) {
+        if (!advertised.has(method)) {
+          throw new Error('Copilot steering surface is missing a required method');
+        }
+      }
+    }
     const state = await this.transport.invokeSteering('happy.getControlState');
     return this.applyLeaseResult(state, generation)
       ? state

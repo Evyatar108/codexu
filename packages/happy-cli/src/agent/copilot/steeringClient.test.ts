@@ -114,6 +114,56 @@ describe('CopilotSteeringClient', () => {
     client.dispose();
   });
 
+  it('accepts a v3 attach advertising happyProtocolVersion 3 and the full method surface', async () => {
+    const fake = harness([
+      {
+        outcome: 'applied',
+        happyProtocolVersion: '3',
+        capabilities: {},
+        methods: [
+          'happy.attach',
+          'happy.requestLease',
+          'happy.heartbeat',
+          'happy.releaseLease',
+          'happy.answerPrompt',
+          'happy.getControlState',
+        ],
+      },
+      { outcome: 'no_lease' },
+    ]);
+    const client = new CopilotSteeringClient(fake.transport as never);
+
+    await expect(client.start()).resolves.toMatchObject({ outcome: 'no_lease' });
+    expect(fake.calls[0]).toMatchObject({ method: 'happy.attach' });
+    client.dispose();
+  });
+
+  it('fails closed on an unsupported happy protocol version or missing method', async () => {
+    const versionFake = harness([
+      { outcome: 'applied', happyProtocolVersion: '4' },
+    ]);
+    const versionClient = new CopilotSteeringClient(versionFake.transport as never);
+    await expect(versionClient.start()).rejects.toThrow('happy protocol version');
+    versionClient.dispose();
+
+    const methodFake = harness([
+      {
+        outcome: 'applied',
+        happyProtocolVersion: '3',
+        methods: [
+          'happy.attach',
+          'happy.requestLease',
+          'happy.heartbeat',
+          'happy.releaseLease',
+          'happy.getControlState',
+        ],
+      },
+    ]);
+    const methodClient = new CopilotSteeringClient(methodFake.transport as never);
+    await expect(methodClient.start()).rejects.toThrow('missing a required method');
+    methodClient.dispose();
+  });
+
   it('discards a delayed grant for an older lease request', async () => {
     const fake = harness([
       { outcome: 'applied' },

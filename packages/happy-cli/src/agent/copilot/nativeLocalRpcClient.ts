@@ -11,6 +11,7 @@ import {
 } from '@slopus/happy-wire';
 
 import {
+  COPILOT_CONNECT_PROTOCOL_VERSION,
   COPILOT_LIVE_PROMPT_EVENT_TYPES,
   COPILOT_NATIVE_VERSION,
   COPILOT_PROJECTED_EVENT_TYPES,
@@ -164,9 +165,12 @@ export class NativeLocalRpcClient extends EventEmitter {
     try {
       const connected = record(await this.request('connect', {
         token: connectionToken,
-        // The SDK connect policy validates this field as a string, while the
-        // successful response reports the negotiated protocol as a number.
-        protocolVersion: String(COPILOT_PROTOCOL_VERSION),
+        // T6 v3 sends the transport-level version string '1'. The SDK connect
+        // policy validates this field only as a string (never its value), so
+        // this stays compatible with legacy runtimes, while the successful
+        // response reports the negotiated SDK protocol as a number and the
+        // Happy protocol is negotiated separately at `happy.attach`.
+        protocolVersion: COPILOT_CONNECT_PROTOCOL_VERSION,
         client: { name: 'happy-cli', version: 'm1a' },
         capabilities: {},
       }));

@@ -88,6 +88,27 @@ describe('steering wire schemas', () => {
     }).outcome).toBe('rate_limited');
   });
 
+  it('accepts the v3 attach negotiation fields and rejects malformed shapes', () => {
+    expect(steeringResultSchema.parse({
+      outcome: 'applied',
+      happyProtocolVersion: '3',
+      capabilities: { steering: true },
+      methods: ['happy.attach', 'happy.requestLease'],
+    })).toMatchObject({
+      happyProtocolVersion: '3',
+      methods: ['happy.attach', 'happy.requestLease'],
+    });
+    expect(steeringResultSchema.parse({ outcome: 'applied' })).not.toHaveProperty('happyProtocolVersion');
+    expect(steeringResultSchema.safeParse({
+      outcome: 'applied',
+      happyProtocolVersion: '',
+    }).success).toBe(false);
+    expect(steeringResultSchema.safeParse({
+      outcome: 'applied',
+      methods: [''],
+    }).success).toBe(false);
+  });
+
   it('keeps the final RPC names and control-change reasons stable', () => {
     expect(STEERING_RPC_METHODS).toEqual([
       'happy.attach',

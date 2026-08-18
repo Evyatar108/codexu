@@ -53,6 +53,12 @@ describe('parseUiServerRegistryFile', () => {
     expect(() => parse({ kind: 'managed-server' })).toThrow('invalid kind');
   });
 
+  it('accepts the happy-t6 private profile and rejects foreign profiles', () => {
+    expect(parse({ privateProfile: 'happy-t6' })).toHaveProperty('privateProfile', 'happy-t6');
+    expect(parse()).not.toHaveProperty('privateProfile');
+    expect(() => parse({ privateProfile: 'other-integration' })).toThrow('foreign private profile');
+  });
+
   it('requires schemaVersion 1', () => {
     expect(() => parse({ schemaVersion: 2 })).toThrow('unsupported schemaVersion');
   });
