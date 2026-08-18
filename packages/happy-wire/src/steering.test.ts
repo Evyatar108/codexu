@@ -88,24 +88,48 @@ describe('steering wire schemas', () => {
     }).outcome).toBe('rate_limited');
   });
 
-  it('accepts the v3 attach negotiation fields and rejects malformed shapes', () => {
+  it('accepts the v3 nested attach protocol shape and rejects malformed shapes', () => {
+    // Exact fork-confirmed v3 attach result shape (2026-08-17).
     expect(steeringResultSchema.parse({
       outcome: 'applied',
-      happyProtocolVersion: '3',
-      capabilities: { steering: true },
-      methods: ['happy.attach', 'happy.requestLease'],
+      control: {},
+      protocol: {
+        happyProtocolVersion: '3',
+        capabilities: [],
+        methods: [
+          'happy.attach',
+          'happy.requestLease',
+          'happy.heartbeat',
+          'happy.releaseLease',
+          'happy.answerPrompt',
+          'happy.getControlState',
+        ],
+        contractHash: 'sha256:abc123',
+      },
     })).toMatchObject({
-      happyProtocolVersion: '3',
-      methods: ['happy.attach', 'happy.requestLease'],
+      protocol: {
+        happyProtocolVersion: '3',
+        contractHash: 'sha256:abc123',
+      },
     });
-    expect(steeringResultSchema.parse({ outcome: 'applied' })).not.toHaveProperty('happyProtocolVersion');
+    // Additive future protocol fields survive parsing (passthrough).
+    expect(steeringResultSchema.parse({
+      outcome: 'applied',
+      protocol: { happyProtocolVersion: '3', futureField: true },
+    }).protocol).toMatchObject({ futureField: true });
+    expect(steeringResultSchema.parse({ outcome: 'applied' })).not.toHaveProperty('protocol');
     expect(steeringResultSchema.safeParse({
       outcome: 'applied',
-      happyProtocolVersion: '',
+      protocol: { happyProtocolVersion: '' },
     }).success).toBe(false);
     expect(steeringResultSchema.safeParse({
       outcome: 'applied',
-      methods: [''],
+      protocol: { happyProtocolVersion: '3', methods: [''] },
+    }).success).toBe(false);
+    // v3 negotiation fields are NOT accepted at the top level.
+    expect(steeringResultSchema.safeParse({
+      outcome: 'applied',
+      happyProtocolVersion: '3',
     }).success).toBe(false);
   });
 

@@ -1547,6 +1547,12 @@ const steeringOutcomeSchema = z__namespace.enum([
   "not_pending",
   "rate_limited"
 ]);
+const steeringAttachProtocolSchema = z__namespace.object({
+  happyProtocolVersion: z__namespace.string().min(1),
+  capabilities: z__namespace.array(z__namespace.unknown()).optional(),
+  methods: z__namespace.array(z__namespace.string().min(1)).optional(),
+  contractHash: z__namespace.string().min(1).optional()
+}).passthrough();
 const steeringResultSchema = z__namespace.object({
   actionId: uuidV4Schema.optional(),
   outcome: steeringOutcomeSchema,
@@ -1556,13 +1562,12 @@ const steeringResultSchema = z__namespace.object({
   leaseTtlMs: z__namespace.number().int().positive().optional(),
   retryAfterMs: z__namespace.number().int().nonnegative().optional(),
   requestId: z__namespace.string().min(1).optional(),
-  // T6 v3 attach-level negotiation fields. Older runtimes omit all three;
-  // when a runtime advertises them, the CLI validates them fail-closed
-  // (happyProtocolVersion must be '3' and methods must cover the full
-  // STEERING_RPC_METHODS surface) before steering is considered attached.
-  happyProtocolVersion: z__namespace.string().min(1).optional(),
-  capabilities: z__namespace.record(z__namespace.string(), z__namespace.unknown()).optional(),
-  methods: z__namespace.array(z__namespace.string().min(1)).optional()
+  // T6 v3 `happy.attach` result extensions. Older runtimes omit both;
+  // when a runtime advertises `protocol`, the CLI validates it fail-closed
+  // (happyProtocolVersion must be '3' and methods, when listed, must cover
+  // the full STEERING_RPC_METHODS surface) before steering is attached.
+  control: z__namespace.record(z__namespace.string(), z__namespace.unknown()).optional(),
+  protocol: steeringAttachProtocolSchema.optional()
 }).strict();
 const steeringLeaseRevocationReasonSchema = z__namespace.enum([
   "keystroke",
@@ -1784,6 +1789,7 @@ exports.signLocalRequest = signLocalRequest;
 exports.signPairCompleteResponse = signPairCompleteResponse;
 exports.signPublicRequest = signPublicRequest;
 exports.skillBodyEntry = skillBodyEntry;
+exports.steeringAttachProtocolSchema = steeringAttachProtocolSchema;
 exports.steeringCommandEnvelopeSchema = steeringCommandEnvelopeSchema;
 exports.steeringCommandTypeSchema = steeringCommandTypeSchema;
 exports.steeringControlChangedParamsSchema = steeringControlChangedParamsSchema;

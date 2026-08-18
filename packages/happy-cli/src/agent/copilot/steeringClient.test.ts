@@ -114,20 +114,24 @@ describe('CopilotSteeringClient', () => {
     client.dispose();
   });
 
-  it('accepts a v3 attach advertising happyProtocolVersion 3 and the full method surface', async () => {
+  it('accepts the v3 nested attach protocol advertising version 3 and the full method surface', async () => {
     const fake = harness([
       {
         outcome: 'applied',
-        happyProtocolVersion: '3',
-        capabilities: {},
-        methods: [
-          'happy.attach',
-          'happy.requestLease',
-          'happy.heartbeat',
-          'happy.releaseLease',
-          'happy.answerPrompt',
-          'happy.getControlState',
-        ],
+        control: {},
+        protocol: {
+          happyProtocolVersion: '3',
+          capabilities: [],
+          methods: [
+            'happy.attach',
+            'happy.requestLease',
+            'happy.heartbeat',
+            'happy.releaseLease',
+            'happy.answerPrompt',
+            'happy.getControlState',
+          ],
+          contractHash: 'sha256:abc123',
+        },
       },
       { outcome: 'no_lease' },
     ]);
@@ -138,9 +142,9 @@ describe('CopilotSteeringClient', () => {
     client.dispose();
   });
 
-  it('fails closed on an unsupported happy protocol version or missing method', async () => {
+  it('fails closed on an unsupported nested happy protocol version or missing method', async () => {
     const versionFake = harness([
-      { outcome: 'applied', happyProtocolVersion: '4' },
+      { outcome: 'applied', protocol: { happyProtocolVersion: '4' } },
     ]);
     const versionClient = new CopilotSteeringClient(versionFake.transport as never);
     await expect(versionClient.start()).rejects.toThrow('happy protocol version');
@@ -149,14 +153,16 @@ describe('CopilotSteeringClient', () => {
     const methodFake = harness([
       {
         outcome: 'applied',
-        happyProtocolVersion: '3',
-        methods: [
-          'happy.attach',
-          'happy.requestLease',
-          'happy.heartbeat',
-          'happy.releaseLease',
-          'happy.getControlState',
-        ],
+        protocol: {
+          happyProtocolVersion: '3',
+          methods: [
+            'happy.attach',
+            'happy.requestLease',
+            'happy.heartbeat',
+            'happy.releaseLease',
+            'happy.getControlState',
+          ],
+        },
       },
     ]);
     const methodClient = new CopilotSteeringClient(methodFake.transport as never);

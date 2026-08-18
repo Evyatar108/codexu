@@ -126,19 +126,21 @@ export class CopilotSteeringClient {
   async attachAndResync(): Promise<SteeringResult> {
     const generation = this.invalidateLease('detached');
     const attached = await this.transport.invokeSteering('happy.attach');
-    // T6 v3 negotiates the Happy protocol at attach time. Legacy runtimes
-    // omit all three fields (their attach result is only actionId/outcome),
-    // so validation is conditional but fail-closed: an advertised version or
-    // method list that does not cover the T6 surface aborts the attach.
-    if (attached.happyProtocolVersion !== undefined
-      && attached.happyProtocolVersion !== COPILOT_HAPPY_PROTOCOL_VERSION) {
-      throw new Error('Unsupported Copilot happy protocol version');
-    }
-    if (attached.methods !== undefined) {
-      const advertised = new Set(attached.methods);
-      for (const method of STEERING_RPC_METHODS) {
-        if (!advertised.has(method)) {
-          throw new Error('Copilot steering surface is missing a required method');
+    // T6 v3 negotiates the Happy protocol at attach time under the nested
+    // `protocol` result field (fork-confirmed shape). Legacy runtimes omit it
+    // (their attach result is only actionId/outcome), so validation is
+    // conditional but fail-closed: an advertised version or method list that
+    // does not cover the T6 surface aborts the attach.
+    if (attached.protocol !== undefined) {
+      if (attached.protocol.happyProtocolVersion !== COPILOT_HAPPY_PROTOCOL_VERSION) {
+        throw new Error('Unsupported Copilot happy protocol version');
+      }
+      if (attached.protocol.methods !== undefined) {
+        const advertised = new Set(attached.protocol.methods);
+        for (const method of STEERING_RPC_METHODS) {
+          if (!advertised.has(method)) {
+            throw new Error('Copilot steering surface is missing a required method');
+          }
         }
       }
     }

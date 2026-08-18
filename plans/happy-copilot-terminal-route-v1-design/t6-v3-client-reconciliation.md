@@ -12,7 +12,7 @@ OUT of this rollout per the fork's item 9 (tracked separately in
 | 1 | Discover raw registry files under `<COPILOT_HOME>/servers`, selecting `privateProfile: "happy-t6"`; stock listing hides these entries | **Done.** `uiServerRegistry.ts` already reads the raw directory (never the stock listing). Added `privateProfile` support: `"happy-t6"` accepted and surfaced, a FOREIGN profile rejected fail-closed, absent field still accepted for legacy ev.6-era entries. |
 | 2 | Relay/tunnel the registry loopback host:port to the physical phone | **Deliberately reinterpreted — see §3.** The phone never dials the terminal's loopback socket. Happy CLI is the on-machine bridge; the phone reaches it through Happy's existing encrypted session plane. No new tunnel was built and none is needed. |
 | 3 | Connect with `protocolVersion: "1"`, `client {name,version}`, empty `capabilities` | **Done.** `nativeLocalRpcClient.ts` now sends `COPILOT_CONNECT_PROTOCOL_VERSION = '1'`. Note: every runtime build we can inspect (`classifyHappyConnect`, verified through 1.0.80-ev.3) type-checks this field as a *string* but never validates its value, and the connect *response* still reports the negotiated SDK protocol as the number `3` — our response-side check is unchanged. |
-| 4 | Call `happy.attach`; require `happyProtocolVersion: "3"`; validate capabilities/method list | **Done, conditionally fail-closed.** `steeringClient.attachAndResync()` validates `happyProtocolVersion === '3'` and that `methods` covers all six steering RPCs — but only when the runtime advertises those fields. Verified older builds return only `{actionId?, outcome}` from `happy.attach`, so unconditional requirement would break every build we can currently run. The moment the private v3 build advertises the fields, mismatches abort the attach. |
+| 4 | Call `happy.attach`; require `happyProtocolVersion: "3"`; validate capabilities/method list | **Done, conditionally fail-closed — nested shape.** Fork-confirmed (2026-08-17) that v3 negotiation is nested under `result.protocol` (`{happyProtocolVersion, capabilities: [], methods, contractHash}`, alongside top-level `control`). `steeringClient.attachAndResync()` validates `protocol.happyProtocolVersion === '3'` and that `protocol.methods` covers all six steering RPCs — but only when the runtime advertises `protocol`. Verified older builds return only `{actionId?, outcome}` from `happy.attach`, so unconditional requirement would break every build we can currently run. The `protocol` schema is passthrough for additive future fields (e.g. `contractHash`); v3 fields at the TOP level are rejected. |
 | 5 | Support exactly the six `happy.*` methods | **Already true.** `STEERING_RPC_METHODS` in happy-wire is exactly that set; no additions in this rollout. |
 | 6 | Handle only `happy.controlChanged` with the six reasons | **Already true.** Unknown reasons are handled fail-safe (treated as revocation), per the shipped v1 design. |
 | 7 | Heartbeat 15 s, lease TTL 45 s, "waiting for local grant" until `/happy grant <requestId>` | **Already true.** Constants unchanged (`COPILOT_HEARTBEAT_INTERVAL_MS = 15_000`, `COPILOT_LEASE_TTL_MS = 45_000`); server-provided values still override per-lease. Grant-before-modal runbook ordering retained from `t6-deny-path-live-verified.md`. |
@@ -31,19 +31,17 @@ expired for the official repo. What we did instead:
   `classifyHappyConnect` string-typed-but-value-unchecked `protocolVersion`,
   raw registry publisher, and the attach result shape (`{actionId?, outcome}`
   — no negotiation fields yet in that build).
-- **Taken from the fork's message, pending build verification:**
-  `privateProfile: "happy-t6"` in registry entries, attach-level
-  `happyProtocolVersion: "3"` + capabilities/methods advertisement. Our
-  implementation treats these as *optional-but-validated*: absent → legacy
-  behavior; present → fail-closed validation. This is deliberately robust to
-  either outcome of the build inspection.
-
-**Ask for the fork agent:** confirm two specifics of `9650f15864`:
-(a) does `happy.attach` in that build return `happyProtocolVersion` /
-`capabilities` / `methods`, and with exactly which method-name strings?
-(b) does `classifyHappyConnect` in that build now *validate the value* of
-`protocolVersion` (must be `"1"`), or is it still shape-only? Our client
-sends `"1"` either way, so this only affects documentation accuracy.
+- **Fork-confirmed 2026-08-17 (answers to our two §2 questions plus extras):**
+  (1) `connect.protocolVersion` IS strictly value-checked as string `"1"` in
+  the v3 runtime; (2) unknown `connect` fields are rejected; (3)
+  `connect.capabilities` must be absent or `{}`; (4) `privateProfile:
+  "happy-t6"` discovery is correct as implemented; (5) the encrypted-relay
+  interpretation is correct — happy-cli is the sole loopback/token consumer.
+  The one correction they required: v3 negotiation is NESTED under
+  `happy.attach` `result.protocol`, not top-level — applied in the follow-up
+  commit with a nested-shape test using their exact example payload.
+  Runtime source sharing was declared unnecessary; the forthcoming private
+  build artifact is the joint-E2E verification vehicle.
 
 ## 3. Architecture note: "relay/tunnel to the physical phone"
 

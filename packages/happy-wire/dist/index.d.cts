@@ -66,11 +66,11 @@ declare const SessionMessageContentSchema: z.ZodObject<{
     c: z.ZodString;
     t: z.ZodLiteral<"encrypted">;
 }, "strip", z.ZodTypeAny, {
-    c: string;
     t: "encrypted";
+    c: string;
 }, {
-    c: string;
     t: "encrypted";
+    c: string;
 }>;
 type SessionMessageContent = z.infer<typeof SessionMessageContentSchema>;
 declare const SessionMessageSchema: z.ZodObject<{
@@ -81,11 +81,11 @@ declare const SessionMessageSchema: z.ZodObject<{
         c: z.ZodString;
         t: z.ZodLiteral<"encrypted">;
     }, "strip", z.ZodTypeAny, {
-        c: string;
         t: "encrypted";
+        c: string;
     }, {
-        c: string;
         t: "encrypted";
+        c: string;
     }>;
     createdAt: z.ZodNumber;
     updatedAt: z.ZodNumber;
@@ -93,8 +93,8 @@ declare const SessionMessageSchema: z.ZodObject<{
     id: string;
     seq: number;
     content: {
-        c: string;
         t: "encrypted";
+        c: string;
     };
     createdAt: number;
     updatedAt: number;
@@ -103,8 +103,8 @@ declare const SessionMessageSchema: z.ZodObject<{
     id: string;
     seq: number;
     content: {
-        c: string;
         t: "encrypted";
+        c: string;
     };
     createdAt: number;
     updatedAt: number;
@@ -158,11 +158,11 @@ declare const SessionMessageRangeResponseSchema: z.ZodDiscriminatedUnion<"ok", [
             c: z.ZodString;
             t: z.ZodLiteral<"encrypted">;
         }, "strip", z.ZodTypeAny, {
-            c: string;
             t: "encrypted";
+            c: string;
         }, {
-            c: string;
             t: "encrypted";
+            c: string;
         }>;
         createdAt: z.ZodNumber;
         updatedAt: z.ZodNumber;
@@ -170,8 +170,8 @@ declare const SessionMessageRangeResponseSchema: z.ZodDiscriminatedUnion<"ok", [
         id: string;
         seq: number;
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         createdAt: number;
         updatedAt: number;
@@ -180,8 +180,8 @@ declare const SessionMessageRangeResponseSchema: z.ZodDiscriminatedUnion<"ok", [
         id: string;
         seq: number;
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         createdAt: number;
         updatedAt: number;
@@ -198,8 +198,8 @@ declare const SessionMessageRangeResponseSchema: z.ZodDiscriminatedUnion<"ok", [
         id: string;
         seq: number;
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         createdAt: number;
         updatedAt: number;
@@ -216,8 +216,8 @@ declare const SessionMessageRangeResponseSchema: z.ZodDiscriminatedUnion<"ok", [
         id: string;
         seq: number;
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         createdAt: number;
         updatedAt: number;
@@ -375,11 +375,11 @@ declare const SessionProtocolMessageSchema: z.ZodObject<{
             t: z.ZodLiteral<"turn-end">;
             status: z.ZodEnum<["completed", "failed", "cancelled"]>;
         }, "strip", z.ZodTypeAny, {
-            t: "turn-end";
             status: "completed" | "failed" | "cancelled";
+            t: "turn-end";
         }, {
-            t: "turn-end";
             status: "completed" | "failed" | "cancelled";
+            t: "turn-end";
         }>, z.ZodObject<{
             t: z.ZodLiteral<"stop">;
         }, "strip", z.ZodTypeAny, {
@@ -394,15 +394,15 @@ declare const SessionProtocolMessageSchema: z.ZodObject<{
             summaryRef: z.ZodOptional<z.ZodString>;
             forkedFromSid: z.ZodOptional<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
-            t: "context-boundary";
             at: number;
+            t: "context-boundary";
             kind: "clear" | "compact" | "autocompact" | "plan-mode-enter" | "plan-mode-exit" | "session-fork-resume";
             triggeredBy: "user" | "agent" | "system";
             summaryRef?: string | undefined;
             forkedFromSid?: string | undefined;
         }, {
-            t: "context-boundary";
             at: number;
+            t: "context-boundary";
             kind: "clear" | "compact" | "autocompact" | "plan-mode-enter" | "plan-mode-exit" | "session-fork-resume";
             triggeredBy: "user" | "agent" | "system";
             summaryRef?: string | undefined;
@@ -528,13 +528,13 @@ declare const SessionProtocolMessageSchema: z.ZodObject<{
             t: "start";
             title?: string | undefined;
         } | {
-            t: "turn-end";
             status: "completed" | "failed" | "cancelled";
+            t: "turn-end";
         } | {
             t: "stop";
         } | {
-            t: "context-boundary";
             at: number;
+            t: "context-boundary";
             kind: "clear" | "compact" | "autocompact" | "plan-mode-enter" | "plan-mode-exit" | "session-fork-resume";
             triggeredBy: "user" | "agent" | "system";
             summaryRef?: string | undefined;
@@ -608,13 +608,13 @@ declare const SessionProtocolMessageSchema: z.ZodObject<{
             t: "start";
             title?: string | undefined;
         } | {
-            t: "turn-end";
             status: "completed" | "failed" | "cancelled";
+            t: "turn-end";
         } | {
             t: "stop";
         } | {
-            t: "context-boundary";
             at: number;
+            t: "context-boundary";
             kind: "clear" | "compact" | "autocompact" | "plan-mode-enter" | "plan-mode-exit" | "session-fork-resume";
             triggeredBy: "user" | "agent" | "system";
             summaryRef?: string | undefined;
@@ -688,13 +688,13 @@ declare const SessionProtocolMessageSchema: z.ZodObject<{
             t: "start";
             title?: string | undefined;
         } | {
-            t: "turn-end";
             status: "completed" | "failed" | "cancelled";
+            t: "turn-end";
         } | {
             t: "stop";
         } | {
-            t: "context-boundary";
             at: number;
+            t: "context-boundary";
             kind: "clear" | "compact" | "autocompact" | "plan-mode-enter" | "plan-mode-exit" | "session-fork-resume";
             triggeredBy: "user" | "agent" | "system";
             summaryRef?: string | undefined;
@@ -768,13 +768,13 @@ declare const SessionProtocolMessageSchema: z.ZodObject<{
             t: "start";
             title?: string | undefined;
         } | {
-            t: "turn-end";
             status: "completed" | "failed" | "cancelled";
+            t: "turn-end";
         } | {
             t: "stop";
         } | {
-            t: "context-boundary";
             at: number;
+            t: "context-boundary";
             kind: "clear" | "compact" | "autocompact" | "plan-mode-enter" | "plan-mode-exit" | "session-fork-resume";
             triggeredBy: "user" | "agent" | "system";
             summaryRef?: string | undefined;
@@ -910,13 +910,13 @@ declare const SessionProtocolMessageSchema: z.ZodObject<{
             t: "start";
             title?: string | undefined;
         } | {
-            t: "turn-end";
             status: "completed" | "failed" | "cancelled";
+            t: "turn-end";
         } | {
             t: "stop";
         } | {
-            t: "context-boundary";
             at: number;
+            t: "context-boundary";
             kind: "clear" | "compact" | "autocompact" | "plan-mode-enter" | "plan-mode-exit" | "session-fork-resume";
             triggeredBy: "user" | "agent" | "system";
             summaryRef?: string | undefined;
@@ -1011,13 +1011,13 @@ declare const SessionProtocolMessageSchema: z.ZodObject<{
             t: "start";
             title?: string | undefined;
         } | {
-            t: "turn-end";
             status: "completed" | "failed" | "cancelled";
+            t: "turn-end";
         } | {
             t: "stop";
         } | {
-            t: "context-boundary";
             at: number;
+            t: "context-boundary";
             kind: "clear" | "compact" | "autocompact" | "plan-mode-enter" | "plan-mode-exit" | "session-fork-resume";
             triggeredBy: "user" | "agent" | "system";
             summaryRef?: string | undefined;
@@ -1471,11 +1471,11 @@ declare const MessageContentSchema: z.ZodDiscriminatedUnion<"role", [z.ZodObject
             t: z.ZodLiteral<"turn-end">;
             status: z.ZodEnum<["completed", "failed", "cancelled"]>;
         }, "strip", z.ZodTypeAny, {
-            t: "turn-end";
             status: "completed" | "failed" | "cancelled";
+            t: "turn-end";
         }, {
-            t: "turn-end";
             status: "completed" | "failed" | "cancelled";
+            t: "turn-end";
         }>, z.ZodObject<{
             t: z.ZodLiteral<"stop">;
         }, "strip", z.ZodTypeAny, {
@@ -1490,15 +1490,15 @@ declare const MessageContentSchema: z.ZodDiscriminatedUnion<"role", [z.ZodObject
             summaryRef: z.ZodOptional<z.ZodString>;
             forkedFromSid: z.ZodOptional<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
-            t: "context-boundary";
             at: number;
+            t: "context-boundary";
             kind: "clear" | "compact" | "autocompact" | "plan-mode-enter" | "plan-mode-exit" | "session-fork-resume";
             triggeredBy: "user" | "agent" | "system";
             summaryRef?: string | undefined;
             forkedFromSid?: string | undefined;
         }, {
-            t: "context-boundary";
             at: number;
+            t: "context-boundary";
             kind: "clear" | "compact" | "autocompact" | "plan-mode-enter" | "plan-mode-exit" | "session-fork-resume";
             triggeredBy: "user" | "agent" | "system";
             summaryRef?: string | undefined;
@@ -1624,13 +1624,13 @@ declare const MessageContentSchema: z.ZodDiscriminatedUnion<"role", [z.ZodObject
             t: "start";
             title?: string | undefined;
         } | {
-            t: "turn-end";
             status: "completed" | "failed" | "cancelled";
+            t: "turn-end";
         } | {
             t: "stop";
         } | {
-            t: "context-boundary";
             at: number;
+            t: "context-boundary";
             kind: "clear" | "compact" | "autocompact" | "plan-mode-enter" | "plan-mode-exit" | "session-fork-resume";
             triggeredBy: "user" | "agent" | "system";
             summaryRef?: string | undefined;
@@ -1704,13 +1704,13 @@ declare const MessageContentSchema: z.ZodDiscriminatedUnion<"role", [z.ZodObject
             t: "start";
             title?: string | undefined;
         } | {
-            t: "turn-end";
             status: "completed" | "failed" | "cancelled";
+            t: "turn-end";
         } | {
             t: "stop";
         } | {
-            t: "context-boundary";
             at: number;
+            t: "context-boundary";
             kind: "clear" | "compact" | "autocompact" | "plan-mode-enter" | "plan-mode-exit" | "session-fork-resume";
             triggeredBy: "user" | "agent" | "system";
             summaryRef?: string | undefined;
@@ -1784,13 +1784,13 @@ declare const MessageContentSchema: z.ZodDiscriminatedUnion<"role", [z.ZodObject
             t: "start";
             title?: string | undefined;
         } | {
-            t: "turn-end";
             status: "completed" | "failed" | "cancelled";
+            t: "turn-end";
         } | {
             t: "stop";
         } | {
-            t: "context-boundary";
             at: number;
+            t: "context-boundary";
             kind: "clear" | "compact" | "autocompact" | "plan-mode-enter" | "plan-mode-exit" | "session-fork-resume";
             triggeredBy: "user" | "agent" | "system";
             summaryRef?: string | undefined;
@@ -1864,13 +1864,13 @@ declare const MessageContentSchema: z.ZodDiscriminatedUnion<"role", [z.ZodObject
             t: "start";
             title?: string | undefined;
         } | {
-            t: "turn-end";
             status: "completed" | "failed" | "cancelled";
+            t: "turn-end";
         } | {
             t: "stop";
         } | {
-            t: "context-boundary";
             at: number;
+            t: "context-boundary";
             kind: "clear" | "compact" | "autocompact" | "plan-mode-enter" | "plan-mode-exit" | "session-fork-resume";
             triggeredBy: "user" | "agent" | "system";
             summaryRef?: string | undefined;
@@ -2006,13 +2006,13 @@ declare const MessageContentSchema: z.ZodDiscriminatedUnion<"role", [z.ZodObject
             t: "start";
             title?: string | undefined;
         } | {
-            t: "turn-end";
             status: "completed" | "failed" | "cancelled";
+            t: "turn-end";
         } | {
             t: "stop";
         } | {
-            t: "context-boundary";
             at: number;
+            t: "context-boundary";
             kind: "clear" | "compact" | "autocompact" | "plan-mode-enter" | "plan-mode-exit" | "session-fork-resume";
             triggeredBy: "user" | "agent" | "system";
             summaryRef?: string | undefined;
@@ -2107,13 +2107,13 @@ declare const MessageContentSchema: z.ZodDiscriminatedUnion<"role", [z.ZodObject
             t: "start";
             title?: string | undefined;
         } | {
-            t: "turn-end";
             status: "completed" | "failed" | "cancelled";
+            t: "turn-end";
         } | {
             t: "stop";
         } | {
-            t: "context-boundary";
             at: number;
+            t: "context-boundary";
             kind: "clear" | "compact" | "autocompact" | "plan-mode-enter" | "plan-mode-exit" | "session-fork-resume";
             triggeredBy: "user" | "agent" | "system";
             summaryRef?: string | undefined;
@@ -2203,11 +2203,11 @@ declare const UpdateNewMessageBodySchema: z.ZodObject<{
             c: z.ZodString;
             t: z.ZodLiteral<"encrypted">;
         }, "strip", z.ZodTypeAny, {
-            c: string;
             t: "encrypted";
+            c: string;
         }, {
-            c: string;
             t: "encrypted";
+            c: string;
         }>;
         createdAt: z.ZodNumber;
         updatedAt: z.ZodNumber;
@@ -2215,8 +2215,8 @@ declare const UpdateNewMessageBodySchema: z.ZodObject<{
         id: string;
         seq: number;
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         createdAt: number;
         updatedAt: number;
@@ -2225,40 +2225,40 @@ declare const UpdateNewMessageBodySchema: z.ZodObject<{
         id: string;
         seq: number;
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         createdAt: number;
         updatedAt: number;
         localId?: string | null | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    t: "new-message";
     message: {
         id: string;
         seq: number;
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         createdAt: number;
         updatedAt: number;
         localId?: string | null | undefined;
     };
+    t: "new-message";
     sid: string;
 }, {
-    t: "new-message";
     message: {
         id: string;
         seq: number;
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         createdAt: number;
         updatedAt: number;
         localId?: string | null | undefined;
     };
+    t: "new-message";
     sid: string;
 }>;
 type UpdateNewMessageBody = z.infer<typeof UpdateNewMessageBodySchema>;
@@ -2384,11 +2384,11 @@ declare const CoreUpdateBodySchema: z.ZodDiscriminatedUnion<"t", [z.ZodObject<{
             c: z.ZodString;
             t: z.ZodLiteral<"encrypted">;
         }, "strip", z.ZodTypeAny, {
-            c: string;
             t: "encrypted";
+            c: string;
         }, {
-            c: string;
             t: "encrypted";
+            c: string;
         }>;
         createdAt: z.ZodNumber;
         updatedAt: z.ZodNumber;
@@ -2396,8 +2396,8 @@ declare const CoreUpdateBodySchema: z.ZodDiscriminatedUnion<"t", [z.ZodObject<{
         id: string;
         seq: number;
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         createdAt: number;
         updatedAt: number;
@@ -2406,40 +2406,40 @@ declare const CoreUpdateBodySchema: z.ZodDiscriminatedUnion<"t", [z.ZodObject<{
         id: string;
         seq: number;
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         createdAt: number;
         updatedAt: number;
         localId?: string | null | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    t: "new-message";
     message: {
         id: string;
         seq: number;
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         createdAt: number;
         updatedAt: number;
         localId?: string | null | undefined;
     };
+    t: "new-message";
     sid: string;
 }, {
-    t: "new-message";
     message: {
         id: string;
         seq: number;
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         createdAt: number;
         updatedAt: number;
         localId?: string | null | undefined;
     };
+    t: "new-message";
     sid: string;
 }>, z.ZodObject<{
     t: z.ZodLiteral<"update-session">;
@@ -2553,11 +2553,11 @@ declare const CoreUpdateContainerSchema: z.ZodObject<{
                 c: z.ZodString;
                 t: z.ZodLiteral<"encrypted">;
             }, "strip", z.ZodTypeAny, {
-                c: string;
                 t: "encrypted";
+                c: string;
             }, {
-                c: string;
                 t: "encrypted";
+                c: string;
             }>;
             createdAt: z.ZodNumber;
             updatedAt: z.ZodNumber;
@@ -2565,8 +2565,8 @@ declare const CoreUpdateContainerSchema: z.ZodObject<{
             id: string;
             seq: number;
             content: {
-                c: string;
                 t: "encrypted";
+                c: string;
             };
             createdAt: number;
             updatedAt: number;
@@ -2575,40 +2575,40 @@ declare const CoreUpdateContainerSchema: z.ZodObject<{
             id: string;
             seq: number;
             content: {
-                c: string;
                 t: "encrypted";
+                c: string;
             };
             createdAt: number;
             updatedAt: number;
             localId?: string | null | undefined;
         }>;
     }, "strip", z.ZodTypeAny, {
-        t: "new-message";
         message: {
             id: string;
             seq: number;
             content: {
-                c: string;
                 t: "encrypted";
+                c: string;
             };
             createdAt: number;
             updatedAt: number;
             localId?: string | null | undefined;
         };
+        t: "new-message";
         sid: string;
     }, {
-        t: "new-message";
         message: {
             id: string;
             seq: number;
             content: {
-                c: string;
                 t: "encrypted";
+                c: string;
             };
             createdAt: number;
             updatedAt: number;
             localId?: string | null | undefined;
         };
+        t: "new-message";
         sid: string;
     }>, z.ZodObject<{
         t: z.ZodLiteral<"update-session">;
@@ -2713,18 +2713,18 @@ declare const CoreUpdateContainerSchema: z.ZodObject<{
     seq: number;
     createdAt: number;
     body: {
-        t: "new-message";
         message: {
             id: string;
             seq: number;
             content: {
-                c: string;
                 t: "encrypted";
+                c: string;
             };
             createdAt: number;
             updatedAt: number;
             localId?: string | null | undefined;
         };
+        t: "new-message";
         sid: string;
     } | {
         t: "update-session";
@@ -2756,18 +2756,18 @@ declare const CoreUpdateContainerSchema: z.ZodObject<{
     seq: number;
     createdAt: number;
     body: {
-        t: "new-message";
         message: {
             id: string;
             seq: number;
             content: {
-                c: string;
                 t: "encrypted";
+                c: string;
             };
             createdAt: number;
             updatedAt: number;
             localId?: string | null | undefined;
         };
+        t: "new-message";
         sid: string;
     } | {
         t: "update-session";
@@ -2804,11 +2804,11 @@ declare const ApiMessageSchema: z.ZodObject<{
         c: z.ZodString;
         t: z.ZodLiteral<"encrypted">;
     }, "strip", z.ZodTypeAny, {
-        c: string;
         t: "encrypted";
+        c: string;
     }, {
-        c: string;
         t: "encrypted";
+        c: string;
     }>;
     createdAt: z.ZodNumber;
     updatedAt: z.ZodNumber;
@@ -2816,8 +2816,8 @@ declare const ApiMessageSchema: z.ZodObject<{
     id: string;
     seq: number;
     content: {
-        c: string;
         t: "encrypted";
+        c: string;
     };
     createdAt: number;
     updatedAt: number;
@@ -2826,8 +2826,8 @@ declare const ApiMessageSchema: z.ZodObject<{
     id: string;
     seq: number;
     content: {
-        c: string;
         t: "encrypted";
+        c: string;
     };
     createdAt: number;
     updatedAt: number;
@@ -2845,11 +2845,11 @@ declare const ApiUpdateNewMessageSchema: z.ZodObject<{
             c: z.ZodString;
             t: z.ZodLiteral<"encrypted">;
         }, "strip", z.ZodTypeAny, {
-            c: string;
             t: "encrypted";
+            c: string;
         }, {
-            c: string;
             t: "encrypted";
+            c: string;
         }>;
         createdAt: z.ZodNumber;
         updatedAt: z.ZodNumber;
@@ -2857,8 +2857,8 @@ declare const ApiUpdateNewMessageSchema: z.ZodObject<{
         id: string;
         seq: number;
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         createdAt: number;
         updatedAt: number;
@@ -2867,40 +2867,40 @@ declare const ApiUpdateNewMessageSchema: z.ZodObject<{
         id: string;
         seq: number;
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         createdAt: number;
         updatedAt: number;
         localId?: string | null | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    t: "new-message";
     message: {
         id: string;
         seq: number;
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         createdAt: number;
         updatedAt: number;
         localId?: string | null | undefined;
     };
+    t: "new-message";
     sid: string;
 }, {
-    t: "new-message";
     message: {
         id: string;
         seq: number;
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         createdAt: number;
         updatedAt: number;
         localId?: string | null | undefined;
     };
+    t: "new-message";
     sid: string;
 }>;
 type ApiUpdateNewMessage = UpdateNewMessageBody;
@@ -3015,11 +3015,11 @@ declare const UpdateBodySchema: z.ZodObject<{
             c: z.ZodString;
             t: z.ZodLiteral<"encrypted">;
         }, "strip", z.ZodTypeAny, {
-            c: string;
             t: "encrypted";
+            c: string;
         }, {
-            c: string;
             t: "encrypted";
+            c: string;
         }>;
         createdAt: z.ZodNumber;
         updatedAt: z.ZodNumber;
@@ -3027,8 +3027,8 @@ declare const UpdateBodySchema: z.ZodObject<{
         id: string;
         seq: number;
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         createdAt: number;
         updatedAt: number;
@@ -3037,40 +3037,40 @@ declare const UpdateBodySchema: z.ZodObject<{
         id: string;
         seq: number;
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         createdAt: number;
         updatedAt: number;
         localId?: string | null | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    t: "new-message";
     message: {
         id: string;
         seq: number;
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         createdAt: number;
         updatedAt: number;
         localId?: string | null | undefined;
     };
+    t: "new-message";
     sid: string;
 }, {
-    t: "new-message";
     message: {
         id: string;
         seq: number;
         content: {
-            c: string;
             t: "encrypted";
+            c: string;
         };
         createdAt: number;
         updatedAt: number;
         localId?: string | null | undefined;
     };
+    t: "new-message";
     sid: string;
 }>;
 type UpdateBody = UpdateNewMessageBody;
@@ -3088,11 +3088,11 @@ declare const UpdateSchema: z.ZodObject<{
                 c: z.ZodString;
                 t: z.ZodLiteral<"encrypted">;
             }, "strip", z.ZodTypeAny, {
-                c: string;
                 t: "encrypted";
+                c: string;
             }, {
-                c: string;
                 t: "encrypted";
+                c: string;
             }>;
             createdAt: z.ZodNumber;
             updatedAt: z.ZodNumber;
@@ -3100,8 +3100,8 @@ declare const UpdateSchema: z.ZodObject<{
             id: string;
             seq: number;
             content: {
-                c: string;
                 t: "encrypted";
+                c: string;
             };
             createdAt: number;
             updatedAt: number;
@@ -3110,40 +3110,40 @@ declare const UpdateSchema: z.ZodObject<{
             id: string;
             seq: number;
             content: {
-                c: string;
                 t: "encrypted";
+                c: string;
             };
             createdAt: number;
             updatedAt: number;
             localId?: string | null | undefined;
         }>;
     }, "strip", z.ZodTypeAny, {
-        t: "new-message";
         message: {
             id: string;
             seq: number;
             content: {
-                c: string;
                 t: "encrypted";
+                c: string;
             };
             createdAt: number;
             updatedAt: number;
             localId?: string | null | undefined;
         };
+        t: "new-message";
         sid: string;
     }, {
-        t: "new-message";
         message: {
             id: string;
             seq: number;
             content: {
-                c: string;
                 t: "encrypted";
+                c: string;
             };
             createdAt: number;
             updatedAt: number;
             localId?: string | null | undefined;
         };
+        t: "new-message";
         sid: string;
     }>, z.ZodObject<{
         t: z.ZodLiteral<"update-session">;
@@ -3248,18 +3248,18 @@ declare const UpdateSchema: z.ZodObject<{
     seq: number;
     createdAt: number;
     body: {
-        t: "new-message";
         message: {
             id: string;
             seq: number;
             content: {
-                c: string;
                 t: "encrypted";
+                c: string;
             };
             createdAt: number;
             updatedAt: number;
             localId?: string | null | undefined;
         };
+        t: "new-message";
         sid: string;
     } | {
         t: "update-session";
@@ -3291,18 +3291,18 @@ declare const UpdateSchema: z.ZodObject<{
     seq: number;
     createdAt: number;
     body: {
-        t: "new-message";
         message: {
             id: string;
             seq: number;
             content: {
-                c: string;
                 t: "encrypted";
+                c: string;
             };
             createdAt: number;
             updatedAt: number;
             localId?: string | null | undefined;
         };
+        t: "new-message";
         sid: string;
     } | {
         t: "update-session";
@@ -4014,11 +4014,11 @@ declare const sessionTurnEndEventSchema: z.ZodObject<{
     t: z.ZodLiteral<"turn-end">;
     status: z.ZodEnum<["completed", "failed", "cancelled"]>;
 }, "strip", z.ZodTypeAny, {
-    t: "turn-end";
     status: "completed" | "failed" | "cancelled";
+    t: "turn-end";
 }, {
-    t: "turn-end";
     status: "completed" | "failed" | "cancelled";
+    t: "turn-end";
 }>;
 declare const sessionStopEventSchema: z.ZodObject<{
     t: z.ZodLiteral<"stop">;
@@ -4044,15 +4044,15 @@ declare const sessionContextBoundaryEventSchema: z.ZodObject<{
     summaryRef: z.ZodOptional<z.ZodString>;
     forkedFromSid: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    t: "context-boundary";
     at: number;
+    t: "context-boundary";
     kind: "clear" | "compact" | "autocompact" | "plan-mode-enter" | "plan-mode-exit" | "session-fork-resume";
     triggeredBy: "user" | "agent" | "system";
     summaryRef?: string | undefined;
     forkedFromSid?: string | undefined;
 }, {
-    t: "context-boundary";
     at: number;
+    t: "context-boundary";
     kind: "clear" | "compact" | "autocompact" | "plan-mode-enter" | "plan-mode-exit" | "session-fork-resume";
     triggeredBy: "user" | "agent" | "system";
     summaryRef?: string | undefined;
@@ -4262,11 +4262,11 @@ declare const sessionEventSchema: z.ZodDiscriminatedUnion<"t", [z.ZodObject<{
     t: z.ZodLiteral<"turn-end">;
     status: z.ZodEnum<["completed", "failed", "cancelled"]>;
 }, "strip", z.ZodTypeAny, {
-    t: "turn-end";
     status: "completed" | "failed" | "cancelled";
+    t: "turn-end";
 }, {
-    t: "turn-end";
     status: "completed" | "failed" | "cancelled";
+    t: "turn-end";
 }>, z.ZodObject<{
     t: z.ZodLiteral<"stop">;
 }, "strip", z.ZodTypeAny, {
@@ -4286,15 +4286,15 @@ declare const sessionEventSchema: z.ZodDiscriminatedUnion<"t", [z.ZodObject<{
     summaryRef: z.ZodOptional<z.ZodString>;
     forkedFromSid: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    t: "context-boundary";
     at: number;
+    t: "context-boundary";
     kind: "clear" | "compact" | "autocompact" | "plan-mode-enter" | "plan-mode-exit" | "session-fork-resume";
     triggeredBy: "user" | "agent" | "system";
     summaryRef?: string | undefined;
     forkedFromSid?: string | undefined;
 }, {
-    t: "context-boundary";
     at: number;
+    t: "context-boundary";
     kind: "clear" | "compact" | "autocompact" | "plan-mode-enter" | "plan-mode-exit" | "session-fork-resume";
     triggeredBy: "user" | "agent" | "system";
     summaryRef?: string | undefined;
@@ -4502,11 +4502,11 @@ declare const sessionEnvelopeSchema: z.ZodEffects<z.ZodObject<{
         t: z.ZodLiteral<"turn-end">;
         status: z.ZodEnum<["completed", "failed", "cancelled"]>;
     }, "strip", z.ZodTypeAny, {
-        t: "turn-end";
         status: "completed" | "failed" | "cancelled";
+        t: "turn-end";
     }, {
-        t: "turn-end";
         status: "completed" | "failed" | "cancelled";
+        t: "turn-end";
     }>, z.ZodObject<{
         t: z.ZodLiteral<"stop">;
     }, "strip", z.ZodTypeAny, {
@@ -4526,15 +4526,15 @@ declare const sessionEnvelopeSchema: z.ZodEffects<z.ZodObject<{
         summaryRef: z.ZodOptional<z.ZodString>;
         forkedFromSid: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        t: "context-boundary";
         at: number;
+        t: "context-boundary";
         kind: "clear" | "compact" | "autocompact" | "plan-mode-enter" | "plan-mode-exit" | "session-fork-resume";
         triggeredBy: "user" | "agent" | "system";
         summaryRef?: string | undefined;
         forkedFromSid?: string | undefined;
     }, {
-        t: "context-boundary";
         at: number;
+        t: "context-boundary";
         kind: "clear" | "compact" | "autocompact" | "plan-mode-enter" | "plan-mode-exit" | "session-fork-resume";
         triggeredBy: "user" | "agent" | "system";
         summaryRef?: string | undefined;
@@ -4660,13 +4660,13 @@ declare const sessionEnvelopeSchema: z.ZodEffects<z.ZodObject<{
         t: "start";
         title?: string | undefined;
     } | {
-        t: "turn-end";
         status: "completed" | "failed" | "cancelled";
+        t: "turn-end";
     } | {
         t: "stop";
     } | {
-        t: "context-boundary";
         at: number;
+        t: "context-boundary";
         kind: "clear" | "compact" | "autocompact" | "plan-mode-enter" | "plan-mode-exit" | "session-fork-resume";
         triggeredBy: "user" | "agent" | "system";
         summaryRef?: string | undefined;
@@ -4740,13 +4740,13 @@ declare const sessionEnvelopeSchema: z.ZodEffects<z.ZodObject<{
         t: "start";
         title?: string | undefined;
     } | {
-        t: "turn-end";
         status: "completed" | "failed" | "cancelled";
+        t: "turn-end";
     } | {
         t: "stop";
     } | {
-        t: "context-boundary";
         at: number;
+        t: "context-boundary";
         kind: "clear" | "compact" | "autocompact" | "plan-mode-enter" | "plan-mode-exit" | "session-fork-resume";
         triggeredBy: "user" | "agent" | "system";
         summaryRef?: string | undefined;
@@ -4820,13 +4820,13 @@ declare const sessionEnvelopeSchema: z.ZodEffects<z.ZodObject<{
         t: "start";
         title?: string | undefined;
     } | {
-        t: "turn-end";
         status: "completed" | "failed" | "cancelled";
+        t: "turn-end";
     } | {
         t: "stop";
     } | {
-        t: "context-boundary";
         at: number;
+        t: "context-boundary";
         kind: "clear" | "compact" | "autocompact" | "plan-mode-enter" | "plan-mode-exit" | "session-fork-resume";
         triggeredBy: "user" | "agent" | "system";
         summaryRef?: string | undefined;
@@ -4900,13 +4900,13 @@ declare const sessionEnvelopeSchema: z.ZodEffects<z.ZodObject<{
         t: "start";
         title?: string | undefined;
     } | {
-        t: "turn-end";
         status: "completed" | "failed" | "cancelled";
+        t: "turn-end";
     } | {
         t: "stop";
     } | {
-        t: "context-boundary";
         at: number;
+        t: "context-boundary";
         kind: "clear" | "compact" | "autocompact" | "plan-mode-enter" | "plan-mode-exit" | "session-fork-resume";
         triggeredBy: "user" | "agent" | "system";
         summaryRef?: string | undefined;
@@ -4981,19 +4981,19 @@ declare const TofuPubkeysEventSchema: z.ZodObject<{
         ed25519Fingerprint?: string | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    t: "tofu-pubkeys";
     keys: {
         ed25519PublicKey: string;
         x25519PublicKey: string;
         ed25519Fingerprint?: string | undefined;
     };
+    t: "tofu-pubkeys";
 }, {
-    t: "tofu-pubkeys";
     keys: {
         ed25519PublicKey: string;
         x25519PublicKey: string;
         ed25519Fingerprint?: string | undefined;
     };
+    t: "tofu-pubkeys";
 }>;
 type TofuPubkeysEvent = z.infer<typeof TofuPubkeysEventSchema>;
 declare const TofuSessionKeyExchangeSchema: z.ZodObject<{
@@ -5035,19 +5035,19 @@ declare const TofuHandshakeMessageSchema: z.ZodDiscriminatedUnion<"t", [z.ZodObj
         ed25519Fingerprint?: string | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    t: "tofu-pubkeys";
     keys: {
         ed25519PublicKey: string;
         x25519PublicKey: string;
         ed25519Fingerprint?: string | undefined;
     };
+    t: "tofu-pubkeys";
 }, {
-    t: "tofu-pubkeys";
     keys: {
         ed25519PublicKey: string;
         x25519PublicKey: string;
         ed25519Fingerprint?: string | undefined;
     };
+    t: "tofu-pubkeys";
 }>, z.ZodObject<{
     t: z.ZodLiteral<"tofu-session-key">;
     machineId: z.ZodString;
@@ -5888,14 +5888,14 @@ declare const AgentTreeNodeStatusChangedDeltaSchema: z.ZodObject<{
     status: z.ZodString;
     lastTaskMessage: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: string;
     type: "node-status-changed";
+    status: string;
     seq: number;
     threadId: string;
     lastTaskMessage?: string | undefined;
 }, {
-    status: string;
     type: "node-status-changed";
+    status: string;
     seq: number;
     threadId: string;
     lastTaskMessage?: string | undefined;
@@ -6014,14 +6014,14 @@ declare const AgentTreeDeltaSchema: z.ZodDiscriminatedUnion<"type", [z.ZodObject
     status: z.ZodString;
     lastTaskMessage: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: string;
     type: "node-status-changed";
+    status: string;
     seq: number;
     threadId: string;
     lastTaskMessage?: string | undefined;
 }, {
-    status: string;
     type: "node-status-changed";
+    status: string;
     seq: number;
     threadId: string;
     lastTaskMessage?: string | undefined;
@@ -6139,14 +6139,14 @@ declare const AgentTreeUpdateInboundPayloadSchema: z.ZodObject<{
         status: z.ZodString;
         lastTaskMessage: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        status: string;
         type: "node-status-changed";
+        status: string;
         seq: number;
         threadId: string;
         lastTaskMessage?: string | undefined;
     }, {
-        status: string;
         type: "node-status-changed";
+        status: string;
         seq: number;
         threadId: string;
         lastTaskMessage?: string | undefined;
@@ -6189,8 +6189,8 @@ declare const AgentTreeUpdateInboundPayloadSchema: z.ZodObject<{
             child: string;
         };
     } | {
-        status: string;
         type: "node-status-changed";
+        status: string;
         seq: number;
         threadId: string;
         lastTaskMessage?: string | undefined;
@@ -6225,8 +6225,8 @@ declare const AgentTreeUpdateInboundPayloadSchema: z.ZodObject<{
             child: string;
         };
     } | {
-        status: string;
         type: "node-status-changed";
+        status: string;
         seq: number;
         threadId: string;
         lastTaskMessage?: string | undefined;
@@ -6338,14 +6338,14 @@ declare const AgentTreeUpdateOutboundPayloadSchema: z.ZodObject<{
         status: z.ZodString;
         lastTaskMessage: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        status: string;
         type: "node-status-changed";
+        status: string;
         seq: number;
         threadId: string;
         lastTaskMessage?: string | undefined;
     }, {
-        status: string;
         type: "node-status-changed";
+        status: string;
         seq: number;
         threadId: string;
         lastTaskMessage?: string | undefined;
@@ -6389,8 +6389,8 @@ declare const AgentTreeUpdateOutboundPayloadSchema: z.ZodObject<{
             child: string;
         };
     } | {
-        status: string;
         type: "node-status-changed";
+        status: string;
         seq: number;
         threadId: string;
         lastTaskMessage?: string | undefined;
@@ -6426,8 +6426,8 @@ declare const AgentTreeUpdateOutboundPayloadSchema: z.ZodObject<{
             child: string;
         };
     } | {
-        status: string;
         type: "node-status-changed";
+        status: string;
         seq: number;
         threadId: string;
         lastTaskMessage?: string | undefined;
@@ -6529,11 +6529,11 @@ declare const AgentCommsFromSchema: z.ZodObject<{
     machineId: z.ZodString;
     sessionId: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    sessionId: string;
     machineId: string;
+    sessionId: string;
 }, {
-    sessionId: string;
     machineId: string;
+    sessionId: string;
 }>;
 type AgentCommsFrom = z.infer<typeof AgentCommsFromSchema>;
 declare const AgentCommsToSchema: z.ZodObject<{
@@ -6565,11 +6565,11 @@ declare const AgentCommsEnvelopeSchema: z.ZodObject<{
         machineId: z.ZodString;
         sessionId: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        sessionId: string;
         machineId: string;
+        sessionId: string;
     }, {
-        sessionId: string;
         machineId: string;
+        sessionId: string;
     }>;
     to: z.ZodObject<{
         machineId: z.ZodOptional<z.ZodString>;
@@ -6594,8 +6594,8 @@ declare const AgentCommsEnvelopeSchema: z.ZodObject<{
     v: 1;
     ts: number;
     from: {
-        sessionId: string;
         machineId: string;
+        sessionId: string;
     };
     to: {
         sessionId: string;
@@ -6613,8 +6613,8 @@ declare const AgentCommsEnvelopeSchema: z.ZodObject<{
     v: 1;
     ts: number;
     from: {
-        sessionId: string;
         machineId: string;
+        sessionId: string;
     };
     to: {
         sessionId: string;
@@ -6665,11 +6665,11 @@ declare const AgentCommsIngestBodySchema: z.ZodObject<{
             machineId: z.ZodString;
             sessionId: z.ZodString;
         }, "strip", z.ZodTypeAny, {
-            sessionId: string;
             machineId: string;
+            sessionId: string;
         }, {
-            sessionId: string;
             machineId: string;
+            sessionId: string;
         }>;
         to: z.ZodObject<{
             machineId: z.ZodOptional<z.ZodString>;
@@ -6694,8 +6694,8 @@ declare const AgentCommsIngestBodySchema: z.ZodObject<{
         v: 1;
         ts: number;
         from: {
-            sessionId: string;
             machineId: string;
+            sessionId: string;
         };
         to: {
             sessionId: string;
@@ -6713,8 +6713,8 @@ declare const AgentCommsIngestBodySchema: z.ZodObject<{
         v: 1;
         ts: number;
         from: {
-            sessionId: string;
             machineId: string;
+            sessionId: string;
         };
         to: {
             sessionId: string;
@@ -6742,14 +6742,15 @@ declare const AgentCommsIngestBodySchema: z.ZodObject<{
         ed25519Fingerprint?: string | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
+    signature: string;
     envelope: {
         id: string;
         kind: "request" | "reply" | "notify" | "spawn-request" | "spawn-result";
         v: 1;
         ts: number;
         from: {
-            sessionId: string;
             machineId: string;
+            sessionId: string;
         };
         to: {
             sessionId: string;
@@ -6762,21 +6763,21 @@ declare const AgentCommsIngestBodySchema: z.ZodObject<{
         body?: unknown;
         correlationId?: string | undefined;
     };
-    signature: string;
     senderKeys: {
         ed25519PublicKey: string;
         ecdhPublicKey: string;
         ed25519Fingerprint?: string | undefined;
     };
 }, {
+    signature: string;
     envelope: {
         id: string;
         kind: "request" | "reply" | "notify" | "spawn-request" | "spawn-result";
         v: 1;
         ts: number;
         from: {
-            sessionId: string;
             machineId: string;
+            sessionId: string;
         };
         to: {
             sessionId: string;
@@ -6789,7 +6790,6 @@ declare const AgentCommsIngestBodySchema: z.ZodObject<{
         body?: unknown;
         correlationId?: string | undefined;
     };
-    signature: string;
     senderKeys: {
         ed25519PublicKey: string;
         ecdhPublicKey: string;
@@ -6840,24 +6840,24 @@ declare const PublicSignedRequestEnvelopeSchema: z.ZodObject<{
     signature: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     path: string;
-    v: 1;
-    signature: string;
     issuedAt: number;
+    v: 1;
     keyId: string;
     publicKey: string;
     nonce: string;
     method: string;
     bodyHash: string;
+    signature: string;
 }, {
     path: string;
-    v: 1;
-    signature: string;
     issuedAt: number;
+    v: 1;
     keyId: string;
     publicKey: string;
     nonce: string;
     method: string;
     bodyHash: string;
+    signature: string;
 }>;
 type PublicSignedRequestEnvelope = z.infer<typeof PublicSignedRequestEnvelopeSchema>;
 declare function normalizeMethod(method: string): string;
@@ -6978,9 +6978,9 @@ declare const PublicPairingInviteSchema: z.ZodObject<{
     issuedAt: z.ZodString;
     expiresAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
+    machineId: string;
     expiresAt: string;
     version: 1;
-    machineId: string;
     serverUrl: string;
     pairSecret: string;
     cloudflareAccess: {
@@ -6989,9 +6989,9 @@ declare const PublicPairingInviteSchema: z.ZodObject<{
     };
     issuedAt: string;
 }, {
+    machineId: string;
     expiresAt: string;
     version: 1;
-    machineId: string;
     serverUrl: string;
     pairSecret: string;
     cloudflareAccess: {
@@ -7062,10 +7062,10 @@ declare const LocalPairingInviteSchema: z.ZodEffects<z.ZodObject<{
     issuedAt: z.ZodString;
     expiresAt: z.ZodString;
 }, "strict", z.ZodTypeAny, {
+    machineId: string;
     kind: "happy-local-pairing";
     expiresAt: string;
     version: 1;
-    machineId: string;
     serverUrl: string;
     pairSecret: string;
     issuedAt: string;
@@ -7073,10 +7073,10 @@ declare const LocalPairingInviteSchema: z.ZodEffects<z.ZodObject<{
     browserOrigin: string;
     pairingNonce: string;
 }, {
+    machineId: string;
     kind: "happy-local-pairing";
     expiresAt: string;
     version: 1;
-    machineId: string;
     serverUrl: string;
     pairSecret: string;
     issuedAt: string;
@@ -7084,10 +7084,10 @@ declare const LocalPairingInviteSchema: z.ZodEffects<z.ZodObject<{
     browserOrigin: string;
     pairingNonce: string;
 }>, {
+    machineId: string;
     kind: "happy-local-pairing";
     expiresAt: string;
     version: 1;
-    machineId: string;
     serverUrl: string;
     pairSecret: string;
     issuedAt: string;
@@ -7095,10 +7095,10 @@ declare const LocalPairingInviteSchema: z.ZodEffects<z.ZodObject<{
     browserOrigin: string;
     pairingNonce: string;
 }, {
+    machineId: string;
     kind: "happy-local-pairing";
     expiresAt: string;
     version: 1;
-    machineId: string;
     serverUrl: string;
     pairSecret: string;
     issuedAt: string;
@@ -7143,44 +7143,44 @@ declare const LocalSignedRequestEnvelopeSchema: z.ZodEffects<z.ZodObject<{
     bodyHash: z.ZodString;
     signature: z.ZodString;
 }, "strict", z.ZodTypeAny, {
-    v: 1;
-    signature: string;
     issuedAt: number;
+    v: 1;
     keyId: string;
     publicKey: string;
     nonce: string;
     method: string;
     bodyHash: string;
+    signature: string;
     target: string;
 }, {
-    v: 1;
-    signature: string;
     issuedAt: number;
+    v: 1;
     keyId: string;
     publicKey: string;
     nonce: string;
     method: string;
     bodyHash: string;
+    signature: string;
     target: string;
 }>, {
-    v: 1;
-    signature: string;
     issuedAt: number;
+    v: 1;
     keyId: string;
     publicKey: string;
     nonce: string;
     method: string;
     bodyHash: string;
+    signature: string;
     target: string;
 }, {
-    v: 1;
-    signature: string;
     issuedAt: number;
+    v: 1;
     keyId: string;
     publicKey: string;
     nonce: string;
     method: string;
     bodyHash: string;
+    signature: string;
     target: string;
 }>;
 type LocalSignedRequestEnvelope = z.infer<typeof LocalSignedRequestEnvelopeSchema>;
@@ -7230,14 +7230,14 @@ declare const PairCompleteRequestSchema: z.ZodObject<{
     deviceEd25519PublicKey: z.ZodString;
     mobileEcdhPublicKey: z.ZodOptional<z.ZodString>;
 }, "strict", z.ZodTypeAny, {
-    version: 1;
     machineId: string;
+    version: 1;
     deviceKeyId: string;
     deviceEd25519PublicKey: string;
     mobileEcdhPublicKey?: string | undefined;
 }, {
-    version: 1;
     machineId: string;
+    version: 1;
     deviceKeyId: string;
     deviceEd25519PublicKey: string;
     mobileEcdhPublicKey?: string | undefined;
@@ -7438,17 +7438,17 @@ declare const PairCompleteResponseUnsignedSchema: z.ZodObject<{
         ed25519Fingerprint: z.ZodString;
         mobileSharedSecret: z.ZodOptional<z.ZodString>;
     }, "strict", z.ZodTypeAny, {
-        machineId: string;
         ed25519PublicKey: string;
         x25519PublicKey: string;
         ed25519Fingerprint: string;
+        machineId: string;
         tunnelUrl: string;
         mobileSharedSecret?: string | undefined;
     }, {
-        machineId: string;
         ed25519PublicKey: string;
         x25519PublicKey: string;
         ed25519Fingerprint: string;
+        machineId: string;
         tunnelUrl: string;
         mobileSharedSecret?: string | undefined;
     }>;
@@ -7485,10 +7485,10 @@ declare const PairCompleteResponseUnsignedSchema: z.ZodObject<{
         connectedServices: string[];
     };
     machine: {
-        machineId: string;
         ed25519PublicKey: string;
         x25519PublicKey: string;
         ed25519Fingerprint: string;
+        machineId: string;
         tunnelUrl: string;
         mobileSharedSecret?: string | undefined;
     };
@@ -7518,10 +7518,10 @@ declare const PairCompleteResponseUnsignedSchema: z.ZodObject<{
         connectedServices: string[];
     };
     machine: {
-        machineId: string;
         ed25519PublicKey: string;
         x25519PublicKey: string;
         ed25519Fingerprint: string;
+        machineId: string;
         tunnelUrl: string;
         mobileSharedSecret?: string | undefined;
     };
@@ -7602,17 +7602,17 @@ declare const PairCompleteResponseSchema: z.ZodObject<{
         ed25519Fingerprint: z.ZodString;
         mobileSharedSecret: z.ZodOptional<z.ZodString>;
     }, "strict", z.ZodTypeAny, {
-        machineId: string;
         ed25519PublicKey: string;
         x25519PublicKey: string;
         ed25519Fingerprint: string;
+        machineId: string;
         tunnelUrl: string;
         mobileSharedSecret?: string | undefined;
     }, {
-        machineId: string;
         ed25519PublicKey: string;
         x25519PublicKey: string;
         ed25519Fingerprint: string;
+        machineId: string;
         tunnelUrl: string;
         mobileSharedSecret?: string | undefined;
     }>;
@@ -7651,10 +7651,10 @@ declare const PairCompleteResponseSchema: z.ZodObject<{
         connectedServices: string[];
     };
     machine: {
-        machineId: string;
         ed25519PublicKey: string;
         x25519PublicKey: string;
         ed25519Fingerprint: string;
+        machineId: string;
         tunnelUrl: string;
         mobileSharedSecret?: string | undefined;
     };
@@ -7685,10 +7685,10 @@ declare const PairCompleteResponseSchema: z.ZodObject<{
         connectedServices: string[];
     };
     machine: {
-        machineId: string;
         ed25519PublicKey: string;
         x25519PublicKey: string;
         ed25519Fingerprint: string;
+        machineId: string;
         tunnelUrl: string;
         mobileSharedSecret?: string | undefined;
     };
@@ -7990,6 +7990,30 @@ declare const steeringCommandEnvelopeSchema: z.ZodDiscriminatedUnion<"type", [z.
 type SteeringCommandEnvelope = z.infer<typeof steeringCommandEnvelopeSchema>;
 declare const steeringOutcomeSchema: z.ZodEnum<["pending", "applied", "duplicate", "already_resolved", "out_of_scope", "destructive_kind", "no_lease", "not_pending", "rate_limited"]>;
 type SteeringOutcome = z.infer<typeof steeringOutcomeSchema>;
+/**
+ * T6 v3 attach-level protocol negotiation, nested under
+ * `happy.attach` result `protocol` (fork-confirmed shape 2026-08-17).
+ * `capabilities` is an array in v3. Passthrough tolerates additive future
+ * fields (e.g. `contractHash`) without breaking the attach; the CLI still
+ * validates `happyProtocolVersion`/`methods` fail-closed when present.
+ */
+declare const steeringAttachProtocolSchema: z.ZodObject<{
+    happyProtocolVersion: z.ZodString;
+    capabilities: z.ZodOptional<z.ZodArray<z.ZodUnknown, "many">>;
+    methods: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+    contractHash: z.ZodOptional<z.ZodString>;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    happyProtocolVersion: z.ZodString;
+    capabilities: z.ZodOptional<z.ZodArray<z.ZodUnknown, "many">>;
+    methods: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+    contractHash: z.ZodOptional<z.ZodString>;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    happyProtocolVersion: z.ZodString;
+    capabilities: z.ZodOptional<z.ZodArray<z.ZodUnknown, "many">>;
+    methods: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+    contractHash: z.ZodOptional<z.ZodString>;
+}, z.ZodTypeAny, "passthrough">>;
+type SteeringAttachProtocol = z.infer<typeof steeringAttachProtocolSchema>;
 declare const steeringResultSchema: z.ZodObject<{
     actionId: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
     outcome: z.ZodEnum<["pending", "applied", "duplicate", "already_resolved", "out_of_scope", "destructive_kind", "no_lease", "not_pending", "rate_limited"]>;
@@ -7999,9 +8023,23 @@ declare const steeringResultSchema: z.ZodObject<{
     leaseTtlMs: z.ZodOptional<z.ZodNumber>;
     retryAfterMs: z.ZodOptional<z.ZodNumber>;
     requestId: z.ZodOptional<z.ZodString>;
-    happyProtocolVersion: z.ZodOptional<z.ZodString>;
-    capabilities: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
-    methods: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+    control: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+    protocol: z.ZodOptional<z.ZodObject<{
+        happyProtocolVersion: z.ZodString;
+        capabilities: z.ZodOptional<z.ZodArray<z.ZodUnknown, "many">>;
+        methods: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+        contractHash: z.ZodOptional<z.ZodString>;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        happyProtocolVersion: z.ZodString;
+        capabilities: z.ZodOptional<z.ZodArray<z.ZodUnknown, "many">>;
+        methods: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+        contractHash: z.ZodOptional<z.ZodString>;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        happyProtocolVersion: z.ZodString;
+        capabilities: z.ZodOptional<z.ZodArray<z.ZodUnknown, "many">>;
+        methods: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+        contractHash: z.ZodOptional<z.ZodString>;
+    }, z.ZodTypeAny, "passthrough">>>;
 }, "strict", z.ZodTypeAny, {
     outcome: "rate_limited" | "pending" | "applied" | "duplicate" | "already_resolved" | "out_of_scope" | "destructive_kind" | "no_lease" | "not_pending";
     requestId?: string | undefined;
@@ -8011,9 +8049,13 @@ declare const steeringResultSchema: z.ZodObject<{
     leaseTtlMs?: number | undefined;
     actionId?: string | undefined;
     retryAfterMs?: number | undefined;
-    happyProtocolVersion?: string | undefined;
-    capabilities?: Record<string, unknown> | undefined;
-    methods?: string[] | undefined;
+    control?: Record<string, unknown> | undefined;
+    protocol?: z.objectOutputType<{
+        happyProtocolVersion: z.ZodString;
+        capabilities: z.ZodOptional<z.ZodArray<z.ZodUnknown, "many">>;
+        methods: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+        contractHash: z.ZodOptional<z.ZodString>;
+    }, z.ZodTypeAny, "passthrough"> | undefined;
 }, {
     outcome: "rate_limited" | "pending" | "applied" | "duplicate" | "already_resolved" | "out_of_scope" | "destructive_kind" | "no_lease" | "not_pending";
     requestId?: string | undefined;
@@ -8023,9 +8065,13 @@ declare const steeringResultSchema: z.ZodObject<{
     leaseTtlMs?: number | undefined;
     actionId?: string | undefined;
     retryAfterMs?: number | undefined;
-    happyProtocolVersion?: string | undefined;
-    capabilities?: Record<string, unknown> | undefined;
-    methods?: string[] | undefined;
+    control?: Record<string, unknown> | undefined;
+    protocol?: z.objectInputType<{
+        happyProtocolVersion: z.ZodString;
+        capabilities: z.ZodOptional<z.ZodArray<z.ZodUnknown, "many">>;
+        methods: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+        contractHash: z.ZodOptional<z.ZodString>;
+    }, z.ZodTypeAny, "passthrough"> | undefined;
 }>;
 type SteeringResult = z.infer<typeof steeringResultSchema>;
 declare const steeringLeaseRevocationReasonSchema: z.ZodEnum<["keystroke", "expired", "released", "detached"]>;
@@ -8097,5 +8143,5 @@ declare const MachineTunnelSchema: z.ZodObject<{
 }>;
 type MachineTunnel = z.infer<typeof MachineTunnelSchema>;
 
-export { AgentCommsChannelSchema, AgentCommsEnvelopeSchema, AgentCommsFromSchema, AgentCommsIngestBodySchema, AgentCommsKindSchema, AgentCommsScopeSchema, AgentCommsToSchema, AgentMessageSchema, AgentTreeDeltaSchema, AgentTreeEdgeSchema, AgentTreeNodeAddedDeltaSchema, AgentTreeNodeRemovedDeltaSchema, AgentTreeNodeSchema, AgentTreeNodeStatusChangedDeltaSchema, AgentTreePendingSpawnStartedDeltaSchema, AgentTreeSnapshotSchema, AgentTreeUpdateInboundPayloadSchema, AgentTreeUpdateOutboundPayloadSchema, ApiMessageSchema, ApiUpdateMachineStateSchema, ApiUpdateNewMessageSchema, ApiUpdateSessionStateSchema, CanonicalLocalProfileFileSchema, CanonicalLocalProfileSchema, CloudflareAccessServiceTokenSchema, CoreUpdateBodySchema, CoreUpdateContainerSchema, DoneLedgerRecordSchema, ErrorLedgerRecordSchema, IdleReachedLedgerRecordSchema, LOCAL_DEVICE_PROOF_CLOCK_SKEW_MS, LOCAL_DEVICE_PROOF_DOMAIN, LOCAL_DEVICE_PROOF_ENVELOPE_VERSION, LOCAL_DEVICE_PROOF_FRESHNESS_MS, LOCAL_DEVICE_PROOF_HEADER, LOCAL_DEVICE_PROOF_NONCE_BYTES, LOCAL_PAIRING_AUTH_MODE, LOCAL_PAIRING_FORWARD_SKEW_MS, LOCAL_PAIRING_INVITE_KIND, LOCAL_PAIRING_INVITE_VERSION, LOCAL_PAIRING_NONCE_BYTES, LOCAL_PAIRING_NONCE_HEADER, LOCAL_PAIRING_SECRET_BYTES, LOCAL_PAIRING_SECRET_HEADER, LOCAL_PAIRING_WINDOW_MS, LastOutputSummaryLedgerRecordSchema, LedgerErrorCodeSchema, LedgerRecordSchema, LegacyMessageContentSchema, LocalPairingInviteSchema, LocalSignedRequestEnvelopeSchema, MAX_HOPS, MachineTunnelSchema, MessageContentSchema, MessageMetaSchema, MessageSentLedgerRecordSchema, PAIR_COMPLETE_REQUEST_VERSION, PAIR_COMPLETE_RESPONSE_DOMAIN, PAIR_COMPLETE_RESPONSE_VERSION, PUBLIC_DEVICE_AUTH_TEST_VECTOR, PUBLIC_DEVICE_PROOF_CLOCK_SKEW_MS, PUBLIC_DEVICE_PROOF_DOMAIN, PUBLIC_DEVICE_PROOF_ENVELOPE_VERSION, PUBLIC_DEVICE_PROOF_FRESHNESS_MS, PUBLIC_DEVICE_PROOF_HEADER, PUBLIC_PAIRING_INVITE_DEFAULT_TTL_MS, PUBLIC_PAIRING_INVITE_TEST_VECTOR, PUBLIC_PAIRING_INVITE_VERSION, PairCompleteRequestSchema, PairCompleteResponseSchema, PairCompleteResponseUnsignedSchema, PendingPermissionLedgerRecordSchema, PublicPairingInviteSchema, PublicSignedRequestEnvelopeSchema, SESSION_OUTPUT_SNAPSHOT_ID_MAX_CHARS, SESSION_OUTPUT_SNAPSHOT_TEXT_MAX_BYTES, SESSION_OUTPUT_SNAPSHOT_TYPE, STEERING_RELAY_CALLER_KEY, STEERING_RPC_METHODS, SenderKeysSchema, SessionGetAgentTreeRequestSchema, SessionGetAgentTreeResponseSchema, SessionMessageContentSchema, SessionMessageRangeRequestSchema, SessionMessageRangeResponseSchema, SessionMessageSchema, SessionOutputSnapshotEphemeralUpdateSchema, SessionOutputSnapshotPayloadSchema, SessionProtocolMessageSchema, SpawnLedgerRecordSchema, TofuHandshakeMessageSchema, TofuPubkeysEventSchema, TofuPublicKeysSchema, TofuSessionKeyExchangeSchema, UpdateBodySchema, UpdateMachineBodySchema, UpdateNewMessageBodySchema, UpdateSchema, UpdateSessionBodySchema, UserMessageSchema, ValidationAttachedLedgerRecordSchema, VersionedEncryptedValueSchema, VersionedMachineEncryptedValueSchema, VersionedNullableEncryptedValueSchema, VoiceConversationDeniedSchema, VoiceConversationGrantedSchema, VoiceConversationResponseSchema, VoiceUsageResponseSchema, answerAskUserContentSchema, answerElicitationContentSchema, answerPermissionContentSchema, answerPlanContentSchema, canonicalLocalRequestStringToSign, canonicalPairCompleteResponse, canonicalRequestStringToSign, canonicalizeLocalRequestTarget, canonicalizePublicRequestTarget, createEnvelope, createLocalPairingInvite, createPublicPairingInvite, decodeBase64, decodeBase64Url, decodeLocalDeviceProofHeader, decodeLocalPairingInvite, decodePublicDeviceProofHeader, decodePublicPairingInvite, encodeBase64, encodeBase64Url, encodeLocalDeviceProofHeader, encodeLocalPairingInvite, encodePublicDeviceProofHeader, encodePublicPairingInvite, findSenderDropEntry, forkBoilerplateEntry, generateLocalPairingNonce, generateLocalPairingSecret, generatePairSecret, generatePublicRequestNonce, getSessionOutputSnapshotKey, getSessionOutputSnapshotTransientMessageId, hashLocalRequestBody, hashRequestBody, isLocalPairingInviteValid, isLocalProofFresh, isPublicPairingInviteValid, isPublicProofFresh, isStrictLoopbackServerUrl, localCommandCaveatEntry, makeWrappedTagEntry, nonRenderableEntries, normalizeMethod, routeHopValidation, sessionAgentConfigurationChangedEventSchema, sessionContextBoundaryEventSchema, sessionContextBoundaryKindSchema, sessionContextBoundaryTriggeredBySchema, sessionCopilotControlEventSchema, sessionCopilotPromptEventSchema, sessionEnvelopeSchema, sessionEventSchema, sessionFileEventSchema, sessionMessageConsumptionEventSchema, sessionRoleSchema, sessionServiceMessageEventSchema, sessionStartEventSchema, sessionStopEventSchema, sessionTextEventSchema, sessionToolCallEndEventSchema, sessionToolCallStartEventSchema, sessionTurnEndEventSchema, sessionTurnEndStatusSchema, sessionTurnStartEventSchema, signLocalRequest, signPairCompleteResponse, signPublicRequest, skillBodyEntry, steeringCommandEnvelopeSchema, steeringCommandTypeSchema, steeringControlChangedParamsSchema, steeringControlChangedReasonSchema, steeringLeaseRevocationReasonSchema, steeringOutcomeSchema, steeringRelayCallerSchema, steeringResultSchema, systemReminderEntry, verifyLocalRequest, verifyPairCompleteResponse, verifyPublicRequest };
-export type { AgentCommsChannel, AgentCommsEnvelope, AgentCommsFrom, AgentCommsIngestBody, AgentCommsIngestHandler, AgentCommsKind, AgentCommsScope, AgentCommsTo, AgentMessage, AgentTreeDelta, AgentTreeEdge, AgentTreeNode, AgentTreeNodeAddedDelta, AgentTreeNodeRemovedDelta, AgentTreeNodeStatusChangedDelta, AgentTreePendingSpawnStartedDelta, AgentTreeSnapshot, AgentTreeUpdateInboundPayload, AgentTreeUpdateOutboundPayload, AnswerAskUserContent, AnswerElicitationContent, AnswerPermissionContent, AnswerPlanContent, ApiMessage, ApiUpdateMachineState, ApiUpdateNewMessage, ApiUpdateSessionState, CanonicalLocalProfile, CanonicalLocalProfileFile, CanonicalRequestFields, CloudflareAccessServiceToken, CoreUpdateBody, CoreUpdateContainer, CreateEnvelopeOptions, CreateLocalPairingInviteInput, CreatePublicPairingInviteInput, LedgerErrorCode, LedgerRecord, LegacyMessageContent, LocalCanonicalRequestFields, LocalPairingInvite, LocalRequestVerification, LocalSignedRequestEnvelope, MachineTunnel, MessageContent, MessageMeta, NonRenderableEntry, PairCompleteRequest, PairCompleteResponse, PairCompleteResponseUnsigned, PublicDeviceAuthTestVector, PublicPairingInvite, PublicPairingInviteTestVector, PublicRequestVerification, PublicSignedRequestEnvelope, RawClaudeMessageMatchInput, ReceiverRegexFactory, SenderKeys, SessionAgentConfigurationChangedEvent, SessionContextBoundaryEvent, SessionContextBoundaryKind, SessionContextBoundaryTriggeredBy, SessionCopilotControlEvent, SessionCopilotPromptEvent, SessionEnvelope, SessionEvent, SessionGetAgentTreeRequest, SessionGetAgentTreeResponse, SessionMessage, SessionMessageConsumptionEvent, SessionMessageContent, SessionMessageRangeRequest, SessionMessageRangeResponse, SessionOutputSnapshotEphemeralUpdate, SessionOutputSnapshotPayload, SessionProtocolMessage, SessionRole, SessionTurnEndStatus, SignLocalRequestInput, SignPublicRequestInput, SteeringCommandEnvelope, SteeringCommandType, SteeringControlChangedParams, SteeringControlChangedReason, SteeringLeaseRevocationReason, SteeringOutcome, SteeringRelayCaller, SteeringResult, SteeringRpcMethod, TofuHandshakeMessage, TofuPubkeysEvent, TofuPublicKeys, TofuSessionKeyExchange, Update, UpdateBody, UpdateMachineBody, UpdateNewMessageBody, UpdateSessionBody, UserMessage, VerifyLocalRequestContext, VerifyPublicRequestContext, VersionedEncryptedValue, VersionedMachineEncryptedValue, VersionedNullableEncryptedValue, VoiceConversationResponse, VoiceUsageResponse };
+export { AgentCommsChannelSchema, AgentCommsEnvelopeSchema, AgentCommsFromSchema, AgentCommsIngestBodySchema, AgentCommsKindSchema, AgentCommsScopeSchema, AgentCommsToSchema, AgentMessageSchema, AgentTreeDeltaSchema, AgentTreeEdgeSchema, AgentTreeNodeAddedDeltaSchema, AgentTreeNodeRemovedDeltaSchema, AgentTreeNodeSchema, AgentTreeNodeStatusChangedDeltaSchema, AgentTreePendingSpawnStartedDeltaSchema, AgentTreeSnapshotSchema, AgentTreeUpdateInboundPayloadSchema, AgentTreeUpdateOutboundPayloadSchema, ApiMessageSchema, ApiUpdateMachineStateSchema, ApiUpdateNewMessageSchema, ApiUpdateSessionStateSchema, CanonicalLocalProfileFileSchema, CanonicalLocalProfileSchema, CloudflareAccessServiceTokenSchema, CoreUpdateBodySchema, CoreUpdateContainerSchema, DoneLedgerRecordSchema, ErrorLedgerRecordSchema, IdleReachedLedgerRecordSchema, LOCAL_DEVICE_PROOF_CLOCK_SKEW_MS, LOCAL_DEVICE_PROOF_DOMAIN, LOCAL_DEVICE_PROOF_ENVELOPE_VERSION, LOCAL_DEVICE_PROOF_FRESHNESS_MS, LOCAL_DEVICE_PROOF_HEADER, LOCAL_DEVICE_PROOF_NONCE_BYTES, LOCAL_PAIRING_AUTH_MODE, LOCAL_PAIRING_FORWARD_SKEW_MS, LOCAL_PAIRING_INVITE_KIND, LOCAL_PAIRING_INVITE_VERSION, LOCAL_PAIRING_NONCE_BYTES, LOCAL_PAIRING_NONCE_HEADER, LOCAL_PAIRING_SECRET_BYTES, LOCAL_PAIRING_SECRET_HEADER, LOCAL_PAIRING_WINDOW_MS, LastOutputSummaryLedgerRecordSchema, LedgerErrorCodeSchema, LedgerRecordSchema, LegacyMessageContentSchema, LocalPairingInviteSchema, LocalSignedRequestEnvelopeSchema, MAX_HOPS, MachineTunnelSchema, MessageContentSchema, MessageMetaSchema, MessageSentLedgerRecordSchema, PAIR_COMPLETE_REQUEST_VERSION, PAIR_COMPLETE_RESPONSE_DOMAIN, PAIR_COMPLETE_RESPONSE_VERSION, PUBLIC_DEVICE_AUTH_TEST_VECTOR, PUBLIC_DEVICE_PROOF_CLOCK_SKEW_MS, PUBLIC_DEVICE_PROOF_DOMAIN, PUBLIC_DEVICE_PROOF_ENVELOPE_VERSION, PUBLIC_DEVICE_PROOF_FRESHNESS_MS, PUBLIC_DEVICE_PROOF_HEADER, PUBLIC_PAIRING_INVITE_DEFAULT_TTL_MS, PUBLIC_PAIRING_INVITE_TEST_VECTOR, PUBLIC_PAIRING_INVITE_VERSION, PairCompleteRequestSchema, PairCompleteResponseSchema, PairCompleteResponseUnsignedSchema, PendingPermissionLedgerRecordSchema, PublicPairingInviteSchema, PublicSignedRequestEnvelopeSchema, SESSION_OUTPUT_SNAPSHOT_ID_MAX_CHARS, SESSION_OUTPUT_SNAPSHOT_TEXT_MAX_BYTES, SESSION_OUTPUT_SNAPSHOT_TYPE, STEERING_RELAY_CALLER_KEY, STEERING_RPC_METHODS, SenderKeysSchema, SessionGetAgentTreeRequestSchema, SessionGetAgentTreeResponseSchema, SessionMessageContentSchema, SessionMessageRangeRequestSchema, SessionMessageRangeResponseSchema, SessionMessageSchema, SessionOutputSnapshotEphemeralUpdateSchema, SessionOutputSnapshotPayloadSchema, SessionProtocolMessageSchema, SpawnLedgerRecordSchema, TofuHandshakeMessageSchema, TofuPubkeysEventSchema, TofuPublicKeysSchema, TofuSessionKeyExchangeSchema, UpdateBodySchema, UpdateMachineBodySchema, UpdateNewMessageBodySchema, UpdateSchema, UpdateSessionBodySchema, UserMessageSchema, ValidationAttachedLedgerRecordSchema, VersionedEncryptedValueSchema, VersionedMachineEncryptedValueSchema, VersionedNullableEncryptedValueSchema, VoiceConversationDeniedSchema, VoiceConversationGrantedSchema, VoiceConversationResponseSchema, VoiceUsageResponseSchema, answerAskUserContentSchema, answerElicitationContentSchema, answerPermissionContentSchema, answerPlanContentSchema, canonicalLocalRequestStringToSign, canonicalPairCompleteResponse, canonicalRequestStringToSign, canonicalizeLocalRequestTarget, canonicalizePublicRequestTarget, createEnvelope, createLocalPairingInvite, createPublicPairingInvite, decodeBase64, decodeBase64Url, decodeLocalDeviceProofHeader, decodeLocalPairingInvite, decodePublicDeviceProofHeader, decodePublicPairingInvite, encodeBase64, encodeBase64Url, encodeLocalDeviceProofHeader, encodeLocalPairingInvite, encodePublicDeviceProofHeader, encodePublicPairingInvite, findSenderDropEntry, forkBoilerplateEntry, generateLocalPairingNonce, generateLocalPairingSecret, generatePairSecret, generatePublicRequestNonce, getSessionOutputSnapshotKey, getSessionOutputSnapshotTransientMessageId, hashLocalRequestBody, hashRequestBody, isLocalPairingInviteValid, isLocalProofFresh, isPublicPairingInviteValid, isPublicProofFresh, isStrictLoopbackServerUrl, localCommandCaveatEntry, makeWrappedTagEntry, nonRenderableEntries, normalizeMethod, routeHopValidation, sessionAgentConfigurationChangedEventSchema, sessionContextBoundaryEventSchema, sessionContextBoundaryKindSchema, sessionContextBoundaryTriggeredBySchema, sessionCopilotControlEventSchema, sessionCopilotPromptEventSchema, sessionEnvelopeSchema, sessionEventSchema, sessionFileEventSchema, sessionMessageConsumptionEventSchema, sessionRoleSchema, sessionServiceMessageEventSchema, sessionStartEventSchema, sessionStopEventSchema, sessionTextEventSchema, sessionToolCallEndEventSchema, sessionToolCallStartEventSchema, sessionTurnEndEventSchema, sessionTurnEndStatusSchema, sessionTurnStartEventSchema, signLocalRequest, signPairCompleteResponse, signPublicRequest, skillBodyEntry, steeringAttachProtocolSchema, steeringCommandEnvelopeSchema, steeringCommandTypeSchema, steeringControlChangedParamsSchema, steeringControlChangedReasonSchema, steeringLeaseRevocationReasonSchema, steeringOutcomeSchema, steeringRelayCallerSchema, steeringResultSchema, systemReminderEntry, verifyLocalRequest, verifyPairCompleteResponse, verifyPublicRequest };
+export type { AgentCommsChannel, AgentCommsEnvelope, AgentCommsFrom, AgentCommsIngestBody, AgentCommsIngestHandler, AgentCommsKind, AgentCommsScope, AgentCommsTo, AgentMessage, AgentTreeDelta, AgentTreeEdge, AgentTreeNode, AgentTreeNodeAddedDelta, AgentTreeNodeRemovedDelta, AgentTreeNodeStatusChangedDelta, AgentTreePendingSpawnStartedDelta, AgentTreeSnapshot, AgentTreeUpdateInboundPayload, AgentTreeUpdateOutboundPayload, AnswerAskUserContent, AnswerElicitationContent, AnswerPermissionContent, AnswerPlanContent, ApiMessage, ApiUpdateMachineState, ApiUpdateNewMessage, ApiUpdateSessionState, CanonicalLocalProfile, CanonicalLocalProfileFile, CanonicalRequestFields, CloudflareAccessServiceToken, CoreUpdateBody, CoreUpdateContainer, CreateEnvelopeOptions, CreateLocalPairingInviteInput, CreatePublicPairingInviteInput, LedgerErrorCode, LedgerRecord, LegacyMessageContent, LocalCanonicalRequestFields, LocalPairingInvite, LocalRequestVerification, LocalSignedRequestEnvelope, MachineTunnel, MessageContent, MessageMeta, NonRenderableEntry, PairCompleteRequest, PairCompleteResponse, PairCompleteResponseUnsigned, PublicDeviceAuthTestVector, PublicPairingInvite, PublicPairingInviteTestVector, PublicRequestVerification, PublicSignedRequestEnvelope, RawClaudeMessageMatchInput, ReceiverRegexFactory, SenderKeys, SessionAgentConfigurationChangedEvent, SessionContextBoundaryEvent, SessionContextBoundaryKind, SessionContextBoundaryTriggeredBy, SessionCopilotControlEvent, SessionCopilotPromptEvent, SessionEnvelope, SessionEvent, SessionGetAgentTreeRequest, SessionGetAgentTreeResponse, SessionMessage, SessionMessageConsumptionEvent, SessionMessageContent, SessionMessageRangeRequest, SessionMessageRangeResponse, SessionOutputSnapshotEphemeralUpdate, SessionOutputSnapshotPayload, SessionProtocolMessage, SessionRole, SessionTurnEndStatus, SignLocalRequestInput, SignPublicRequestInput, SteeringAttachProtocol, SteeringCommandEnvelope, SteeringCommandType, SteeringControlChangedParams, SteeringControlChangedReason, SteeringLeaseRevocationReason, SteeringOutcome, SteeringRelayCaller, SteeringResult, SteeringRpcMethod, TofuHandshakeMessage, TofuPubkeysEvent, TofuPublicKeys, TofuSessionKeyExchange, Update, UpdateBody, UpdateMachineBody, UpdateNewMessageBody, UpdateSessionBody, UserMessage, VerifyLocalRequestContext, VerifyPublicRequestContext, VersionedEncryptedValue, VersionedMachineEncryptedValue, VersionedNullableEncryptedValue, VoiceConversationResponse, VoiceUsageResponse };

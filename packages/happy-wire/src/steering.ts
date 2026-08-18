@@ -82,6 +82,21 @@ export const steeringOutcomeSchema = z.enum([
 ]);
 export type SteeringOutcome = z.infer<typeof steeringOutcomeSchema>;
 
+/**
+ * T6 v3 attach-level protocol negotiation, nested under
+ * `happy.attach` result `protocol` (fork-confirmed shape 2026-08-17).
+ * `capabilities` is an array in v3. Passthrough tolerates additive future
+ * fields (e.g. `contractHash`) without breaking the attach; the CLI still
+ * validates `happyProtocolVersion`/`methods` fail-closed when present.
+ */
+export const steeringAttachProtocolSchema = z.object({
+  happyProtocolVersion: z.string().min(1),
+  capabilities: z.array(z.unknown()).optional(),
+  methods: z.array(z.string().min(1)).optional(),
+  contractHash: z.string().min(1).optional(),
+}).passthrough();
+export type SteeringAttachProtocol = z.infer<typeof steeringAttachProtocolSchema>;
+
 export const steeringResultSchema = z.object({
   actionId: uuidV4Schema.optional(),
   outcome: steeringOutcomeSchema,
@@ -91,13 +106,12 @@ export const steeringResultSchema = z.object({
   leaseTtlMs: z.number().int().positive().optional(),
   retryAfterMs: z.number().int().nonnegative().optional(),
   requestId: z.string().min(1).optional(),
-  // T6 v3 attach-level negotiation fields. Older runtimes omit all three;
-  // when a runtime advertises them, the CLI validates them fail-closed
-  // (happyProtocolVersion must be '3' and methods must cover the full
-  // STEERING_RPC_METHODS surface) before steering is considered attached.
-  happyProtocolVersion: z.string().min(1).optional(),
-  capabilities: z.record(z.string(), z.unknown()).optional(),
-  methods: z.array(z.string().min(1)).optional(),
+  // T6 v3 `happy.attach` result extensions. Older runtimes omit both;
+  // when a runtime advertises `protocol`, the CLI validates it fail-closed
+  // (happyProtocolVersion must be '3' and methods, when listed, must cover
+  // the full STEERING_RPC_METHODS surface) before steering is attached.
+  control: z.record(z.string(), z.unknown()).optional(),
+  protocol: steeringAttachProtocolSchema.optional(),
 }).strict();
 export type SteeringResult = z.infer<typeof steeringResultSchema>;
 
