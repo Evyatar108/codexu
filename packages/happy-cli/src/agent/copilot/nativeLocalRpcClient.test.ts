@@ -111,9 +111,39 @@ describe('NativeLocalRpcClient', () => {
       ],
     });
     expect(requests.filter((request) => request.method === 'session.eventLog.read')[0].params).not.toHaveProperty('eventTypes');
-    expect(requests.filter((request) => request.method === 'happy.getControlState')[0].params).toEqual({
-      sessionId: 'session-1',
+    // The v3 actor strict-rejects sessionId on getControlState (-32602); it is
+    // attachment-scoped, so the client must NOT inject the session id there.
+    expect(requests.filter((request) => request.method === 'happy.getControlState')[0].params).toEqual({});
+  });
+
+  it('injects the session id only on session-scoped steering methods', async () => {
+    const requests: Array<Record<string, unknown>> = [];
+    server = net.createServer((socket) => {
+      parseFrames(socket, (message) => {
+        requests.push(message);
+        let result: unknown = {};
+        if (message.method === 'connect') result = { protocolVersion: 3, version: COPILOT_NATIVE_VERSION };
+        if (message.method === 'session.getForeground') result = { sessionId: 'session-1' };
+        if (message.method?.toString().startsWith('happy.')) result = { outcome: 'applied' };
+        socket.write(frame({ jsonrpc: '2.0', id: message.id, result }));
+      });
     });
+    await new Promise<void>((resolve) => server!.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('Missing server address');
+    client = new NativeLocalRpcClient('127.0.0.1', address.port);
+    await client.connect('token', 'session-1');
+
+    await client.invokeSteering('happy.attach');
+    await client.invokeSteering('happy.requestLease', { actionId: 'a' });
+    await client.invokeSteering('happy.heartbeat', { actionId: 'b', leaseId: 'lease-1' });
+    await client.invokeSteering('happy.releaseLease', { actionId: 'c', leaseId: 'lease-1' });
+
+    const byMethod = (method: string) => requests.find((request) => request.method === method)?.params as Record<string, unknown>;
+    expect(byMethod('happy.attach')).toHaveProperty('sessionId', 'session-1');
+    expect(byMethod('happy.requestLease')).toHaveProperty('sessionId', 'session-1');
+    expect(byMethod('happy.heartbeat')).not.toHaveProperty('sessionId');
+    expect(byMethod('happy.releaseLease')).not.toHaveProperty('sessionId');
   });
 
   it('forwards steering notifications only for the verified foreground session', async () => {

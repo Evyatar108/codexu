@@ -25,6 +25,19 @@ const MAX_HEADER_BYTES = 8 * 1024;
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
 const DEFAULT_TIMEOUT_MS = 15_000;
 
+/**
+ * The v3 native actor is strict (unknown fields are -32602): `sessionId` is
+ * accepted on attach/requestLease and REQUIRED on answerPrompt, but rejected
+ * on getControlState/heartbeat/releaseLease (those act on the connection's
+ * attachment and the lease id). Only inject the verified foreground session
+ * id where the method accepts it.
+ */
+const STEERING_SESSION_SCOPED_METHODS: ReadonlySet<SteeringRpcMethod> = new Set([
+  'happy.attach',
+  'happy.requestLease',
+  'happy.answerPrompt',
+]);
+
 export type SteeringNotification = {
   method: 'happy.controlChanged';
   params: Record<string, unknown>;
@@ -248,7 +261,12 @@ export class NativeLocalRpcClient extends EventEmitter {
     params: Record<string, unknown> = {},
     timeoutMs?: number,
   ): Promise<SteeringResult> {
-    return steeringResultSchema.parse(await this.sessionRequest(method, params, timeoutMs));
+    if (STEERING_SESSION_SCOPED_METHODS.has(method)) {
+      return steeringResultSchema.parse(await this.sessionRequest(method, params, timeoutMs));
+    }
+    if (this.foregroundSessionId === null) throw new Error('Copilot foreground session is not verified');
+    if ('sessionId' in params) throw new Error('Caller cannot override Copilot session id');
+    return steeringResultSchema.parse(await this.request(method, params, timeoutMs));
   }
 
   close(): void {

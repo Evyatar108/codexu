@@ -107,10 +107,12 @@ describe('CopilotSteeringClient', () => {
     });
 
     await client.heartbeat();
-    expect(fake.calls.at(-1)).toEqual({
+    expect(fake.calls.at(-1)).toMatchObject({
       method: 'happy.heartbeat',
       params: { leaseId: 'lease-1' },
     });
+    // The v3 actor requires actionId on heartbeat (strict -32602 otherwise).
+    expect(fake.calls.at(-1)?.params.actionId).toEqual(expect.any(String));
     client.dispose();
   });
 

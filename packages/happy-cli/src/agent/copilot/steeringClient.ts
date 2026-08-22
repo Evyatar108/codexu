@@ -172,6 +172,7 @@ export class CopilotSteeringClient {
     if (this.state.status !== 'active') return { outcome: 'no_lease' };
     const generation = this.generation;
     const result = await this.transport.invokeSteering('happy.heartbeat', {
+      actionId: randomUUID(),
       leaseId: this.state.leaseId,
     });
     return this.applyLeaseResult(result, generation)
@@ -183,6 +184,7 @@ export class CopilotSteeringClient {
     if (this.state.status !== 'active') return { outcome: 'no_lease' };
     const generation = this.generation;
     const result = await this.transport.invokeSteering('happy.releaseLease', {
+      actionId: randomUUID(),
       leaseId: this.state.leaseId,
     });
     if (generation !== this.generation) return { outcome: 'no_lease' };
@@ -197,7 +199,7 @@ export class CopilotSteeringClient {
     this.invalidateLease('detached');
     if (!leaseId) return;
     try {
-      await this.transport.invokeSteering('happy.releaseLease', { leaseId });
+      await this.transport.invokeSteering('happy.releaseLease', { actionId: randomUUID(), leaseId });
     } catch {
       // The local generation remains revoked even if the best-effort native
       // release races a transport loss; the fork-side TTL is the backstop.
